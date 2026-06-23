@@ -165,6 +165,8 @@ export type PersistedWizardState = {
     /** Studio execution consumption summary (V50 — wizard + create). */
     executionConsumption?: import("@/types/motion-handoff-execution-consumption").MotionExecutionConsumptionSummary;
   };
+  /** Sprint E: editor Image → Motion brand lock bridge (merged into studioHandoff on create). */
+  brandLockedAssets?: import("@/types/brand-asset-protection").BrandLockedAsset[];
 };
 
 function storageAvailable(): boolean {

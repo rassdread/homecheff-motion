@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import {
   HOMECHEFF_BRAND_ICON_PATHS,
+  HOMECHEFF_STATIC_ICON_PATHS,
   homeCheffSiteIcons,
   homeCheffWebManifestIcons,
 } from "@/lib/homecheff-brand-icon";
@@ -15,58 +15,74 @@ describe("homecheff brand icon", () => {
   it("exposes globe-man SSOT path for metadata and shell", () => {
     assert.equal(HOMECHEFF_BRAND_ICON_PATHS.source, "/homecheff-globe-man.png");
     const icons = homeCheffSiteIcons();
-    assert.ok(Array.isArray(icons.icon));
-    assert.ok(Array.isArray(icons.apple));
+    assert.ok(icons.icon);
+    assert.ok(icons.apple);
   });
 
-  it("generated v4 public icon assets exist (no query-param cache bust)", () => {
+  it("apple-touch-icon route serves versioned PNG", () => {
+    const route = join(ROOT, "src/app/apple-touch-icon.png/route.ts");
+    assert.equal(existsSync(route), true);
+    assert.equal(existsSync(join(ROOT, "public/apple-touch-icon.png")), false);
+  });
+
+  it("favicon.ico route serves PNG with correct MIME (not public/static)", () => {
+    const route = join(ROOT, "src/app/favicon.ico/route.ts");
+    assert.equal(existsSync(route), true);
+    assert.equal(existsSync(join(ROOT, "public/favicon.ico")), false);
+    const source = readFileSync(route, "utf8");
+    assert.match(source, /image\/png/);
+    assert.match(source, /HOMECHEFF_BRAND_ICON_PATHS\.favicon32/);
+  });
+
+  it("static public favicon assets exist (no src/app icon convention)", () => {
     for (const file of [
       "homecheff-globe-man.png",
-      "homecheff-favicon-v4.ico",
-      "homecheff-favicon-16-v4.png",
-      "homecheff-favicon-32-v4.png",
-      "homecheff-apple-touch-icon-v4.png",
-      "favicon.ico",
+      "icon.png",
+      "homecheff-favicon-16-v10.png",
+      "homecheff-favicon-32-v10.png",
+      "homecheff-apple-touch-icon-v10.png",
       "site.webmanifest",
     ]) {
       assert.equal(existsSync(join(ROOT, "public", file)), true, `missing public/${file}`);
     }
-    assert.equal(existsSync(join(ROOT, "src/app/favicon.ico")), false);
+    for (const file of [
+      "favicon.ico",
+      "apple-touch-icon.png",
+      "homecheff-favicon-v4.ico",
+      "homecheff-favicon-32-v6.png",
+      "brand/homecheff-logo.svg",
+      "brand/garden-chef-mascot.svg",
+    ]) {
+      assert.equal(existsSync(join(ROOT, "public", file)), false, `removed asset still present: public/${file}`);
+    }
+    for (const file of ["icon.png", "apple-icon.png"]) {
+      assert.equal(existsSync(join(ROOT, "src/app", file)), false, `src/app/${file} must not exist`);
+    }
+    assert.equal(existsSync(join(ROOT, "src/app/favicon.ico/route.ts")), true);
     assert.equal(existsSync(join(ROOT, "public/favicon.svg")), false);
   });
 
-  it("metadata icons use v4 filenames with PNG before ICO", () => {
+  it("metadata icons use PNG-first paths without query strings (Safari)", () => {
     const icons = homeCheffSiteIcons();
-    const iconUrls = (icons.icon ?? []).map((entry) =>
-      typeof entry === "string" ? entry : entry.url
-    );
-    assert.deepEqual(iconUrls, [
-      "/homecheff-favicon-32-v4.png",
-      "/homecheff-favicon-16-v4.png",
-      "/homecheff-favicon-v4.ico",
-      "/favicon.ico",
-    ]);
-    assert.equal(icons.shortcut, "/homecheff-favicon-v4.ico");
-    const apple = icons.apple ?? [];
-    const appleUrl = typeof apple[0] === "string" ? apple[0] : apple[0]?.url;
-    assert.equal(appleUrl, "/homecheff-apple-touch-icon-v4.png");
-    assert.ok(!iconUrls.some((url) => url.includes("?v=")));
-    assert.ok(!iconUrls.some((url) => url.includes(".svg")));
+    assert.ok(Array.isArray(icons.icon));
+    const iconList = icons.icon as Array<{ url: string; type?: string }>;
+    assert.equal(iconList[0]?.type, "image/png");
+    assert.equal(iconList[0]?.url, "/homecheff-favicon-32-v10.png");
+    assert.equal(icons.shortcut, "/homecheff-favicon-32-v10.png");
+    const apple = icons.apple;
+    const appleUrl = typeof apple === "string" ? apple : apple?.url;
+    assert.equal(appleUrl, "/homecheff-apple-touch-icon-v10.png");
+    for (const entry of iconList) {
+      assert.ok(!entry.url.includes("?"), `query string breaks Safari: ${entry.url}`);
+    }
   });
 
-  it("v4 favicon bytes match globe-man derivatives", () => {
-    const v4Ico = readFileSync(join(ROOT, "public/homecheff-favicon-v4.ico"));
-    const legacyIco = readFileSync(join(ROOT, "public/favicon.ico"));
-    assert.equal(
-      createHash("sha256").update(v4Ico).digest("hex"),
-      createHash("sha256").update(legacyIco).digest("hex")
-    );
-    const v4Png = readFileSync(join(ROOT, "public/homecheff-favicon-32-v4.png"));
-    const legacyPng = readFileSync(join(ROOT, "public/favicon-32x32.png"));
-    assert.equal(
-      createHash("sha256").update(v4Png).digest("hex"),
-      createHash("sha256").update(legacyPng).digest("hex")
-    );
+  it("layout declares static favicon links for Safari (no JS favicon sync)", () => {
+    const layout = readFileSync(join(ROOT, "src/app/layout.tsx"), "utf8");
+    assert.match(layout, /ROOT_SITE_METADATA/);
+    assert.match(layout, /rel="icon"/);
+    assert.match(layout, /HOMECHEFF_BRAND_ICON_PATHS\.favicon32/);
+    assert.doesNotMatch(layout, /HomeCheffFaviconSync/);
   });
 
   it("site.webmanifest icons match runtime manifest helper", () => {
@@ -78,14 +94,6 @@ describe("homecheff brand icon", () => {
       manifest.icons.map((icon: { src: string }) => icon.src),
       expected
     );
-    assert.ok(!manifest.icons.some((icon: { src: string }) => icon.src.includes("?v=")));
-  });
-
-  it("layout relies on metadata icons only (no duplicate head links)", () => {
-    const layout = readFileSync(join(ROOT, "src/app/layout.tsx"), "utf8");
-    assert.match(layout, /ROOT_SITE_METADATA/);
-    assert.doesNotMatch(layout, /HomeCheffSafariIconLinks/);
-    assert.doesNotMatch(layout, /<head>/);
   });
 
   it("app shell uses HomeCheffBrandMark", () => {

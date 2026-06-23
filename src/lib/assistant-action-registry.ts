@@ -1,4 +1,8 @@
 import { buildCharacterClusterHref } from "@/lib/character-cluster-routes";
+import {
+  buildAssistantEditorWorkflowRoute,
+  buildMascotTransformWizardRoute,
+} from "@/lib/assistant-editor-routes";
 import { LIBRARY_HUB_BASE_PATH } from "@/lib/homecheff-suite-route-aliases";
 
 export const ASSISTANT_ACTION_IDS = [
@@ -66,8 +70,8 @@ export const ASSISTANT_ACTION_REGISTRY: Record<AssistantActionId, AssistantActio
   edit_mascot: {
     id: "edit_mascot",
     category: "character",
-    description: "Open the editor to update an existing mascot or character asset.",
-    canonicalRoute: "/editor?workflow=edit",
+    description: "Open the mascot transformation wizard.",
+    canonicalRoute: buildMascotTransformWizardRoute(),
     execution: "registry_only",
   },
   create_motion_video: {
@@ -81,7 +85,7 @@ export const ASSISTANT_ACTION_REGISTRY: Record<AssistantActionId, AssistantActio
     id: "create_fusion",
     category: "fusion",
     description: "Open the editor fusion / combine workflow.",
-    canonicalRoute: "/editor?workflow=combine",
+    canonicalRoute: buildAssistantEditorWorkflowRoute("combine"),
     execution: "registry_only",
   },
   create_publish_export: {
@@ -116,35 +120,35 @@ export const ASSISTANT_ACTION_REGISTRY: Record<AssistantActionId, AssistantActio
     id: "prepare_outfit",
     category: "preparation",
     description: "Plan outfit preparation via fusion (registry only).",
-    canonicalRoute: "/editor?workflow=combine",
+    canonicalRoute: buildAssistantEditorWorkflowRoute("combine"),
     execution: "registry_only",
   },
   prepare_background: {
     id: "prepare_background",
     category: "preparation",
     description: "Plan background preparation (registry only).",
-    canonicalRoute: "/editor?workflow=combine",
+    canonicalRoute: buildAssistantEditorWorkflowRoute("combine"),
     execution: "registry_only",
   },
   prepare_location: {
     id: "prepare_location",
     category: "preparation",
     description: "Plan location/scene preparation (registry only).",
-    canonicalRoute: "/editor?workflow=combine",
+    canonicalRoute: buildAssistantEditorWorkflowRoute("combine"),
     execution: "registry_only",
   },
   prepare_prop: {
     id: "prepare_prop",
     category: "preparation",
     description: "Plan prop preparation (registry only).",
-    canonicalRoute: "/editor?workflow=combine",
+    canonicalRoute: buildAssistantEditorWorkflowRoute("combine"),
     execution: "registry_only",
   },
   prepare_vehicle: {
     id: "prepare_vehicle",
     category: "preparation",
     description: "Plan vehicle preparation (registry only).",
-    canonicalRoute: "/editor?workflow=combine",
+    canonicalRoute: buildAssistantEditorWorkflowRoute("combine"),
     execution: "registry_only",
   },
   prepare_music: {

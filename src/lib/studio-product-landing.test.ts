@@ -41,6 +41,7 @@ describe("Studio product landing layer", () => {
 
   it("deep links bypass landing", () => {
     assert.equal(editorLandingHasDeepLink(new URLSearchParams("session=abc")), true);
+    assert.equal(editorLandingHasDeepLink(new URLSearchParams("workflow=combine")), true);
     assert.equal(editorLandingHasDeepLink(new URLSearchParams()), false);
     assert.equal(studioLandingHasDeepLink(new URLSearchParams("storyboardId=sb1")), true);
     assert.equal(studioLandingHasDeepLink(new URLSearchParams()), false);

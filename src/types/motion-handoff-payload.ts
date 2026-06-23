@@ -235,7 +235,7 @@ export type MotionRenderStrategyHandoffPlan = {
   warnings: RenderStrategyReason[];
 };
 
-export const MOTION_HANDOFF_PAYLOAD_VERSION = 26 as const;
+export const MOTION_HANDOFF_PAYLOAD_VERSION = 27 as const;
 
 /**
  * Single source of truth for Studio → Motion wizard import.
@@ -429,5 +429,9 @@ export type MotionHandoffPayload = {
   viduExecutionPlan?: MotionViduExecutionPlanHandoffPlan;
   /** V50: Scene Generation Orchestrator metadata (planning only). */
   sceneGenerationPlan?: MotionSceneGenerationHandoffPlan;
+  /** Sprint E: brand assets locked from Image Brand Asset Protection (geometry + preserve modes). */
+  brandLockedAssets?: import("@/types/brand-asset-protection").BrandLockedAsset[];
+  /** Sprint E: summary log for motion lock bridge (metadata only). */
+  brandMotionLockLog?: import("@/types/brand-asset-protection").BrandMotionLockLog;
   scenes: MotionHandoffScene[];
 };

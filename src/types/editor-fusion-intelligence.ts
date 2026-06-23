@@ -14,6 +14,24 @@ export type ReferenceAnalysisPart = {
   confidence?: number;
 };
 
+export type ReferenceAnalysisEnrichment = {
+  eyes?: string;
+  hair?: string;
+  beard?: boolean;
+  glasses?: boolean;
+  faceShape?: string;
+  clothingItems: string[];
+  accessoryItems: string[];
+  styleDnaSummary?: string;
+  dominantColors: string[];
+  visionTargets: Array<{
+    id: string;
+    label: string;
+    normalizedKey?: string;
+    hierarchyNodeId?: string;
+  }>;
+};
+
 export type ReferenceAnalysisProfile = {
   referenceId: string;
   assetId: string;
@@ -34,6 +52,12 @@ export type ReferenceAnalysisProfile = {
   objectType?: string;
   confidence: number;
   premiumCached: boolean;
+  /** Sprint FQ6 — structured traits from existing vision data (no new AI). */
+  enrichment?: ReferenceAnalysisEnrichment;
+  /** Sprint CC6 — person consistency profile from existing vision data. */
+  personConsistency?: import("@/types/character-consistency-audit").PersonConsistencyProfile;
+  /** Sprint CC7 — mascot consistency profile from existing vision data. */
+  mascotConsistency?: import("@/types/character-consistency-audit").MascotConsistencyProfile;
 };
 
 export type FusionBlueprintTraitSource =
@@ -80,6 +104,8 @@ export type FusionRenderPayload = {
   references: FusionRenderReference[];
   logoAssets: FusionRenderReference[];
   primaryImageUrl: string;
+  /** Brand Asset Protection Layer — protected logos, marks, labels */
+  brandProtection?: import("@/types/brand-asset-protection").BrandAssetProtectionResult;
 };
 
 export type FusionIntelligenceState = {
@@ -127,6 +153,7 @@ export type FusionRunRecord = {
   status: "completed" | "failed";
   errorCode?: string | null;
   completedAt: string;
+  brandProtectionLog?: import("@/types/brand-asset-protection").BrandAssetProtectionLog;
 };
 
 export type FusionAnalysisReadiness = {

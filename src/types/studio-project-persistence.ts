@@ -1,3 +1,4 @@
+import type { BrandLockedAsset } from "@/types/brand-asset-protection";
 import type { MotionStudioIntelligenceSnapshot } from "@/types/motion-studio-intelligence";
 import type { MotionRenderReadiness } from "@/types/motion-studio-intelligence";
 
@@ -25,6 +26,8 @@ export type StudioProjectImportInput = {
   /** Optional raw handoff — server sanitizes before storage. */
   handoff?: unknown;
   imageLineage?: StudioImageLineageEntry[];
+  /** Sprint E: merge editor brand lock assets into persisted handoff. */
+  brandLockedAssets?: BrandLockedAsset[];
 };
 
 export type ProjectStudioSourceSummary = {

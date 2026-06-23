@@ -284,6 +284,8 @@ export async function runFusionWizardRenderPipeline(input: {
     };
   }
 
+  const fusionRunWithProtection = result.fusionRun;
+
   const completedDoc: EditorCanvasDocument = {
     ...document,
     backgroundUrl: result.resultUrl,
@@ -291,7 +293,7 @@ export async function runFusionWizardRenderPipeline(input: {
       ...document.instructionStudioState,
       fusionIntelligence: {
         ...fusionIntelligence.state,
-        lastRun: result.fusionRun,
+        lastRun: fusionRunWithProtection,
       },
     },
   };
@@ -304,7 +306,7 @@ export async function runFusionWizardRenderPipeline(input: {
     storageKey: result.storageKey,
     document: completedDoc,
     intake,
-    fusionRun: result.fusionRun,
+      fusionRun: fusionRunWithProtection,
     creditsUsed:
       result.totalCreditsCharged ??
       premiumResult.premiumCreditsCharged + renderCreditsCharged,

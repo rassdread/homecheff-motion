@@ -23,7 +23,17 @@ import {
   resolveStudioMotionInstructionTextsBySceneIndex,
   resolveStudioSemanticRecipeTextsBySceneIndex,
 } from "@/lib/build-studio-scene-motion-instructions";
+import { logBrandMotionLock, readBrandLockedAssetsFromHandoffJson } from "@/lib/brand-asset-motion-lock";
+import {
+  buildMotionProjectKeyframeBrandLog,
+  logMotionProjectKeyframeBrand,
+  resolveKeyframeRoleForImageIndex,
+} from "@/lib/motion-keyframe-brand-baking";
 import { parseMotionHandoffPayloadForStorage } from "@/lib/studio-motion-handoff-storage";
+import {
+  resolveProtectedViduKeyframeUrl,
+  resolveProtectedViduKeyframeUrlsForProject,
+} from "@/server/instant-premium/motion-keyframe-brand-protection";
 import {
   buildInstantStoryModePromptDetailed,
   buildStoryModeBudgetedViduPrompt,
@@ -250,8 +260,8 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
     throw new Error("Transition images are missing preview URLs.");
   }
 
-  const startViduUrl = startImage.viduInputUrl?.trim() || startImage.previewUrl;
-  const endViduUrl = endImage.viduInputUrl?.trim() || endImage.previewUrl;
+  let startViduUrl = startImage.viduInputUrl?.trim() || startImage.previewUrl;
+  let endViduUrl = endImage.viduInputUrl?.trim() || endImage.previewUrl;
   const textRenderMode = normalizeTextRenderMode(transition.project.instantTextRenderMode);
   const posterMotionActive = textRenderMode === "poster_motion_preserve";
   const bakedTextProtectionActive =
@@ -268,6 +278,23 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
   const isInstantPremium = transition.project.projectType === "instant_premium";
   const instantMode = parseInstantMode(transition.project.instantMode);
   const isStoryMode = isInstantPremium && instantMode === "story";
+
+  if (isInstantPremium) {
+    logBrandMotionLock(
+      {
+        phase: "segment_job",
+        projectId: transition.projectId,
+        transitionId: transition.id,
+        transitionOrder: transition.order,
+        instantMode,
+      },
+      readBrandLockedAssetsFromHandoffJson(transition.project.studioHandoffJson)
+    );
+  }
+
+  const brandLockedAssets = isInstantPremium
+    ? readBrandLockedAssetsFromHandoffJson(transition.project.studioHandoffJson)
+    : [];
 
   const orderedProjectImages = isStoryMode ?
     await prisma.animationImage.findMany({
@@ -454,6 +481,86 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
       })();
   }
 
+  let storyKeyframeUrls: string[] | null = null;
+  if (isStoryMode && orderedProjectImages.length > 0) {
+    storyKeyframeUrls = orderedProjectImages.map(
+      (img) => img.viduInputUrl?.trim() || img.previewUrl?.trim() || ""
+    );
+  }
+
+  if (brandLockedAssets.length > 0) {
+    const storedHandoffForBrand = parseMotionHandoffPayloadForStorage(
+      transition.project.studioHandoffJson
+    );
+    const sortedScenes = storedHandoffForBrand
+      ? [...storedHandoffForBrand.scenes].sort((a, b) => a.order - b.order)
+      : [];
+
+    if (isStoryMode && storyKeyframeUrls) {
+      const baked = await resolveProtectedViduKeyframeUrlsForProject({
+        frames: orderedProjectImages.map((img, index) => ({
+          sourceUrl: img.viduInputUrl?.trim() || img.previewUrl?.trim() || "",
+          segmentIndex: index,
+          keyframeRole: resolveKeyframeRoleForImageIndex(
+            index,
+            orderedProjectImages.length
+          ),
+          sceneId: sortedScenes[index]?.sceneId,
+        })),
+        brandLockedAssets,
+        projectId: transition.projectId,
+        ownerId: transition.project.ownerId,
+      });
+      storyKeyframeUrls = baked.urls;
+      logMotionProjectKeyframeBrand(
+        { phase: "project_keyframe_bake", projectId: transition.projectId },
+        buildMotionProjectKeyframeBrandLog({
+          brandLockedAssets,
+          keyframeBrandProtectionApplied: baked.summary.postCompositeApplied,
+        })
+      );
+      console.info("[motion-keyframe-baking]", {
+        projectId: transition.projectId,
+        transitionId: transition.id,
+        instantMode,
+        ...baked.viduAudit,
+      });
+    } else if (!isStoryMode) {
+      const startBaked = await resolveProtectedViduKeyframeUrl({
+        sourceUrl: startViduUrl,
+        brandLockedAssets,
+        segmentIndex: transition.order,
+        keyframeRole: "start",
+        projectId: transition.projectId,
+        ownerId: transition.project.ownerId,
+      });
+      const endBaked = await resolveProtectedViduKeyframeUrl({
+        sourceUrl: endViduUrl,
+        brandLockedAssets,
+        segmentIndex: transition.order + 1,
+        keyframeRole: "end",
+        projectId: transition.projectId,
+        ownerId: transition.project.ownerId,
+      });
+      startViduUrl = startBaked.url;
+      endViduUrl = endBaked.url;
+      logMotionProjectKeyframeBrand(
+        { phase: "project_keyframe_bake", projectId: transition.projectId },
+        buildMotionProjectKeyframeBrandLog({
+          brandLockedAssets,
+          keyframeBrandProtectionApplied: startBaked.baked || endBaked.baked,
+        })
+      );
+      console.info("[motion-keyframe-baking]", {
+        projectId: transition.projectId,
+        transitionId: transition.id,
+        instantMode,
+        startFrameProtected: startBaked.baked,
+        endFrameProtected: endBaked.baked,
+      });
+    }
+  }
+
   const provider = getVideoProvider();
   const jobSettings = resolveProviderJobSettings(transition.project);
   let providerResult;
@@ -480,14 +587,17 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
             viduMultiframeSegmentDurationSeconds(transitionSeconds)
           );
       const firstUrl =
-        orderedProjectImages[0].viduInputUrl?.trim() ||
-        orderedProjectImages[0].previewUrl?.trim() ||
-        "";
+        storyKeyframeUrls?.[0] ??
+        (orderedProjectImages[0].viduInputUrl?.trim() ||
+          orderedProjectImages[0].previewUrl?.trim() ||
+          "");
       if (!firstUrl) {
         throw new Error("Story mode start image is missing a preview URL.");
       }
       const segments = orderedProjectImages.slice(1).map((img, index) => {
-        const url = img.viduInputUrl?.trim() || img.previewUrl?.trim() || "";
+        const url =
+          storyKeyframeUrls?.[index + 1] ??
+          (img.viduInputUrl?.trim() || img.previewUrl?.trim() || "");
         if (!url) {
           throw new Error(`Story mode image ${index + 2} is missing a preview URL.`);
         }

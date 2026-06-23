@@ -174,7 +174,7 @@ function minimalHandoff(): MotionHandoffPayload {
 
 describe("Studio V43 asset placement", () => {
   it("handoff payload version is 26", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 26);
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 27);
   });
 
   it("hero placement uses center foreground hero scale", () => {
@@ -333,7 +333,7 @@ describe("Studio V43 asset placement", () => {
     assert.ok(attached.assetPlacementPlan?.enabled);
     assert.equal(attached.characterPlacements?.length, 1);
     assert.ok(attached.visualHierarchySummary?.primarySubject === "Chef");
-    assert.equal(attached.version, 26);
+    assert.equal(attached.version, 27);
   });
 
   it("placement attaches after composition and before provider execution", () => {

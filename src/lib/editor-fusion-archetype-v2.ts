@@ -2,6 +2,7 @@ import {
   fusionArchetypeDefinitionForIntent,
   seedArchetypeOutputSettings,
 } from "@/lib/editor-fusion-archetype-definitions";
+import { BRAND_PROTECTION_PROMPT_RULES } from "@/lib/brand-asset-protection-layer";
 import type {
   FusionArchetype,
   FusionArchetypeAnalysis,
@@ -175,6 +176,7 @@ export function buildFusionArchetypeNegativePrompt(
 
   if (settings.preserveLogoExact === true) {
     lines.push("Do not redraw or stylize logos or brand marks.");
+    lines.push(...BRAND_PROTECTION_PROMPT_RULES.slice(0, 4));
   }
   if (settings.preserveIdentity === true || settings.preserveCharacterIdentity === true || settings.preserveHumanIdentity === true) {
     lines.push("Do not alter facial identity.");

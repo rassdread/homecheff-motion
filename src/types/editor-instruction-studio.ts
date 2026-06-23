@@ -684,6 +684,8 @@ export type EditorInstructionStudioState = {
   outputTarget?: EditorInstructionOutputTarget;
   workflow?: EditorWorkflowOrchestrationState;
   brandReferences?: BrandReferenceAsset[];
+  /** Vision-targeted logo placement blueprint (wizard-first flow) */
+  logoPlacementBlueprint?: import("@/types/brand-asset-protection").LogoPlacementBlueprint;
   styleReference?: EditorInstructionReference | null;
   productReference?: EditorInstructionReference | null;
   transformationSession?: EditorTransformationSession;

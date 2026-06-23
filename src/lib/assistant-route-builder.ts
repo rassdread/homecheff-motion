@@ -4,6 +4,10 @@ import {
   type AssistantActionId,
 } from "@/lib/assistant-action-registry";
 import { buildHcHandoffUrl } from "@/lib/homecheff-project-package-core";
+import {
+  buildAssistantEditorWorkflowRoute,
+  normalizeAssistantEditorRoute,
+} from "@/lib/assistant-editor-routes";
 import { LIBRARY_HUB_BASE_PATH } from "@/lib/homecheff-suite-route-aliases";
 import type { HomeCheffProjectPackage } from "@/types/homecheff-project-package";
 
@@ -43,7 +47,9 @@ export function buildAssistantActionRoute(
       });
     case "edit_mascot":
       if (context.projectId) {
-        return `${buildHcHandoffUrl(context.projectId, "editor")}&workflow=edit`;
+        return normalizeAssistantEditorRoute(
+          `${buildHcHandoffUrl(context.projectId, "editor")}&workflow=edit`
+        );
       }
       return base;
     case "create_motion_video":
@@ -53,7 +59,9 @@ export function buildAssistantActionRoute(
       return base;
     case "create_fusion":
       if (context.projectId) {
-        return `${buildHcHandoffUrl(context.projectId, "editor")}&workflow=combine`;
+        return normalizeAssistantEditorRoute(
+          `${buildHcHandoffUrl(context.projectId, "editor")}&workflow=combine`
+        );
       }
       return base;
     case "create_publish_export":

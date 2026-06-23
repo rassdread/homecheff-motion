@@ -24,6 +24,15 @@ export function buildNoIndexMetadata(): Metadata {
   };
 }
 
+/** Request origin for metadata in dev — not production NEXT_PUBLIC_APP_URL. */
+export function getMetadataBaseUrl(): string {
+  if (process.env.NODE_ENV === "development") {
+    const port = process.env.PORT ?? "3000";
+    return `http://localhost:${port}`;
+  }
+  return absoluteUrl("/").replace(/\/$/, "");
+}
+
 export function absoluteUrl(path: string): string {
   const vercelUrl = process.env.VERCEL_URL?.trim();
   const base =
@@ -79,7 +88,7 @@ export function buildPageMetadata(input: {
 }
 
 export const ROOT_SITE_METADATA: Metadata = {
-  metadataBase: new URL(absoluteUrl("/")),
+  metadataBase: new URL(`${getMetadataBaseUrl()}/`),
   title: {
     default: SITE_NAME,
     template: `%s | ${SITE_NAME}`,

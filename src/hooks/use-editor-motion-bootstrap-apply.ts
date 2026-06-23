@@ -4,6 +4,10 @@ import { useEffect, useRef } from "react";
 import { useEditorMotionBootstrap } from "@/hooks/use-editor-motion-bootstrap";
 import { mapEditorMotionBootstrapToWizardImage } from "@/lib/editor-motion-bootstrap-image";
 import {
+  readPersistedWizardState,
+  writePersistedWizardState,
+} from "@/lib/instant-premium-wizard-storage";
+import {
   assignImagesToSceneSlots,
   syncAutoEmotionsForSceneSlots,
   type WizardSceneSlot,
@@ -60,6 +64,15 @@ export function useEditorMotionBootstrapApply({
         instantMode
       )
     );
+    if (bootstrap.brandLockedAssets?.length) {
+      const state = readPersistedWizardState();
+      if (state) {
+        writePersistedWizardState({
+          ...state,
+          brandLockedAssets: bootstrap.brandLockedAssets,
+        });
+      }
+    }
     appliedKeyRef.current = applyKey;
   }, [bootstrap, instantMode, sceneSlots, setSceneSlots, transitionSeconds]);
 }

@@ -26,6 +26,8 @@ import { resolveEditorDocumentOrigin } from "@/lib/editor-project-origin";
 import { scheduleIdleTask } from "@/lib/editor-project-restore";
 import { buildMotionReadyCharacterWizardHref } from "@/lib/motion-ready-character-routes";
 import { EditorFusionIntentPicker } from "@/components/editor/editor-fusion-intent-picker";
+import { EditorMascotTransformationWizard } from "@/components/editor/editor-mascot-transformation-wizard";
+import { EditorLogoPlacementWizard, LOGO_PLACEMENT_WORKFLOW } from "@/components/editor/editor-logo-placement-wizard";
 import { EditorReferenceRoleFlow } from "@/components/editor/editor-reference-role-flow";
 import { EditorFlowStepper } from "@/components/editor/editor-flow-stepper";
 import { HomeCheffOrbitLoader } from "@/components/editor/homecheff-orbit-loader";
@@ -39,6 +41,8 @@ import {
   type EditorPostUploadMode,
 } from "@/lib/editor-start-flow";
 import { resolveReferenceIntakeConfig } from "@/lib/editor-reference-role-intake";
+import { fusionWorkflowUsesWizardFirst } from "@/lib/editor-fusion-wizard-flow";
+import { MASCOT_TRANSFORM_WORKFLOW } from "@/lib/editor-mascot-transformation";
 import { loadAssistantEditorFusionBootstrap } from "@/lib/assistant-prefill-storage";
 import { AssistantWizardPrefillBanner } from "@/components/assistant/assistant-wizard-prefill-banner";
 import { useAssistantWizardPrefill } from "@/hooks/use-assistant-wizard-prefill";
@@ -51,6 +55,8 @@ type Props = {
 
 type StartPhase =
   | { kind: "workflow" }
+  | { kind: "mascot_transform" }
+  | { kind: "logo_placement" }
   | { kind: "combine_intent"; workflow: "combine" }
   | {
       kind: "reference_flow";
@@ -67,7 +73,14 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
   const [error, setError] = useState("");
   const [recent, setRecent] = useState(() => listRecentEditorDocuments());
   const [phase, setPhase] = useState<StartPhase>(() => {
-    if (searchParams.get("workflow") === "combine") {
+    const workflow = searchParams.get("workflow");
+    if (workflow === MASCOT_TRANSFORM_WORKFLOW) {
+      return { kind: "mascot_transform" };
+    }
+    if (workflow === LOGO_PLACEMENT_WORKFLOW) {
+      return { kind: "logo_placement" };
+    }
+    if (workflow === "combine") {
       return { kind: "combine_intent", workflow: "combine" };
     }
     const bootstrap = typeof window !== "undefined" ? loadAssistantEditorFusionBootstrap() : null;
@@ -237,10 +250,23 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
   };
 
   useEffect(() => {
-    if (fusionBootstrap?.fusionIntent === "outfit_from_reference") {
-      openReferenceFlow("combine", "outfit_from_reference");
+    const workflow = searchParams.get("workflow");
+    if (workflow === MASCOT_TRANSFORM_WORKFLOW) {
+      setPhase({ kind: "mascot_transform" });
+      return;
     }
-  }, [fusionBootstrap]);
+    if (workflow === "combine") {
+      setPhase({ kind: "combine_intent", workflow: "combine" });
+      return;
+    }
+    if (!fusionBootstrap?.fusionIntent) {
+      return;
+    }
+    const intent = fusionBootstrap.fusionIntent as EditorFusionIntent;
+    if (intent === "outfit_from_reference" || fusionWorkflowUsesWizardFirst(intent)) {
+      openReferenceFlow("combine", intent);
+    }
+  }, [fusionBootstrap, searchParams]);
 
   const referenceConfig =
     phase.kind === "reference_flow"
@@ -327,6 +353,21 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
                 </div>
               : null}
             </>
+          : phase.kind === "mascot_transform" ?
+            <EditorMascotTransformationWizard
+              initialTarget={prefill?.mascotTransform?.targetType}
+              initialUserIntent={prefill?.mascotTransform?.userIntent ?? prefill?.promptDraft}
+              initialSourceType={prefill?.mascotTransform?.sourceType}
+              onBack={() => setPhase({ kind: "workflow" })}
+              onOpenEditor={(document) => finishOpen(document, "combine", document.instructionStudioState?.combineIntent)}
+              assistantBootstrap={fusionBootstrap}
+            />
+          : phase.kind === "logo_placement" ?
+            <EditorLogoPlacementWizard
+              initialTargetObjectId={searchParams.get("targetObjectId") ?? undefined}
+              onBack={() => setPhase({ kind: "workflow" })}
+              onOpenEditor={(document) => finishOpen(document, "combine", "product_branding")}
+            />
           : phase.kind === "combine_intent" ?
             <EditorFusionIntentPicker
               busy={opening}

@@ -11,6 +11,14 @@ import {
   resolveFusionVariantImageSlots,
   type FusionVariantImageSlot,
 } from "@/lib/editor-fusion-variant-render";
+import {
+  applyBrandProtectionPostComposite,
+} from "@/lib/brand-asset-post-composite";
+import {
+  validateProtectedBrandAssetsPostRender,
+  withBrandProtectionLogApplied,
+} from "@/lib/brand-asset-protection-layer";
+import { resolveOpenAiEditSize } from "@/lib/editor-instruction-render-dimensions";
 import { validateEditorInstructionVariantImageSource } from "@/server/editor/editor-image-ownership";
 import { uploadPublicBlob } from "@/lib/vercel-blob-config";
 import type {
@@ -48,6 +56,19 @@ export type EditorInstructionVariantResult =
       durationMs?: number;
     };
 
+async function readImageDimensions(buffer: Buffer): Promise<{ width: number; height: number }> {
+  try {
+    const sharp = (await import("sharp")).default;
+    const meta = await sharp(buffer).metadata();
+    return {
+      width: Math.max(1, meta.width ?? 1024),
+      height: Math.max(1, meta.height ?? 1024),
+    };
+  } catch {
+    return { width: 1024, height: 1024 };
+  }
+}
+
 async function extractOpenAiImageBuffer(payload: OpenAiImageResponse): Promise<Buffer | null> {
   const item = payload.data?.[0];
   if (item?.b64_json) {
@@ -62,15 +83,29 @@ async function extractOpenAiImageBuffer(payload: OpenAiImageResponse): Promise<B
   return null;
 }
 
-function resolveEditSize(width: number, height: number): string {
-  const ratio = width / height;
-  if (ratio > 1.2) {
-    return "1536x1024";
-  }
-  if (ratio < 0.8) {
-    return "1024x1536";
-  }
-  return "1024x1024";
+function buildBrandProtectionLogForResult(input: {
+  protection: NonNullable<FusionRenderPayload["brandProtection"]>;
+  postCompositeApplied: boolean;
+  appliedAssetIds: string[];
+  validationWarnings: string[];
+  perspectiveWarpApplied?: boolean;
+  perspectiveWarpAssetIds?: string[];
+  overlayPlans?: import("@/types/brand-asset-protection").PostCompositeOverlayPlan[];
+}): import("@/types/brand-asset-protection").BrandAssetProtectionLog {
+  const primaryPlan = input.overlayPlans?.[0];
+  return withBrandProtectionLogApplied(input.protection.log, {
+    postCompositeApplied: input.postCompositeApplied,
+    postCompositeAssetCount: input.appliedAssetIds.length,
+    postCompositeAppliedAssetIds: input.appliedAssetIds,
+    perspectiveWarpApplied: input.perspectiveWarpApplied ?? false,
+    perspectiveWarpAssetIds: input.perspectiveWarpAssetIds,
+    surfaceType: primaryPlan?.surfaceType,
+    quadGenerated: Boolean(primaryPlan?.quad),
+    quadSource: primaryPlan?.quadSource,
+    quadUsed: input.perspectiveWarpApplied ?? false,
+    validationPassed: input.validationWarnings.length === 0,
+    validationWarnings: input.validationWarnings,
+  });
 }
 
 function estimateInstructionVariantCostUsd(model: string, imageCount: number): number | undefined {
@@ -201,9 +236,10 @@ export async function executeEditorInstructionVariant(params: {
   const editModel = resolveOpenAiImageEditModel();
   const supportsMulti = openAiImageEditSupportsMultiReference(editModel);
   const source = await fetchSourceImageBuffer(imageUrl);
+  const sourceDimensions = await readImageDimensions(source.buffer);
   const additionalImages = await fetchReferenceBuffers(referenceSlots, supportsMulti);
   const referenceImageCount = 1 + (supportsMulti ? additionalImages.length : 0);
-  const size = resolveEditSize(1024, 1024);
+  const size = resolveOpenAiEditSize(sourceDimensions.width, sourceDimensions.height);
   const inputFidelity =
     openAiImageEditSupportsInputFidelity(editModel) && params.instruction.sliders.preserveStyle >= 70
       ? "high"
@@ -271,12 +307,59 @@ export async function executeEditorInstructionVariant(params: {
     };
   }
 
+  let finalBuffer = imageBuffer;
+  let brandProtectionLog: import("@/types/brand-asset-protection").BrandAssetProtectionLog | undefined;
+
+  const brandProtection = params.fusionRenderPayload?.brandProtection;
+  if (brandProtection?.postCompositeAssets.length) {
+    const composite = await applyBrandProtectionPostComposite({
+      renderBuffer: imageBuffer,
+      protection: brandProtection,
+      sourceImageWidth: sourceDimensions.width,
+      sourceImageHeight: sourceDimensions.height,
+    });
+    finalBuffer = composite.buffer;
+
+    const validation = validateProtectedBrandAssetsPostRender({
+      protection: brandProtection,
+      renderSucceeded: true,
+      postCompositeApplied: composite.applied,
+      perspectiveWarpApplied: composite.perspectiveWarpApplied,
+    });
+
+    brandProtectionLog = buildBrandProtectionLogForResult({
+      protection: brandProtection,
+      postCompositeApplied: composite.applied,
+      appliedAssetIds: composite.appliedAssetIds,
+      perspectiveWarpApplied: composite.perspectiveWarpApplied,
+      perspectiveWarpAssetIds: composite.perspectiveWarpAssetIds,
+      overlayPlans: composite.overlayPlans,
+      validationWarnings: [...composite.warnings, ...validation.warnings],
+    });
+
+    if (composite.applied) {
+      console.info("[brand-protection] post-composite applied", {
+        postCompositeApplied: composite.applied,
+        perspectiveWarpApplied: composite.perspectiveWarpApplied,
+        appliedAssetIds: composite.appliedAssetIds,
+        perspectiveWarpAssetIds: composite.perspectiveWarpAssetIds,
+        skippedAssetIds: composite.skippedAssetIds,
+        overlayCount: composite.overlayPlans.length,
+        quadUsed: composite.perspectiveWarpApplied,
+        surfaceType: composite.overlayPlans[0]?.surfaceType,
+        quadSource: composite.overlayPlans[0]?.quadSource,
+        sourceImageWidth: sourceDimensions.width,
+        sourceImageHeight: sourceDimensions.height,
+      });
+    }
+  }
+
   const storageKey = `editor/instruction-variants/${params.sessionId}/${Date.now()}.png`;
   let uploaded: { url: string; pathname: string };
   try {
     uploaded = await uploadPublicBlob({
       pathname: storageKey,
-      body: imageBuffer,
+      body: finalBuffer,
       contentType: "image/png",
       addRandomSuffix: false,
       allowOverwrite: true,
@@ -302,6 +385,7 @@ export async function executeEditorInstructionVariant(params: {
           status: "completed" as const,
           providerCostUsd: costEstimateUsd ?? baseFusionRun.providerCostUsd,
           errorCode: null,
+          brandProtectionLog,
         }
       : undefined;
 

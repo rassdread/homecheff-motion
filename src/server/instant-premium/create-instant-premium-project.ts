@@ -74,6 +74,11 @@ import {
   validateStudioProjectImport,
 } from "@/lib/studio-project-metadata";
 import type { StudioProjectImportInput } from "@/types/studio-project-persistence";
+import type { BrandLockedAsset } from "@/types/brand-asset-protection";
+import {
+  logBrandLockedAssetsPersisted,
+  mergeBrandLockedAssetsIntoStudioHandoffJson,
+} from "@/lib/brand-asset-motion-lock";
 
 const INSTANT_PRESET_ID: AnimationPresetId = "standard";
 const MAX_CHIPS = 3;
@@ -103,6 +108,8 @@ export type InstantPremiumCreatePayload = {
   characterMotion?: import("@/lib/premium-motion-engine").CharacterMotionProfile;
   /** Studio V19: persisted QA metadata when importing from Studio storyboard. */
   studioImport?: StudioProjectImportInput;
+  /** Sprint E: editor brand lock assets for studioHandoffJson persistence. */
+  brandLockedAssets?: BrandLockedAsset[];
 };
 
 export type InstantPremiumCreateResult =
@@ -119,6 +126,28 @@ function isImageInput(value: unknown): value is CreateAnimationProjectImageInput
   }
   const o = value as Record<string, unknown>;
   return typeof o.fileName === "string" && typeof o.previewUrl === "string";
+}
+
+function isBrandLockedAsset(value: unknown): value is BrandLockedAsset {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const row = value as BrandLockedAsset;
+  return typeof row.assetId === "string" && typeof row.assetUrl === "string";
+}
+
+function parseBrandLockedAssets(raw: unknown): BrandLockedAsset[] | undefined {
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+  if (!Array.isArray(raw)) {
+    return undefined;
+  }
+  const assets = raw.filter(isBrandLockedAsset);
+  if (assets.length === 0 && raw.length > 0) {
+    return [];
+  }
+  return assets;
 }
 
 /** Shared validation for checkout storage and post-payment project creation. */
@@ -323,6 +352,15 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
     studioImport = studioValidated.data;
   }
 
+  const brandLockedAssets = parseBrandLockedAssets(o.brandLockedAssets);
+  if (Array.isArray(o.brandLockedAssets) && brandLockedAssets?.length === 0 && o.brandLockedAssets.length > 0) {
+    return {
+      ok: false,
+      error: "brandLockedAssets entries must include assetId and assetUrl.",
+      status: 400,
+    };
+  }
+
   const title =
     typeof o.title === "string" ? sanitizeProjectTitleInput(o.title) : null;
 
@@ -346,6 +384,7 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
     ...(Object.keys(chipTextBySlot).length > 0 ? { chipTextBySlot } : {}),
     ...(userIntent !== undefined ? { userIntent } : {}),
     ...(studioImport ? { studioImport } : {}),
+    ...(brandLockedAssets?.length ? { brandLockedAssets } : {}),
   };
 
   return { ok: true, data };
@@ -569,10 +608,23 @@ export async function createInstantPremiumAnimationProject(
 
   const viduModel = preset.model;
   const viduResolution = preset.resolution;
-  const studioFields =
+  let studioFields =
     validated.data.studioImport ?
       studioMetadataPrismaFields(validated.data.studioImport)
     : {};
+  if (validated.data.brandLockedAssets?.length) {
+    const storyboardId =
+      validated.data.studioImport?.storyboardId?.trim() || "editor-brand-lock";
+    studioFields = {
+      ...studioFields,
+      studioHandoffJson: mergeBrandLockedAssetsIntoStudioHandoffJson(
+        studioFields.studioHandoffJson,
+        validated.data.brandLockedAssets,
+        storyboardId
+      ) as Prisma.InputJsonValue,
+    };
+    logBrandLockedAssetsPersisted({ phase: "project_create", storyboardId }, true);
+  }
 
   try {
     const projectId = await prisma.$transaction(async (tx) => {

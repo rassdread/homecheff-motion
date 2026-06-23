@@ -16,6 +16,7 @@ export type EditorMotionBootstrapPayload = {
   cutoutUrls: string[];
   placementUrls: string[];
   compositorLayerUrls: string[];
+  brandLockedAssets?: import("@/types/brand-asset-protection").BrandLockedAsset[];
 };
 
 export function useEditorMotionBootstrap(): EditorMotionBootstrapPayload | null {
@@ -46,6 +47,9 @@ export function useEditorMotionBootstrap(): EditorMotionBootstrapPayload | null 
       cutoutUrls: bootstrap.cutoutUrls,
       placementUrls: bootstrap.placementUrls,
       compositorLayerUrls: bootstrap.compositorLayerUrls,
+      ...(bootstrap.brandLockedAssets.length > 0
+        ? { brandLockedAssets: bootstrap.brandLockedAssets }
+        : {}),
     };
     window.sessionStorage.setItem(EDITOR_MOTION_BOOTSTRAP_STORAGE_KEY, JSON.stringify(payload));
   }, [bootstrap]);

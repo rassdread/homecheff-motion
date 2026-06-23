@@ -5,7 +5,7 @@ import { SCENE_SEMANTIC_RECIPE_VERSION } from "@/types/studio-scene-semantic-rec
 
 describe("motion handoff payload shape", () => {
   it("uses version 26 with semantic recipe handoff fields", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 26);
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 27);
     assert.equal(SCENE_SEMANTIC_RECIPE_VERSION, 1);
   });
 });

@@ -1,3 +1,8 @@
+import {
+  logBrandLockedAssetsPersisted,
+  mergeBrandLockedAssetsIntoStudioHandoffJson,
+  readBrandLockedAssetsFromHandoffJson,
+} from "@/lib/brand-asset-motion-lock";
 import type { Prisma } from "@prisma/client";
 import { computeMotionRenderReadiness } from "@/lib/compute-motion-render-readiness";
 import {
@@ -150,6 +155,14 @@ export function buildStudioProjectImportFromWizard(
       sanitized = mergeMotionAudioExportIntoHandoffStorage(
         sanitized,
         buildMotionStudioAudioExportFromHandoff(payload)
+      );
+    }
+    const extraBrandAssets = state.brandLockedAssets ?? [];
+    if (extraBrandAssets.length > 0) {
+      sanitized = mergeBrandLockedAssetsIntoStudioHandoffJson(
+        sanitized,
+        extraBrandAssets,
+        handoff.storyboardId.trim()
       );
     }
     const handoffSize = assertStudioJsonWithinSizeLimit(
@@ -325,10 +338,17 @@ export function studioMetadataPrismaFields(
   );
   let handoffJson: Prisma.InputJsonValue | undefined;
   if (input.handoff !== undefined) {
-    const sanitized = sanitizeMotionHandoffForStorage(
+    let sanitized = sanitizeMotionHandoffForStorage(
       input.handoff as Record<string, unknown>
     ) as Record<string, unknown>;
-    const handoffPayload = input.handoff as MotionHandoffPayload;
+    if (input.brandLockedAssets?.length) {
+      sanitized = mergeBrandLockedAssetsIntoStudioHandoffJson(
+        sanitized,
+        input.brandLockedAssets,
+        input.storyboardId
+      );
+    }
+    const handoffPayload = sanitized as MotionHandoffPayload;
     if (handoffPayload.voiceMetadata || handoffPayload.subtitleTrack) {
       const audioExport = buildMotionStudioAudioExportFromHandoff(handoffPayload);
       handoffJson = mergeMotionAudioExportIntoHandoffStorage(
@@ -338,8 +358,18 @@ export function studioMetadataPrismaFields(
     } else {
       handoffJson = sanitized as Prisma.InputJsonValue;
     }
+  } else if (input.brandLockedAssets?.length) {
+    handoffJson = mergeBrandLockedAssetsIntoStudioHandoffJson(
+      undefined,
+      input.brandLockedAssets,
+      input.storyboardId
+    ) as Prisma.InputJsonValue;
   }
   const importedAt = input.importedAt ? new Date(input.importedAt) : new Date();
+
+  if (readBrandLockedAssetsFromHandoffJson(handoffJson).length > 0) {
+    logBrandLockedAssetsPersisted({ storyboardId: input.storyboardId }, true);
+  }
 
   return {
     studioHandoffJson: handoffJson,

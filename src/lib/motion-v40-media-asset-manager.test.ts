@@ -184,7 +184,7 @@ function minimalHandoff(): MotionHandoffPayload {
 
 describe("Studio V40 — Media Asset Manager", () => {
   it("handoff payload version is 21", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 26);
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 27);
   });
 
   it("buildStudioAssetRegistry indexes system and user assets", () => {

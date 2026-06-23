@@ -143,6 +143,8 @@ export function sanitizeMotionHandoffForStorage(
     animationPlan: stripLargeStrings(raw.animationPlan),
     viduExecutionPlan: stripLargeStrings(raw.viduExecutionPlan),
     sceneGenerationPlan: stripLargeStrings(raw.sceneGenerationPlan),
+    brandLockedAssets: stripLargeStrings(raw.brandLockedAssets),
+    brandMotionLockLog: stripLargeStrings(raw.brandMotionLockLog),
     scenes: scenes.map((scene) =>
       isPlainObject(scene) ? sanitizeScene(scene) : scene
     ),

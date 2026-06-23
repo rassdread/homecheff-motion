@@ -8,7 +8,19 @@ export const STUDIO_PRODUCT_START_PATHS = {
 } as const;
 
 export function editorLandingHasDeepLink(searchParams: URLSearchParams): boolean {
-  return Boolean(searchParams.get("session")?.trim() || searchParams.get("hcProject")?.trim());
+  if (searchParams.get("session")?.trim() || searchParams.get("hcProject")?.trim()) {
+    return true;
+  }
+  if (searchParams.get("workflow")?.trim()) {
+    return true;
+  }
+  if (searchParams.get("prefillId")?.trim()) {
+    return true;
+  }
+  if (searchParams.get("morph")?.trim()) {
+    return true;
+  }
+  return false;
 }
 
 export function studioLandingHasDeepLink(searchParams: URLSearchParams): boolean {

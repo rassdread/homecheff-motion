@@ -2,6 +2,8 @@
  * Editor morph actions — human, animal, and mascot transformation routes.
  */
 
+import { buildAssistantEditorWorkflowRoute } from "@/lib/assistant-editor-routes";
+
 export const EDITOR_MORPH_ACTION_IDS = [
   "human_to_cartoon",
   "human_to_mascot",
@@ -36,7 +38,7 @@ export type EditorMorphActionDefinition = {
 };
 
 function morphRoute(id: EditorMorphActionId): string {
-  return `/editor?workflow=edit&morph=${id}`;
+  return `${buildAssistantEditorWorkflowRoute("edit")}&morph=${id}`;
 }
 
 export const EDITOR_MORPH_ACTION_REGISTRY: Record<EditorMorphActionId, EditorMorphActionDefinition> = {
@@ -162,6 +164,21 @@ export function getEditorMorphAction(id: EditorMorphActionId): EditorMorphAction
 
 export function isEditorMorphActionId(id: string): id is EditorMorphActionId {
   return (EDITOR_MORPH_ACTION_IDS as readonly string[]).includes(id);
+}
+
+export function morphUsesMascotTransformWizard(id: EditorMorphActionId): boolean {
+  return [
+    "human_to_cartoon",
+    "human_to_mascot",
+    "human_to_cinematic_character",
+    "portrait_to_avatar",
+    "pet_to_mascot",
+    "pet_to_cartoon",
+    "mascot_style_morph",
+    "mascot_pose_morph",
+    "mascot_expression_morph",
+    "mascot_variant_morph",
+  ].includes(id);
 }
 
 export function buildEditorMorphActionRoute(id: EditorMorphActionId): string {

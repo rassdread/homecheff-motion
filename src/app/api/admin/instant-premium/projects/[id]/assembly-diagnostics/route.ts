@@ -9,6 +9,7 @@ import {
   attachSegmentIntegrityVerdict,
   buildHardAssemblyDiagnostics,
 } from "@/server/instant-premium/hard-assembly-diagnostics";
+import { readMotionLockReportFromHandoff } from "@/server/instant-premium/motion-lock-segment-service";
 import { prisma } from "@/lib/prisma";
 
 type RouteContext = {
@@ -76,6 +77,12 @@ export async function GET(_request: Request, context: RouteContext) {
 
   const payload = await attachSegmentIntegrityVerdict(diagnostics, integrity.verdict);
 
+  const projectHandoff = await prisma.animationProject.findUnique({
+    where: { id },
+    select: { studioHandoffJson: true },
+  });
+  const motionLockReport = readMotionLockReportFromHandoff(projectHandoff?.studioHandoffJson);
+
   console.info("[hard-assembly-diagnostics]", {
     projectId: id,
     verdict: integrity.verdict,
@@ -87,6 +94,7 @@ export async function GET(_request: Request, context: RouteContext) {
     {
       ...payload,
       segmentIntegrity: integrity,
+      motionLockReport,
     },
     { status: 200 }
   );

@@ -49,6 +49,11 @@ import type { AssistantInterpretation } from "@/types/assistant-interpretation";
 import { recordAssistantHistoryItem, updateAssistantHistoryStatus } from "@/lib/assistant-history";
 import type { AssistantBillingContext } from "@/types/studio-billing";
 import { isMotionActionPresetId } from "@/lib/motion-action-presets";
+import { buildAssistantEditorWorkflowRoute, normalizeAssistantEditorRoute } from "@/lib/assistant-editor-routes";
+import {
+  logCopilotWizardNavigation,
+  parseRouteQueryParams,
+} from "@/lib/copilot-wizard-navigation-log";
 import {
   buildAssistantPrefillRoute,
   storeAssistantEditorFusionBootstrap,
@@ -475,8 +480,22 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
       if (opened.fusion) {
         storeAssistantEditorFusionBootstrap(opened);
       }
+      const rawRoute = buildAssistantPrefillRoute(opened.targetRoute, opened.id);
+      const route = normalizeAssistantEditorRoute(rawRoute);
+      const queryParams = parseRouteQueryParams(route);
+      logCopilotWizardNavigation({
+        copilotAction: proposal.actionId,
+        targetRoute: opened.targetRoute,
+        normalizedRoute: route,
+        workflowType: queryParams.workflow ?? opened.fusion?.fusionIntent ?? null,
+        wizardType: opened.fusion?.fusionArchetype ?? null,
+        queryParams,
+        routeExists: route.startsWith("/editor/start") || !route.startsWith("/editor"),
+        redirectReason:
+          rawRoute !== route ? "normalized_editor_start_route" : null,
+      });
       updateAssistantHistoryStatus(opened.id, "opened", {
-        route: buildAssistantPrefillRoute(opened.targetRoute, opened.id),
+        route,
         assistantSummary:
           opened.interpretationSummary?.creativeGoal ??
           opened.interpretationSummary?.understoodGoal ??
@@ -484,18 +503,28 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
           "Assistant flow",
       });
       trackAssistantAnalyticsEvent("wizard_opened", {
-        route: buildAssistantPrefillRoute(opened.targetRoute, opened.id),
+        route,
         intent: opened.interpretation?.detectedIntent,
       });
       setMemory((prev) => ({
         ...rememberAssistantWizard(prev, proposal.actionId),
         pendingPrefillId: opened.id,
       }));
-      window.location.assign(buildAssistantPrefillRoute(opened.targetRoute, opened.id));
+      window.location.assign(route);
       return;
     }
     setMemory((prev) => rememberAssistantWizard(prev, proposal.actionId));
-    window.location.assign(proposal.route);
+    const route = normalizeAssistantEditorRoute(proposal.route);
+    logCopilotWizardNavigation({
+      copilotAction: proposal.actionId,
+      targetRoute: proposal.route,
+      normalizedRoute: route,
+      workflowType: parseRouteQueryParams(route).workflow ?? null,
+      wizardType: null,
+      queryParams: parseRouteQueryParams(route),
+      routeExists: true,
+    });
+    window.location.assign(route);
   }, [isAuthenticated]);
 
   const executeV4Preview = useCallback(
@@ -507,7 +536,7 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
         route: preview.route,
         intent: preview.toolId,
       });
-      window.location.assign(preview.route);
+      window.location.assign(normalizeAssistantEditorRoute(preview.route));
     },
     [isAuthenticated]
   );

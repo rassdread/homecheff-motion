@@ -4,6 +4,10 @@
 
 import { buildVisibleEditorPartsTreeFromDocument } from "@/lib/build-visible-editor-parts-tree";
 import { resolveEditorAssetId } from "@/lib/editor-project-isolation";
+import {
+  enrichReferenceAnalysisProfile,
+  formatEnrichedProfileSummary,
+} from "@/lib/fusion-profile-enrichment";
 import { mapVisionAnalysisToStyleDna } from "@/lib/studio-asset-vision-analysis";
 import {
   FUSION_REFERENCE_ANALYSIS_VERSION,
@@ -114,7 +118,7 @@ export function buildReferenceAnalysisProfile(input: {
       ? Math.min(0.95, 0.5 + (parts.length * 0.05))
       : Math.min(0.6, 0.2 + parts.length * 0.04));
 
-  return {
+  const profile: ReferenceAnalysisProfile = {
     referenceId: input.referenceId,
     assetId: resolveEditorAssetId(document),
     imageUrl: document.backgroundUrl?.trim() ?? "",
@@ -135,9 +139,15 @@ export function buildReferenceAnalysisProfile(input: {
     confidence,
     premiumCached: Boolean(input.premiumCached),
   };
+
+  return enrichReferenceAnalysisProfile(profile, document);
 }
 
 export function summarizeReferenceProfile(profile: ReferenceAnalysisProfile): string {
+  const enriched = formatEnrichedProfileSummary(profile);
+  if (enriched) {
+    return enriched;
+  }
   const traits: string[] = [];
   const eyes = profile.parts.filter((p) => p.category === "eyes").map((p) => p.label);
   const hair = profile.parts.filter((p) => p.category === "hair").map((p) => p.label);

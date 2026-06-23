@@ -403,3 +403,69 @@ export function formatFusionBlueprintTraitLines(blueprint: FusionBlueprint): str
     ([trait, source]) => `- ${trait}: ${source}`
   );
 }
+
+function profileIndexFromSource(
+  source: FusionBlueprintTraitSource,
+  profiles: ReferenceAnalysisProfile[]
+): number {
+  if (source === "reference_a" || source === "primary") return 0;
+  if (source === "reference_b" || source === "secondary") return 1;
+  if (typeof source === "string" && source.startsWith("reference_")) {
+    const num = Number.parseInt(source.replace("reference_", ""), 10);
+    if (!Number.isNaN(num)) return num - 1;
+  }
+  const byId = profiles.findIndex((p) => p.referenceId === source);
+  return byId >= 0 ? byId : 0;
+}
+
+function traitValueFromProfile(
+  trait: string,
+  profile: ReferenceAnalysisProfile
+): string | undefined {
+  const key = trait.toLowerCase();
+  const person = profile.personConsistency;
+  const e = profile.enrichment;
+  if (key.includes("eye") && (person?.eyeColor || person?.eyes)) return person.eyeColor ?? person.eyes;
+  if (key.includes("hair") && (person?.hairColor || person?.hairStyle)) return person.hairColor ?? person.hairStyle;
+  if (key.includes("face") && person?.faceShape) return person.faceShape;
+  if (key.includes("cloth") && person) {
+    const items = Object.values(person.clothing).filter(Boolean);
+    if (items.length) return items.join(", ");
+  }
+  if (key.includes("accessor") && person) {
+    const items = Object.values(person.accessories).filter(Boolean);
+    if (items.length) return items.join(", ");
+  }
+  if (key.includes("emblem") && profile.mascotConsistency?.emblems.length) {
+    return profile.mascotConsistency.emblems.join(", ");
+  }
+  if (key.includes("style") && (person?.styleDnaSummary || e?.styleDnaSummary)) {
+    return person?.styleDnaSummary ?? e?.styleDnaSummary;
+  }
+  if (key.includes("color") && (person?.dominantColors.length || e?.dominantColors.length)) {
+    return (person?.dominantColors ?? e?.dominantColors ?? []).join(", ");
+  }
+  return undefined;
+}
+
+export function formatEnrichedFusionBlueprintTraitLines(
+  blueprint: FusionBlueprint,
+  profiles: ReferenceAnalysisProfile[]
+): string[] {
+  return Object.entries(blueprint.traitAssignments).map(([trait, source]) => {
+    if (source === "blend" || source === "harmonized" || source === "new") {
+      return `- ${trait}: ${source}`;
+    }
+    const index = profileIndexFromSource(source, profiles);
+    const profile = profiles[index];
+    const refLabel = profile?.name ?? profile?.role ?? `Reference ${index + 1}`;
+    const value = profile ? traitValueFromProfile(trait, profile) : undefined;
+    if (value) {
+      return `- ${trait}: ${refLabel} — ${value}`;
+    }
+    const summary = profile ? summarizeReferenceProfile(profile) : "";
+    return summary
+      ? `- ${trait}: ${refLabel} (${summary.slice(0, 120)})`
+      : `- ${trait}: ${source}`;
+  });
+}

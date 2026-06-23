@@ -1,6 +1,12 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { logBrandMotionLock, readBrandLockedAssetsFromHandoffJson } from "@/lib/brand-asset-motion-lock";
+import {
+  applyMotionLockToSegmentPaths,
+  persistMotionLockReport,
+  resolveBrandLockedAssetsForMerge,
+} from "@/server/instant-premium/motion-lock-segment-service";
 import { prisma } from "@/lib/prisma";
 import {
   ExportBlobUploadError,
@@ -561,6 +567,24 @@ export async function executeInstantPremiumMerge(
       segmentPaths = prepared.providerVideoPaths;
       assemblyTimeline = prepared.timeline;
       segmentSourceDurationsSec = prepared.sourceLogs.map((log) => log.durationSec);
+
+      const brandLockedForMerge = resolveBrandLockedAssetsForMerge(project.studioHandoffJson);
+      if (brandLockedForMerge.length > 0 && orderedSegments.length === segmentPaths.length) {
+        const lockApplied = await applyMotionLockToSegmentPaths({
+          projectId,
+          workDir,
+          segmentPaths,
+          segmentMeta: orderedSegments.map((seg) => ({
+            segmentId: seg.transitionId,
+            segmentIndex: seg.segmentIndex,
+            sourceVideoUrl: seg.outputVideoUrl,
+          })),
+          brandLockedAssets: brandLockedForMerge,
+          studioHandoffJson: project.studioHandoffJson,
+        });
+        segmentPaths = lockApplied.segmentPaths;
+        await persistMotionLockReport(projectId, lockApplied.report);
+      }
     } catch (sourceError) {
       if (
         sourceError instanceof FinalSegmentSourceError ||
@@ -703,6 +727,10 @@ export async function executeInstantPremiumMerge(
         ...assemblyLogBase,
         phase: "assembly_start",
       });
+      logBrandMotionLock(
+        { phase: "final_assembly", projectId },
+        readBrandLockedAssetsFromHandoffJson(project.studioHandoffJson)
+      );
 
       if (runSegmentCompositor) {
         const polishProfile = resolvePremiumPolishProfile(project.instantPosterMotionSettings);

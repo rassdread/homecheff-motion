@@ -19,7 +19,14 @@ import {
   buildEditorMorphActionRoute,
   detectEditorMorphActionFromMessage,
   getEditorMorphAction,
+  morphUsesMascotTransformWizard,
 } from "@/lib/editor-morph-actions";
+import { buildMascotTransformWizardRoute } from "@/lib/assistant-editor-routes";
+import {
+  morphActionToMascotTarget,
+  morphActionToSourceType,
+  resolveMascotTransformFusionIntent,
+} from "@/lib/editor-mascot-transformation";
 import type { MotionActionPresetId } from "@/types/motion-action-presets";
 
 export type AssistantPrefillDetectResult =
@@ -604,13 +611,21 @@ function buildMorphEditPackage(
   }
   const morphDef = getEditorMorphAction(morphAction);
   const isAnimal = input.intent === "animal_morph";
+  const usesMascotWizard = morphUsesMascotTransformWizard(morphAction);
+  const targetType = morphActionToMascotTarget(morphAction);
+  const sourceType = morphActionToSourceType(morphAction);
+  const fusionIntent = usesMascotWizard
+    ? resolveMascotTransformFusionIntent(targetType, sourceType)
+    : undefined;
 
   return {
     version: 1,
     id: createAssistantPrefillId(),
     intent: input.intent,
     actionId: "edit_mascot",
-    targetRoute: buildEditorMorphActionRoute(morphAction),
+    targetRoute: usesMascotWizard
+      ? buildMascotTransformWizardRoute()
+      : buildEditorMorphActionRoute(morphAction),
     projectId: input.routeContext.projectId ?? null,
     promptDraft: input.message.trim(),
     generationGoal: morphDef.description,
@@ -623,28 +638,44 @@ function buildMorphEditPackage(
     settingLabelKeys: [
       isAnimal ? "assistant.prefill.setting.animalMorph" : "assistant.prefill.setting.humanMorph",
     ],
-    editor: {
-      selectedAssetType: isAnimal ? "animal" : "human",
-      workflow: "edit",
-      morphActionId: morphAction,
-      availableActions: isAnimal
-        ? [
-            "pet_to_cartoon",
-            "pet_to_mascot",
-            "animal_expression_change",
-            "animal_pose_change",
-            "preserve_breed_shape",
-            "preserve_fur_pattern",
-          ]
-        : [
-            "human_to_cartoon",
-            "portrait_to_avatar",
-            "outfit_change",
-            "expression_change",
-            "pose_change",
-            "preserve_identity",
-          ],
-    },
+    editor: usesMascotWizard
+      ? undefined
+      : {
+          selectedAssetType: isAnimal ? "animal" : "human",
+          workflow: "edit",
+          morphActionId: morphAction,
+          availableActions: isAnimal
+            ? [
+                "pet_to_cartoon",
+                "pet_to_mascot",
+                "animal_expression_change",
+                "animal_pose_change",
+                "preserve_breed_shape",
+                "preserve_fur_pattern",
+              ]
+            : [
+                "human_to_cartoon",
+                "portrait_to_avatar",
+                "outfit_change",
+                "expression_change",
+                "pose_change",
+                "preserve_identity",
+              ],
+        },
+    fusion: fusionIntent
+      ? {
+          fusionIntent,
+          fusionArchetype: "mascot_transform",
+          requiredInputRoles: ["character"],
+        }
+      : undefined,
+    mascotTransform: usesMascotWizard
+      ? {
+          targetType,
+          sourceType,
+          userIntent: input.message.trim(),
+        }
+      : undefined,
     createdAt: new Date().toISOString(),
     providerCalls: 0,
     creditsConsumed: 0,
@@ -654,15 +685,18 @@ function buildMorphEditPackage(
 function buildMascotEditPackage(
   input: { message: string; routeContext: AssistantRouteContext; understoodKey: `assistant.understood.${string}` }
 ): AssistantPrefillPackage {
+  const targetType = morphActionToMascotTarget("mascot_variant_morph");
+  const fusionIntent = resolveMascotTransformFusionIntent(targetType, "mascot");
+
   return {
     version: 1,
     id: createAssistantPrefillId(),
     intent: "mascot_edit",
     actionId: "edit_mascot",
-    targetRoute: buildAssistantActionRoute("edit_mascot", input.routeContext),
+    targetRoute: buildMascotTransformWizardRoute(),
     projectId: input.routeContext.projectId ?? null,
     promptDraft: input.message.trim(),
-    generationGoal: "Update an existing mascot in the editor.",
+    generationGoal: "Transform a mascot or character in the wizard.",
     estimatedCost: null,
     readiness: "ready_to_open",
     missingInputs: [],
@@ -670,18 +704,15 @@ function buildMascotEditPackage(
     activitySteps: buildActivitySteps("ready_to_open", false),
     understoodKey: input.understoodKey,
     settingLabelKeys: ["assistant.prefill.setting.editMascot"],
-    editor: {
-      selectedAssetType: "mascot",
-      workflow: "edit",
-      availableActions: [
-        "edit_feature",
-        "edit_outfit",
-        "edit_pose",
-        "edit_expression",
-        "edit_prop",
-        "preserve_prop",
-        "animate",
-      ],
+    fusion: {
+      fusionIntent,
+      fusionArchetype: "mascot_transform",
+      requiredInputRoles: ["character"],
+    },
+    mascotTransform: {
+      targetType,
+      sourceType: "mascot",
+      userIntent: input.message.trim(),
     },
     createdAt: new Date().toISOString(),
     providerCalls: 0,

@@ -34,6 +34,7 @@ export type VisionAnalysisRunTrigger =
   | "refresh-load"
   | "isolation-controls"
   | "deep-analyze"
+  | "logo-placement-wizard-upload"
   | "unknown";
 
 export type VisionDocumentWriteSource =

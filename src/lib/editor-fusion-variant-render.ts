@@ -13,6 +13,7 @@ export type FusionVariantImageSlot = {
   name?: string;
   isLogo?: boolean;
   preserveOriginal?: boolean;
+  preserveMode?: "prompt_only" | "reference_asset" | "post_composite";
 };
 
 export function resolveFusionVariantImageSlots(input: {
@@ -36,26 +37,73 @@ export function resolveFusionVariantImageSlots(input: {
     return slots;
   }
 
+  const protectedByUrl = new Map(
+    (input.payload.brandProtection?.assets ?? []).map((a) => [a.sourceUrl.trim(), a])
+  );
+
+  function resolvePreserve(slot: FusionVariantImageSlot): FusionVariantImageSlot {
+    const protectedAsset = protectedByUrl.get(slot.url.trim());
+    if (!protectedAsset) {
+      return slot;
+    }
+    const mustPreserve =
+      protectedAsset.preserveMode === "reference_asset" ||
+      protectedAsset.preserveMode === "post_composite" ||
+      protectedAsset.mustRemainExact;
+    return {
+      ...slot,
+      preserveOriginal: mustPreserve || slot.preserveOriginal,
+      preserveMode: protectedAsset.preserveMode,
+      isLogo: slot.isLogo || protectedAsset.assetType === "logo" || protectedAsset.assetType === "text_logo",
+      role:
+        protectedAsset.assetType === "logo" || protectedAsset.assetType === "text_logo"
+          ? "logo"
+          : slot.role,
+    };
+  }
+
   for (const ref of input.payload.references) {
-    push({
-      url: ref.url,
-      referenceId: ref.referenceId,
-      role: ref.isLogo ? "logo" : inferReferenceRole(ref.role),
-      name: ref.name,
-      isLogo: ref.isLogo,
-      preserveOriginal: ref.isLogo,
-    });
+    push(
+      resolvePreserve({
+        url: ref.url,
+        referenceId: ref.referenceId,
+        role: ref.isLogo ? "logo" : inferReferenceRole(ref.role),
+        name: ref.name,
+        isLogo: ref.isLogo,
+        preserveOriginal: ref.isLogo,
+      })
+    );
   }
 
   for (const logo of input.payload.logoAssets) {
-    push({
-      url: logo.url,
-      referenceId: logo.referenceId,
-      role: "logo",
-      name: logo.name,
-      isLogo: true,
-      preserveOriginal: true,
-    });
+    push(
+      resolvePreserve({
+        url: logo.url,
+        referenceId: logo.referenceId,
+        role: "logo",
+        name: logo.name,
+        isLogo: true,
+        preserveOriginal: true,
+        preserveMode: "reference_asset",
+      })
+    );
+  }
+
+  for (const asset of input.payload.brandProtection?.referenceAssets ?? []) {
+    if (asset.preserveMode !== "reference_asset") {
+      continue;
+    }
+    push(
+      resolvePreserve({
+        url: asset.sourceUrl,
+        referenceId: asset.id,
+        role: "logo",
+        name: asset.label ?? "Protected brand asset",
+        isLogo: true,
+        preserveOriginal: true,
+        preserveMode: asset.preserveMode,
+      })
+    );
   }
 
   return slots;

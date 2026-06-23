@@ -3,6 +3,10 @@
 import { useRef } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { brandingWorkflowRequiresLogo } from "@/lib/editor-instruction-branding";
+import { buildBrandAssetProtectionLayer } from "@/lib/brand-asset-protection-layer";
+import { buildLogoPlacementWizardRoute } from "@/lib/assistant-editor-routes";
+import { objectSupportsLogoPlacement } from "@/lib/logo-placement-blueprint";
+import { EditorBrandProtectionBanner } from "@/components/editor/editor-brand-protection-banner";
 import {
   actionOptionKey,
   listAccessoryTypesForObject,
@@ -142,6 +146,12 @@ export function EditorInstructionEditPanel(props: Props) {
   const accessoryTypes = listAccessoryTypesForObject(object);
   const logoRef = findBrandReference(document, selection.logoReferenceId);
   const showBranding = brandingWorkflowRequiresLogo(selection.action);
+  const canPlaceLogoHere = objectSupportsLogoPlacement(object);
+  const brandingProtection = buildBrandAssetProtectionLayer({
+    workflowType: "logo_placement",
+    logoAssets: logoRef ? [{ referenceId: logoRef.id, url: logoRef.url, name: logoRef.name }] : [],
+    userPreserveLogoExact: true,
+  });
   const references = selection.logoReferenceId ? [] : [];
   const targetOnly = resolveTargetOnlyEdit(document);
   const promptPreview =
@@ -171,6 +181,24 @@ export function EditorInstructionEditPanel(props: Props) {
         <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
           {t("editor.instructionStudio.v2.partActions.estimatedHint" as never)}
         </p>
+      : null}
+
+      {canPlaceLogoHere ?
+        <div className="mt-3">
+          <a
+            href={buildLogoPlacementWizardRoute({ targetObjectId: object.id })}
+            className="inline-flex w-full items-center justify-center rounded-lg border border-[#0067B1]/30 bg-white px-3 py-2 text-xs font-semibold text-[#0067B1]"
+            data-testid="logo-place-here-action"
+          >
+            {t("editor.logoPlacement.placeHere" as never)}
+          </a>
+        </div>
+      : null}
+
+      {(showBranding || logoRef) && brandingProtection.active ?
+        <div className="mt-3">
+          <EditorBrandProtectionBanner protection={brandingProtection} compact />
+        </div>
       : null}
 
       <label className="mt-4 block text-xs font-medium text-zinc-700">

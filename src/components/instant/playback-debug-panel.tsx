@@ -2,6 +2,9 @@
 
 import { useCallback, useState } from "react";
 import type { ProjectPlaybackDebugSummary } from "@/types/animation-api";
+import { MotionLockValidationPanel } from "@/components/instant/motion-lock-validation-panel";
+import { BrandQaAnalyticsPanel } from "@/components/instant/brand-qa-analytics-panel";
+import { MotionLockMetricsPanel } from "@/components/instant/motion-lock-metrics-panel";
 
 type AdminPlaybackDebugPayload = ProjectPlaybackDebugSummary & {
   projectId: string;
@@ -227,6 +230,9 @@ export function PlaybackDebugPanel({ projectId, detailPlayback }: Props) {
               value={`/api/admin/instant-premium/projects/${projectId}/assembly-diagnostics`}
             />
           ) : null}
+          {open ? <MotionLockValidationPanel projectId={projectId} /> : null}
+          {open ? <MotionLockMetricsPanel /> : null}
+          {open ? <BrandQaAnalyticsPanel /> : null}
           {adminDebug?.rebuildCompareLinks ? (
             <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/80 p-3 text-xs">
               <p className="font-semibold text-blue-950">Rebuild compare links</p>

@@ -303,6 +303,6 @@ describe("buildStudioTextBeats", () => {
 
 describe("handoff payload version", () => {
   it("MOTION_HANDOFF_PAYLOAD_VERSION is 25 for text beats bridge", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 26);
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 27);
   });
 });

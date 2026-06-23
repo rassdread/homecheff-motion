@@ -1,4 +1,6 @@
+import { resolveBrandLockedAssetsFromInstructionStudioState } from "@/lib/brand-asset-motion-lock";
 import { resolveEditorStudioEntry } from "@/lib/editor-studio-entry";
+import type { BrandLockedAsset } from "@/types/brand-asset-protection";
 
 export type EditorMotionBootstrap = {
   imageUrl: string;
@@ -10,6 +12,7 @@ export type EditorMotionBootstrap = {
   cutoutUrls: string[];
   placementUrls: string[];
   compositorLayerUrls: string[];
+  brandLockedAssets: BrandLockedAsset[];
 };
 
 export function resolveEditorMotionBootstrap(params: {
@@ -40,6 +43,9 @@ export function resolveEditorMotionBootstrap(params: {
       cutoutUrls: sessionEntry.cutoutUrls,
       placementUrls: sessionEntry.placementUrls,
       compositorLayerUrls: sessionEntry.compositorLayerUrls,
+      brandLockedAssets: resolveBrandLockedAssetsFromInstructionStudioState(
+        sessionEntry.document.instructionStudioState
+      ),
     };
   }
 
@@ -56,6 +62,7 @@ export function resolveEditorMotionBootstrap(params: {
       cutoutUrls: [],
       placementUrls: [],
       compositorLayerUrls: [],
+      brandLockedAssets: [],
     };
   }
 

@@ -106,8 +106,8 @@ describe("Editor Vision V6", () => {
 
   it("brand kit has HomeCheff defaults", () => {
     const kit = defaultHomeCheffBrandKit();
-    assert.ok(kit.some((i) => i.kind === "logo"));
     assert.ok(kit.some((i) => i.kind === "color"));
+    assert.ok(kit.some((i) => i.kind === "gradient"));
     const doc = insertBrandKitItemOnCanvas(
       mockDocument([mockLayer({ id: "background", layerType: "background", bounds: { x: 0, y: 0, width: 1, height: 1 } })]),
       kit.find((i) => i.kind === "color")!

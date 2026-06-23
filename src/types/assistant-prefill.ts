@@ -3,6 +3,10 @@ import type { AssistantInterpretationQuestion } from "@/types/assistant-interpre
 import type { AssistantInterpretation } from "@/types/assistant-interpretation";
 import type { MotionActionPresetMetadata } from "@/types/motion-action-presets";
 import type {
+  MascotTransformSourceType,
+  MascotTransformTargetType,
+} from "@/types/editor-mascot-transformation";
+import type {
   ActionPresetMissingAsset,
   ActionPresetRequirementMetadata,
   ActionPresetResolutionPlan,
@@ -159,6 +163,12 @@ export type AssistantEditorPrefill = {
   morphActionId?: string;
 };
 
+export type AssistantMascotTransformPrefill = {
+  targetType?: MascotTransformTargetType;
+  sourceType?: MascotTransformSourceType;
+  userIntent?: string;
+};
+
 export type AssistantPrefillPackage = {
   version: 1;
   id: string;
@@ -184,6 +194,7 @@ export type AssistantPrefillPackage = {
   motion?: AssistantMotionPrefill;
   publish?: AssistantPublishPrefill;
   editor?: AssistantEditorPrefill;
+  mascotTransform?: AssistantMascotTransformPrefill;
   understoodKey: `assistant.understood.${string}`;
   settingLabelKeys: `assistant.prefill.setting.${string}`[];
   interpretationSummary?: AssistantPrefillInterpretationSummary;

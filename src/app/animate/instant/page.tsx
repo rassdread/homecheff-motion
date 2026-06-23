@@ -104,6 +104,7 @@ import {
   isInstantWizardProjectSnapshotComplete,
 } from "@/lib/project-display-status";
 import { buildStudioProjectImportFromWizard } from "@/lib/studio-project-metadata";
+import { readEditorMotionBootstrapFromSession } from "@/lib/editor-motion-bootstrap-session";
 import {
   getInstantWizardFormDefaults,
   INSTANT_WIZARD_DEFAULT_BAKED_TEXT,
@@ -1317,6 +1318,11 @@ export default function InstantPremiumPage() {
         sceneTexts: serializeSceneTextDrafts(sceneTexts, sceneCount),
       });
       const wizardState = readPersistedWizardState();
+      const editorBootstrap = readEditorMotionBootstrapFromSession();
+      const editorBrandLockedAssets =
+        editorBootstrap?.brandLockedAssets?.length ?
+          editorBootstrap.brandLockedAssets
+        : wizardState?.brandLockedAssets;
       let studioImport = wizardState ? buildStudioProjectImportFromWizard(wizardState) : null;
       if (studioImport?.handoff && wizardAudioExport) {
         studioImport = {
@@ -1350,6 +1356,7 @@ export default function InstantPremiumPage() {
           ...(hcActionPreset ? { hcActionPreset } : {}),
         },
         ...(studioImport ? { studioImport } : {}),
+        ...(editorBrandLockedAssets?.length ? { brandLockedAssets: editorBrandLockedAssets } : {}),
       };
 
       if (!fastRenderMode) {

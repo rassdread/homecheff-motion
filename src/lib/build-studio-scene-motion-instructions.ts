@@ -100,6 +100,8 @@ export type StudioSceneMotionInstructionInput = {
   aiDirectorNotes?: string;
   /** Story-level memory from handoff — compact render context. */
   storyMemory?: Pick<SceneMemoryBundle, "characters" | "location" | "props" | "world">;
+  /** Sprint F: pixel-locked brand assets override BrandPlacement prompt hints. */
+  brandLockedAssets?: import("@/types/brand-asset-protection").BrandLockedAsset[];
 };
 
 export type StudioSceneMotionInstructions = {
@@ -398,7 +400,20 @@ function buildStoryArcLine(sceneIndex: number, sceneCount: number): string | nul
   return phrase ? `Story arc: ${phrase}` : null;
 }
 
-function buildSafetyLine(scene: MotionHandoffScene): string {
+function buildSafetyLine(
+  scene: MotionHandoffScene,
+  brandLockedAssets?: import("@/types/brand-asset-protection").BrandLockedAsset[]
+): string {
+  const lockedForScene =
+    brandLockedAssets?.filter((asset) => {
+      if (asset.sceneId && asset.sceneId !== scene.sceneId) {
+        return false;
+      }
+      return true;
+    }) ?? [];
+  if (lockedForScene.length > 0) {
+    return "Safety: Protected brand logos are baked into keyframes — preserve exact branding geometry; do not redraw or replace logos.";
+  }
   const brands =
     scene.assetPlacement?.brandPlacements.map((b) => b.brandName).filter(Boolean) ?? [];
   const chunks = ["Do not cover faces, logos, or baked UI text in source frames."];
@@ -560,7 +575,11 @@ export function buildStudioSceneMotionInstructions(
     ignoredFields.push("aiDirectorNotes");
   }
 
-  candidateLines.push({ line: buildSafetyLine(scene), field: "safety", dropPriority: 2 });
+  candidateLines.push({
+    line: buildSafetyLine(scene, input.brandLockedAssets),
+    field: "safety",
+    dropPriority: 2,
+  });
 
   for (const row of candidateLines) {
     for (const part of row.field.split(",")) {
@@ -600,6 +619,7 @@ export function resolveStudioMotionInstructionsBySceneIndex(
       sceneIndex: i,
       sceneCount: Math.max(sceneCount, sorted.length),
       aiDirectorNotes: aiNotes,
+      brandLockedAssets: handoff.brandLockedAssets,
       storyMemory: handoff
         ? {
             characters: handoff.characterMemory ?? [],

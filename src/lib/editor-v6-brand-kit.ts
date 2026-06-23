@@ -2,11 +2,6 @@ import { brand } from "@/lib/brand";
 import { dropLibraryAssetOnCanvas, type LibraryDragPayload } from "@/lib/editor-v6-library-drag";
 import type { EditorBrandKitItem, EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
-const BRAND_KIT_PUBLIC_PATHS = new Set([
-  "/brand/homecheff-logo.svg",
-  "/brand/garden-chef-mascot.svg",
-]);
-
 export function brandKitItemHasRenderablePreview(item: EditorBrandKitItem): boolean {
   if (item.kind === "color" || item.kind === "gradient" || item.kind === "font" || item.kind === "background") {
     return true;
@@ -14,7 +9,7 @@ export function brandKitItemHasRenderablePreview(item: EditorBrandKitItem): bool
   if (!item.previewUrl) {
     return false;
   }
-  return BRAND_KIT_PUBLIC_PATHS.has(item.previewUrl);
+  return item.previewUrl.startsWith("/") && !item.previewUrl.endsWith(".svg");
 }
 
 export function resolveVisibleBrandKitItems(items?: EditorBrandKitItem[]): EditorBrandKitItem[] {
@@ -23,13 +18,6 @@ export function resolveVisibleBrandKitItems(items?: EditorBrandKitItem[]): Edito
 
 export function defaultHomeCheffBrandKit(): EditorBrandKitItem[] {
   return [
-    {
-      id: "hc_logo_primary",
-      kind: "logo",
-      label: "HomeCheff Logo",
-      value: brand.studioBlue,
-      previewUrl: "/brand/homecheff-logo.svg",
-    },
     {
       id: "hc_color_green",
       kind: "color",
@@ -59,13 +47,6 @@ export function defaultHomeCheffBrandKit(): EditorBrandKitItem[] {
       kind: "background",
       label: "Soft Studio Background",
       value: "#f7fbf8",
-    },
-    {
-      id: "hc_mascot",
-      kind: "mascot",
-      label: "Garden Chef",
-      value: "mascot",
-      previewUrl: "/brand/garden-chef-mascot.svg",
     },
   ];
 }

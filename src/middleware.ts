@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { isAllowedApiOrigin } from "@/lib/allowed-api-origins";
+import { HOMECHEFF_BRAND_ICON_PATHS } from "@/lib/homecheff-brand-icon";
 import { logAuthCheck } from "@/server/auth/auth-check-log";
 
 function originMatchesRequestHost(request: NextRequest, origin: string): boolean {
@@ -35,12 +36,15 @@ function applyApiCorsHeaders(
   response.headers.append("Vary", "Origin");
 }
 
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  if (!pathname.startsWith("/api/")) {
-    return NextResponse.next();
-  }
+function applySafariFaviconLinkHeader(response: NextResponse): void {
+  response.headers.append(
+    "Link",
+    `<${HOMECHEFF_BRAND_ICON_PATHS.favicon32}>; rel=icon; type=image/png; sizes=32x32`
+  );
+}
 
+function handleApiMiddleware(request: NextRequest): NextResponse {
+  const { pathname } = request.nextUrl;
   const sessionExists = Boolean(request.cookies.get("hc_session")?.value);
   logAuthCheck({
     pathname,
@@ -73,6 +77,25 @@ export function middleware(request: NextRequest) {
   return response;
 }
 
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  if (pathname.startsWith("/api/")) {
+    return handleApiMiddleware(request);
+  }
+
+  const acceptsHtml = request.headers.get("accept")?.includes("text/html") ?? false;
+  if (request.method === "GET" && acceptsHtml) {
+    const response = NextResponse.next();
+    applySafariFaviconLinkHeader(response);
+    return response;
+  }
+
+  return NextResponse.next();
+}
+
 export const config = {
-  matcher: ["/api/:path*"],
+  matcher: [
+    "/api/:path*",
+    "/((?!_next/static|_next/image|favicon.ico|apple-touch-icon.png|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|woff2?|css|js|map|json|txt|xml|webmanifest)$).*)",
+  ],
 };

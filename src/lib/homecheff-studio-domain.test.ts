@@ -55,24 +55,25 @@ describe("HomeCheff Studio domain migration", () => {
     const layout = readFileSync(join(ROOT, "src/app/layout.tsx"), "utf8");
     assert.match(layout, /ROOT_SITE_METADATA/);
     const icons = homeCheffSiteIcons();
-    assert.ok(Array.isArray(icons.icon));
-    assert.ok(Array.isArray(icons.apple));
+    assert.ok(icons.icon);
+    assert.ok(icons.apple);
   });
 
   it("globe-man brand icon assets exist", () => {
     for (const file of [
       "homecheff-globe-man.png",
-      "homecheff-favicon-v4.ico",
-      "homecheff-favicon-16-v4.png",
-      "homecheff-favicon-32-v4.png",
-      "homecheff-apple-touch-icon-v4.png",
-      "favicon.ico",
+      "icon.png",
+      "homecheff-favicon-16-v10.png",
+      "homecheff-favicon-32-v10.png",
+      "homecheff-apple-touch-icon-v10.png",
       "site.webmanifest",
     ]) {
       assert.equal(existsSync(join(ROOT, "public", file)), true, `missing public/${file}`);
     }
+    assert.equal(existsSync(join(ROOT, "src/app/favicon.ico/route.ts")), true);
+    assert.equal(existsSync(join(ROOT, "src/app/apple-touch-icon.png/route.ts")), true);
+    assert.equal(existsSync(join(ROOT, "public/apple-touch-icon.png")), false);
     assert.equal(HOMECHEFF_BRAND_ICON_PATHS.source, "/homecheff-globe-man.png");
-    assert.equal(existsSync(join(ROOT, "src/app/favicon.ico")), false);
   });
 
   it("app shell uses HomeCheffBrandMark not gradient placeholder", () => {

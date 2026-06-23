@@ -87,10 +87,10 @@ describe("Editor start flow", () => {
 });
 
 describe("Editor brand kit assets", () => {
-  it("brand assets exist under public/brand", () => {
+  it("legacy brand SVG assets are removed from public/brand", () => {
     const root = process.cwd();
-    assert.equal(existsSync(join(root, "public/brand/homecheff-logo.svg")), true);
-    assert.equal(existsSync(join(root, "public/brand/garden-chef-mascot.svg")), true);
+    assert.equal(existsSync(join(root, "public/brand/homecheff-logo.svg")), false);
+    assert.equal(existsSync(join(root, "public/brand/garden-chef-mascot.svg")), false);
   });
 
   it("broken brand preview paths are hidden from visible kit items", () => {
@@ -98,11 +98,12 @@ describe("Editor brand kit assets", () => {
     const broken = {
       ...items[0],
       id: "broken_logo",
+      kind: "logo" as const,
       previewUrl: "/brand/missing-logo.svg",
     };
     assert.equal(brandKitItemHasRenderablePreview(broken), false);
     const visible = resolveVisibleBrandKitItems([...items, broken]);
     assert.equal(visible.some((item) => item.id === "broken_logo"), false);
-    assert.ok(visible.some((item) => item.id === "hc_logo_primary"));
+    assert.ok(visible.some((item) => item.id === "hc_color_green"));
   });
 });
