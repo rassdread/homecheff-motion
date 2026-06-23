@@ -121,7 +121,8 @@ test("EditorReferenceRoleFlow keeps upload in wizard until optional editor open"
   assert.match(summaryPanelSrc, /data-testid="fusion-wizard-summary"/);
   assert.match(referenceRoleFlowSrc, /EditorFusionWizardResultPanel/);
   assert.match(resultPanelSrc, /data-testid="fusion-wizard-result"/);
-  assert.match(referenceRoleFlowSrc, /onOpenEditor=\{\(\) => \{/);
+  assert.match(referenceRoleFlowSrc, /onOpenEditor=\{/);
+  assert.match(referenceRoleFlowSrc, /hideEditorHandoff/);
 });
 
 test("Fusion maken starts render pipeline from summary step", () => {

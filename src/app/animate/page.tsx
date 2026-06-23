@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState, Suspense } from "react";
 import { AnimationIntentPreviewCard } from "@/components/animate/animation-intent-preview-card";
 import { AnimateEstimateCard } from "@/components/animate/animate-estimate-card";
 import { AppCard } from "@/components/ui/app-card";
@@ -58,6 +59,32 @@ const PRESET_LABELS: Record<
 };
 
 export default function AnimatePage() {
+  return (
+    <Suspense fallback={null}>
+      <AnimateLegacyRedirectGate />
+    </Suspense>
+  );
+}
+
+function AnimateLegacyRedirectGate() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const legacy = searchParams.get("legacy") === "1";
+
+  useEffect(() => {
+    if (!legacy) {
+      router.replace("/motion");
+    }
+  }, [legacy, router]);
+
+  if (!legacy) {
+    return null;
+  }
+
+  return <AnimateLegacyWorkspace />;
+}
+
+function AnimateLegacyWorkspace() {
   const t = useActiveTranslator();
   const authSession = useAuthSession();
   const {

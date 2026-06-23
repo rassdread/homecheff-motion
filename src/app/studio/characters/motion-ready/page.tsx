@@ -6,6 +6,9 @@ import { StudioMotionReadyCharacterWizard } from "@/components/studio/studio-mot
 
 function MotionReadyCharacterPageContent() {
   const searchParams = useSearchParams();
+  const flowParam = searchParams.get("flow");
+  const hubFlowId =
+    flowParam === "full_body" || flowParam === "motion_ready" ? flowParam : null;
   return (
     <StudioMotionReadyCharacterWizard
       projectId={searchParams.get("hcProject") ?? searchParams.get("projectId")}
@@ -17,6 +20,7 @@ function MotionReadyCharacterPageContent() {
       sourceName={searchParams.get("sourceName")}
       returnTo={searchParams.get("returnTo")}
       requirementId={searchParams.get("requirementId")}
+      hubFlowId={hubFlowId}
     />
   );
 }

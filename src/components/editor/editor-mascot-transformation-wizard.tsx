@@ -5,7 +5,7 @@ import { EditorFlowActionBar } from "@/components/editor/editor-flow-stepper";
 import { EditorFusionWizardAdvancedSettings } from "@/components/editor/editor-fusion-wizard-advanced-settings";
 import { EditorBrandProtectionBanner } from "@/components/editor/editor-brand-protection-banner";
 import { buildBrandAssetProtectionLayer } from "@/lib/brand-asset-protection-layer";
-import { EditorFusionWizardCreditsPanel } from "@/components/editor/editor-fusion-wizard-credits-panel";
+import { EditorWizardWorkflowPricingPanel, formatWizardMakeButtonLabel } from "@/components/editor/editor-wizard-workflow-pricing-panel";
 import { EditorFusionWizardProgress } from "@/components/editor/editor-fusion-wizard-progress";
 import { EditorFusionWizardResultPanel } from "@/components/editor/editor-fusion-wizard-result-panel";
 import { HomeCheffOrbitLoader } from "@/components/editor/homecheff-orbit-loader";
@@ -34,7 +34,10 @@ import {
   MASCOT_TRANSFORM_WORKFLOW,
   resolveMascotTransformFusionIntent,
 } from "@/lib/editor-mascot-transformation";
+import { resolveWizardPipelineErrorCopy } from "@/lib/wizard-user-copy";
+import { resolveWizardWorkflowPriceFromIntake } from "@/lib/wizard-workflow-pricing";
 import { runFusionWizardRenderPipeline } from "@/lib/editor-fusion-wizard-render";
+import { CharacterStudioResultNextSteps } from "@/components/character-studio/character-studio-result-next-steps";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import type { loadAssistantEditorFusionBootstrap } from "@/lib/assistant-prefill-storage";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
@@ -246,7 +249,8 @@ export function EditorMascotTransformationWizard({
     setRenderBusy(false);
 
     if (!outcome.ok) {
-      setError(outcome.message);
+      const copy = resolveWizardPipelineErrorCopy(outcome);
+      setError(t(copy.key as never));
       setStep("summary");
       return;
     }
@@ -258,6 +262,16 @@ export function EditorMascotTransformationWizard({
     setIntake(outcome.intake);
     setStep("result");
   };
+
+  const summaryPrice = useMemo(() => {
+    if (!intake) {
+      return null;
+    }
+    return resolveWizardWorkflowPriceFromIntake({
+      intake,
+      isAdmin: access.billingFree,
+    });
+  }, [intake, access.billingFree]);
 
   const goNext = () => {
     if (step === "choose_target") {
@@ -443,7 +457,7 @@ export function EditorMascotTransformationWizard({
             <p className="font-semibold text-zinc-900">
               {t(MASCOT_TRANSFORM_TARGET_I18N[targetType] as never)}
             </p>
-            {blueprint ?
+            {blueprint && access.billingFree ?
               <p className="text-xs text-zinc-600" data-testid="mascot-transform-blueprint">
                 {blueprint.renderInstructions.join(" ")}
               </p>
@@ -452,7 +466,7 @@ export function EditorMascotTransformationWizard({
           {mascotBrandProtection.active ?
             <EditorBrandProtectionBanner protection={mascotBrandProtection} />
           : null}
-          <EditorFusionWizardCreditsPanel
+          <EditorWizardWorkflowPricingPanel
             intake={intake}
             combineIntent={combineIntent}
             isAdmin={access.billingFree}
@@ -497,6 +511,13 @@ export function EditorMascotTransformationWizard({
                 : undefined
             }
           />
+          {!onOpenEditor ?
+            <CharacterStudioResultNextSteps
+              resultImageUrl={resultUrl}
+              sourceImage={resultDocument?.backgroundUrl}
+              onMakeAnother={resetWizard}
+            />
+          : null}
         </div>
       : null}
 
@@ -511,9 +532,16 @@ export function EditorMascotTransformationWizard({
             uploading
           }
           continueLabel={
-            step === "summary"
-              ? t("editor.mascotTransform.renderAction" as never)
-              : t("editor.referenceRole.continue" as never)
+            step === "summary" && combineIntent && summaryPrice
+              ? formatWizardMakeButtonLabel({
+                  t,
+                  combineIntent,
+                  totalCredits: summaryPrice.totalCredits,
+                  adminBypass: summaryPrice.adminBypass,
+                })
+              : step === "summary"
+                ? t("editor.mascotTransform.renderAction" as never)
+                : t("editor.referenceRole.continue" as never)
           }
           busy={uploading || renderBusy}
         />

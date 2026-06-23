@@ -85,9 +85,10 @@ describe("SEO launch readiness", () => {
     assert.ok(nl.alternates?.languages?.en);
   });
 
-  it("motion marketing URL consolidates to /animate/instant", () => {
+  it("motion marketing URL is wizard-first Motion Hub", () => {
     const motion = read("src/app/motion/page.tsx");
-    assert.match(motion, /permanentRedirect\("\/animate\/instant"\)/);
+    assert.match(motion, /MotionStudioHub/);
+    assert.doesNotMatch(motion, /permanentRedirect\("\/animate\/instant"\)/);
   });
 
   it("help articles use breadcrumb + article structured data", () => {

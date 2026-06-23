@@ -8,6 +8,8 @@ import {
 } from "@/lib/editor-fusion-intelligence";
 import { hasValidPremiumAnalysis } from "@/lib/editor-fusion-analysis-cache";
 import { logFusionRenderAnalysis } from "@/lib/editor-fusion-analysis-timing-log";
+import { refundPremiumVisionCreditsClient } from "@/lib/editor-premium-vision-credits-client";
+import type { PremiumVisionCreditSession } from "@/lib/editor-premium-vision-credits";
 import { PREMIUM_VISION_ANALYSIS_CREDITS } from "@/lib/editor-premium-vision-credits";
 import {
   applyReferenceRoleIntake,
@@ -78,6 +80,7 @@ export type EnsureFusionWizardPremiumResult =
       cacheMisses: number;
       premiumAnalysesStarted: number;
       premiumCreditsCharged: number;
+      capturedPremiumSessions: import("@/lib/editor-premium-vision-credits").PremiumVisionCreditSession[];
     }
   | {
       ok: false;
@@ -97,7 +100,16 @@ export async function ensureFusionWizardPremiumAnalyses(input: {
   let cacheMisses = 0;
   let premiumAnalysesStarted = 0;
   let premiumCreditsCharged = 0;
+  const capturedPremiumSessions: PremiumVisionCreditSession[] = [];
   const documentsByReferenceId = new Map<string, EditorCanvasDocument>();
+
+  async function refundCapturedSessions(): Promise<void> {
+    for (const session of capturedPremiumSessions) {
+      if (session.creditStatus === "charged") {
+        await refundPremiumVisionCreditsClient(session);
+      }
+    }
+  }
 
   for (const ref of references) {
     const wasCached = hasValidPremiumAnalysis(ref.document);
@@ -117,6 +129,7 @@ export async function ensureFusionWizardPremiumAnalyses(input: {
     });
 
     if (!ensured.ok) {
+      await refundCapturedSessions();
       logFusionRenderAnalysis({
         phase: "render",
         cacheHits,
@@ -129,7 +142,7 @@ export async function ensureFusionWizardPremiumAnalyses(input: {
         return {
           ok: false,
           code: "credit_gate",
-          message: "Insufficient credits for premium analysis.",
+          message: "insufficient_credits",
           estimatedCredits:
             (input.creditsAvailable ?? 0) +
             PREMIUM_VISION_ANALYSIS_CREDITS * (cacheMisses > 0 ? 1 : 0),
@@ -139,13 +152,16 @@ export async function ensureFusionWizardPremiumAnalyses(input: {
       return {
         ok: false,
         code: "analysis_failed",
-        message: "Premium analysis failed.",
+        message: "analysis_failed",
         intake: input.intake,
       };
     }
 
     documentsByReferenceId.set(ref.referenceId, ensured.document);
     premiumCreditsCharged += ensured.creditsCharged;
+    if (ensured.premiumCreditSession?.creditStatus === "charged") {
+      capturedPremiumSessions.push(ensured.premiumCreditSession);
+    }
   }
 
   const updatedIntake = patchIntakeReferenceDocuments(input.intake, documentsByReferenceId);
@@ -160,12 +176,14 @@ export async function ensureFusionWizardPremiumAnalyses(input: {
       cacheMisses,
       premiumAnalysesStarted,
       premiumCreditsCharged,
+      capturedPremiumSessions,
     };
   } catch {
+    await refundCapturedSessions();
     return {
       ok: false,
       code: "analysis_failed",
-      message: "Failed to build fusion document after premium analysis.",
+      message: "analysis_build_failed",
       intake: updatedIntake,
     };
   }

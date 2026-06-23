@@ -78,10 +78,10 @@ describe("motion-ready-character-routes", () => {
     assert.match(href, /sourceName=Chef/);
   });
 
-  it("EditorStartScreen routes motion_prepare away from reference flow", () => {
+  it("EditorStartScreen routes motion_prepare to Character Studio hub", () => {
     const src = readFileSync(join(ROOT, "src/components/editor/editor-start-screen.tsx"), "utf8");
     assert.match(src, /workflow === "motion_prepare"/);
-    assert.match(src, /buildMotionReadyCharacterWizardHref/);
+    assert.match(src, /buildCharacterStudioHubHref/);
     assert.doesNotMatch(src, /finishOpen\(document, phase\.workflow[\s\S]*motion_prepare/);
   });
 

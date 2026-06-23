@@ -21,6 +21,8 @@ import {
   getEditorMorphAction,
   morphUsesMascotTransformWizard,
 } from "@/lib/editor-morph-actions";
+import { detectCharacterStudioFlowFromMessage, characterStudioFlowToActionId } from "@/lib/character-studio-copilot";
+import { buildCharacterStudioFlowHref } from "@/lib/character-studio-hub";
 import { buildMascotTransformWizardRoute } from "@/lib/assistant-editor-routes";
 import {
   morphActionToMascotTarget,
@@ -49,6 +51,63 @@ function includesAny(hay: string, needles: string[]): boolean {
 export function detectAssistantPrefillIntent(message: string): AssistantPrefillDetectResult {
   const text = normalize(message);
 
+  const csMatch = detectCharacterStudioFlowFromMessage(message);
+  if (csMatch.kind === "flow") {
+    const actionId = characterStudioFlowToActionId(csMatch.flowId);
+    if (csMatch.flowId === "outfit") {
+      return {
+        kind: "prefill",
+        intent: "fusion_outfit",
+        actionId: "prepare_outfit",
+        understoodKey: "assistant.understood.fusionOutfit",
+      };
+    }
+    if (csMatch.flowId === "logo_placement") {
+      return {
+        kind: "prefill",
+        intent: "fusion_logo_placement",
+        actionId: "prepare_logo_placement",
+        understoodKey: "assistant.understood.fusionLogo",
+      };
+    }
+    if (
+      csMatch.flowId === "mascot_transform" ||
+      csMatch.flowId === "human_to_mascot" ||
+      csMatch.flowId === "mascot_to_human"
+    ) {
+      return {
+        kind: "prefill",
+        intent: "mascot_edit",
+        actionId: "edit_mascot",
+        understoodKey: "assistant.understood.editMascot",
+      };
+    }
+    if (csMatch.flowId === "character_upgrade") {
+      return {
+        kind: "prefill",
+        intent: "human_morph",
+        actionId: "edit_mascot",
+        understoodKey: "assistant.understood.humanMorph",
+      };
+    }
+    if (csMatch.flowId === "motion_ready" || csMatch.flowId === "full_body") {
+      return {
+        kind: "prefill",
+        intent: "character_motion_ready",
+        actionId: "prepare_motion_character",
+        understoodKey: "assistant.understood.motionReadyCharacter",
+      };
+    }
+    if (actionId === "create_fusion") {
+      return {
+        kind: "prefill",
+        intent: "fusion_outfit",
+        actionId: "create_fusion",
+        understoodKey: "assistant.understood.createFusion",
+      };
+    }
+  }
+
   if (
     includesAny(text, [
       "jas op",
@@ -66,7 +125,7 @@ export function detectAssistantPrefillIntent(message: string): AssistantPrefillD
     return {
       kind: "prefill",
       intent: "fusion_outfit",
-      actionId: "create_fusion",
+      actionId: "prepare_outfit",
       understoodKey: "assistant.understood.fusionOutfit",
     };
   }
@@ -88,11 +147,11 @@ export function detectAssistantPrefillIntent(message: string): AssistantPrefillD
     };
   }
 
-  if (includesAny(text, ["logo plaats", "logo placement", "logo top-right", "logo rechts"])) {
+  if (includesAny(text, ["logo plaats", "logo placement", "logo top-right", "logo rechts", "logo bescherm"])) {
     return {
       kind: "prefill",
       intent: "fusion_logo_placement",
-      actionId: "create_fusion",
+      actionId: "prepare_logo_placement",
       understoodKey: "assistant.understood.fusionLogo",
     };
   }
@@ -379,8 +438,8 @@ function buildFusionOutfitPackage(
     version: 1,
     id: createAssistantPrefillId(),
     intent: "fusion_outfit",
-    actionId: "create_fusion",
-    targetRoute: buildAssistantActionRoute("create_fusion", input.routeContext),
+    actionId: "prepare_outfit",
+    targetRoute: buildCharacterStudioFlowHref("outfit"),
     projectId: input.routeContext.projectId ?? null,
     questionAnswers: answers,
     outputSettings,
@@ -433,7 +492,7 @@ function buildMotionReadyPackage(
     id: createAssistantPrefillId(),
     intent: "character_motion_ready",
     actionId: "prepare_motion_character",
-    targetRoute: buildAssistantActionRoute("prepare_motion_character", input.routeContext),
+    targetRoute: buildCharacterStudioFlowHref("motion_ready"),
     projectId: input.routeContext.projectId ?? null,
     questionAnswers: answers,
     outputSettings: {
@@ -531,7 +590,7 @@ function buildAgeProgressionPackage(
     id: createAssistantPrefillId(),
     intent: "fusion_age_progression",
     actionId: "create_fusion",
-    targetRoute: buildAssistantActionRoute("create_fusion", input.routeContext),
+    targetRoute: buildCharacterStudioFlowHref("future_child"),
     projectId: input.routeContext.projectId ?? null,
     outputSettings,
     protectionSettings: { protectBackground: true },
@@ -571,8 +630,8 @@ function buildLogoPlacementPackage(
     version: 1,
     id: createAssistantPrefillId(),
     intent: "fusion_logo_placement",
-    actionId: "create_fusion",
-    targetRoute: buildAssistantActionRoute("create_fusion", input.routeContext),
+    actionId: "prepare_logo_placement",
+    targetRoute: buildCharacterStudioFlowHref("logo_placement"),
     projectId: input.routeContext.projectId ?? null,
     outputSettings,
     protectionSettings: { protectBackground: true },
@@ -618,14 +677,20 @@ function buildMorphEditPackage(
     ? resolveMascotTransformFusionIntent(targetType, sourceType)
     : undefined;
 
+  const characterStudioMorphRoute = usesMascotWizard
+    ? targetType === "human_version"
+      ? buildCharacterStudioFlowHref("mascot_to_human")
+      : sourceType === "human"
+        ? buildCharacterStudioFlowHref("human_to_mascot")
+        : buildCharacterStudioFlowHref("mascot_transform")
+    : buildEditorMorphActionRoute(morphAction);
+
   return {
     version: 1,
     id: createAssistantPrefillId(),
     intent: input.intent,
     actionId: "edit_mascot",
-    targetRoute: usesMascotWizard
-      ? buildMascotTransformWizardRoute()
-      : buildEditorMorphActionRoute(morphAction),
+    targetRoute: characterStudioMorphRoute,
     projectId: input.routeContext.projectId ?? null,
     promptDraft: input.message.trim(),
     generationGoal: morphDef.description,

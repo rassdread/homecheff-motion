@@ -63,6 +63,8 @@ import {
 import { analyzeSceneIntelligence } from "@/lib/scene-intelligence";
 import { resolveAnimationStyleIdFromSettings } from "@/lib/animation-style-presets";
 import { posterMotionSettingsFromClient } from "@/lib/poster-motion-preserve";
+import { validateMotionPreflightAnalysisGate } from "@/server/instant-premium/motion-preflight-analysis-gate";
+import { stampMotionTransactionProjectId } from "@/lib/motion-transaction-correlation";
 import { prepareInstantImagesWithBakedTextProtection } from "@/server/instant-premium/prepare-baked-text-images";
 import { runInstantPremiumTextPreflight } from "@/server/instant-premium/instant-premium-preflight";
 import { guardInstantPremiumVideoRendering } from "@/server/instant-premium/video-rendering-guard";
@@ -512,6 +514,15 @@ export async function createInstantPremiumAnimationProject(
     };
   }
 
+  const motionAnalysisGate = validateMotionPreflightAnalysisGate(validated.data);
+  if (!motionAnalysisGate.ok) {
+    return {
+      ok: false,
+      error: motionAnalysisGate.blockMessage,
+      status: 422,
+    };
+  }
+
   const preflight = await runInstantPremiumTextPreflight(validated.data);
   if (!preflight.ok) {
     return {
@@ -672,6 +683,25 @@ export async function createInstantPremiumAnimationProject(
           ...studioFields,
         },
       });
+
+      if (
+        usesPosterMotionPreserve(textRenderMode) &&
+        validated.data.posterMotionSettings?.motionTransactionCorrelation
+      ) {
+        const stampedSettings = {
+          ...validated.data.posterMotionSettings,
+          motionTransactionCorrelation: stampMotionTransactionProjectId(
+            validated.data.posterMotionSettings.motionTransactionCorrelation,
+            project.id
+          ),
+        };
+        await tx.animationProject.update({
+          where: { id: project.id },
+          data: {
+            instantPosterMotionSettings: stampedSettings as unknown as Prisma.InputJsonValue,
+          },
+        });
+      }
 
       const createdImages = await Promise.all(
         preparedImages.map((image, index) =>

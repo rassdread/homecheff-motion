@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
+import { buildCharacterStudioFlowHref } from "@/lib/character-studio-hub";
 
 export default function EditorTransformRoutePage() {
-  redirect("/editor/start?workflow=mascot_transform");
+  redirect(buildCharacterStudioFlowHref("mascot_transform"));
 }

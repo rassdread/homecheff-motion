@@ -24,6 +24,8 @@ import {
   resolveStudioSemanticRecipeTextsBySceneIndex,
 } from "@/lib/build-studio-scene-motion-instructions";
 import { logBrandMotionLock, readBrandLockedAssetsFromHandoffJson } from "@/lib/brand-asset-motion-lock";
+import { motionPresetCombinedPromptBlock } from "@/lib/motion-preset-engine-orchestrator";
+import { parsePosterMotionSettings } from "@/lib/poster-motion-preserve";
 import {
   buildMotionProjectKeyframeBrandLog,
   logMotionProjectKeyframeBrand,
@@ -307,6 +309,10 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
   const instantStoredIntent = parseStoredInstantUserIntent(transition.project.instantUserIntent);
 
   const polishSettings = transition.project.instantPosterMotionSettings;
+  const posterParsed = parsePosterMotionSettings(polishSettings);
+  const motionIdentityPromptBlock = posterParsed.hcActionPreset?.engineSnapshot
+    ? motionPresetCombinedPromptBlock(posterParsed.hcActionPreset.engineSnapshot)
+    : undefined;
   const motionProfile = premiumMotionProfileFromPosterSettings(polishSettings);
   const polishProfile = resolvePremiumPolishProfile(polishSettings);
   let exactFrameContinuation = false;
@@ -360,6 +366,7 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
       bakedTextProtectionActive: storyBakedTextProtectionActive,
       aspectRatio,
       continuityStrength: parseStoredStoryContinuityStrength(transition.project.instantUserIntent),
+      motionIdentityPromptBlock,
       studioExecutionPrompts,
       studioMotionInstructions,
       studioSemanticRecipes,
@@ -433,6 +440,7 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
       transitionOrder: transition.order,
       transitionTotal,
       exactFrameContinuation,
+      motionIdentityPromptBlock,
     });
     const segmentHint = instantPremiumTransitionSegmentHint({
       transitionOrder: transition.order,

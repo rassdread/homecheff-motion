@@ -44,6 +44,8 @@ export type CharacterClusterProjectContext = {
   characterId?: string | null;
   mode?: "exact" | "custom_variant" | "new_character";
   requirementId?: string | null;
+  /** Character Studio hub flow id — motion_ready | full_body */
+  flow?: string | null;
 };
 
 export const DEPRECATED_CHARACTER_ENTRY_PATHS = [

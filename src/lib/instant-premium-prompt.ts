@@ -162,6 +162,8 @@ export type BuildInstantVideoPromptInput = {
   transitionTotal?: number;
   /** Segment B starts on same keyframe as segment A ended — continuation mode. */
   exactFrameContinuation?: boolean;
+  /** Character Studio identity block (reused analysis, no duplicate charge). */
+  motionIdentityPromptBlock?: string;
 };
 
 const CONTINUITY_MARKER_RE = /^\[hc_continuity:(balanced|strict)\]\s*\n?/i;
@@ -275,7 +277,11 @@ export function buildInstantVideoPrompt(input: BuildInstantVideoPromptInput): st
       COMIC_STRIP_POWER_LINE
     : "";
 
-  return [storyBlock, premiumMotionBlock, ...tailBlocks, powerLine].filter(Boolean).join("\n\n");
+  const identityBlock = input.motionIdentityPromptBlock?.trim();
+
+  return [storyBlock, premiumMotionBlock, identityBlock, ...tailBlocks, powerLine]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 /** When source frames still contain intentional UI/card text (not pre-masked for Vidu). */
@@ -390,6 +396,8 @@ export type BuildInstantStoryModePromptInput = {
   bakedTextProtectionActive?: boolean;
   continuityStrength?: StoryContinuityStrength;
   projectActingIntensity?: SceneActingIntensity;
+  /** Motion Identity Lock + preset intelligence injected from engine snapshot. */
+  motionIdentityPromptBlock?: string;
   /** V30: Studio execution prompts per scene index (handoff v11). */
   studioExecutionPrompts?: Array<string | null>;
   /** V45: Studio motion direction lines per scene (blocking, composition, arc). */
@@ -577,6 +585,7 @@ export function buildInstantStoryModePromptDetailed(
   const facialLine = buildCompactFacialActingLine(roles);
 
   const prompt = [
+    input.motionIdentityPromptBlock?.trim() ?? "",
     characterContinuityBlock,
     VIDU_MULTI_IMAGE_EMOTION_DIRECTOR_BLOCK,
     anyActiveActing ?

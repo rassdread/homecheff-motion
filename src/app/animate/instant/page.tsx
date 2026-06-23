@@ -23,7 +23,28 @@ import {
   InstantAssistantPrefillApplier,
   applyAssistantPrefillToInstantMotion,
 } from "@/components/assistant/instant-assistant-prefill-applier";
+import { MotionHubQueryPrefillApplier } from "@/components/motion/motion-hub-query-prefill";
 import { MotionActionPresetMotionReadyPrompt } from "@/components/instant/motion-action-preset-motion-ready-prompt";
+import { MotionPresetEnginePanel } from "@/components/instant/motion-preset-engine-panel";
+import {
+  motionVisionPreviewReferencesFromImages,
+  useMotionPresetEngine,
+} from "@/hooks/use-motion-preset-engine";
+import { useMotionVisionAnalysis } from "@/hooks/use-motion-vision-analysis";
+import { useMotionCharacterAttach } from "@/hooks/use-motion-character-attach";
+import {
+  beginMotionPresetTransaction,
+  completeMotionPresetTransaction,
+  failMotionPresetTransaction,
+  advanceMotionPresetTransactionAfterAnalysis,
+  advanceMotionPresetTransactionToRender,
+  type MotionPresetTransactionContext,
+} from "@/lib/motion-preset-transaction-runner";
+import { evaluateMotionPresetPipeline } from "@/lib/motion-preset-engine-orchestrator";
+import { validateMotionAnalysisReadiness } from "@/lib/motion-analysis-readiness-gate";
+import { runMotionPremiumAnalysisForReferences } from "@/lib/motion-premium-analysis-runner";
+import { buildMotionTransactionCorrelation } from "@/lib/motion-transaction-correlation";
+import { reconcileMotionTransaction } from "@/lib/motion-transaction-reconciliation";
 import { shouldPromptMotionReadyForActionPreset } from "@/lib/motion-action-preset-motion-ready";
 import type { AssistantPrefillPackage } from "@/types/assistant-prefill";
 import { CheckoutScanGateDialog } from "@/components/instant/checkout-scan-gate-dialog";
@@ -551,7 +572,80 @@ export default function InstantPremiumPage() {
       ),
     [attachedImageCount, instantMode, locale, sceneCount, session.user?.role, transitionSeconds, sceneTexts]
   );
-  const estimatedPriceLabel = pricingSummary.priceLabel;
+
+  const motionVisionPreviewRefs = useMemo(
+    () =>
+      motionVisionPreviewReferencesFromImages(
+        images.map((img) => ({
+          id: img.id,
+          originalFileName: img.originalFileName,
+          remoteWorkingUrl: resolveRemoteImageSrc(img.remoteWorkingUrl, img.bakedText.remoteWorkingUrl),
+          remoteThumbnailUrl: resolveRemoteImageSrc(img.remoteThumbnailUrl),
+        })),
+        motionReadyCharacterFlag
+      ),
+    [images, motionReadyCharacterFlag]
+  );
+
+  const motionCharacterAttach = useMotionCharacterAttach({
+    references: motionVisionPreviewRefs,
+    posterMotionSettings,
+    enabled: Boolean(hcActionPreset),
+  });
+
+  const effectiveMotionReadyCharacterFlag =
+    motionReadyCharacterFlag ?? motionCharacterAttach.motionReadyFlag ?? null;
+
+  const motionPresetReferences = useMemo(
+    () =>
+      motionCharacterAttach.enrichedReferences.map((ref) => {
+        const { imageUrl: _ignored, ...rest } = ref as typeof ref & { imageUrl?: string | null };
+        return rest;
+      }),
+    [motionCharacterAttach.enrichedReferences]
+  );
+
+  const motionVisionAnalysis = useMotionVisionAnalysis({
+    references: motionCharacterAttach.enrichedReferences,
+    enabled: Boolean(hcActionPreset) && attachedImageCount >= MIN_IMAGES,
+  });
+
+  const motionPresetEngine = useMotionPresetEngine({
+    presetId: hcActionPreset?.actionPresetId ?? null,
+    references: motionPresetReferences,
+    imageCount: Math.max(MIN_IMAGES, attachedImageCount),
+    instantMode,
+    transitionSeconds,
+    sceneTextCount: sceneCount,
+    userIsAdmin: isAdmin,
+    motionReadyFlag: effectiveMotionReadyCharacterFlag,
+    previousSnapshot: hcActionPreset?.engineSnapshot ?? null,
+    visionSignals: motionVisionAnalysis.visionSignals,
+    detectionsByReferenceId: motionVisionAnalysis.detectionsByReferenceId,
+    visionAnalyzing: motionVisionAnalysis.analyzing,
+  });
+
+  const hcActionPresetWithEngine = useMemo(() => {
+    if (!hcActionPreset) {
+      return null;
+    }
+    if (!motionPresetEngine.snapshot) {
+      return hcActionPreset;
+    }
+    return {
+      ...hcActionPreset,
+      engineSnapshot: motionPresetEngine.snapshot,
+    };
+  }, [hcActionPreset, motionPresetEngine.snapshot]);
+
+  const effectiveEstimatedCredits =
+    hcActionPresetWithEngine?.engineSnapshot?.complexityEstimate.estimatedTotalCredits ??
+    pricingSummary.estimatedCredits;
+
+  const estimatedPriceLabel =
+    hcActionPresetWithEngine?.engineSnapshot ?
+      `${effectiveEstimatedCredits} credits`
+    : pricingSummary.priceLabel;
 
   const handleStoryboardSceneChange = useCallback(
     (index: number, patch: Partial<InstantSceneTextDraft>) => {
@@ -611,7 +705,7 @@ export default function InstantPremiumPage() {
     !usesFreeGeneration &&
     !pricingSummary.isAdminFree &&
     wallet.resolved &&
-    pricingSummary.estimatedCredits > wallet.availableCredits;
+    effectiveEstimatedCredits > wallet.availableCredits;
 
   const imagesHaveValidSources = useMemo(
     () => sceneSlotsHaveValidImageSources(sceneSlots),
@@ -659,7 +753,7 @@ export default function InstantPremiumPage() {
       hybridOverlayStyle,
       posterMotionSettings: {
         ...posterMotionSettings,
-        ...(hcActionPreset ? { hcActionPreset } : {}),
+        ...(hcActionPresetWithEngine ? { hcActionPreset: hcActionPresetWithEngine } : {}),
       },
     };
   }, [
@@ -678,7 +772,7 @@ export default function InstantPremiumPage() {
     textRenderMode,
     hybridOverlayStyle,
     posterMotionSettings,
-    hcActionPreset,
+    hcActionPresetWithEngine,
     instantMode,
     transitionSeconds,
     sceneSlots,
@@ -1237,6 +1331,12 @@ export default function InstantPremiumPage() {
       setError(t("instant.errors.previewExpiredReupload"));
       return;
     }
+    if (
+      hcActionPresetWithEngine?.engineSnapshot?.qualityValidation.blockRender
+    ) {
+      setError(t("motionEngine.errors.blockedRender" as never));
+      return;
+    }
     if (!fastRenderMode && !skipPendingScans) {
       const scansDone = await waitForPendingScans(() => imagesRef.current);
       if (!scansDone) {
@@ -1273,6 +1373,7 @@ export default function InstantPremiumPage() {
     setCheckoutBusy(true);
     setError("");
     setPreflightNotice("");
+    let motionTxn: MotionPresetTransactionContext | null = null;
     try {
       const uploaded: CreateAnimationProjectImageInput[] = [];
       for (const img of images) {
@@ -1353,11 +1454,98 @@ export default function InstantPremiumPage() {
         hybridOverlayStyle,
         posterMotionSettings: {
           ...posterMotionSettings,
-          ...(hcActionPreset ? { hcActionPreset } : {}),
+          ...(hcActionPresetWithEngine ? { hcActionPreset: hcActionPresetWithEngine } : {}),
         },
         ...(studioImport ? { studioImport } : {}),
         ...(editorBrandLockedAssets?.length ? { brandLockedAssets: editorBrandLockedAssets } : {}),
       };
+
+      let checkoutActionPreset = hcActionPresetWithEngine;
+
+      if (hcActionPresetWithEngine?.engineSnapshot) {
+        if (!usesFreeGeneration) {
+          const started = beginMotionPresetTransaction({
+            estimate: hcActionPresetWithEngine.engineSnapshot.complexityEstimate,
+            creditsAvailable: wallet.availableCredits,
+          });
+          if (!started.ok) {
+            throw new Error(t("instant.errors.insufficientCredits"));
+          }
+          motionTxn = started.context;
+        }
+
+        const refsWithUrls = motionPresetReferences.map((ref, index) => ({
+          ...ref,
+          imageUrl: uploaded[index]?.workingImageUrl ?? uploaded[index]?.previewUrl ?? null,
+        }));
+
+        const premiumResult = await runMotionPremiumAnalysisForReferences({
+          references: refsWithUrls,
+          userIsAdmin: isAdmin,
+        });
+
+        const readiness = validateMotionAnalysisReadiness({
+          hasActionPreset: true,
+          complexityEstimate: hcActionPresetWithEngine.engineSnapshot.complexityEstimate,
+          premiumAnalysisComplete: premiumResult.premiumAnalysisComplete,
+          premiumAnalysisFailed: premiumResult.failedReferenceIds.length > 0,
+          userIsAdmin: isAdmin,
+        });
+        if (!readiness.ok) {
+          throw new Error(t(readiness.messageKey as never));
+        }
+
+        const reevaluatedSnapshot = evaluateMotionPresetPipeline({
+          presetId: hcActionPresetWithEngine.actionPresetId,
+          references: premiumResult.references,
+          imageCount: Math.max(MIN_IMAGES, uploaded.length),
+          instantMode,
+          transitionSeconds,
+          sceneTextCount: sceneCount,
+          userIsAdmin: isAdmin,
+          visionSignals: motionVisionAnalysis.visionSignals,
+          detectionsByReferenceId: motionVisionAnalysis.detectionsByReferenceId,
+          existingSnapshot: hcActionPresetWithEngine.engineSnapshot,
+          premiumAnalysisComplete: premiumResult.premiumAnalysisComplete,
+          motionReadyAnalysis:
+            effectiveMotionReadyCharacterFlag ?
+              {
+                styleDna: premiumResult.references[0]?.styleDna ?? null,
+                vision: premiumResult.references[0]?.visionAnalysis ?? null,
+              }
+            : null,
+        });
+
+        checkoutActionPreset = {
+          ...hcActionPresetWithEngine,
+          engineSnapshot: reevaluatedSnapshot,
+        };
+
+        body.posterMotionSettings = {
+          ...body.posterMotionSettings,
+          hcActionPreset: checkoutActionPreset,
+          ...(motionCharacterAttach.attachContext?.assetId ?
+            { preparedCharacterAssetId: motionCharacterAttach.attachContext.assetId }
+          : {}),
+        };
+
+        if (motionTxn) {
+          const correlation = buildMotionTransactionCorrelation({
+            session: motionTxn.session,
+            price: motionTxn.price,
+            snapshot: reevaluatedSnapshot,
+            premiumAnalysisComplete: premiumResult.premiumAnalysisComplete,
+          });
+          body.posterMotionSettings = {
+            ...body.posterMotionSettings,
+            motionTransactionCorrelation: correlation,
+          };
+          motionTxn = {
+            ...motionTxn,
+            session: advanceMotionPresetTransactionAfterAnalysis(motionTxn.session),
+          };
+        }
+      }
 
       if (!fastRenderMode) {
         const preflightRes = await fetch("/api/instant-premium/preflight", {
@@ -1390,6 +1578,24 @@ export default function InstantPremiumPage() {
         if (preflightData.warnings && preflightData.warnings.length > 0) {
           setPreflightNotice(preflightData.warnings.join(" "));
         }
+      }
+
+      if (motionTxn) {
+        const correlation = body.posterMotionSettings?.motionTransactionCorrelation;
+        if (correlation) {
+          const issues = reconcileMotionTransaction({
+            correlation,
+            projectId: null,
+            renderStarted: true,
+          });
+          if (issues.length > 0 && process.env.NODE_ENV !== "production") {
+            console.warn("[motion-transaction-reconcile]", issues);
+          }
+        }
+        motionTxn = {
+          ...motionTxn,
+          session: advanceMotionPresetTransactionToRender(motionTxn.session),
+        };
       }
 
       if (usesFreeGeneration) {
@@ -1449,6 +1655,9 @@ export default function InstantPremiumPage() {
         if (okBody?.warnings && okBody.warnings.length > 0) {
           setPreflightNotice(okBody.warnings.join(" "));
         }
+        if (motionTxn) {
+          completeMotionPresetTransaction(motionTxn.session);
+        }
         router.push(progressRoute);
         return;
       }
@@ -1467,8 +1676,17 @@ export default function InstantPremiumPage() {
       if (!res.ok || !data.url) {
         throw new Error(data.error ?? t("instant.errors.checkoutStartFailed"));
       }
+      if (motionTxn) {
+        completeMotionPresetTransaction(motionTxn.session);
+      }
       window.location.href = data.url;
     } catch (e) {
+      if (motionTxn) {
+        await failMotionPresetTransaction(
+          motionTxn.session,
+          e instanceof Error ? e.message : "checkout_failed"
+        );
+      }
       if (e instanceof ImageUploadError) {
         setError(e.message);
       } else {
@@ -1501,6 +1719,18 @@ export default function InstantPremiumPage() {
       waitForPendingScans,
       usesFreeGeneration,
       imagesHaveValidSources,
+      hcActionPresetWithEngine,
+      wallet.availableCredits,
+      motionPresetReferences,
+      motionVisionAnalysis.visionSignals,
+      motionVisionAnalysis.detectionsByReferenceId,
+      motionCharacterAttach.attachContext?.assetId,
+      effectiveMotionReadyCharacterFlag,
+      attachedImageCount,
+      sceneCount,
+      sceneTexts,
+      projectTitle,
+      wizardAudioExport,
       instantMode,
       transitionSeconds,
       sceneSlots,
@@ -1560,7 +1790,11 @@ export default function InstantPremiumPage() {
         onBack: () => setStep(clamped - 1),
         onPrimary: startCheckoutWithQa,
         primaryLabel: generateLabel,
-        primaryDisabled: checkoutBusy || !imagesHaveValidSources || insufficientCreditsForRender,
+        primaryDisabled:
+          checkoutBusy ||
+          !imagesHaveValidSources ||
+          insufficientCreditsForRender ||
+          (Boolean(hcActionPresetWithEngine) && motionPresetEngine.canRender === false),
         stackButtons: true,
       };
     }
@@ -1589,6 +1823,8 @@ export default function InstantPremiumPage() {
     estimatedPriceLabel,
     imagesHaveValidSources,
     insufficientCreditsForRender,
+    hcActionPresetWithEngine,
+    motionPresetEngine.canRender,
     isAdmin,
     sceneCount,
     startCheckoutWithQa,
@@ -1763,6 +1999,7 @@ export default function InstantPremiumPage() {
         />
 
         <Suspense fallback={null}>
+          <MotionHubQueryPrefillApplier />
           <InstantAssistantPrefillApplier onApply={handleAssistantPrefill} />
         </Suspense>
 
@@ -1770,6 +2007,13 @@ export default function InstantPremiumPage() {
           <MotionActionPresetMotionReadyPrompt
             onDismiss={() => setMotionReadyPromptDismissed(true)}
             onContinue={() => setMotionReadyPromptDismissed(true)}
+          />
+        ) : null}
+
+        {hcActionPresetWithEngine?.engineSnapshot ? (
+          <MotionPresetEnginePanel
+            snapshot={hcActionPresetWithEngine.engineSnapshot}
+            analyzing={motionVisionAnalysis.analyzing}
           />
         ) : null}
 

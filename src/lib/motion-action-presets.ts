@@ -3,6 +3,10 @@ import type {
   MotionActionPresetId,
   MotionActionPresetMetadata,
 } from "@/types/motion-action-presets";
+import {
+  EXPANDED_MOTION_ACTION_PRESETS,
+  EXPANDED_PRESET_KEYWORD_RULES,
+} from "@/lib/motion-action-presets-expanded";
 
 const PRESETS: MotionActionPreset[] = [
   {
@@ -899,22 +903,16 @@ const PRESETS: MotionActionPreset[] = [
     feasibilityNote:
       "Stadssprint werkt goed. Perfecte hardloopfysica kan per generatie wisselen.",
   },
+  ...EXPANDED_MOTION_ACTION_PRESETS,
 ];
 
 const PRESET_BY_ID = new Map<MotionActionPresetId, MotionActionPreset>(
   PRESETS.map((preset) => [preset.id, preset])
 );
 
-export const MOTION_ACTION_PRESET_FEATURED_IDS: MotionActionPresetId[] = [
-  "goal_celebration",
-  "stadium_entrance",
-  "championship_celebration",
-  "moonwalk",
-  "snowboard_jump",
-  "skateboard_trick",
-  "fans_recognize_me",
-  "red_carpet_moment",
-];
+export const MOTION_ACTION_PRESET_FEATURED_IDS: MotionActionPresetId[] = PRESETS.map(
+  (preset) => preset.id
+);
 
 type PresetKeywordRule = {
   id: MotionActionPresetId;
@@ -940,6 +938,7 @@ const PRESET_KEYWORD_RULES: PresetKeywordRule[] = [
   { id: "sports_car_arrival", keywords: ["sportwagen", "sports car", "luxe auto", "uit auto stappen"] },
   { id: "mountain_summit", keywords: ["bergtop", "mountain summit", "top bereiken"] },
   { id: "city_sprint", keywords: ["sprint door", "rennen door de stad", "city sprint"] },
+  ...EXPANDED_PRESET_KEYWORD_RULES,
 ];
 
 function normalize(text: string): string {

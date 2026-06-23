@@ -20,6 +20,8 @@ type Props = {
   onHoverTargetId?: (targetId: string | null) => void;
   multiSelect?: boolean;
   showAuditDebug?: boolean;
+  /** Outfit flow — allow all selectable clothing/body parts, not only branding-eligible nodes. */
+  outfitMode?: boolean;
 };
 
 function TargetTreeNode({
@@ -31,6 +33,8 @@ function TargetTreeNode({
   onPick,
   onHover,
   multiSelect,
+  showAuditDebug,
+  outfitMode,
 }: {
   node: VisionTargetNodeV2;
   depth: number;
@@ -40,11 +44,13 @@ function TargetTreeNode({
   onPick: (node: VisionTargetNodeV2) => void;
   onHover: (id: string | null) => void;
   multiSelect: boolean;
+  showAuditDebug?: boolean;
+  outfitMode?: boolean;
 }) {
   const selected = selectedIds.has(node.id);
   const hasChildren = node.children.length > 0;
   const isOpen = expanded.has(node.id);
-  const canPick = node.selectable && node.brandingEligible;
+  const canPick = node.selectable && (outfitMode || node.brandingEligible);
 
   return (
     <>
@@ -116,6 +122,7 @@ function TargetTreeNode({
             onPick={onPick}
             onHover={onHover}
             multiSelect={multiSelect}
+            outfitMode={outfitMode}
           />
         ))
       : null}
@@ -130,6 +137,7 @@ export function EditorVisionTargetPickerV2({
   onHoverTargetId,
   multiSelect = true,
   showAuditDebug = false,
+  outfitMode = false,
 }: Props) {
   const t = useActiveTranslator();
   const tree = useMemo(() => buildVisionTargetTreeFromDocument(document), [document]);
@@ -207,6 +215,7 @@ export function EditorVisionTargetPickerV2({
             onPick={handlePick}
             onHover={handleHover}
             multiSelect={multiSelect}
+            outfitMode={outfitMode}
           />
         ))}
       </div>

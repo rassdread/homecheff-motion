@@ -1,9 +1,7 @@
 import { hasValidPremiumAnalysis } from "@/lib/editor-fusion-analysis-cache";
-import { profileFromAnalyzedDocument } from "@/lib/editor-fusion-intelligence";
-import { buildFusionIntelligenceCostState } from "@/lib/editor-fusion-workflow-credits";
-import { normalizeFusionIntent } from "@/lib/editor-image-fusion-catalog";
-import { primaryBaseDocumentFromIntake } from "@/lib/editor-reference-role-intake";
+import { resolveWizardWorkflowPriceFromIntake } from "@/lib/wizard-workflow-pricing";
 import { PREMIUM_VISION_ANALYSIS_CREDITS } from "@/lib/editor-premium-vision-credits";
+import { primaryBaseDocumentFromIntake } from "@/lib/editor-reference-role-intake";
 import type { EditorReferenceIntakeState } from "@/types/editor-reference-role-flow";
 
 export type FusionWizardPhotoCreditLine = {
@@ -21,19 +19,23 @@ export type FusionWizardCreditPreview = {
   adminFree: boolean;
 };
 
+/** @deprecated Use resolveWizardWorkflowPriceFromIntake — kept for admin/debug and legacy callers. */
 export function buildFusionWizardCreditPreview(input: {
   intake: EditorReferenceIntakeState;
   isAdmin?: boolean;
 }): FusionWizardCreditPreview | null {
+  const price = resolveWizardWorkflowPriceFromIntake(input);
+  if (!price) {
+    return null;
+  }
+
   const intent = input.intake.config.intent;
   if (!intent || input.intake.config.workflow !== "combine") {
     return null;
   }
-  const normalized = normalizeFusionIntent(intent);
   const isAdmin = Boolean(input.isAdmin);
   const baseDoc = primaryBaseDocumentFromIntake(input.intake);
   const photos: FusionWizardPhotoCreditLine[] = [];
-  const profiles = [];
 
   if (baseDoc) {
     const cached = hasValidPremiumAnalysis(baseDoc);
@@ -43,15 +45,6 @@ export function buildFusionWizardCreditPreview(input: {
       cached,
       credits: cached || isAdmin ? 0 : PREMIUM_VISION_ANALYSIS_CREDITS,
     });
-    profiles.push(
-      profileFromAnalyzedDocument({
-        document: baseDoc,
-        referenceId: `base_${baseDoc.sessionId}`,
-        role: "base",
-        roleId: "base",
-        name: baseDoc.name,
-      })
-    );
   }
 
   for (const slot of input.intake.slots) {
@@ -63,30 +56,14 @@ export function buildFusionWizardCreditPreview(input: {
         cached,
         credits: cached || isAdmin ? 0 : PREMIUM_VISION_ANALYSIS_CREDITS,
       });
-      profiles.push(
-        profileFromAnalyzedDocument({
-          document: instance.document,
-          referenceId: instance.instanceId,
-          role: slot.role,
-          roleId: slot.roleId,
-          name: instance.document.name,
-        })
-      );
     }
   }
 
-  const costState = buildFusionIntelligenceCostState({
-    workflowType: normalized,
-    profiles,
-  });
-  const analysisCredits = isAdmin ? 0 : costState.analysisCreditsRequired;
-  const renderCredits = isAdmin ? 0 : costState.renderCredits;
-
   return {
     photos,
-    analysisCredits,
-    renderCredits,
-    totalCredits: analysisCredits + renderCredits,
-    adminFree: isAdmin,
+    analysisCredits: price.analysisCredits,
+    renderCredits: price.renderCredits,
+    totalCredits: price.totalCredits,
+    adminFree: price.adminBypass,
   };
 }

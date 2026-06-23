@@ -1,8 +1,10 @@
 import { buildCharacterClusterHref } from "@/lib/character-cluster-routes";
 import {
   buildAssistantEditorWorkflowRoute,
+  buildCharacterStudioOutfitRoute,
   buildMascotTransformWizardRoute,
 } from "@/lib/assistant-editor-routes";
+import { buildCharacterStudioFlowHref, buildCharacterStudioHubHref } from "@/lib/character-studio-hub";
 import { LIBRARY_HUB_BASE_PATH } from "@/lib/homecheff-suite-route-aliases";
 
 export const ASSISTANT_ACTION_IDS = [
@@ -17,6 +19,7 @@ export const ASSISTANT_ACTION_IDS = [
   "rename_project",
   "open_asset",
   "prepare_outfit",
+  "prepare_logo_placement",
   "prepare_background",
   "prepare_location",
   "prepare_prop",
@@ -84,8 +87,8 @@ export const ASSISTANT_ACTION_REGISTRY: Record<AssistantActionId, AssistantActio
   create_fusion: {
     id: "create_fusion",
     category: "fusion",
-    description: "Open the editor fusion / combine workflow.",
-    canonicalRoute: buildAssistantEditorWorkflowRoute("combine"),
+    description: "Open Character Studio for character fusion workflows.",
+    canonicalRoute: buildCharacterStudioHubHref(),
     execution: "registry_only",
   },
   create_publish_export: {
@@ -119,8 +122,15 @@ export const ASSISTANT_ACTION_REGISTRY: Record<AssistantActionId, AssistantActio
   prepare_outfit: {
     id: "prepare_outfit",
     category: "preparation",
-    description: "Plan outfit preparation via fusion (registry only).",
-    canonicalRoute: buildAssistantEditorWorkflowRoute("combine"),
+    description: "Plan outfit preparation via Character Studio outfit wizard.",
+    canonicalRoute: buildCharacterStudioOutfitRoute(),
+    execution: "registry_only",
+  },
+  prepare_logo_placement: {
+    id: "prepare_logo_placement",
+    category: "preparation",
+    description: "Open logo placement & brand protection wizard in Character Studio.",
+    canonicalRoute: buildCharacterStudioFlowHref("logo_placement"),
     execution: "registry_only",
   },
   prepare_background: {

@@ -95,6 +95,8 @@ export type StartEditorImageAnalysisResult = {
   willExecute: boolean;
   blockedReason: string | null;
   joiningExisting: boolean;
+  /** Set when premium analysis credits were captured — used for wizard refund compensation. */
+  premiumCreditSession?: PremiumVisionCreditSession | null;
 };
 
 export type EditorAnalysisEntrypointLog = {
@@ -669,6 +671,10 @@ export async function startEditorImageAnalysis(
         willExecute: true,
         blockedReason: null,
         joiningExisting,
+        premiumCreditSession:
+          isPremiumRun && premiumCreditSession?.creditStatus === "charged"
+            ? premiumCreditSession
+            : null,
       };
     }
 
@@ -679,7 +685,7 @@ export async function startEditorImageAnalysis(
           ((guardedResult.visionV6Meta?.mergedAnalysisParts?.length ?? 0) >= 2 ||
             (guardedResult.visionV6Meta?.visionPartCount ?? 0) >= 4));
       if (richEnoughToForce) {
-        const forced = guardVisionDocumentWrite("acceptance", pendingBaseline, guardedResult, {
+        let forced = guardVisionDocumentWrite("acceptance", pendingBaseline, guardedResult, {
           runId: guardedResult.visionAnalysisRun?.runId,
           force: true,
         }).document;
@@ -705,6 +711,13 @@ export async function startEditorImageAnalysis(
             : "force_rich_commit",
         });
         input.onRunMetaPreview?.(null);
+        if (isPremiumRun && premiumCreditSession) {
+          const captured = await capturePremiumCreditsIfNeeded(premiumCreditSession);
+          if (captured) {
+            forced = stampPremiumBillingOnDocument(forced, captured);
+            premiumCreditSession = captured;
+          }
+        }
         return {
           accepted: forced,
           preparedDocument: prepared,
@@ -713,6 +726,10 @@ export async function startEditorImageAnalysis(
           willExecute: true,
           blockedReason: null,
           joiningExisting,
+          premiumCreditSession:
+            isPremiumRun && premiumCreditSession?.creditStatus === "charged"
+              ? premiumCreditSession
+              : null,
         };
       }
     }

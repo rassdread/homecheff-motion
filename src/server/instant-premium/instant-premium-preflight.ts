@@ -26,6 +26,7 @@ import type { ViduPromptTooLongDebug } from "@/lib/vidu-prompt-budget";
 import { buildPremiumRenderValidationReport } from "@/lib/premium-render-validation";
 import type { PremiumRenderValidationReport } from "@/lib/premium-render-validation";
 import { isValidHttpUrl } from "@/lib/is-valid-http-url";
+import { validateMotionPreflightAnalysisGate } from "@/server/instant-premium/motion-preflight-analysis-gate";
 
 export const INSTANT_PREFLIGHT_BLOCK_MESSAGE_NL =
   "Deze afbeelding bevat tekst die kan vervormen. Scan en bevestig tekst eerst.";
@@ -90,7 +91,8 @@ export type InstantPremiumPreflightResult =
         | "OPENAI_RATE_LIMITED"
         | "VIDU_PROMPT_TOO_LONG"
         | "TEXT_LOCK_REQUIRED"
-        | "INVALID_IMAGE_URL";
+        | "INVALID_IMAGE_URL"
+        | "MOTION_ANALYSIS_INCOMPLETE";
       blockMessage: string;
       warnings: string[];
       images: PreflightImageReport[];
@@ -449,6 +451,19 @@ function flattenStructuredWarnings(reports: PreflightImageReport[]): PreflightWa
 export async function runInstantPremiumTextPreflight(
   payload: InstantPremiumCreatePayload
 ): Promise<InstantPremiumPreflightResult> {
+  const motionAnalysisGate = validateMotionPreflightAnalysisGate(payload);
+  if (!motionAnalysisGate.ok) {
+    return {
+      ok: false,
+      error: motionAnalysisGate.blockMessage,
+      code: motionAnalysisGate.code,
+      blockMessage: motionAnalysisGate.blockMessage,
+      warnings: [],
+      images: [],
+      visionUsed: false,
+    };
+  }
+
   if (usesPosterMotionPreserve(normalizeTextRenderMode(payload.textRenderMode))) {
     const viduPromptCheck = runViduPromptLengthPreflight(payload);
     const validation = buildPremiumRenderValidationReport({

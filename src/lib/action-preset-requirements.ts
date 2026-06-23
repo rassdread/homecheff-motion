@@ -1,3 +1,4 @@
+import { getAllMotionActionPresets } from "@/lib/motion-action-presets";
 import type { MotionActionPresetId } from "@/types/motion-action-presets";
 import type {
   ActionPresetRequirement,
@@ -178,9 +179,9 @@ export const ACTION_PRESET_REQUIREMENT_CATALOG: Record<
   }),
 };
 
-export const ACTION_PRESET_REQUIREMENT_PROFILES: Record<
-  MotionActionPresetId,
-  ActionPresetRequirementProfile
+/** Explicit overrides — all other presets derive from category defaults at build time. */
+const EXPLICIT_ACTION_PRESET_REQUIREMENT_PROFILES: Partial<
+  Record<MotionActionPresetId, ActionPresetRequirementProfile>
 > = {
   goal_celebration: {
     presetId: "goal_celebration",
@@ -272,12 +273,76 @@ export const ACTION_PRESET_REQUIREMENT_PROFILES: Record<
     required: ["person_character"],
     optional: ["city_location", "sports_outfit", "sfx", "music"],
   },
+  penalty_kick: {
+    presetId: "penalty_kick",
+    required: ["person_character"],
+    optional: ["football_outfit", "stadium_location", "crowd", "sports_music", "sfx"],
+  },
+  goalkeeper_save: {
+    presetId: "goalkeeper_save",
+    required: ["person_character"],
+    optional: ["football_outfit", "stadium_location", "crowd", "sfx"],
+  },
+  team_celebration: {
+    presetId: "team_celebration",
+    required: ["person_character"],
+    optional: ["football_outfit", "stadium_location", "crowd", "sports_music"],
+  },
 };
+
+function buildActionPresetRequirementProfiles(): Record<
+  MotionActionPresetId,
+  ActionPresetRequirementProfile
+> {
+  const profiles = {} as Record<MotionActionPresetId, ActionPresetRequirementProfile>;
+  for (const preset of getAllMotionActionPresets()) {
+    profiles[preset.id] =
+      EXPLICIT_ACTION_PRESET_REQUIREMENT_PROFILES[preset.id] ??
+      defaultProfileForPreset(preset);
+  }
+  return profiles;
+}
+
+function defaultProfileForPreset(preset: {
+  id: MotionActionPresetId;
+  category: string;
+}): ActionPresetRequirementProfile {
+  if (preset.category === "mascots") {
+    return {
+      presetId: preset.id,
+      required: ["person_character"],
+      optional: ["mascot", "stage", "crowd", "music"],
+    };
+  }
+  if (preset.category === "business") {
+    const productIds = new Set([
+      "product_launch",
+      "product_showcase",
+      "product_unboxing",
+      "brand_reveal",
+    ]);
+    return {
+      presetId: preset.id,
+      required: ["person_character"],
+      optional: productIds.has(preset.id) ? ["logo", "background", "music"] : ["logo", "background", "music", "voice"],
+    };
+  }
+  return {
+    presetId: preset.id,
+    required: ["person_character"],
+    optional: ["background", "music", "sfx"],
+  };
+}
+
+export const ACTION_PRESET_REQUIREMENT_PROFILES = buildActionPresetRequirementProfiles();
 
 export function getActionPresetRequirementProfile(
   presetId: MotionActionPresetId
 ): ActionPresetRequirementProfile {
-  return ACTION_PRESET_REQUIREMENT_PROFILES[presetId];
+  return (
+    ACTION_PRESET_REQUIREMENT_PROFILES[presetId] ??
+    defaultProfileForPreset({ id: presetId, category: "social" })
+  );
 }
 
 export function getActionPresetRequirement(

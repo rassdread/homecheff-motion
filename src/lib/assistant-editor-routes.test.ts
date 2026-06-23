@@ -19,8 +19,8 @@ describe("assistant editor routes", () => {
     assert.equal(normalizeAssistantEditorRoute("/studio/start"), "/studio/start");
   });
 
-  it("builds mascot transform wizard route on editor start path", () => {
-    assert.equal(buildMascotTransformWizardRoute(), "/editor/start?workflow=mascot_transform");
+  it("builds mascot transform wizard route on character studio path", () => {
+    assert.equal(buildMascotTransformWizardRoute(), "/studio/characters/prepare?flow=mascot_transform");
     assert.equal(
       buildAssistantEditorWorkflowRoute("combine", { prefillId: "x" }),
       "/editor/start?workflow=combine&prefillId=x"

@@ -9,6 +9,16 @@ import { getFusionPlan } from "@/lib/editor-fusion-plan";
 import { mergeInstructionSelection } from "@/lib/editor-instruction-studio";
 import { buildEditorRecommendationContext } from "@/lib/editor-recommendation-context";
 import { resolveCompositionBrandIdentity } from "@/lib/editor-personalized-recommendations";
+import { validateWizardCreditReservation } from "@/lib/wizard-credit-reservation";
+import { resolveWizardWorkflowPriceFromIntake } from "@/lib/wizard-workflow-pricing";
+import {
+  compensateWizardPipelineFailure,
+  createWizardTransaction,
+  markWizardTransactionCaptureComplete,
+  markWizardTransactionReserved,
+  registerWizardPremiumCapture,
+  transitionWizardTransaction,
+} from "@/lib/wizard-transaction-lifecycle";
 import { metadataEnrichedGenerationPrompt } from "@/lib/editor-metadata-pipeline";
 import type { EditorReferenceIntakeState } from "@/types/editor-reference-role-flow";
 import type { FusionRunRecord } from "@/types/editor-fusion-intelligence";
@@ -136,16 +146,43 @@ export async function runFusionWizardRenderPipeline(input: {
     return {
       ok: false,
       code: "validation",
-      message: "Missing session or base image.",
+      message: "validation_missing_base",
       document,
       intake,
     };
+  }
+
+  const price = resolveWizardWorkflowPriceFromIntake({
+    intake,
+    isAdmin: input.isAdmin,
+  });
+  let transaction = price ? createWizardTransaction(price) : null;
+  if (price) {
+    const reservation = validateWizardCreditReservation({
+      price,
+      creditsAvailable: input.creditsAvailable ?? 0,
+    });
+    if (!reservation.ok) {
+      return {
+        ok: false,
+        code: "credit_gate",
+        message: "insufficient_credits",
+        estimatedCredits: reservation.required,
+        document,
+        intake,
+      };
+    }
+    if (transaction) {
+      transaction = markWizardTransactionReserved(transaction);
+    }
   }
 
   input.onProgress(0);
   await delay(80);
 
   input.onProgress(1);
+  transaction =
+    transaction ? transitionWizardTransaction(transaction, "ANALYSIS_RUNNING") : null;
   const premiumResult = await ensureFusionWizardPremiumAnalyses({
     intake,
     isAdmin: input.isAdmin,
@@ -157,7 +194,7 @@ export async function runFusionWizardRenderPipeline(input: {
       return {
         ok: false,
         code: "credit_gate",
-        message: premiumResult.message,
+        message: "insufficient_credits",
         estimatedCredits: premiumResult.estimatedCredits,
         document,
         intake: premiumResult.intake,
@@ -166,7 +203,7 @@ export async function runFusionWizardRenderPipeline(input: {
     return {
       ok: false,
       code: "analysis",
-      message: premiumResult.message,
+      message: "analysis_failed",
       document,
       intake: premiumResult.intake,
     };
@@ -174,9 +211,16 @@ export async function runFusionWizardRenderPipeline(input: {
 
   document = premiumResult.document;
   intake = premiumResult.intake;
+  if (transaction) {
+    for (const session of premiumResult.capturedPremiumSessions) {
+      transaction = registerWizardPremiumCapture(transaction, session);
+    }
+  }
 
   await delay(80);
   input.onProgress(2);
+  transaction =
+    transaction ? transitionWizardTransaction(transaction, "RENDER_RUNNING") : null;
 
   const fusionIntelligence = resolveFusionIntelligenceForGeneration({
     document,
@@ -187,7 +231,7 @@ export async function runFusionWizardRenderPipeline(input: {
     return {
       ok: false,
       code: "analysis",
-      message: "Analysis incomplete.",
+      message: "analysis_incomplete",
       document,
       intake,
     };
@@ -248,10 +292,17 @@ export async function runFusionWizardRenderPipeline(input: {
   });
 
   if (!result.ok && result.creditGate) {
+    if (transaction) {
+      await compensateWizardPipelineFailure({
+        record: transaction,
+        failureReason: "render_credit_gate",
+        renderFailed: true,
+      });
+    }
     return {
       ok: false,
       code: "credit_gate",
-      message: result.error ?? "Insufficient credits.",
+        message: "insufficient_credits",
       estimatedCredits: result.estimatedCredits,
       document,
       intake,
@@ -259,6 +310,13 @@ export async function runFusionWizardRenderPipeline(input: {
   }
 
   if (!result.ok) {
+    if (transaction) {
+      await compensateWizardPipelineFailure({
+        record: transaction,
+        failureReason: result.error ?? "render_failed",
+        renderFailed: true,
+      });
+    }
     const code =
       result.code === "ANALYSIS" || result.code === "analysis_failed"
         ? "analysis"
@@ -268,13 +326,20 @@ export async function runFusionWizardRenderPipeline(input: {
     return {
       ok: false,
       code,
-      message: result.error ?? "Fusion render failed.",
+      message: result.error ?? "render_failed",
       document,
       intake,
     };
   }
 
   if (!result.resultUrl) {
+    if (transaction) {
+      await compensateWizardPipelineFailure({
+        record: transaction,
+        failureReason: "render_no_image",
+        renderFailed: true,
+      });
+    }
     return {
       ok: false,
       code: "render",
@@ -299,6 +364,10 @@ export async function runFusionWizardRenderPipeline(input: {
   };
 
   const analysisReused = premiumResult.cacheHits > 0 && premiumResult.premiumAnalysesStarted === 0;
+
+  if (transaction) {
+    markWizardTransactionCaptureComplete(transaction);
+  }
 
   return {
     ok: true,

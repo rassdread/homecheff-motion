@@ -36,7 +36,7 @@ function record(partial: Partial<LibraryConsistencyRecord> & Pick<LibraryConsist
 
 describe("homecheff assistant v1", () => {
   it("registry covers all supported assistant actions", () => {
-    assert.equal(ASSISTANT_ACTION_IDS.length, 17);
+    assert.equal(ASSISTANT_ACTION_IDS.length, 18);
   });
 
   it("routes character-from-reference intent to canonical wizard", () => {

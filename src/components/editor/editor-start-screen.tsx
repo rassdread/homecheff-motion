@@ -24,7 +24,11 @@ import { createEditorProject, fetchEditorProject, fetchEditorProjects } from "@/
 import { beginEditorOpenTimingSession, markEditorOpenTiming, recordEditorOpenStage } from "@/lib/editor-open-timing";
 import { resolveEditorDocumentOrigin } from "@/lib/editor-project-origin";
 import { scheduleIdleTask } from "@/lib/editor-project-restore";
-import { buildMotionReadyCharacterWizardHref } from "@/lib/motion-ready-character-routes";
+import { buildCharacterStudioHubHref } from "@/lib/character-studio-hub";
+import {
+  resolveCharacterStudioRouteForFusionIntent,
+  resolveLegacyEditorStartRedirectFromSearchParams,
+} from "@/lib/character-studio-legacy-routes";
 import { EditorFusionIntentPicker } from "@/components/editor/editor-fusion-intent-picker";
 import { EditorMascotTransformationWizard } from "@/components/editor/editor-mascot-transformation-wizard";
 import { EditorLogoPlacementWizard, LOGO_PLACEMENT_WORKFLOW } from "@/components/editor/editor-logo-placement-wizard";
@@ -235,7 +239,7 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
 
   const openReferenceFlow = (workflow: EditorPostUploadMode, combineIntent?: EditorFusionIntent) => {
     if (workflow === "motion_prepare") {
-      router.push(buildMotionReadyCharacterWizardHref());
+      router.push(buildCharacterStudioHubHref());
       return;
     }
     if (workflow === "combine" && !combineIntent) {
@@ -246,16 +250,34 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
   };
 
   const handleCombineIntent = (intent: EditorFusionIntent) => {
+    const csRoute = resolveCharacterStudioRouteForFusionIntent(intent);
+    if (csRoute) {
+      router.push(csRoute);
+      return;
+    }
     openReferenceFlow("combine", intent);
   };
 
   useEffect(() => {
-    const workflow = searchParams.get("workflow");
-    if (workflow === MASCOT_TRANSFORM_WORKFLOW) {
-      setPhase({ kind: "mascot_transform" });
+    const legacyRedirect = resolveLegacyEditorStartRedirectFromSearchParams(
+      searchParams,
+      fusionBootstrap?.fusionIntent
+    );
+    if (legacyRedirect) {
+      router.replace(legacyRedirect.to);
       return;
     }
+
+    const workflow = searchParams.get("workflow");
     if (workflow === "combine") {
+      const intentParam = searchParams.get("intent");
+      if (intentParam) {
+        const csRoute = resolveCharacterStudioRouteForFusionIntent(intentParam);
+        if (csRoute) {
+          router.replace(csRoute);
+          return;
+        }
+      }
       setPhase({ kind: "combine_intent", workflow: "combine" });
       return;
     }
@@ -263,10 +285,15 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
       return;
     }
     const intent = fusionBootstrap.fusionIntent as EditorFusionIntent;
-    if (intent === "outfit_from_reference" || fusionWorkflowUsesWizardFirst(intent)) {
+    const csRoute = resolveCharacterStudioRouteForFusionIntent(intent);
+    if (csRoute) {
+      router.replace(csRoute);
+      return;
+    }
+    if (fusionWorkflowUsesWizardFirst(intent)) {
       openReferenceFlow("combine", intent);
     }
-  }, [fusionBootstrap, searchParams]);
+  }, [fusionBootstrap, searchParams, router]);
 
   const referenceConfig =
     phase.kind === "reference_flow"

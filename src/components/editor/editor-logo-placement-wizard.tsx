@@ -7,7 +7,7 @@ import { EditorVisionTargetHighlight } from "@/components/editor/editor-vision-t
 import { EditorVisionTargetPickerV2 } from "@/components/editor/editor-vision-target-picker-v2";
 import { EditorFlowActionBar } from "@/components/editor/editor-flow-stepper";
 import { EditorFusionWizardAdvancedSettings } from "@/components/editor/editor-fusion-wizard-advanced-settings";
-import { EditorFusionWizardCreditsPanel } from "@/components/editor/editor-fusion-wizard-credits-panel";
+import { EditorWizardWorkflowPricingPanel, formatWizardMakeButtonLabel } from "@/components/editor/editor-wizard-workflow-pricing-panel";
 import { EditorFusionWizardProgress } from "@/components/editor/editor-fusion-wizard-progress";
 import { EditorFusionWizardResultPanel } from "@/components/editor/editor-fusion-wizard-result-panel";
 import { HomeCheffOrbitLoader } from "@/components/editor/homecheff-orbit-loader";
@@ -17,6 +17,8 @@ import { buildBrandAssetProtectionLayer } from "@/lib/brand-asset-protection-lay
 import { createEditorDocumentFromUpload, runEditorVisionAndObjectDetection } from "@/lib/editor-canvas-session";
 import { resolveInstructionObjectBounds } from "@/lib/editor-instruction-object-bounds";
 import { patchFusionPlan, createInitialFusionPlan, getFusionPlan } from "@/lib/editor-fusion-plan";
+import { resolveWizardPipelineErrorCopy } from "@/lib/wizard-user-copy";
+import { resolveWizardWorkflowPriceFromIntake } from "@/lib/wizard-workflow-pricing";
 import { runFusionWizardRenderPipeline } from "@/lib/editor-fusion-wizard-render";
 import {
   applyReferenceRoleIntake,
@@ -50,6 +52,7 @@ import {
   visionTargetToInstructionObject,
 } from "@/lib/vision-target-picker-v2";
 import { createBrandReferenceAsset } from "@/lib/editor-instruction-references";
+import { CharacterStudioResultNextSteps } from "@/components/character-studio/character-studio-result-next-steps";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 import type { EditorInstructionObjectV2 } from "@/types/editor-instruction-studio";
@@ -126,6 +129,16 @@ export function EditorLogoPlacementWizard({
   const [resultDocument, setResultDocument] = useState<EditorCanvasDocument | null>(null);
 
   const combineIntent = "product_branding" as const;
+
+  const summaryPrice = useMemo(() => {
+    if (!intake) {
+      return null;
+    }
+    return resolveWizardWorkflowPriceFromIntake({
+      intake,
+      isAdmin: access.billingFree,
+    });
+  }, [intake, access.billingFree]);
 
   const placementObjects = useMemo(() => {
     if (!document) {
@@ -467,7 +480,8 @@ export function EditorLogoPlacementWizard({
 
     setRenderBusy(false);
     if (!outcome.ok) {
-      setError(outcome.message);
+      const copy = resolveWizardPipelineErrorCopy(outcome);
+      setError(t(copy.key as never));
       setStep("summary");
       return;
     }
@@ -637,7 +651,7 @@ export function EditorLogoPlacementWizard({
       {step === "summary" ?
         <div className="mt-6 space-y-4" data-testid="logo-placement-summary">
           {intake ?
-            <EditorFusionWizardCreditsPanel
+            <EditorWizardWorkflowPricingPanel
               intake={intake}
               combineIntent={combineIntent}
               isAdmin={access.billingFree}
@@ -651,9 +665,13 @@ export function EditorLogoPlacementWizard({
               onCustomPromptChange={setCustomPrompt}
             />
           : <HomeCheffOrbitLoader state="preparing_plan" size="md" />}
-          {logoUrl ?
+          {logoUrl && access.billingFree ?
             <p className="text-xs text-white/80" data-testid="logo-placement-logo-url">
               {logoName}: {logoUrl}
+            </p>
+          : logoName ?
+            <p className="text-xs text-white/80" data-testid="logo-placement-logo-name">
+              {logoName}
             </p>
           : null}
           {blueprint && document?.backgroundUrl && blueprint.quad ?
@@ -722,6 +740,18 @@ export function EditorLogoPlacementWizard({
                 : undefined
             }
           />
+          {!onOpenEditor ?
+            <CharacterStudioResultNextSteps
+              resultImageUrl={resultUrl}
+              sourceImage={resultDocument?.backgroundUrl}
+              onMakeAnother={() => {
+                setStep("select_target");
+                setResultUrl(null);
+                setBlueprint(null);
+                setLogoUrl("");
+              }}
+            />
+          : null}
         </div>
       : null}
 
@@ -737,11 +767,18 @@ export function EditorLogoPlacementWizard({
             visionAnalyzing
           }
           continueLabel={
-            step === "summary"
-              ? t("editor.logoPlacement.renderAction" as never)
-              : step === "upload_logo"
-                ? t("editor.logoPlacement.uploadLogoAction" as never)
-                : t("editor.referenceRole.continue" as never)
+            step === "summary" && summaryPrice
+              ? formatWizardMakeButtonLabel({
+                  t,
+                  combineIntent,
+                  totalCredits: summaryPrice.totalCredits,
+                  adminBypass: summaryPrice.adminBypass,
+                })
+              : step === "summary"
+                ? t("editor.logoPlacement.renderAction" as never)
+                : step === "upload_logo"
+                  ? t("editor.logoPlacement.uploadLogoAction" as never)
+                  : t("editor.referenceRole.continue" as never)
           }
           busy={uploading || uploadingLogo || renderBusy}
         />

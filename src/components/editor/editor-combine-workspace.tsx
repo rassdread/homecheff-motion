@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { activeApprovedVariant } from "@/lib/editor-instruction-approval";
@@ -61,6 +62,7 @@ import {
   enableAdvancedFusionCompose,
   shouldOfferAdvancedFusionCompose,
 } from "@/lib/editor-fusion-advanced";
+import { combineWorkspaceRequiresRetirementBanner, combineWizardSteerHref } from "@/lib/combine-workspace-retirement";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 
 const COMBINE_WORKSPACE_COMPONENT = "EditorCombineWorkspace";
@@ -414,6 +416,15 @@ export function EditorCombineWorkspace({
   };
 
   const combineIntent = document.instructionStudioState?.combineIntent;
+  const fusionPlanIntent = document.instructionStudioState?.fusionPlan?.intent;
+  const steerIntent = fusionPlanIntent ?? combineIntent;
+  const showWizardSteerBanner =
+    steerIntent &&
+    combineWorkspaceRequiresRetirementBanner({
+      intent: steerIntent,
+      role: access.role,
+      billingFree: access.billingFree,
+    });
 
   useEffect(() => {
     if (document.editorFlowMode === "combine" && !document.instructionStudioState?.fusionPlan) {
@@ -423,6 +434,21 @@ export function EditorCombineWorkspace({
 
   return (
     <div className="space-y-4">
+      {showWizardSteerBanner && steerIntent ?
+        <div
+          className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+          data-testid="combine-wizard-steer-banner"
+        >
+          <p className="font-semibold">{t("editor.combineRetirement.bannerTitle" as never)}</p>
+          <p className="mt-1 text-xs">{t("editor.combineRetirement.bannerBody" as never)}</p>
+          <Link
+            href={combineWizardSteerHref(steerIntent)}
+            className="mt-2 inline-flex rounded-lg bg-[#0067B1] px-3 py-1.5 text-xs font-semibold text-white"
+          >
+            {t("editor.combineRetirement.openWizard" as never)}
+          </Link>
+        </div>
+      : null}
       <EditorFlowStepper activeStep={generating ? "generate" : "plan"} compact />
 
       <EditorFusionReferenceStrip document={document} />

@@ -16,7 +16,7 @@ import {
 import { buildAssistantContextSnapshot } from "@/lib/assistant-context-layer";
 import { buildMotionActionPresetPrefillPackage } from "@/lib/assistant-prefill-engine";
 import { createHcProjectForModule } from "@/lib/hc-project-lifecycle";
-import { getMotionActionPreset } from "@/lib/motion-action-presets";
+import { getMotionActionPreset, getAllMotionActionPresets } from "@/lib/motion-action-presets";
 import type { LibraryConsistencyRecord } from "@/types/library-consistency";
 import type { MotionActionPresetId } from "@/types/motion-action-presets";
 
@@ -293,11 +293,11 @@ describe("action preset requirement resolver v3", () => {
     assert.ok(pkg.assistantRecommendations?.includes("assistant.requirements.recommendation.outfitMissing"));
   });
 
-  it("all 18 presets have complete requirement profiles", () => {
+  it("all motion presets have complete requirement profiles", () => {
     const errors = validateActionPresetRequirementProfiles();
     assert.deepEqual(errors, []);
     const presetIds = Object.keys(ACTION_PRESET_REQUIREMENT_PROFILES) as MotionActionPresetId[];
-    assert.equal(presetIds.length, 18);
+    assert.equal(presetIds.length, getAllMotionActionPresets().length);
     for (const presetId of presetIds) {
       const profile = ACTION_PRESET_REQUIREMENT_PROFILES[presetId];
       assert.ok(profile.required.includes("person_character"));

@@ -255,7 +255,7 @@ export const ASSISTANT_RECOMMENDATION_CATALOG: AssistantRecommendationCatalogEnt
     descriptionKey: "assistant.recommendation.mascotTransform.description",
     whyKey: "assistant.recommendation.mascotTransform.why",
     promptMessage: "Verander mezelf in een mascotte",
-    fusionIntent: "mascot_into_human",
+    fusionIntent: "human_into_mascot",
     hiddenFeature: true,
     trendingScore: 87,
   },

@@ -62,6 +62,9 @@ export function buildCharacterClusterHref(
   if (context?.requirementId) {
     params.set("requirementId", context.requirementId);
   }
+  if (context?.flow) {
+    params.set("flow", context.flow);
+  }
   const query = params.toString();
   return query ? `${base}?${query}` : base;
 }

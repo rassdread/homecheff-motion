@@ -4,6 +4,9 @@ type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+/**
+ * Deep-link shim: preset/showcase params → instant wizard; otherwise Motion Hub.
+ */
 export default async function MotionStartPage({ searchParams }: Props) {
   const params = await searchParams;
   const qs = new URLSearchParams();
@@ -16,6 +19,13 @@ export default async function MotionStartPage({ searchParams }: Props) {
       }
     }
   }
-  const suffix = qs.toString();
-  redirect(suffix ? `/animate/instant?${suffix}` : "/animate/instant");
+  const preset = qs.get("preset");
+  const showcaseItem = qs.get("showcaseItem");
+  const photoIntent = qs.get("photoIntent");
+  if (preset || showcaseItem || photoIntent || qs.get("prefill")) {
+    const suffix = qs.toString();
+    redirect(suffix ? `/animate/instant?${suffix}` : "/animate/instant");
+  }
+  const category = qs.get("category");
+  redirect(category ? `/motion?category=${category}` : "/motion");
 }

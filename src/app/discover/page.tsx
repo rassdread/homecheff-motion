@@ -38,7 +38,7 @@ export default function DiscoverPage() {
             <h3 className="font-bold text-zinc-900">{t("discover.now.motion.title")}</h3>
             <p className="mt-2 text-sm text-zinc-600">{t("discover.now.motion.body")}</p>
             <Link
-              href="/animate/instant"
+              href="/motion"
               prefetch={false}
               className="mt-4 inline-block text-sm font-semibold text-[#006D52] hover:underline"
             >

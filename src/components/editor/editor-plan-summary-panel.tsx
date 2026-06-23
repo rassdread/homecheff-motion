@@ -16,9 +16,11 @@ type Props = {
   document: EditorCanvasDocument;
   onEditReferences?: () => void;
   compact?: boolean;
+  /** Wizard-first — hide technical blueprint lines and duplicate cost panel. */
+  wizardSummary?: boolean;
 };
 
-export function EditorPlanSummaryPanel({ document, onEditReferences, compact }: Props) {
+export function EditorPlanSummaryPanel({ document, onEditReferences, compact, wizardSummary }: Props) {
   const t = useActiveTranslator();
   const { access } = useEditorUserAccess();
   const fusionPlan = getFusionPlan(document);
@@ -126,12 +128,18 @@ export function EditorPlanSummaryPanel({ document, onEditReferences, compact }: 
         {fusionPlan ?
           <div>
             <dt className="font-semibold text-zinc-700">{t("editor.planSummary.preservation" as never)}</dt>
-            <dd className="text-zinc-900">{activePreservationRules(fusionPlan).join(", ")}</dd>
+            <dd className="text-zinc-900">
+              {wizardSummary
+                ? activePreservationRules(fusionPlan)
+                    .map((rule) => t(`editor.fusion.preservation.${rule}` as never))
+                    .join(", ")
+                : activePreservationRules(fusionPlan).join(", ")}
+            </dd>
           </div>
         : null}
       </dl>
 
-      {summaryLines.length > 0 ?
+      {!wizardSummary && summaryLines.length > 0 ?
         <ul className="space-y-1 text-xs text-zinc-700">
           {summaryLines.map((line) => (
             <li key={line}>• {line}</li>
@@ -139,7 +147,7 @@ export function EditorPlanSummaryPanel({ document, onEditReferences, compact }: 
         </ul>
       : null}
 
-      {fusionPlan ?
+      {fusionPlan && !wizardSummary ?
         <EditorGenerationCostPanel
           document={document}
           user={access}

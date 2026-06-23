@@ -65,7 +65,7 @@ describe("logo placement blueprint", () => {
 
   it("wizard route is wizard-first", () => {
     const route = buildLogoPlacementWizardRoute({ targetObjectId: "shirt" });
-    assert.match(route, /workflow=logo_placement/);
+    assert.match(route, /flow=logo_placement/);
     assert.match(route, /targetObjectId=shirt/);
   });
 

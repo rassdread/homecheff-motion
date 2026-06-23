@@ -24,6 +24,7 @@ describe("assistant action registry", () => {
       "rename_project",
       "open_asset",
       "prepare_outfit",
+      "prepare_logo_placement",
       "prepare_background",
       "prepare_location",
       "prepare_prop",
@@ -65,7 +66,7 @@ describe("assistant action registry", () => {
     assert.equal(characterActions.length, 4);
     assert.ok(characterActions.every((action) => action.category === "character"));
     const preparationActions = listAssistantActionsByCategory("preparation");
-    assert.equal(preparationActions.length, 7);
+    assert.equal(preparationActions.length, 8);
     assert.ok(preparationActions.every((action) => action.execution === "registry_only"));
   });
 

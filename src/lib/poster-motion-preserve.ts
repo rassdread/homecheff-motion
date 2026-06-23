@@ -115,6 +115,8 @@ export type PosterMotionSettings = {
   textLockMode?: TextLockMode;
   /** Action preset metadata — does not affect render pipeline. */
   hcActionPreset?: MotionActionPresetMetadata;
+  /** Motion billing correlation for support/refund traceability. */
+  motionTransactionCorrelation?: import("@/types/motion-transaction-correlation").MotionTransactionCorrelation;
   preparedByAssistant?: boolean;
   preparedCharacterAssetId?: string;
   preparedOutfitAssetId?: string;
@@ -235,6 +237,14 @@ export function parsePosterMotionSettings(raw: unknown): PosterMotionSettings {
     hcActionPreset:
       o.hcActionPreset && typeof o.hcActionPreset === "object"
         ? (o.hcActionPreset as MotionActionPresetMetadata)
+        : undefined,
+    preparedCharacterAssetId:
+      typeof o.preparedCharacterAssetId === "string" ?
+        o.preparedCharacterAssetId.trim() || undefined
+      : undefined,
+    motionTransactionCorrelation:
+      o.motionTransactionCorrelation && typeof o.motionTransactionCorrelation === "object"
+        ? (o.motionTransactionCorrelation as PosterMotionSettings["motionTransactionCorrelation"])
         : undefined,
   };
 }

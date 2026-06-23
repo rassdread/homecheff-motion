@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useActiveTranslator } from "@/i18n/client";
+import { buildCharacterStudioHubHref } from "@/lib/character-studio-hub";
 
 type Props = {
   onCreate: () => void;
@@ -20,6 +22,7 @@ export function StudioCharacterEntryCtas({
   compact,
 }: Props) {
   const t = useActiveTranslator();
+  const prepareHref = buildCharacterStudioHubHref();
   const btnClass = compact
     ? "rounded-full border px-3 py-1.5 text-[11px] font-semibold"
     : "rounded-full border px-4 py-2 text-sm font-semibold";
@@ -56,16 +59,14 @@ export function StudioCharacterEntryCtas({
         {t("studio.v10_1.character.cta.library" as never)}
       </button>
       {onMotionReady ?
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={onMotionReady}
-          className={`${btnClass} border-violet-300 bg-violet-50 text-violet-900 hover:bg-violet-100 disabled:opacity-50`}
+        <Link
+          href={prepareHref}
+          className={`${btnClass} border-violet-300 bg-violet-50 text-violet-900 hover:bg-violet-100 disabled:opacity-50 inline-flex items-center`}
           data-testid="studio-character-cta-motion-ready"
           data-flow-id="character_motion_ready"
         >
-          {t("characterCluster.cta.motionReady" as never)}
-        </button>
+          {t("characterCluster.cta.prepare" as never)}
+        </Link>
       : null}
     </div>
   );

@@ -49,6 +49,7 @@ export type EnsureFusionReferenceAnalysisResult = {
   cached: boolean;
   ok: boolean;
   failureCode?: "insufficient_credits" | "analysis_failed";
+  premiumCreditSession?: import("@/lib/editor-premium-vision-credits").PremiumVisionCreditSession | null;
 };
 
 export async function ensureFusionReferencePremiumAnalysis(input: {
@@ -107,6 +108,7 @@ export async function ensureFusionReferencePremiumAnalysis(input: {
       cached: false,
       ok: false,
       failureCode,
+      premiumCreditSession: null,
     };
   }
 
@@ -127,6 +129,7 @@ export async function ensureFusionReferencePremiumAnalysis(input: {
       cached: false,
       ok: false,
       failureCode: "analysis_failed",
+      premiumCreditSession: null,
     };
   }
 
@@ -142,7 +145,14 @@ export async function ensureFusionReferencePremiumAnalysis(input: {
   input.onDocumentChange?.(doc);
 
   const creditsCharged = input.isAdmin ? 0 : PREMIUM_VISION_ANALYSIS_CREDITS;
-  return { document: doc, profile, creditsCharged, cached: false, ok: true };
+  return {
+    document: doc,
+    profile,
+    creditsCharged,
+    cached: false,
+    ok: true,
+    premiumCreditSession: analysisResult.premiumCreditSession ?? null,
+  };
 }
 
 export function profileFromAnalyzedDocument(input: FusionReferenceInput): ReferenceAnalysisProfile {

@@ -56,6 +56,7 @@ export const FUSION_INTELLIGENCE_WORKFLOWS = new Set<EditorFusionIntent>([
   "product_packaging",
   "product_family",
   "life_timeline",
+  "campaign_variant",
 ]);
 
 export function fusionWorkflowUsesIntelligence(intent: EditorFusionIntent): boolean {

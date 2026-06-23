@@ -73,7 +73,12 @@ import {
   fusionWizardRenderActionKey,
   fusionWorkflowUsesWizardFirst,
 } from "@/lib/editor-fusion-wizard-flow";
+import { resolveWizardPipelineErrorCopy } from "@/lib/wizard-user-copy";
+import { resolveWizardWorkflowPriceFromIntake } from "@/lib/wizard-workflow-pricing";
 import { runFusionWizardRenderPipeline } from "@/lib/editor-fusion-wizard-render";
+import { formatWizardMakeButtonLabel } from "@/components/editor/editor-wizard-workflow-pricing-panel";
+import { CharacterStudioResultNextSteps } from "@/components/character-studio/character-studio-result-next-steps";
+import { EditorOutfitVisionTargetPanel } from "@/components/character-studio/editor-outfit-vision-target-panel";
 
 type FlowStep =
     | "reference_roles"
@@ -95,6 +100,8 @@ type Props = {
   onBack: () => void;
   onClose?: () => void;
   onComplete: (document: EditorCanvasDocument) => void;
+  /** Character Studio hub — hide editor handoff after render */
+  hideEditorHandoff?: boolean;
 };
 
 function createInstanceId(): string {
@@ -121,6 +128,7 @@ export function EditorReferenceRoleFlow({
   onBack,
   onClose,
   onComplete,
+  hideEditorHandoff,
 }: Props) {
   const t = useActiveTranslator();
   const { access } = useEditorUserAccess();
@@ -144,6 +152,7 @@ export function EditorReferenceRoleFlow({
   const [resultAnalysisReused, setResultAnalysisReused] = useState(false);
   const [resultDocument, setResultDocument] = useState<EditorCanvasDocument | null>(null);
   const [customPrompt, setCustomPrompt] = useState("");
+  const [outfitVisionTargetIds, setOutfitVisionTargetIds] = useState<string[]>([]);
   const [wizardPreviewDocument, setWizardPreviewDocument] = useState<EditorCanvasDocument | null>(null);
   const analysisStartedRef = useRef(new Set<string>());
   const intakeRef = useRef(intake);
@@ -188,6 +197,7 @@ export function EditorReferenceRoleFlow({
   const fusionQuestions = combineIntent
     ? resolveFusionDynamicQuestions(combineIntent, { intent: combineIntent, slots: intake.slots })
     : [];
+  const isOutfitFlow = combineIntent === "outfit_from_reference" || combineIntent === "person_outfit";
   const showOutputStep = config.supportsVariations || config.supportsSequences;
   const showMotionStep =
     intake.output.outputMode === "sequence" && config.supportsMotionHandoff;
@@ -212,6 +222,16 @@ export function EditorReferenceRoleFlow({
     }
     return null;
   }, [wizardFirstMode, wizardPreviewDocument, step, computedPreviewDocument]);
+
+  const wizardSummaryPrice = useMemo(() => {
+    if (!wizardFirstMode || !combineIntent) {
+      return null;
+    }
+    return resolveWizardWorkflowPriceFromIntake({
+      intake,
+      isAdmin: access.billingFree,
+    });
+  }, [wizardFirstMode, combineIntent, intake, access.billingFree]);
 
   const prevStepRef = useRef<FlowStep>(step);
   useEffect(() => {
@@ -542,19 +562,8 @@ export function EditorReferenceRoleFlow({
 
     if (!outcome.ok) {
       setStep("fusion_summary");
-      if (outcome.code === "credit_gate") {
-        setError(
-          t("editor.fusionIntelligence.insufficientCredits" as never, {
-            credits: outcome.estimatedCredits ?? 0,
-          } as never)
-        );
-        return;
-      }
-      if (outcome.code === "analysis") {
-        setError(t("editor.fusionWizard.error.analysisFailed" as never));
-        return;
-      }
-      setError(t("editor.fusionWizard.error.renderFailed" as never));
+      const copy = resolveWizardPipelineErrorCopy(outcome);
+      setError(t(copy.key as never));
       return;
     }
 
@@ -874,6 +883,22 @@ export function EditorReferenceRoleFlow({
       {step === "reference_roles" ?
         <>
           <div className="mt-6 space-y-4">{config.roles.map(renderRoleSection)}</div>
+          {isOutfitFlow && computedPreviewDocument ?
+            <EditorOutfitVisionTargetPanel
+              document={computedPreviewDocument}
+              selectedTargetIds={outfitVisionTargetIds}
+              onSelectionChange={(targetIds) => {
+                setOutfitVisionTargetIds(targetIds);
+                setIntake((prev) => ({
+                  ...prev,
+                  fusionOutputSettings: {
+                    ...prev.fusionOutputSettings,
+                    visionTargetIds: targetIds,
+                  },
+                }));
+              }}
+            />
+          : null}
           {displayError ?
             <p className="mt-4 text-sm text-red-200 whitespace-pre-wrap">{displayError}</p>
           : null}
@@ -979,12 +1004,26 @@ export function EditorReferenceRoleFlow({
               setStep("reference_roles");
               setIntake(createReferenceIntakeState({ config }));
             }}
-            onOpenEditor={() => {
-              if (resultDocument) {
-                onComplete(resultDocument);
-              }
-            }}
+            onOpenEditor={
+              hideEditorHandoff || !resultDocument || !access.billingFree
+                ? undefined
+                : () => {
+                    onComplete(resultDocument);
+                  }
+            }
           />
+          {hideEditorHandoff ?
+            <CharacterStudioResultNextSteps
+              resultImageUrl={resultUrl}
+              sourceImage={resultDocument?.backgroundUrl}
+              onMakeAnother={() => {
+                setResultUrl(null);
+                setResultDocument(null);
+                setStep("reference_roles");
+                setIntake(createReferenceIntakeState({ config }));
+              }}
+            />
+          : null}
         </div>
       : null}
 
@@ -1000,11 +1039,18 @@ export function EditorReferenceRoleFlow({
           renderBusy
         }
         continueLabel={
-          step === "fusion_summary" && combineIntent
-            ? t(fusionWizardRenderActionKey(combineIntent) as never)
-            : step === "plan_review"
-              ? t("editor.referenceRole.openEditor" as never)
-              : t("editor.referenceRole.continue" as never)
+          step === "fusion_summary" && combineIntent && wizardSummaryPrice
+            ? formatWizardMakeButtonLabel({
+                t,
+                combineIntent,
+                totalCredits: wizardSummaryPrice.totalCredits,
+                adminBypass: wizardSummaryPrice.adminBypass,
+              })
+            : step === "fusion_summary" && combineIntent
+              ? t(fusionWizardRenderActionKey(combineIntent) as never)
+              : step === "plan_review"
+                ? t("editor.referenceRole.openEditor" as never)
+                : t("editor.referenceRole.continue" as never)
         }
         busy={busy || renderBusy}
       />

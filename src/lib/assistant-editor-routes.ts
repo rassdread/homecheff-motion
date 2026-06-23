@@ -1,3 +1,4 @@
+import { buildCharacterStudioFlowHref, buildCharacterStudioHubHref } from "@/lib/character-studio-hub";
 import { STUDIO_PRODUCT_START_PATHS } from "@/lib/studio-product-landing-routes";
 
 /** Copilot and registry must land on /editor/start — bare /editor shows marketing landing. */
@@ -28,9 +29,17 @@ export function buildAssistantEditorWorkflowRoute(
 }
 
 export function buildMascotTransformWizardRoute(extraParams?: Record<string, string>): string {
-  return buildAssistantEditorWorkflowRoute("mascot_transform", extraParams);
+  return buildCharacterStudioFlowHref("mascot_transform", extraParams);
+}
+
+export function buildCharacterStudioHubRoute(): string {
+  return buildCharacterStudioHubHref();
+}
+
+export function buildCharacterStudioOutfitRoute(extraParams?: Record<string, string>): string {
+  return buildCharacterStudioFlowHref("outfit", extraParams);
 }
 
 export function buildLogoPlacementWizardRoute(extraParams?: Record<string, string>): string {
-  return buildAssistantEditorWorkflowRoute("logo_placement", extraParams);
+  return buildCharacterStudioFlowHref("logo_placement", extraParams);
 }

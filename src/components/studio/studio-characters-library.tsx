@@ -90,6 +90,13 @@ export function StudioCharactersLibrary() {
               </p>
             </div>
             <Link
+              href="/studio/characters/prepare"
+              className="inline-flex shrink-0 items-center justify-center rounded-full border border-violet-300 bg-violet-50 px-5 py-2.5 text-sm font-semibold text-violet-900 hover:bg-violet-100"
+              data-testid="studio-character-cta-prepare"
+            >
+              {t("characterCluster.cta.prepare" as never)}
+            </Link>
+            <Link
               href="/studio/characters/new"
               className="inline-flex shrink-0 items-center justify-center rounded-full bg-[#006D52] px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90"
             >

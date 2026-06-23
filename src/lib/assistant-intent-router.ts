@@ -1,5 +1,9 @@
 import type { AssistantActionId } from "@/lib/assistant-action-registry";
 import type { AssistantClarificationKind } from "@/lib/assistant-session-memory";
+import {
+  characterStudioFlowToActionId,
+  detectCharacterStudioFlowFromMessage,
+} from "@/lib/character-studio-copilot";
 
 export type AssistantClarifyOption = {
   id: string;
@@ -255,12 +259,51 @@ export function matchAssistantIntent(
     };
   }
 
+  const characterStudioMatch = detectCharacterStudioFlowFromMessage(input);
+  if (characterStudioMatch.kind === "flow") {
+    const actionId = characterStudioFlowToActionId(characterStudioMatch.flowId);
+    const understoodByFlow: Partial<Record<typeof characterStudioMatch.flowId, `assistant.understood.${string}`>> = {
+      outfit: "assistant.understood.fusionOutfit",
+      logo_placement: "assistant.understood.fusionLogo",
+      mascot_transform: "assistant.understood.editMascot",
+      human_to_mascot: "assistant.understood.editMascot",
+      mascot_to_human: "assistant.understood.editMascot",
+      character_upgrade: "assistant.understood.humanMorph",
+      motion_ready: "assistant.understood.motionReadyCharacter",
+      full_body: "assistant.understood.motionReadyCharacter",
+      character_fusion: "assistant.understood.createFusion",
+      future_child: "assistant.understood.fusionAge",
+      genetic_blend: "assistant.understood.createFusion",
+    };
+    return {
+      kind: "action",
+      actionId,
+      understoodKey:
+        understoodByFlow[characterStudioMatch.flowId] ?? "assistant.understood.createFusion",
+    };
+  }
+
+  if (includesAny(text, ["outfit", "kleding", "jas op", "clothing from"])) {
+    return {
+      kind: "action",
+      actionId: "prepare_outfit",
+      understoodKey: "assistant.understood.fusionOutfit",
+    };
+  }
+
+  if (includesAny(text, ["logo plaats", "logo placement", "logo bescherm"])) {
+    return {
+      kind: "action",
+      actionId: "prepare_logo_placement",
+      understoodKey: "assistant.understood.fusionLogo",
+    };
+  }
+
   if (
     includesAny(text, [
       "fusion",
       "combineren",
       "combine",
-      "outfit",
       "samenvoegen",
     ])
   ) {

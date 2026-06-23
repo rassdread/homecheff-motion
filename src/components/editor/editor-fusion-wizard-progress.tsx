@@ -1,8 +1,11 @@
 "use client";
 
 import { useActiveTranslator } from "@/i18n/client";
-import { fusionWizardProgressLabelKey } from "@/lib/editor-fusion-wizard-render";
-import { FUSION_WIZARD_PROGRESS_STEP_KEYS } from "@/lib/editor-fusion-wizard-flow";
+import {
+  mapFusionPipelineStepToUserProgress,
+  wizardUserProgressLabelKey,
+  WIZARD_USER_PROGRESS_STEP_KEYS,
+} from "@/lib/wizard-user-copy";
 import { HomeCheffOrbitLoader } from "@/components/editor/homecheff-orbit-loader";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 
@@ -12,6 +15,7 @@ type Props = {
 
 export function EditorFusionWizardProgress({ activeStepIndex }: Props) {
   const t = useActiveTranslator();
+  const userStepIndex = mapFusionPipelineStepToUserProgress(activeStepIndex);
 
   return (
     <section
@@ -22,9 +26,9 @@ export function EditorFusionWizardProgress({ activeStepIndex }: Props) {
         <HomeCheffOrbitLoader state="generating" size="md" />
       </div>
       <ol className="space-y-2">
-        {FUSION_WIZARD_PROGRESS_STEP_KEYS.map((key, index) => {
-          const done = index < activeStepIndex;
-          const active = index === activeStepIndex;
+        {WIZARD_USER_PROGRESS_STEP_KEYS.map((key, index) => {
+          const done = index < userStepIndex;
+          const active = index === userStepIndex;
           return (
             <li
               key={key}
@@ -35,7 +39,7 @@ export function EditorFusionWizardProgress({ activeStepIndex }: Props) {
               data-active={active ? "true" : "false"}
             >
               <span aria-hidden>{done ? "✓" : active ? "…" : "○"}</span>
-              {t(fusionWizardProgressLabelKey(index) as never)}
+              {t(wizardUserProgressLabelKey(index) as never)}
             </li>
           );
         })}

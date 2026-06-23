@@ -1,9 +1,12 @@
-import { permanentRedirect } from "next/navigation";
+"use client";
 
-/**
- * Consolidates Motion marketing URL with the canonical image-to-video route.
- * Deep-link entry points use /motion/start → /animate/instant.
- */
+import { Suspense } from "react";
+import { MotionStudioHub } from "@/components/motion/motion-studio-hub";
+
 export default function MotionPage() {
-  permanentRedirect("/animate/instant");
+  return (
+    <Suspense fallback={null}>
+      <MotionStudioHub />
+    </Suspense>
+  );
 }

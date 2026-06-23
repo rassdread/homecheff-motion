@@ -5,7 +5,7 @@ import { EditorBrandProtectionBanner } from "@/components/editor/editor-brand-pr
 import { EditorFusionWizardAdvancedSettings } from "@/components/editor/editor-fusion-wizard-advanced-settings";
 import { FusionIntelligenceAuditPanel } from "@/components/editor/fusion-intelligence-audit-panel";
 import { CharacterConsistencyAuditPanel } from "@/components/editor/character-consistency-audit-panel";
-import { EditorFusionWizardCreditsPanel } from "@/components/editor/editor-fusion-wizard-credits-panel";
+import { EditorWizardWorkflowPricingPanel } from "@/components/editor/editor-wizard-workflow-pricing-panel";
 import { EditorPlanSummaryPanel } from "@/components/editor/editor-plan-summary-panel";
 import { buildBrandAssetProtectionLayer } from "@/lib/brand-asset-protection-layer";
 import { getFusionPlan } from "@/lib/editor-fusion-plan";
@@ -52,11 +52,11 @@ export function EditorFusionWizardSummaryPanel({
 
   return (
     <div className="mt-6 space-y-4" data-testid="fusion-wizard-summary">
-      <EditorPlanSummaryPanel document={document} onEditReferences={onEditReferences} compact />
+      <EditorPlanSummaryPanel document={document} onEditReferences={onEditReferences} compact wizardSummary />
       {brandProtection?.active ?
         <EditorBrandProtectionBanner protection={brandProtection} />
       : null}
-      <EditorFusionWizardCreditsPanel intake={intake} combineIntent={combineIntent} isAdmin={isAdmin} />
+      <EditorWizardWorkflowPricingPanel intake={intake} combineIntent={combineIntent} isAdmin={isAdmin} />
       <EditorFusionWizardAdvancedSettings
         document={document}
         onDocumentChange={onDocumentChange}

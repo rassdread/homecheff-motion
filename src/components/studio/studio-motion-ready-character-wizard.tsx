@@ -7,7 +7,13 @@ import { HomeCheffAssetPickerModal, type AssetPickerSelection } from "@/componen
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { StudioCharacterAnalysisCard } from "@/components/studio/studio-character-analysis-card";
 import { AssistantWizardPrefillBanner } from "@/components/assistant/assistant-wizard-prefill-banner";
+import { EditorFusionWizardProgress } from "@/components/editor/editor-fusion-wizard-progress";
+import {
+  EditorMotionWizardPricingPanel,
+  formatMotionGenerateButtonLabel,
+} from "@/components/studio/editor-motion-wizard-pricing-panel";
 import { useAssistantWizardPrefill } from "@/hooks/use-assistant-wizard-prefill";
+import { useEditorUserAccess } from "@/hooks/use-editor-user-access";
 import { applyAssistantPrefillToMotionWizard } from "@/lib/assistant-wizard-prefill-apply";
 import { useActiveTranslator } from "@/i18n/client";
 import { postWizardImageUpload, ImageUploadError } from "@/lib/instant-image-upload-client";
@@ -29,6 +35,8 @@ import {
 } from "@/lib/motion-ready-character-wizard";
 import { runAssetReferenceGeneration } from "@/lib/studio-asset-wizard-reference-generation";
 import { triggerWizardSourceVisionAnalysis } from "@/lib/studio-asset-vision-trigger";
+import { resolveMotionWizardGeneratePrice } from "@/lib/wizard-workflow-pricing";
+import { validateWizardCreditReservation } from "@/lib/wizard-credit-reservation";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import type { MotionReadyWizardState, MotionReadyWizardStep } from "@/types/motion-ready-character-wizard";
 
@@ -53,7 +61,14 @@ type Props = {
   sourceName?: string | null;
   returnTo?: string | null;
   requirementId?: string | null;
+  hubFlowId?: "motion_ready" | "full_body" | null;
 };
+
+function resolveMotionWorkflowId(
+  hubFlowId?: "motion_ready" | "full_body" | null
+): import("@/lib/wizard-workflow-pricing").MotionWizardWorkflowId {
+  return hubFlowId === "full_body" ? "full_body_extension" : "motion_ready_character";
+}
 
 export function StudioMotionReadyCharacterWizard({
   projectId,
@@ -64,9 +79,12 @@ export function StudioMotionReadyCharacterWizard({
   sourceAsset,
   sourceName,
   returnTo,
+  hubFlowId,
 }: Props) {
   const t = useActiveTranslator();
   const router = useRouter();
+  const { access } = useEditorUserAccess();
+  const motionWorkflowId = resolveMotionWorkflowId(hubFlowId);
   const { prefill, hasPrefill, clearPrefill } = useAssistantWizardPrefill();
   const prefillAppliedRef = useRef(false);
   const sourceBootstrapRef = useRef(false);
@@ -84,6 +102,7 @@ export function StudioMotionReadyCharacterWizard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [renderProgressStep, setRenderProgressStep] = useState(0);
 
   const stepIndex = STEP_ORDER.indexOf(state.step);
 
@@ -210,9 +229,23 @@ export function StudioMotionReadyCharacterWizard({
     if (!state.visionAnalysis) {
       return;
     }
+    const price = resolveMotionWizardGeneratePrice({
+      workflowId: motionWorkflowId,
+      userIsAdmin: Boolean(access.billingFree),
+    });
+    const reservation = validateWizardCreditReservation({
+      price,
+      creditsAvailable: access.credits,
+    });
+    if (!reservation.ok) {
+      setError(t("editor.wizardPricing.error.insufficientCredits" as never));
+      return;
+    }
     setBusy(true);
     setError("");
+    setRenderProgressStep(0);
     setState((prev) => ({ ...prev, generationStatus: "generating", step: "generate" }));
+    setRenderProgressStep(1);
     const workingDraft = motionReadyWizardToAssetDraft(state);
     const generationId = crypto.randomUUID();
     const prompt = buildFullBodyGenerationPrompt({
@@ -227,7 +260,9 @@ export function StudioMotionReadyCharacterWizard({
       summaryPrompt: prompt,
       sourceTransformChange: prompt,
     };
+    setRenderProgressStep(2);
     const result = await runAssetReferenceGeneration({ draft: genDraft, kind: "character" });
+    setRenderProgressStep(4);
     if (!result.outcome.ok) {
       const failure = result.outcome;
       setState((prev) => ({
@@ -235,6 +270,7 @@ export function StudioMotionReadyCharacterWizard({
         generationStatus: "failed",
         generationError: failure.error,
       }));
+      setError(t("editor.wizardPricing.error.transformationFailed" as never));
       setBusy(false);
       return;
     }
@@ -493,19 +529,30 @@ export function StudioMotionReadyCharacterWizard({
                   : null}
                 </div>
               ))}
+              <EditorMotionWizardPricingPanel
+                workflowId={motionWorkflowId}
+                visionAnalysisComplete={Boolean(state.visionAnalysis)}
+                isAdmin={access.billingFree}
+              />
               <button
                 type="button"
-                disabled={!canAdvanceMotionWizardStep(state)}
+                disabled={!canAdvanceMotionWizardStep(state) || busy}
                 className="rounded-xl bg-[#006D52] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                 onClick={() => void handleGenerate()}
+                data-testid="motion-wizard-generate"
               >
-                {t("motionReady.wizard.generate.cta" as never)}
+                {formatMotionGenerateButtonLabel({
+                  workflowId: motionWorkflowId,
+                  visionAnalysisComplete: Boolean(state.visionAnalysis),
+                  isAdmin: access.billingFree,
+                  t: (key) => t(key as never),
+                })}
               </button>
             </div>
           : null}
 
           {state.step === "generate" && busy ?
-            <p className="text-sm text-zinc-600">{t("motionReady.wizard.generate.running" as never)}</p>
+            <EditorFusionWizardProgress activeStepIndex={renderProgressStep} />
           : null}
 
           {state.step === "preview" ?

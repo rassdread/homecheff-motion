@@ -11,6 +11,7 @@ import { applyAssistantPrefillToInstantMotion } from "@/lib/assistant-wizard-pre
 import {
   buildMotionActionPresetMetadata,
   detectMotionActionPresetFromMessage,
+  getAllMotionActionPresets,
   getMotionActionPreset,
   MOTION_ACTION_PRESET_FEATURED_IDS,
   validateMotionActionPresets,
@@ -102,7 +103,7 @@ describe("motion action preset system v1", () => {
   it("featured action preset cards cover UI presets", () => {
     assert.ok(MOTION_ACTION_PRESET_FEATURED_IDS.includes("goal_celebration"));
     assert.ok(MOTION_ACTION_PRESET_FEATURED_IDS.includes("moonwalk"));
-    assert.equal(MOTION_ACTION_PRESET_FEATURED_IDS.length, 8);
+    assert.equal(MOTION_ACTION_PRESET_FEATURED_IDS.length, getAllMotionActionPresets().length);
   });
 
   it("assistant recommendations include action preset outcomes on home", () => {
