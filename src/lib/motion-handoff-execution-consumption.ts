@@ -243,11 +243,30 @@ function countSegments(payload: MotionHandoffPayload): {
   return { storySegmentCount, actionSegmentCount };
 }
 
+function buildDirectorMetadataConsumption(
+  payload: MotionHandoffPayload
+): import("@/types/motion-handoff-execution-consumption").MotionDirectorMetadataConsumption {
+  const scenes = payload.scenes ?? [];
+  return {
+    hasMusicPlan: Boolean(
+      payload.musicPlan?.sceneMusicCues?.length || payload.sceneMusicCues?.length
+    ),
+    hasVoicePlan: Boolean(payload.voiceMetadata || payload.voiceSegments?.length),
+    hasSubtitleTrack: Boolean(payload.subtitleTrack?.entries?.length || payload.subtitleAvailability),
+    hasCharacterMemory: Boolean(payload.characterMemory?.length),
+    hasContinuityReport: Boolean(payload.consistencyReport || payload.characterConsistencyReport),
+    cameraInstructionCount: scenes.filter((s) => s.camera || s.shotType || s.cameraMovement).length,
+    emotionInstructionCount: scenes.filter((s) => s.emotion?.trim()).length,
+    transitionInstructionCount: scenes.filter((s) => s.transitionToNext?.trim()).length,
+    directorNotesPresent: Boolean(payload.directorProfile),
+  };
+}
+
 function buildReadinessItems(
   consumption: Omit<
     MotionExecutionConsumption,
-    "readinessItems" | "metadataAvailable"
-  >
+    "readinessItems" | "metadataAvailable" | "directorMetadata"
+  > & { directorMetadata: import("@/types/motion-handoff-execution-consumption").MotionDirectorMetadataConsumption }
 ): MotionExecutionReadinessItem[] {
   const items: MotionExecutionReadinessItem[] = [
     {
@@ -282,6 +301,26 @@ function buildReadinessItems(
       id: "fallback",
       labelKey: "motion.handoff.executionConsumption.readiness.fallback",
       status: consumption.fallbackActive ? "warn" : "ok",
+    },
+    {
+      id: "music",
+      labelKey: "motion.handoff.executionConsumption.readiness.music",
+      status: consumption.directorMetadata.hasMusicPlan ? "ok" : "warn",
+    },
+    {
+      id: "voice",
+      labelKey: "motion.handoff.executionConsumption.readiness.voice",
+      status: consumption.directorMetadata.hasVoicePlan ? "ok" : "warn",
+    },
+    {
+      id: "camera",
+      labelKey: "motion.handoff.executionConsumption.readiness.camera",
+      status: consumption.directorMetadata.cameraInstructionCount > 0 ? "ok" : "warn",
+    },
+    {
+      id: "continuity",
+      labelKey: "motion.handoff.executionConsumption.readiness.continuity",
+      status: consumption.directorMetadata.hasContinuityReport ? "ok" : "warn",
     },
   ];
 
@@ -333,6 +372,8 @@ export function resolveMotionHandoffExecutionConsumption(
 
   const exec = payload.viduExecutionPlan;
 
+  const directorMetadata = buildDirectorMetadataConsumption(payload);
+
   const base = {
     instantMode,
     executionMode,
@@ -350,6 +391,7 @@ export function resolveMotionHandoffExecutionConsumption(
     transitionSeconds: prefill.transitionSeconds,
     fallbackActive: prefill.fallbackActive,
     readyToRender: prefill.readyToRender,
+    directorMetadata,
   };
 
   return {

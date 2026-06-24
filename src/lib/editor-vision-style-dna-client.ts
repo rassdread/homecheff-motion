@@ -8,6 +8,8 @@ export type EditorPremiumStyleDnaContext = {
   sessionId?: string | null;
   projectId?: string | null;
   assetId?: string | null;
+  /** Parent premium-credits session — skip wallet gate on style-dna route. */
+  billingMode?: "premium_session";
 };
 
 export type EditorPremiumStyleDnaApiResult =
@@ -34,6 +36,7 @@ export async function analyzeEditorPremiumStyleDnaApi(params: {
         sourceKind: params.sourceKind,
         sourceName: params.sourceName,
         derivationJobId: params.derivationJobId,
+        billingMode: params.billingContext?.billingMode ?? "premium_session",
         ...params.billingContext,
       }),
     });

@@ -90,6 +90,56 @@ export function buildStudioProjectImportFromHandoff(
   };
 }
 
+/** Production batch render — references only; no full handoff blob or heavy intelligence. */
+export function buildMinimalProductionStudioImport(
+  payload: MotionHandoffPayload,
+  storyboardTitle?: string | null
+): StudioProjectImportInput {
+  const title = storyboardTitle?.trim() || payload.title;
+  const intelligence: MotionStudioIntelligenceSnapshot = {
+    storyboardId: payload.storyboardId,
+    storyboardTitle: title,
+    promptStyleProfile: payload.promptStyleProfile ?? null,
+    handoffVersion: payload.version,
+    importedAt: new Date().toISOString(),
+    worldName: null,
+    charactersUsed: [],
+    locationsUsed: [],
+    propsUsed: [],
+    overallConsistencyScore: payload.overallConsistencyScore ?? null,
+    overallVisionScore: payload.overallVisionScore ?? null,
+    overallCharacterIdentityScore: payload.overallCharacterConsistencyScore ?? null,
+    characterOverviews: [],
+    characterTimelines: [],
+    driftWarnings: [],
+    sceneBreakdowns: [...payload.scenes]
+      .sort((a, b) => a.order - b.order)
+      .map((scene, index) => ({
+        sceneId: scene.sceneId,
+        order: scene.order ?? index,
+        title: scene.title?.trim() || `Scene ${index + 1}`,
+        visionScore: scene.sceneVisionScore ?? scene.selectedImageVisionScore ?? null,
+        consistencyScore: scene.sceneConsistencyScore ?? scene.selectedImageConsistencyScore ?? null,
+        combinedImageScore: scene.selectedImageScore ?? null,
+        hasSelectedImage: Boolean(scene.selectedSceneImageId || scene.selectedSceneImageUrl),
+        characters: [],
+        driftWarnings: [],
+      })),
+    sceneCount: payload.scenes.length,
+    legacyHandoff: false,
+    partialData: true,
+  };
+
+  return {
+    storyboardId: payload.storyboardId,
+    storyboardTitle: title,
+    handoffVersion: payload.version,
+    importedAt: intelligence.importedAt,
+    intelligence,
+    imageLineage: buildStudioImageLineageFromHandoff(payload),
+  };
+}
+
 export function appendStudioRefreshAudit(
   existing: unknown,
   entry: StudioRefreshAuditEntry

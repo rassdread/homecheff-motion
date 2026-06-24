@@ -12,6 +12,7 @@ import {
   refundStudioActionReservation,
 } from "@/server/studio-account/studio-credit-authorization";
 import { requireStudioCredits } from "@/server/studio-account/with-studio-credit-gate";
+import { readProductionTransactionIdFromRequest } from "@/lib/studio-production-request-headers";
 
 export async function POST(request: Request) {
   const user = await requireActiveUser();
@@ -53,10 +54,13 @@ export async function POST(request: Request) {
     );
   }
 
+  const productionTransactionId = readProductionTransactionIdFromRequest(request);
+
   const creditGate = await requireStudioCredits({
     user,
     actionType: "motion_render",
     confirmed,
+    productionTransactionId,
   });
   if ("blocked" in creditGate) {
     return creditGate.blocked;
@@ -89,19 +93,23 @@ export async function POST(request: Request) {
   }
   try {
     await startProjectJobs(created.projectId);
-    await captureStudioActionReservation({
-      userId: user.id,
-      reservation: creditGate.reservation,
-      projectId: created.projectId,
-    });
+    if (!creditGate.productionBypass) {
+      await captureStudioActionReservation({
+        userId: user.id,
+        reservation: creditGate.reservation,
+        projectId: created.projectId,
+      });
+    }
   } catch {
     jobTriggered = false;
-    await refundStudioActionReservation({
-      userId: user.id,
-      reservation: creditGate.reservation,
-      projectId: created.projectId,
-      failedGeneration: true,
-    }).catch(() => undefined);
+    if (!creditGate.productionBypass) {
+      await refundStudioActionReservation({
+        userId: user.id,
+        reservation: creditGate.reservation,
+        projectId: created.projectId,
+        failedGeneration: true,
+      }).catch(() => undefined);
+    }
   }
 
   const projectId = String(created.projectId).trim();

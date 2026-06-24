@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ConversionSurface } from "@/components/billing/conversion-surface";
-import { StudioAiWorkflowV2 } from "@/components/studio/studio-ai-workflow-v2";
+import { StudioProductionOrchestratorPanel } from "@/components/studio/studio-production-orchestrator-panel";
+import type { HomeCheffProjectPackage } from "@/types/homecheff-project-package";
+import type { StudioVideoIntent } from "@/types/studio-video-production";
 import { OnboardingChecklist } from "@/components/onboarding/onboarding-checklist";
 import { StudioShellHeader } from "@/components/studio/studio-shell-header";
 import { useActiveTranslator } from "@/i18n/client";
@@ -13,7 +15,7 @@ import { studioVisual } from "@/lib/studio-visual-tokens";
 import type { UserStudioDashboardReport } from "@/types/studio-profitability";
 
 const QUICK_LINKS = [
-  { href: "/studio/storyboards/new", labelKey: "studio.home.quick.storyboard", emoji: "🎬" },
+  { href: "/studio/start", labelKey: "studio.orchestrator.createVideo", emoji: "🎬" },
   { href: "/studio/characters/new", labelKey: "studio.home.quick.character", emoji: "🎭" },
   { href: "/studio/props/new", labelKey: "studio.home.quick.prop", emoji: "📦" },
   { href: "/studio/locations/new", labelKey: "studio.home.quick.location", emoji: "📍" },
@@ -53,9 +55,23 @@ function AssetCountLink({
 type Props = {
   /** When true, omits outer page shell (used inside /studio root). */
   embedded?: boolean;
+  hcProject?: HomeCheffProjectPackage | null;
+  onProjectChange?: (project: HomeCheffProjectPackage) => void;
+  initialIntent?: StudioVideoIntent | null;
+  initialIdea?: string;
+  initialCharacterId?: string | null;
+  initialAutoProduce?: boolean;
 };
 
-export function StudioHomeDashboard({ embedded = false }: Props) {
+export function StudioHomeDashboard({
+  embedded = false,
+  hcProject = null,
+  onProjectChange,
+  initialIntent,
+  initialIdea,
+  initialCharacterId,
+  initialAutoProduce = false,
+}: Props) {
   const t = useActiveTranslator();
   const [report, setReport] = useState<UserStudioDashboardReport | null>(null);
   const [error, setError] = useState("");
@@ -94,7 +110,14 @@ export function StudioHomeDashboard({ embedded = false }: Props) {
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/70">{t("studio.home.subtitle")}</p>
           </header>
 
-          <StudioAiWorkflowV2 />
+          <StudioProductionOrchestratorPanel
+            hcProject={hcProject}
+            onProjectChange={onProjectChange}
+            initialIntent={initialIntent}
+            initialIdea={initialIdea}
+            initialCharacterId={initialCharacterId}
+            initialAutoProduce={initialAutoProduce}
+          />
 
           <OnboardingChecklist />
 

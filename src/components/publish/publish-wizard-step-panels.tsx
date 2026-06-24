@@ -15,6 +15,7 @@ import type { PublishWizardStepId, PublishWizardState } from "@/lib/publish-wiza
 import { analyzePublishVideoFrames } from "@/lib/publish-video-analysis";
 import { buildPublishAiProposal } from "@/lib/publish-ai-assistant";
 import { exportPublishProject } from "@/lib/publish-export-client";
+import { readOrchestratorState } from "@/lib/studio-production-orchestrator";
 import { isPhotoStoryProject, isSlideshowProject } from "@/lib/publish-photo-story";
 import { isPublishAiEverythingProject } from "@/lib/publish-ai-everything";
 import { isAudioWithImageProject, isVoiceMessageProject } from "@/lib/publish-audio-workflows";
@@ -69,6 +70,7 @@ export function PublishWizardStepPanels({
   const [analyzing, setAnalyzing] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportMsg, setExportMsg] = useState("");
+  const autoExportStartedRef = useRef(false);
   const mountedRef = useRef(false);
   const timeline = useMemo(() => loadPublishTimelineFromProject(project), [project]);
   const intake = (project.metadata?.intakeFiles as Array<{ name: string; labels: string[] }>) ?? [];
@@ -104,6 +106,41 @@ export function PublishWizardStepPanels({
     syncWizard({ analyzeComplete: true });
     setAnalyzing(false);
   };
+
+  const renderReady =
+    project.workflow === "photo_story" || project.workflow === "slideshow"
+      ? Boolean(project.imageUrl || project.imageUrls?.length)
+      : Boolean(project.videoUrl || project.imageUrl);
+
+  const runExport = async () => {
+    setExporting(true);
+    setExportMsg("");
+    const txId = hcProject ? readOrchestratorState(hcProject)?.productionTransaction?.id : undefined;
+    const result = await exportPublishProject(project, { productionTransactionId: txId });
+    setExporting(false);
+    if (result.ok && result.downloadUrl) {
+      const link = document.createElement("a");
+      link.href = result.downloadUrl;
+      link.download = `${project.name}-publish.mp4`;
+      link.click();
+      URL.revokeObjectURL(result.downloadUrl);
+      if (hcProject) {
+        const plan = loadPublishChangePlanFromMetadata(project);
+        const synced = syncPublishExportToHc(hcProject, project, result.downloadUrl);
+        persistHcWorkflowV2WithSync(syncPublishProjectToHc(synced, project, { changePlan: plan }), {});
+      }
+      setExportMsg(t("publish.exportSuccess"));
+    } else {
+      setExportMsg(t((result.errorKey ?? "publish.exportFallback") as never));
+    }
+  };
+
+  useEffect(() => {
+    if (step !== "export") return;
+    if (!project.metadata?.autoFinish || autoExportStartedRef.current || !renderReady) return;
+    autoExportStartedRef.current = true;
+    void runExport();
+  }, [step, project.metadata?.autoFinish, renderReady, project.id]);
 
   if (step === "upload") {
     return (
@@ -248,34 +285,11 @@ export function PublishWizardStepPanels({
     );
   }
 
-  const renderReady =
-    project.workflow === "photo_story" || project.workflow === "slideshow"
-      ? Boolean(project.imageUrl || project.imageUrls?.length)
-      : Boolean(project.videoUrl || project.imageUrl);
-  const runExport = async () => {
-    setExporting(true);
-    setExportMsg("");
-    const result = await exportPublishProject(project);
-    setExporting(false);
-    if (result.ok && result.downloadUrl) {
-      const link = document.createElement("a");
-      link.href = result.downloadUrl;
-      link.download = `${project.name}-publish.mp4`;
-      link.click();
-      URL.revokeObjectURL(result.downloadUrl);
-      if (hcProject) {
-        const plan = loadPublishChangePlanFromMetadata(project);
-        const synced = syncPublishExportToHc(hcProject, project, result.downloadUrl);
-        persistHcWorkflowV2WithSync(syncPublishProjectToHc(synced, project, { changePlan: plan }), {});
-      }
-      setExportMsg(t("publish.exportSuccess"));
-    } else {
-      setExportMsg(t((result.errorKey ?? "publish.exportFallback") as never));
-    }
-  };
-
   return (
     <div className="space-y-3 text-sm text-zinc-700">
+      {exporting ?
+        <HomeCheffOrbitLoader state="generating" size="md" message={t("publish.export" as never)} />
+      : null}
       {renderReady ?
         <p className="font-medium text-emerald-800">{t("publish.export.renderReady" as never)}</p>
       : (

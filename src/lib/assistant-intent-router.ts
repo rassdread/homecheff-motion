@@ -4,6 +4,8 @@ import {
   characterStudioFlowToActionId,
   detectCharacterStudioFlowFromMessage,
 } from "@/lib/character-studio-copilot";
+import { detectStudioVideoIntent } from "@/lib/studio-video-intents";
+import type { StudioVideoIntent } from "@/types/studio-video-production";
 
 export type AssistantClarifyOption = {
   id: string;
@@ -14,7 +16,12 @@ export type AssistantClarifyOption = {
 
 export type AssistantIntentMatch =
   | { kind: "query"; query: AssistantQueryKind }
-  | { kind: "action"; actionId: AssistantActionId; understoodKey: `assistant.understood.${string}` }
+  | {
+      kind: "action";
+      actionId: AssistantActionId;
+      understoodKey: `assistant.understood.${string}`;
+      videoIntent?: StudioVideoIntent;
+    }
   | { kind: "clarify"; clarification: AssistantClarificationKind; messageKey: `assistant.clarify.${string}` }
   | { kind: "unknown" };
 
@@ -224,6 +231,16 @@ export function matchAssistantIntent(
     };
   }
 
+  const videoIntentMatch = detectStudioVideoIntent(input);
+  if (videoIntentMatch) {
+    return {
+      kind: "action",
+      actionId: "create_video_production",
+      understoodKey: "assistant.understood.createVideoProduction",
+      videoIntent: videoIntentMatch.intent,
+    };
+  }
+
   if (
     includesAny(text, [
       "video maken",
@@ -233,12 +250,15 @@ export function matchAssistantIntent(
       "ik wil een video",
       "i want a video",
       "animatie maken",
+      "videoclip",
+      "maak een videoclip",
     ])
   ) {
     return {
-      kind: "clarify",
-      clarification: "video_type",
-      messageKey: "assistant.clarify.video.prompt",
+      kind: "action",
+      actionId: "create_video_production",
+      understoodKey: "assistant.understood.createVideoProduction",
+      videoIntent: "brand_story",
     };
   }
 
@@ -250,12 +270,14 @@ export function matchAssistantIntent(
       "start motion",
       "naar motion",
       "open motion",
+      "create video",
     ])
   ) {
     return {
       kind: "action",
-      actionId: "create_motion_video",
-      understoodKey: "assistant.understood.createMotionVideo",
+      actionId: "create_video_production",
+      understoodKey: "assistant.understood.createVideoProduction",
+      videoIntent: "brand_story",
     };
   }
 

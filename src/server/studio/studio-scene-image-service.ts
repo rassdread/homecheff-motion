@@ -1,5 +1,9 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import {
+  prismaProductionHeartbeat,
+  withPrismaProductionRetry,
+} from "@/lib/prisma-production-retry";
 import { buildSceneMemoryBundleFromSceneRow } from "@/lib/studio-scene-memory-bundle";
 import { buildScenePromptFromSceneRow } from "@/server/studio/studio-prompt-builder-service";
 import {
@@ -632,4 +636,152 @@ export async function bulkGenerateStudioStoryboardSceneImages(
   }
 
   return { results };
+}
+
+export async function ensureStoryboardSceneImagesForProduction(params: {
+  storyboardId: string;
+  viewer: Pick<SessionUser, "id" | "role">;
+}): Promise<
+  | { ok: true; generated: number; skipped: number; retried: number }
+  | { ok: false; error: string; code?: string }
+> {
+  const storyboard = await withPrismaProductionRetry("load-storyboard", () =>
+    prisma.studioStoryboard.findUnique({
+      where: { id: params.storyboardId },
+      include: {
+        scenes: {
+          orderBy: { order: "asc" },
+          include: SCENE_FOR_IMAGE_INCLUDE,
+        },
+      },
+    })
+  );
+
+  if (!storyboard) {
+    return { ok: false, error: "Storyboard not found", code: "NOT_FOUND" };
+  }
+  if (!studioStoryboardViewerCanModify(params.viewer, storyboard)) {
+    return { ok: false, error: "Forbidden", code: "FORBIDDEN" };
+  }
+
+  let generated = 0;
+  let skipped = 0;
+  let retried = 0;
+
+  for (const scene of storyboard.scenes) {
+    const completed = scene.sceneImages?.some((img) => img.status === "completed");
+    if (completed) {
+      skipped += 1;
+      continue;
+    }
+
+    const staleGenerating = scene.sceneImages?.find((img) => img.status === "generating");
+    const failed = scene.sceneImages?.find((img) => img.status === "failed");
+    if (failed || staleGenerating) {
+      retried += 1;
+    }
+
+    await prismaProductionHeartbeat();
+
+    let imageRowId: string;
+    const reusable = scene.sceneImages?.find(
+      (img) => img.status === "queued" || img.status === "generating" || img.status === "failed"
+    );
+    if (reusable) {
+      imageRowId = reusable.id;
+      if (reusable.status === "failed") {
+        await withPrismaProductionRetry(`reset-failed-${reusable.id}`, () =>
+          prisma.studioSceneImage.update({
+            where: { id: reusable.id },
+            data: { status: "queued" },
+          })
+        );
+      }
+    } else {
+      const queued = await withPrismaProductionRetry(`queue-scene-${scene.id}`, () =>
+        prisma.studioSceneImage.create({
+          data: {
+            sceneId: scene.id,
+            status: "queued",
+            promptVersion: PROMPT_BUILDER_VERSION,
+            generationVersion: 0,
+            generatedPrompt: "",
+            provider: getSelectedSceneImageProviderId(),
+          },
+        })
+      );
+      imageRowId = queued.id;
+    }
+
+    const gen = await runSceneImageGeneration({
+      imageRowId,
+      scene,
+      costFeature: "scene_image_bulk",
+    });
+
+    await prismaProductionHeartbeat();
+
+    if ("error" in gen) {
+      return { ok: false, error: gen.error.message, code: gen.error.code };
+    }
+    generated += 1;
+  }
+
+  const refreshed = await withPrismaProductionRetry("verify-storyboard-images", () =>
+    prisma.studioStoryboard.findUnique({
+      where: { id: params.storyboardId },
+      include: {
+        scenes: {
+          orderBy: { order: "asc" },
+          include: { sceneImages: true },
+        },
+      },
+    })
+  );
+
+  const missing =
+    refreshed?.scenes.filter((s) => !s.sceneImages.some((img) => img.status === "completed")) ??
+    [];
+
+  if (missing.length > 0) {
+    return {
+      ok: false,
+      error: `${missing.length} scene(s) still missing images after generation`,
+      code: "SCENE_IMAGES_INCOMPLETE",
+    };
+  }
+
+  return { ok: true, generated, skipped, retried };
+}
+
+export async function assertStoryboardSceneImagesReady(
+  storyboardId: string
+): Promise<{ ok: true } | { ok: false; error: string; code: string }> {
+  const storyboard = await prisma.studioStoryboard.findUnique({
+    where: { id: storyboardId },
+    include: {
+      scenes: {
+        orderBy: { order: "asc" },
+        include: { sceneImages: true },
+      },
+    },
+  });
+
+  if (!storyboard) {
+    return { ok: false, error: "Storyboard not found", code: "NOT_FOUND" };
+  }
+
+  const missing = storyboard.scenes.filter(
+    (scene) => !scene.sceneImages.some((img) => img.status === "completed")
+  );
+
+  if (missing.length > 0) {
+    return {
+      ok: false,
+      error: `${missing.length} scene(s) missing images — cannot start render batch`,
+      code: "SCENE_IMAGES_INCOMPLETE",
+    };
+  }
+
+  return { ok: true };
 }

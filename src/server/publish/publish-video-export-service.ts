@@ -7,6 +7,7 @@ import { isPhotoStoryProject, isSlideshowProject } from "@/lib/publish-photo-sto
 import { isPublishAiEverythingProject } from "@/lib/publish-ai-everything";
 import { isAudioWithImageProject, isVoiceMessageProject } from "@/lib/publish-audio-workflows";
 import { renderPublishStoryBaseVideo } from "@/server/publish/publish-story-render";
+import { applyPublishAudioMux, publishProjectNeedsAudioMux } from "@/server/publish/publish-audio-export-mux";
 import type { PublishProject } from "@/types/publish-overlay";
 
 export type PublishExportResult = {
@@ -107,5 +108,18 @@ export async function exportPublishProjectVideo(
     };
   }
 
-  return { ok: true, outputPath, layerCount: layers.length, renderMode: "video_overlay" };
+  let finalPath = outputPath;
+  if (publishProjectNeedsAudioMux(project)) {
+    const audioMux = await applyPublishAudioMux({
+      project,
+      videoPath: outputPath,
+      tmpDir,
+    });
+    if (!audioMux.ok) {
+      return { ok: false, error: `Audio export failed: ${audioMux.error}` };
+    }
+    finalPath = audioMux.outputPath;
+  }
+
+  return { ok: true, outputPath: finalPath, layerCount: layers.length, renderMode: "video_overlay" };
 }

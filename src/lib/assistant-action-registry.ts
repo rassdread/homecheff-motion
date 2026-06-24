@@ -8,6 +8,7 @@ import { buildCharacterStudioFlowHref, buildCharacterStudioHubHref } from "@/lib
 import { LIBRARY_HUB_BASE_PATH } from "@/lib/homecheff-suite-route-aliases";
 
 export const ASSISTANT_ACTION_IDS = [
+  "create_video_production",
   "create_character",
   "create_character_from_reference",
   "prepare_motion_character",
@@ -49,6 +50,13 @@ export type AssistantActionDefinition = {
 };
 
 export const ASSISTANT_ACTION_REGISTRY: Record<AssistantActionId, AssistantActionDefinition> = {
+  create_video_production: {
+    id: "create_video_production",
+    category: "motion",
+    description: "Start unified Studio video production from detected intent.",
+    canonicalRoute: "/studio/start",
+    execution: "registry_only",
+  },
   create_character: {
     id: "create_character",
     category: "character",

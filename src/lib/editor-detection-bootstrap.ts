@@ -195,6 +195,7 @@ function buildPremiumBillingContext(
     sessionId: document.sessionId,
     projectId: resolveEditorProjectId(document),
     assetId: resolveEditorAssetId(document),
+    billingMode: "premium_session" as const,
   };
 }
 

@@ -13,6 +13,7 @@ import { buildCharacterClusterHref } from "@/lib/character-cluster-routes";
 describe("assistant action registry", () => {
   it("registers all P5 assistant action ids", () => {
     const expected = [
+      "create_video_production",
       "create_character",
       "create_character_from_reference",
       "prepare_motion_character",

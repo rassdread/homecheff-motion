@@ -34,6 +34,7 @@ export const STUDIO_ACTION_TYPES = [
   "image_edit",
   "fusion_render",
   "transformation_session",
+  "studio_orchestrator_production",
 ] as const;
 
 export type StudioActionType = (typeof STUDIO_ACTION_TYPES)[number];
@@ -269,6 +270,16 @@ export const STUDIO_ACTION_COST_REGISTRY: Record<StudioActionType, StudioActionC
     "editor",
     "replicate",
     0.06
+  ),
+  studio_orchestrator_production: entry(
+    "studio_orchestrator_production",
+    "studio.orchestrator.cost.videoCreation",
+    "studio",
+    "openai",
+    0.12,
+    0.08,
+    5,
+    50
   ),
 };
 

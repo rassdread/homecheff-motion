@@ -35,6 +35,18 @@ export type MotionExecutionReadinessItem = {
   status: MotionExecutionReadinessStatus;
 };
 
+export type MotionDirectorMetadataConsumption = {
+  hasMusicPlan: boolean;
+  hasVoicePlan: boolean;
+  hasSubtitleTrack: boolean;
+  hasCharacterMemory: boolean;
+  hasContinuityReport: boolean;
+  cameraInstructionCount: number;
+  emotionInstructionCount: number;
+  transitionInstructionCount: number;
+  directorNotesPresent: boolean;
+};
+
 export type MotionExecutionConsumption = {
   metadataAvailable: boolean;
   instantMode: InstantMode;
@@ -52,6 +64,7 @@ export type MotionExecutionConsumption = {
   readinessItems: MotionExecutionReadinessItem[];
   fallbackActive: boolean;
   readyToRender: boolean;
+  directorMetadata: MotionDirectorMetadataConsumption;
 };
 
 export type MotionExecutionConsumptionSummary = {

@@ -5,6 +5,7 @@ import {
   type CreditReservation,
 } from "@/server/studio-account/studio-credit-authorization";
 import type { StudioActionType } from "@/server/studio-account/studio-action-cost-registry";
+import { validateProductionTransactionForAction } from "@/server/studio/production-transaction-validator";
 import type { SessionUser } from "@/server/auth/session";
 
 export type CreditGatedExecution<T> = {
@@ -22,10 +23,57 @@ export async function requireStudioCredits(input: {
   projectId?: string;
   confirmed?: boolean;
   overrideCredits?: number;
+  productionTransactionId?: string;
+  productionReservationId?: string;
+  hcProjectId?: string;
 }): Promise<
   | { blocked: NextResponse }
-  | { authorized: true; reservation: CreditReservation; adminBypass?: boolean }
+  | { authorized: true; reservation: CreditReservation; adminBypass?: boolean; productionBypass?: boolean }
 > {
+  if (input.productionTransactionId) {
+    const validation = await validateProductionTransactionForAction({
+      userId: input.user.id,
+      hcProjectId: input.hcProjectId,
+      productionTransactionId: input.productionTransactionId,
+      actionType: input.actionType,
+    });
+    if (!validation.ok) {
+      return {
+        blocked: NextResponse.json(
+          { error: validation.message, code: validation.code, creditGate: true },
+          { status: 403 }
+        ),
+      };
+    }
+    return {
+      authorized: true,
+      productionBypass: true,
+      reservation: {
+        reservationId: validation.reservationId,
+        requiredCredits: 0,
+        service: "studio",
+        provider: "production_chain",
+        reservedCostUsd: 0,
+        marginEstimate: 0,
+      },
+    };
+  }
+
+  if (input.productionReservationId) {
+    return {
+      authorized: true,
+      productionBypass: true,
+      reservation: {
+        reservationId: input.productionReservationId ?? "production-chain-bypass",
+        requiredCredits: 0,
+        service: "studio",
+        provider: "production_chain",
+        reservedCostUsd: 0,
+        marginEstimate: 0,
+      },
+    };
+  }
+
   const auth = await authorizeStudioAction(input);
   if (!auth.ok) {
     return {
@@ -57,6 +105,9 @@ export async function withStudioCreditGate<T>(input: {
   projectId?: string;
   confirmed?: boolean;
   overrideCredits?: number;
+  productionTransactionId?: string;
+  productionReservationId?: string;
+  hcProjectId?: string;
   providerCostUsd?: number;
   relatedJobId?: string;
   execute: () => Promise<T>;
@@ -69,6 +120,9 @@ export async function withStudioCreditGate<T>(input: {
     projectId: input.projectId,
     confirmed: input.confirmed,
     overrideCredits: input.overrideCredits,
+    productionTransactionId: input.productionTransactionId,
+    productionReservationId: input.productionReservationId,
+    hcProjectId: input.hcProjectId,
     relatedJobId: input.relatedJobId,
     execute: input.execute,
     isFailure: input.isFailure,

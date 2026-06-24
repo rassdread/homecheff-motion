@@ -231,16 +231,18 @@ export function AssistantChatPanel({
                   <span className="font-semibold text-zinc-900">
                     {t("assistant.proposal.action" as never)}
                   </span>
-                  <p>{getAssistantAction(message.proposal.actionId).id}</p>
+                  <p>{getAssistantAction(message.proposal.actionId).description}</p>
                 </div>
-                <div>
-                  <span className="font-semibold text-zinc-900">
-                    {t("assistant.proposal.destination" as never)}
-                  </span>
-                  <p className="break-all font-mono text-[11px]">
-                    {message.proposal.prefillPackage?.targetRoute ?? message.proposal.route}
-                  </p>
-                </div>
+                {message.proposal.actionId !== "create_video_production" ?
+                  <div>
+                    <span className="font-semibold text-zinc-900">
+                      {t("assistant.proposal.destination" as never)}
+                    </span>
+                    <p className="break-all font-mono text-[11px]">
+                      {message.proposal.prefillPackage?.targetRoute ?? message.proposal.route}
+                    </p>
+                  </div>
+                : null}
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
@@ -249,7 +251,9 @@ export function AssistantChatPanel({
                     disabled={message.proposal.prefillPackage?.readiness === "waiting_for_answer"}
                     onClick={() => acceptProposal(message.proposal!)}
                   >
-                    {t("assistant.proposal.openWizard" as never)}
+                    {message.proposal.actionId === "create_video_production"
+                      ? t("studio.orchestrator.createVideo" as never)
+                      : t("assistant.proposal.openWizard" as never)}
                   </button>
                   {message.proposal.prefillPackage ? (
                     <>

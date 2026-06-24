@@ -1,6 +1,7 @@
 import type { HomeCheffProjectPackage } from "@/types/homecheff-project-package";
 import type { PublishChangePlan } from "@/lib/publish-change-plan";
 import type { StudioGeneratedStoryline } from "@/lib/studio-story-generator";
+import type { HcOrchestratorState } from "@/types/studio-video-production";
 
 export type HcWorkflowV2Phase =
   | "collect"
@@ -55,6 +56,7 @@ export type HcWorkflowV2Root = {
   studio?: HcStudioWorkflowV2State;
   publish?: HcPublishWorkflowV2State;
   aiEverything?: HcAiEverythingState;
+  orchestrator?: HcOrchestratorState;
   changePlans?: Record<string, PublishChangePlan>;
   assetConcepts?: Record<string, unknown>;
   generatedBriefAssets?: Record<string, import("@/lib/studio-brief-asset-generation").GeneratedBriefAsset>;

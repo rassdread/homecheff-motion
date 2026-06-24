@@ -904,6 +904,8 @@ export function buildDirectorProposal(params: {
   animationPlan?: import("@/types/studio-animation-plan").StudioAnimationPlan;
   productionBrief?: StudioProductionBrief;
   assetDecisionRegistry?: StudioAssetDecisionRegistry;
+  /** Production orchestrator — scene count must match approved plan. */
+  targetSceneCount?: number;
   t?: ProposalTextResolver;
 }): StudioDirectorProposal | null {
   const idea = params.idea.trim();
@@ -1025,9 +1027,10 @@ export function buildDirectorProposal(params: {
     directorProfile: params.storyboard.directorProfile,
     styleProfile: params.storyboard.promptStyleProfile,
     plannedSceneCount:
-      (params.storyboard.scenes?.length ?? 0) > 0 ?
+      params.targetSceneCount ??
+      ((params.storyboard.scenes?.length ?? 0) > 0 ?
         params.storyboard.scenes!.length
-      : DEFAULT_PROPOSAL_SCENE_COUNT,
+      : DEFAULT_PROPOSAL_SCENE_COUNT),
   });
 
   const storyArchitectureContext = {
@@ -1121,7 +1124,9 @@ export function buildDirectorProposal(params: {
 
   const existingScenes = [...(params.storyboard.scenes ?? [])].sort((a, b) => a.order - b.order);
   const targetCount =
-    existingScenes.length > 0 ? existingScenes.length : DEFAULT_PROPOSAL_SCENE_COUNT;
+    existingScenes.length > 0
+      ? existingScenes.length
+      : Math.max(1, params.targetSceneCount ?? DEFAULT_PROPOSAL_SCENE_COUNT);
   const flowInput =
     existingScenes.length > 0 ? existingToFlow(existingScenes) : buildSyntheticFlow(targetCount, storyEntities.subject);
 

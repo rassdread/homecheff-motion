@@ -15,6 +15,7 @@ import {
   hydratePublishProjectFromEditorHandoff,
 } from "@/lib/editor-publish-handoff-hydrate";
 import { loadHcProjectFromQuery, hydratePublishFromHcProject } from "@/lib/homecheff-project-open";
+import { readOrchestratorState } from "@/lib/studio-production-orchestrator";
 import { loadHomeCheffProject } from "@/lib/homecheff-project-persist";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import {
@@ -37,6 +38,8 @@ import { HcProjectWorkspaceControls } from "@/components/projects/hc-project-wor
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { ServiceLandingNav } from "@/components/suite/service-landing-nav";
 import { createPublishProject, loadPublishProject, savePublishProject } from "@/lib/publish-overlay-session";
+import { hydratePublishFromHcProjectWithStudioSubtitles } from "@/lib/studio-publish-bridge";
+import { hydratePublishProjectWithOrchestratorMusic } from "@/lib/studio-publish-production-bridge";
 import type { PublishProject } from "@/types/publish-overlay";
 
 export function PublishProductPage() {
@@ -67,6 +70,7 @@ export function PublishProductPage() {
   const hydratedProjectIdRef = useRef<string | null>(null);
 
   const hcProjectId = searchParams.get("hcProject")?.trim() ?? "";
+  const storyboardId = searchParams.get("storyboardId")?.trim() ?? "";
 
   const hcProject = useMemo(() => {
     const fromQuery = loadHcProjectFromQuery(searchParams);
@@ -114,6 +118,24 @@ export function PublishProductPage() {
   }
 
   useEffect(() => {
+    if (!project || !storyboardId || project.subtitles.length > 0) {
+      return;
+    }
+    let cancelled = false;
+    void hydratePublishFromHcProjectWithStudioSubtitles({
+      publishProject: project,
+      storyboardId,
+    }).then((hydrated) => {
+      if (!cancelled && hydrated.subtitles.length > 0) {
+        handleProjectChange(hydrated);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [handleProjectChange, project, storyboardId]);
+
+  useEffect(() => {
     if (!hcProject || searchParams.get("handoff") !== "1") return;
     const intake = hcProject.workflowState.publishIntake as { entryMode?: string } | undefined;
     autoPrepareHcHandoff(hcProject, "publish", {
@@ -147,6 +169,47 @@ export function PublishProductPage() {
       : "upload"
     );
   }, [project?.id, hcProjectId, hcProject, project]);
+
+  useEffect(() => {
+    if (searchParams.get("autoFinish") !== "1") return;
+    const fromQuery = videoUrl.trim();
+    const fromHc =
+      activeHcProject
+        ? (readOrchestratorState(activeHcProject)?.finalVideoUrl?.trim() ??
+          activeHcProject.servicePayload.publish?.videoUrl?.trim())
+        : "";
+    const resolvedVideo = fromQuery || fromHc;
+    if (!resolvedVideo) return;
+
+    if (project && project.videoUrl === resolvedVideo) {
+      queueMicrotask(() => setWizardStep("export"));
+      return;
+    }
+
+    if (!project && resolvedVideo) {
+      let created = createPublishProject({
+        name: activeHcProject?.title ?? t("publish.untitled"),
+        videoUrl: resolvedVideo,
+        source: "editor",
+        metadata: {
+          hcProjectId: hcProjectId || activeHcProject?.id,
+          storyboardId,
+          autoFinish: true,
+        },
+      });
+      if (activeHcProject) {
+        created = hydratePublishProjectWithOrchestratorMusic(
+          created,
+          readOrchestratorState(activeHcProject)
+        );
+      }
+      savePublishProject(created);
+      queueMicrotask(() => {
+        setProjectOverride(created);
+        setWizardStep("export");
+      });
+    }
+  }, [activeHcProject, hcProjectId, project, searchParams, storyboardId, t, videoUrl]);
 
   useEffect(() => {
     if (!prefill || prefillAppliedRef.current) {

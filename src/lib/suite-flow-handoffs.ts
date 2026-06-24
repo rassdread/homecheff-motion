@@ -21,8 +21,8 @@ export function buildEditorSaveNextActions(params: {
   }
   const motionQ = motionParams.toString() ? `?${motionParams.toString()}` : "";
   return [
-    { id: "use-studio", labelKey: "suite.flow.useInStudio", href: `/studio${editorQ}`, productId: "studio" },
-    { id: "animate-motion", labelKey: "suite.flow.animateInMotion", href: `/animate/instant${motionQ}`, productId: "motion" },
+    { id: "use-studio", labelKey: "suite.flow.createVideo", href: `/studio/start${editorQ}`, productId: "studio" },
+    { id: "animate-motion", labelKey: "suite.flow.continueVideo", href: `/animate/instant${motionQ}`, productId: "motion" },
     { id: "open-library", labelKey: "suite.flow.openLibrary", href: params.assetId ? `/studio/assets/creative/characters/${params.assetId}` : "/studio/assets", productId: "assets" },
     { id: "download", labelKey: "suite.flow.download", href: `/editor${editorQ}`, productId: "editor" },
   ];
@@ -39,7 +39,7 @@ export function buildMotionRenderNextActions(params: {
       ? `/publish?video=${encodeURIComponent(params.videoUrl)}&motion=${encodeURIComponent(params.projectId)}`
       : `/publish?motion=${encodeURIComponent(params.projectId)}`;
   return [
-    { id: "open-publish", labelKey: "suite.flow.openInPublish", href: publishHref, productId: "presentation" },
+    { id: "open-publish", labelKey: "suite.flow.finishVideo", href: publishHref, productId: "presentation" },
     { id: "download", labelKey: "suite.flow.download", href: `/videos/${encodeURIComponent(params.projectId)}`, productId: "motion" },
     { id: "save-library", labelKey: "suite.flow.saveToLibrary", href: "/studio/assets/media/videos", productId: "assets" },
   ];

@@ -22,6 +22,7 @@ function InstantImportContent() {
   const searchParams = useSearchParams();
   const session = useAuthSession();
   const storyboardId = searchParams.get("storyboardId")?.trim() ?? "";
+  const autoImport = searchParams.get("autoImport") === "1";
   const [fetchError, setFetchError] = useState("");
   const [payload, setPayload] = useState<MotionHandoffPayload | null>(null);
   const [prefill, setPrefill] = useState<MotionHandoffExecutionPrefill | null>(null);
@@ -66,9 +67,15 @@ function InstantImportContent() {
       queueMicrotask(() => {
         setPayload(res.data.payload);
         setPrefill(resolvedPrefill);
+        if (autoImport && res.data.payload && resolvedPrefill) {
+          void applyMotionHandoffImport(res.data.payload, {
+            instantMode: resolvedPrefill.instantMode,
+            executionPrefill: resolvedPrefill,
+          }).then(() => router.replace("/animate/instant"));
+        }
       });
     })();
-  }, [session.resolved, setupError, storyboardId, t]);
+  }, [autoImport, router, session.resolved, setupError, storyboardId, t]);
 
   const handleContinue = (instantMode: InstantMode) => {
     if (!payload || !prefill) {

@@ -144,11 +144,17 @@ export function buildDirectorFieldSuggestions(input: {
           short: { label: "30 sec", seconds: 30 },
           medium: { label: "60 sec", seconds: 60 },
           long: { label: "90 sec", seconds: 90 },
+          extended_3: { label: "3 min", seconds: 180 },
+          extended_5: { label: "5 min", seconds: 300 },
+          extended_10: { label: "10 min", seconds: 600 },
         }
       : {
           short: { label: "30 sec", seconds: 30 },
           medium: { label: "60 sec", seconds: 60 },
           long: { label: "90 sec", seconds: 90 },
+          extended_3: { label: "3 min", seconds: 180 },
+          extended_5: { label: "5 min", seconds: 300 },
+          extended_10: { label: "10 min", seconds: 600 },
         };
   const duration = durationByLength[lengthKey] ?? durationByLength.medium!;
 

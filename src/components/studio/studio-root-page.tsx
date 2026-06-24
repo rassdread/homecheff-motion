@@ -14,6 +14,9 @@ import {
   syncHcProjectIdToUrl,
 } from "@/lib/hc-project-lifecycle";
 import { WorkspaceLoadingSkeleton } from "@/components/ui/motion-studio-primitives";
+import {
+  resolveOrchestratorIntentFromSearchParams,
+} from "@/components/studio/studio-production-orchestrator-panel";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { brand } from "@/lib/brand";
 import { growthSidebarLayoutClasses } from "@/lib/growth-sidebar-layout";
@@ -31,6 +34,10 @@ function StudioRootContent() {
   const storyboardId = searchParams.get("storyboardId")?.trim() ?? "";
   const editorSessionId = searchParams.get("editorSession")?.trim() ?? "";
   const hcProjectId = searchParams.get("hcProject")?.trim() ?? "";
+  const initialIntent = resolveOrchestratorIntentFromSearchParams(searchParams);
+  const initialIdea = searchParams.get("idea")?.trim() ?? "";
+  const initialCharacterId = searchParams.get("characterId")?.trim() ?? searchParams.get("character")?.trim() ?? "";
+  const initialAutoProduce = searchParams.get("autoProduce") === "1";
   const [hcProject, setHcProject] = useState<HomeCheffProjectPackage | null>(() =>
     hcProjectId ? loadHomeCheffProject(hcProjectId) : null
   );
@@ -120,7 +127,15 @@ function StudioRootContent() {
             <EditorStudioEntryBanner editorSessionId={editorSessionId} />
           </div>
         : null}
-        <StudioHomeDashboard embedded />
+        <StudioHomeDashboard
+          embedded
+          hcProject={hcProject}
+          onProjectChange={setHcProject}
+          initialIntent={initialIntent}
+          initialIdea={initialIdea || undefined}
+          initialCharacterId={initialCharacterId || undefined}
+          initialAutoProduce={initialAutoProduce}
+        />
       </main>
     </StudioAuthGate>
   );

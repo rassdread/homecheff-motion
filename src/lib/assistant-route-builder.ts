@@ -10,6 +10,8 @@ import {
 } from "@/lib/assistant-editor-routes";
 import { LIBRARY_HUB_BASE_PATH } from "@/lib/homecheff-suite-route-aliases";
 import type { HomeCheffProjectPackage } from "@/types/homecheff-project-package";
+import type { StudioVideoIntent } from "@/types/studio-video-production";
+import { buildStudioStartHref } from "@/lib/studio-video-intents";
 
 export type AssistantRouteContext = {
   projectId?: string | null;
@@ -17,6 +19,8 @@ export type AssistantRouteContext = {
   storyboardId?: string | null;
   sourceImage?: string | null;
   assetId?: string | null;
+  videoIntent?: StudioVideoIntent;
+  idea?: string;
 };
 
 export function buildAssistantActionRoute(
@@ -26,6 +30,13 @@ export function buildAssistantActionRoute(
   const base = getAssistantAction(actionId).canonicalRoute;
 
   switch (actionId) {
+    case "create_video_production":
+      return buildStudioStartHref({
+        intent: context.videoIntent,
+        hcProject: context.projectId ?? undefined,
+        idea: context.idea,
+        autoProduce: true,
+      });
     case "create_character":
       return buildCharacterClusterHref("new", {
         hcProject: context.projectId ?? undefined,

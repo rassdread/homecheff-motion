@@ -16,6 +16,7 @@ import {
 } from "@/lib/character-cluster-analytics";
 import { runCharacterCreationPipeline } from "@/lib/studio-character-generation-pipeline";
 import { registerCompletedGenerationInLibraryClient } from "@/lib/library-consistency-client";
+import { buildCreateVideoFromCharacterHref } from "@/lib/studio-character-film-bridge";
 import {
   allCharacterDynamicQuestionsAnswered,
 } from "@/lib/character-dynamic-questions";
@@ -246,6 +247,18 @@ export function StudioCharacterNewGuidedWizard({ projectId, projectTitle, storyb
           <section className="mt-6 space-y-3" data-testid="character-new-complete">
             <p className="text-lg font-semibold text-emerald-800">{t("characterCluster.complete.title" as never)}</p>
             <div className="flex flex-wrap gap-2">
+              {state.savedCharacterId ?
+                <Link
+                  href={buildCreateVideoFromCharacterHref({
+                    characterId: state.savedCharacterId,
+                    characterName: state.characterName,
+                    motionReady: Boolean(state.engineSaveMetadata?.motionReady),
+                  })}
+                  className="rounded-xl bg-[#006D52] px-4 py-2 text-sm font-semibold text-white"
+                >
+                  {t("studio.orchestrator.createVideo" as never)}
+                </Link>
+              : null}
               {storyboardId ?
                 <Link
                   href={studioWorkspaceHref(storyboardId)}

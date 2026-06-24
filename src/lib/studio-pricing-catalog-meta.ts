@@ -364,6 +364,17 @@ export const PRICING_CATALOG_ACTION_META: Record<string, PricingCatalogActionMet
     visibleInCatalog: true,
     isFree: false,
   },
+  studio_orchestrator_production: {
+    actionType: "studio_orchestrator_production",
+    category: "video_motion",
+    displayNameNl: "Video maken (Studio)",
+    displayNameEn: "Create video (Studio)",
+    descriptionNl: "Volledige videoproductie via Studio-orchestrator.",
+    descriptionEn: "Full video production via Studio orchestrator.",
+    sortOrder: 810,
+    visibleInCatalog: true,
+    isFree: false,
+  },
 };
 
 export function getPricingCatalogMeta(actionType: string): PricingCatalogActionMeta | null {

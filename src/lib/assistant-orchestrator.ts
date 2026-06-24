@@ -616,10 +616,11 @@ export function processAssistantTurn(input: AssistantTurnInput): AssistantTurnRe
   }
 
   if (intent.kind === "action") {
-    const route = buildAssistantActionRoute(
-      intent.actionId,
-      routeContextFromProject(activeProject)
-    );
+    const route = buildAssistantActionRoute(intent.actionId, {
+      ...routeContextFromProject(activeProject),
+      videoIntent: intent.videoIntent,
+      idea: resolvedMessage,
+    });
     memory = {
       ...memory,
       activeWizard: intent.actionId,

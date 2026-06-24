@@ -23,6 +23,7 @@ import {
 } from "@/lib/character-cluster-analytics";
 import { saveCharacterFromCluster } from "@/lib/character-cluster-save";
 import { attachCharacterToStoryboardScene } from "@/lib/studio-character-entry-actions";
+import { buildCreateVideoFromCharacterHref } from "@/lib/studio-character-film-bridge";
 import {
   buildFullBodyGenerationPrompt,
   canAdvanceMotionWizardStep,
@@ -616,11 +617,22 @@ export function StudioMotionReadyCharacterWizard({
             <div className="space-y-4" data-testid="motion-wizard-complete">
               <p className="text-lg font-semibold text-emerald-800">{t("motionReady.wizard.complete.title" as never)}</p>
               <div className="flex flex-wrap gap-2">
-                <Link href="/studio/storyboards" className="rounded-xl bg-[#006D52] px-4 py-2 text-sm font-semibold text-white">
+                {state.savedCharacterId ?
+                  <Link
+                    href={buildCreateVideoFromCharacterHref({
+                      characterId: state.savedCharacterId,
+                      characterName: state.characterName,
+                      motionReady: true,
+                      styleDnaCached: true,
+                      identityLockCached: true,
+                    })}
+                    className="rounded-xl bg-[#006D52] px-4 py-2 text-sm font-semibold text-white"
+                  >
+                    {t("studio.orchestrator.createVideo" as never)}
+                  </Link>
+                : null}
+                <Link href="/studio/storyboards" className="rounded-xl border px-4 py-2 text-sm font-semibold">
                   {t("motionReady.wizard.complete.useInStory" as never)}
-                </Link>
-                <Link href="/motion" className="rounded-xl border px-4 py-2 text-sm font-semibold">
-                  {t("motionReady.wizard.complete.openMotion" as never)}
                 </Link>
                 <Link href="/studio/characters/motion-ready" className="rounded-xl border px-4 py-2 text-sm font-semibold">
                   {t("motionReady.wizard.complete.another" as never)}

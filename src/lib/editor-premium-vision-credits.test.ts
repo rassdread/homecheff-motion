@@ -99,6 +99,8 @@ describe("editor premium vision credits", () => {
 
   it("style-dna editor route skips legacy asset derivation metering", () => {
     const route = readSrc("app/api/editor/vision/style-dna/route.ts");
+    assert.doesNotMatch(route, /withStudioCreditGate\([\s\S]*premium_vision_analysis/);
+    assert.match(route, /billingMode === "premium_session"/);
     assert.match(route, /skipLegacyMetering: true/);
     assert.match(route, /recordEditorPremiumProviderCost/);
     assert.match(route, /route: "style_dna"/);

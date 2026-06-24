@@ -167,14 +167,16 @@ describe("homecheff-suite-route-aliases", () => {
 });
 
 describe("homecheff-suite-i18n-labels", () => {
-  it("EN labels show Publish and Library", () => {
-    assert.equal(en["suite.nav.publish"], "Publish");
+  it("EN labels show Finish Video and Library", () => {
+    assert.equal(en["suite.nav.publish"], "Finish Video");
+    assert.equal(en["suite.nav.motion"], "Animation");
     assert.equal(en["suite.nav.library"], "Library");
     assert.equal(en["studio.assetsHub.title"], "Library");
   });
 
-  it("NL labels show Publish and Bibliotheek", () => {
-    assert.equal(nl["suite.nav.publish"], "Publish");
+  it("NL labels show Video afronden and Bibliotheek", () => {
+    assert.equal(nl["suite.nav.publish"], "Video afronden");
+    assert.equal(nl["suite.nav.motion"], "Animatie");
     assert.equal(nl["suite.nav.library"], "Bibliotheek");
     assert.equal(nl["studio.assetsHub.title"], "Bibliotheek");
   });

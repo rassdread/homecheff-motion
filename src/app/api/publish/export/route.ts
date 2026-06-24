@@ -5,6 +5,7 @@ import {
   mapPublishFormatToActionType,
   withStudioCreditGate,
 } from "@/server/studio-account/with-studio-credit-gate";
+import { readHcProjectIdFromRequest, readProductionTransactionIdFromRequest } from "@/lib/studio-production-request-headers";
 import { loadPublishProjectFromBody } from "@/server/publish/publish-export-body";
 import { exportPublishProjectVideo } from "@/server/publish/publish-video-export-service";
 import { persistPublishExportAndRegister } from "@/server/publish/publish-export-library-register";
@@ -20,19 +21,39 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid publish project" }, { status: 400 });
   }
 
-  const gated = await withStudioCreditGate({
-    user,
-    actionType: mapPublishFormatToActionType(
-      project.mediaKind === "image"
-        ? "photo_story"
-        : project.mediaKind === "carousel"
-          ? "slideshow"
-          : "mp4"
-    ),
-    projectId: project.id,
-    execute: () => exportPublishProjectVideo(project),
-    isFailure: (result) => !result.ok,
-  });
+  const productionTransactionId = readProductionTransactionIdFromRequest(request);
+  const hcProjectId = readHcProjectIdFromRequest(request) ?? project.id;
+
+  const gated =
+    productionTransactionId
+      ? await withStudioCreditGate({
+          user,
+          actionType: mapPublishFormatToActionType(
+            project.mediaKind === "image"
+              ? "photo_story"
+              : project.mediaKind === "carousel"
+                ? "slideshow"
+                : "mp4"
+          ),
+          projectId: project.id,
+          productionTransactionId,
+          hcProjectId,
+          execute: () => exportPublishProjectVideo(project),
+          isFailure: (result) => !result.ok,
+        })
+      : await withStudioCreditGate({
+          user,
+          actionType: mapPublishFormatToActionType(
+            project.mediaKind === "image"
+              ? "photo_story"
+              : project.mediaKind === "carousel"
+                ? "slideshow"
+                : "mp4"
+          ),
+          projectId: project.id,
+          execute: () => exportPublishProjectVideo(project),
+          isFailure: (result) => !result.ok,
+        });
 
   if ("blocked" in gated) {
     return gated.blocked;

@@ -36,7 +36,7 @@ function record(partial: Partial<LibraryConsistencyRecord> & Pick<LibraryConsist
 
 describe("homecheff assistant v1", () => {
   it("registry covers all supported assistant actions", () => {
-    assert.equal(ASSISTANT_ACTION_IDS.length, 18);
+    assert.equal(ASSISTANT_ACTION_IDS.length, 19);
   });
 
   it("routes character-from-reference intent to canonical wizard", () => {
@@ -51,16 +51,18 @@ describe("homecheff assistant v1", () => {
     }
   });
 
-  it("asks for clarification before routing ambiguous video intent", () => {
+  it("routes ambiguous video intent directly to production orchestrator", () => {
     const match = matchAssistantIntent("Ik wil een video maken");
-    assert.equal(match.kind, "clarify");
-    if (match.kind === "clarify") {
-      assert.equal(match.clarification, "video_type");
+    assert.equal(match.kind, "action");
+    if (match.kind === "action") {
+      assert.equal(match.actionId, "create_video_production");
+      assert.match(buildAssistantActionRoute(match.actionId), /\/studio\/start/);
     }
-    const resolved = matchAssistantIntent("verhaal", { pendingClarification: "video_type" });
-    assert.equal(resolved.kind, "action");
-    if (resolved.kind === "action") {
-      assert.equal(resolved.actionId, "create_motion_video");
+    const music = matchAssistantIntent("I want a music video");
+    assert.equal(music.kind, "action");
+    if (music.kind === "action") {
+      assert.equal(music.actionId, "create_video_production");
+      assert.equal(music.videoIntent, "music_video");
     }
   });
 

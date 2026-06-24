@@ -17,6 +17,7 @@ import {
   type ProviderCostSpec,
 } from "@/server/studio-account/studio-action-cost-mapping";
 import { recordCostEventLinked } from "@/server/provider-cost/provider-cost-event";
+import { validateProductionTransactionForAction } from "@/server/studio/production-transaction-validator";
 import type { SessionUser } from "@/server/auth/session";
 import type { CostActionType } from "@/server/provider-cost/cost-event-types";
 
@@ -27,6 +28,7 @@ export type BillProviderActionResult = {
   providerCostEventId: string | null;
   captured: boolean;
   adminBypass?: boolean;
+  productionChain?: boolean;
 };
 
 export type BillProviderActionSuccess<T> = {
@@ -96,6 +98,9 @@ export async function billProviderAction<T>(input: {
   projectId?: string;
   confirmed?: boolean;
   overrideCredits?: number;
+  productionTransactionId?: string;
+  productionReservationId?: string;
+  hcProjectId?: string;
   relatedJobId?: string;
   execute: () => Promise<T>;
   isFailure?: (result: T) => boolean;
@@ -103,6 +108,71 @@ export async function billProviderAction<T>(input: {
   skipCapture?: (result: T) => boolean;
   buildCostEvent?: (result: T) => ProviderCostSpec | null | Promise<ProviderCostSpec | null>;
 }): Promise<{ blocked: NextResponse } | BillProviderActionSuccess<T>> {
+  if (input.productionTransactionId) {
+    const validation = await validateProductionTransactionForAction({
+      userId: input.user.id,
+      hcProjectId: input.hcProjectId,
+      productionTransactionId: input.productionTransactionId,
+      actionType: input.actionType,
+    });
+
+    if (!validation.ok) {
+      return {
+        blocked: NextResponse.json(
+          {
+            error: validation.message,
+            code: validation.code,
+            creditGate: true,
+          },
+          { status: 403 }
+        ),
+      };
+    }
+
+    const result = await input.execute();
+    const failed = input.isFailure?.(result) ?? false;
+    const costSpec = failed
+      ? null
+      : await resolveCostSpec(
+          {
+            actionType: input.actionType,
+            userId: input.user.id,
+            projectId: input.hcProjectId ?? validation.hcProjectId,
+            relatedJobId: input.relatedJobId,
+            failed,
+          },
+          result,
+          input.buildCostEvent
+        );
+    const providerCostEventId = await writeProviderCostEvent(costSpec);
+
+    return {
+      ok: true,
+      result,
+      billing: {
+        estimatedCredits: 0,
+        providerCostEventId,
+        captured: false,
+        adminBypass: false,
+        productionChain: true,
+      },
+    };
+  }
+
+  if (input.productionReservationId) {
+    const result = await input.execute();
+    return {
+      ok: true,
+      result,
+      billing: {
+        estimatedCredits: 0,
+        providerCostEventId: null,
+        captured: false,
+        adminBypass: true,
+      },
+    };
+  }
+
   const preview = await previewStudioCreditAuthorization({
     user: input.user,
     actionType: input.actionType,

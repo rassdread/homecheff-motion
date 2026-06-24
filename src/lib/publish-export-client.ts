@@ -6,7 +6,8 @@ import { resolvePublishOrientation } from "@/lib/publish-safe-zone-v2";
 import type { PublishProject } from "@/types/publish-overlay";
 
 export async function exportPublishProject(
-  project: PublishProject
+  project: PublishProject,
+  options?: { productionTransactionId?: string; hcProjectId?: string }
 ): Promise<{ ok: boolean; downloadUrl?: string; errorKey?: string }> {
   let exportProject = project;
   const changePlan = loadPublishChangePlanFromMetadata(project);
@@ -22,9 +23,16 @@ export async function exportPublishProject(
   exportProject = applyProductionConfigForExport(exportProject);
 
   try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (options?.productionTransactionId?.trim()) {
+      headers["x-production-transaction-id"] = options.productionTransactionId.trim();
+    }
+    if (options?.hcProjectId?.trim()) {
+      headers["x-hc-project-id"] = options.hcProjectId.trim();
+    }
     const res = await fetch("/api/publish/export", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       credentials: "include",
       body: JSON.stringify({ project: exportProject }),
     });
