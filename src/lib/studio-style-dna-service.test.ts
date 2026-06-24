@@ -3,9 +3,14 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import {
+  classifyStyleDnaImageUrl,
+  resolveStyleDnaImageUrlForProvider,
+} from "@/server/studio/style-dna-image-url";
+import {
   resolveEditorStyleDnaBillingMode,
   resolveStyleDna,
 } from "@/server/studio/resolve-style-dna";
+import { STYLE_DNA_ROUTE_VERSION } from "@/server/studio/style-dna-route-debug";
 import {
   clearStyleDnaCacheForTests,
   readStyleDnaCache,
@@ -45,6 +50,10 @@ describe("studio style DNA service", () => {
   it("maps billing mode for premium editor bootstrap", () => {
     assert.equal(
       resolveEditorStyleDnaBillingMode({ analysisRunId: "run-abc" }),
+      "premium_session"
+    );
+    assert.equal(
+      resolveEditorStyleDnaBillingMode({ sessionId: "sess-abc" }),
       "premium_session"
     );
     assert.equal(
@@ -131,9 +140,42 @@ describe("studio style DNA service", () => {
     const route = readSrc("app/api/editor/vision/style-dna/route.ts");
     assert.doesNotMatch(route, /withStudioCreditGate\([\s\S]*premium_vision_analysis/);
     assert.match(route, /billingMode === "premium_session"/);
+    assert.match(route, /sessionId: body\.sessionId/);
+    assert.match(route, /X-Style-Dna-Route-Version/);
+    assert.match(route, /unexpectedStyleDnaErrorResponse/);
     assert.match(route, /skipLegacyMetering: true/);
     assert.match(route, /recordEditorPremiumProviderCost/);
     assert.match(route, /userMessage/);
+  });
+
+  it("route version marker is exported for deploy verification", () => {
+    assert.match(STYLE_DNA_ROUTE_VERSION, /premium-session-v2/);
+  });
+
+  it("resolves relative image URLs for provider fetch", () => {
+    const prev = process.env.NEXT_PUBLIC_APP_URL;
+    process.env.NEXT_PUBLIC_APP_URL = "https://studio.homecheff.eu";
+    try {
+      const resolved = resolveStyleDnaImageUrlForProvider("/api/blob/test.png");
+      assert.equal(resolved.ok, true);
+      if (resolved.ok) {
+        assert.equal(resolved.url, "https://studio.homecheff.eu/api/blob/test.png");
+      }
+      assert.equal(classifyStyleDnaImageUrl("blob:http://x"), "blob");
+    } finally {
+      if (prev === undefined) {
+        delete process.env.NEXT_PUBLIC_APP_URL;
+      } else {
+        process.env.NEXT_PUBLIC_APP_URL = prev;
+      }
+    }
+  });
+
+  it("old client payload without billingMode still infers premium_session via sessionId", () => {
+    const client = readSrc("lib/editor-vision-style-dna-client.ts");
+    assert.match(client, /billingMode: params\.billingContext\?\.billingMode \?\? "premium_session"/);
+    const route = readSrc("app/api/editor/vision/style-dna/route.ts");
+    assert.match(route, /resolveEditorStyleDnaBillingMode/);
   });
 
   it("premium bootstrap passes billingMode premium_session", () => {

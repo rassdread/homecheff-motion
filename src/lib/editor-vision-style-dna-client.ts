@@ -62,7 +62,7 @@ export async function analyzeEditorPremiumStyleDnaApi(params: {
   } catch (error) {
     return {
       ok: false,
-      status: 502,
+      status: 500,
       error: error instanceof Error ? error.message : "Style DNA request failed.",
     };
   }

@@ -5,8 +5,12 @@ import {
   type ExtractStyleDnaInput,
 } from "@/server/studio/extract-asset-style-dna";
 import { readStyleDnaCache, writeStyleDnaCache } from "@/server/studio/style-dna-cache";
+import {
+  classifyStyleDnaImageUrl,
+  resolveStyleDnaImageUrlForProvider,
+} from "@/server/studio/style-dna-image-url";
 import type { StyleDnaBillingMode, StyleDnaErrorCode } from "@/types/studio-style-dna";
-import { styleDnaHttpStatus, styleDnaUserMessage } from "@/types/studio-style-dna";
+import { STYLE_DNA_ERROR_CODES, styleDnaHttpStatus, styleDnaUserMessage } from "@/types/studio-style-dna";
 import type { SessionUser } from "@/server/auth/session";
 
 export type ResolveStyleDnaInput = Omit<ExtractStyleDnaInput, "imageUrl"> & {
@@ -32,16 +36,25 @@ export type ResolveStyleDnaFailure = {
 
 export type ResolveStyleDnaResult = ResolveStyleDnaSuccess | ResolveStyleDnaFailure;
 
-function isBlobOrDataUrl(url: string): boolean {
-  const lower = url.trim().toLowerCase();
-  return lower.startsWith("blob:") || lower.startsWith("data:");
+function isStyleDnaErrorCode(code: string): code is StyleDnaErrorCode {
+  return (STYLE_DNA_ERROR_CODES as readonly string[]).includes(code);
 }
 
 function mapExtractionError(input: {
   error: string;
   code: string;
   status: number;
+  userMessage?: string;
 }): ResolveStyleDnaFailure {
+  if (isStyleDnaErrorCode(input.code)) {
+    return {
+      ok: false,
+      error: input.error,
+      code: input.code,
+      status: input.status,
+      userMessage: input.userMessage ?? styleDnaUserMessage(input.code),
+    };
+  }
   const legacyMap: Record<string, StyleDnaErrorCode> = {
     IMAGE_REQUIRED: "STYLE_DNA_IMAGE_MISSING",
     OPENAI_NOT_CONFIGURED: "STYLE_DNA_PROVIDER_FAILED",
@@ -102,6 +115,7 @@ function mapThrownError(error: unknown): ResolveStyleDnaFailure {
 export function resolveEditorStyleDnaBillingMode(input: {
   explicit?: StyleDnaBillingMode;
   analysisRunId?: string | null;
+  sessionId?: string | null;
   productionTransactionId?: string;
 }): StyleDnaBillingMode {
   if (input.explicit) {
@@ -110,21 +124,25 @@ export function resolveEditorStyleDnaBillingMode(input: {
   if (input.productionTransactionId?.trim()) {
     return "production_contract";
   }
-  if (input.analysisRunId?.trim()) {
+  // Editor premium wizard sends sessionId even before analysisRunId is stamped.
+  if (input.analysisRunId?.trim() || input.sessionId?.trim()) {
     return "premium_session";
   }
   return "standalone";
 }
+
+export { classifyStyleDnaImageUrl };
 
 /** Shared Style DNA resolver — cache-first, typed errors, no wallet billing here. */
 export async function resolveStyleDna(
   viewer: Pick<SessionUser, "id">,
   input: ResolveStyleDnaInput
 ): Promise<ResolveStyleDnaResult> {
-  const imageUrl = input.imageUrl.trim();
+  const rawImageUrl = input.imageUrl.trim();
   const billingMode = input.billingMode ?? "standalone";
+  const imageUrlType = classifyStyleDnaImageUrl(rawImageUrl);
 
-  if (!imageUrl) {
+  if (!rawImageUrl) {
     const code: StyleDnaErrorCode = "STYLE_DNA_IMAGE_MISSING";
     return {
       ok: false,
@@ -135,19 +153,25 @@ export async function resolveStyleDna(
     };
   }
 
-  if (isBlobOrDataUrl(imageUrl)) {
-    const code: StyleDnaErrorCode = "STYLE_DNA_IMAGE_UNREADABLE";
+  const resolvedUrl = resolveStyleDnaImageUrlForProvider(rawImageUrl);
+  if (!resolvedUrl.ok) {
+    const code: StyleDnaErrorCode =
+      resolvedUrl.urlType === "blob" || resolvedUrl.urlType === "data"
+        ? "STYLE_DNA_IMAGE_UNREADABLE"
+        : "STYLE_DNA_IMAGE_MISSING";
     return {
       ok: false,
-      error: "Local browser image URLs cannot be analyzed. Upload the image first.",
+      error: resolvedUrl.error,
       code,
       status: styleDnaHttpStatus(code),
       userMessage: styleDnaUserMessage(code),
     };
   }
 
+  const imageUrl = resolvedUrl.url;
+
   if (!input.forceRefresh) {
-    const cached = readStyleDnaCache(imageUrl, input.sourceKind);
+    const cached = readStyleDnaCache(imageUrl, input.sourceKind) ?? readStyleDnaCache(rawImageUrl, input.sourceKind);
     if (cached) {
       return {
         ok: true,
@@ -172,6 +196,9 @@ export async function resolveStyleDna(
     }
 
     writeStyleDnaCache(imageUrl, input.sourceKind, result.data);
+    if (rawImageUrl !== imageUrl) {
+      writeStyleDnaCache(rawImageUrl, input.sourceKind, result.data);
+    }
 
     return {
       ok: true,
