@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { isAllowedApiOrigin } from "@/lib/allowed-api-origins";
 import { HOMECHEFF_BRAND_ICON_PATHS } from "@/lib/homecheff-brand-icon";
 import { logAuthCheck } from "@/server/auth/auth-check-log";
+import { AUTH_COOKIE_NAMES } from "@/server/auth/cookie-names";
 
 function originMatchesRequestHost(request: NextRequest, origin: string): boolean {
   const host = request.headers.get("host");
@@ -45,7 +46,10 @@ function applySafariFaviconLinkHeader(response: NextResponse): void {
 
 function handleApiMiddleware(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
-  const sessionExists = Boolean(request.cookies.get("hc_session")?.value);
+  const sessionExists = Boolean(
+    request.cookies.get(AUTH_COOKIE_NAMES.studio)?.value ||
+      request.cookies.get(AUTH_COOKIE_NAMES.legacy)?.value,
+  );
   logAuthCheck({
     pathname,
     sessionExists,
