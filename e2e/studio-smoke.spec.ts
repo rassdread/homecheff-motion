@@ -123,9 +123,9 @@ test.describe("Motion Studio production smoke", () => {
 
     await context.addCookies([
       {
-        name: "hc_session",
+        name: "studio_session",
         value: sessionCookie!,
-        domain: ".homecheff.eu",
+        domain: "studio.homecheff.eu",
         path: "/",
         secure: true,
         httpOnly: true,
@@ -173,9 +173,9 @@ test.describe("Motion Studio production smoke", () => {
 
     await context.addCookies([
       {
-        name: "hc_session",
+        name: "studio_session",
         value: sessionCookie!,
-        domain: ".homecheff.eu",
+        domain: "studio.homecheff.eu",
         path: "/",
         secure: true,
         httpOnly: true,

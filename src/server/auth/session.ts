@@ -1,8 +1,11 @@
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import {
+  AUTH_COOKIE_NAMES,
+  LEGACY_SHARED_COOKIE_DOMAIN,
+} from "@/server/auth/cookie-names";
 
-const SESSION_COOKIE = "hc_session";
 const AUTH_SECRET = process.env.AUTH_SECRET ?? "dev-auth-secret-change-me";
 
 /**
@@ -35,26 +38,6 @@ function sessionCookieSecure(): boolean {
     return true;
   }
   return false;
-}
-
-async function sessionCookieDomain(): Promise<string | undefined> {
-  const explicit = process.env.COOKIE_DOMAIN?.trim();
-  if (explicit) {
-    return explicit || undefined;
-  }
-  if (process.env.NODE_ENV !== "production") {
-    return undefined;
-  }
-  try {
-    const h = await headers();
-    const host = h.get("host")?.split(":")[0]?.toLowerCase() ?? "";
-    if (host === "homecheff.eu" || host.endsWith(".homecheff.eu")) {
-      return ".homecheff.eu";
-    }
-  } catch {
-    return undefined;
-  }
-  return undefined;
 }
 
 type SessionPayload = { userId: string; nonce: string };
@@ -91,6 +74,37 @@ function decode(raw: string): SessionPayload | null {
   }
 }
 
+/** Studio HMAC = body.hexSig (2 parts). Growth JWT = 3 parts — never treat as Studio. */
+function looksLikeStudioHmac(raw: string): boolean {
+  const parts = raw.trim().split(".");
+  return parts.length === 2 && /^[0-9a-f]{64}$/i.test(parts[1] ?? "");
+}
+
+function baseCookieOptions(maxAge: number) {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: sessionCookieSecure(),
+    path: "/",
+    maxAge,
+  };
+}
+
+/**
+ * Host-only product session. Do not set Domain=.homecheff.eu (P0 containment).
+ * Explicit COOKIE_DOMAIN is intentionally ignored for session cookies so Studio
+ * cannot reintroduce shared-domain collision with Growth.
+ */
+function clearLegacyAndCanonical(jar: Awaited<ReturnType<typeof cookies>>): void {
+  const expire = baseCookieOptions(0);
+  jar.set(AUTH_COOKIE_NAMES.studio, "", expire);
+  jar.set(AUTH_COOKIE_NAMES.legacy, "", expire);
+  jar.set(AUTH_COOKIE_NAMES.legacy, "", {
+    ...expire,
+    domain: LEGACY_SHARED_COOKIE_DOMAIN,
+  });
+}
+
 export function hashPassword(password: string): string {
   const salt = randomBytes(16).toString("hex");
   const hash = scryptSync(password, salt, 64).toString("hex");
@@ -110,28 +124,13 @@ export function verifyPassword(password: string, stored: string): boolean {
 export async function createSession(userId: string): Promise<void> {
   const value = encode({ userId, nonce: randomBytes(8).toString("hex") });
   const jar = await cookies();
-  const domain = await sessionCookieDomain();
-  jar.set(SESSION_COOKIE, value, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: sessionCookieSecure(),
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
-    ...(domain ? { domain } : {}),
-  });
+  clearLegacyAndCanonical(jar);
+  jar.set(AUTH_COOKIE_NAMES.studio, value, baseCookieOptions(60 * 60 * 24 * 30));
 }
 
 export async function clearSession(): Promise<void> {
   const jar = await cookies();
-  const domain = await sessionCookieDomain();
-  jar.set(SESSION_COOKIE, "", {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: sessionCookieSecure(),
-    path: "/",
-    maxAge: 0,
-    ...(domain ? { domain } : {}),
-  });
+  clearLegacyAndCanonical(jar);
 }
 
 export type SessionUser = {
@@ -144,9 +143,25 @@ export type SessionUser = {
   updatedAt: Date;
 };
 
+function readStudioSessionRaw(
+  jar: Awaited<ReturnType<typeof cookies>>,
+): { token: string | null; source: "studio" | "legacy" | null } {
+  const primary = jar.get(AUTH_COOKIE_NAMES.studio)?.value?.trim() ?? "";
+  if (primary) {
+    return { token: primary, source: "studio" };
+  }
+
+  const legacy = jar.get(AUTH_COOKIE_NAMES.legacy)?.value?.trim() ?? "";
+  if (!legacy || !looksLikeStudioHmac(legacy)) {
+    return { token: null, source: null };
+  }
+
+  return { token: legacy, source: "legacy" };
+}
+
 export async function getAuthenticatedUser(): Promise<SessionUser | null> {
   const jar = await cookies();
-  const token = jar.get(SESSION_COOKIE)?.value;
+  const { token, source } = readStudioSessionRaw(jar);
   if (!token) {
     return null;
   }
@@ -154,6 +169,16 @@ export async function getAuthenticatedUser(): Promise<SessionUser | null> {
   if (!payload) {
     return null;
   }
+
+  if (source === "legacy") {
+    try {
+      clearLegacyAndCanonical(jar);
+      jar.set(AUTH_COOKIE_NAMES.studio, token, baseCookieOptions(60 * 60 * 24 * 30));
+    } catch {
+      /* best-effort upgrade; may fail outside Route Handlers */
+    }
+  }
+
   return prisma.user.findUnique({
     where: { id: payload.userId },
     select: {
@@ -167,4 +192,3 @@ export async function getAuthenticatedUser(): Promise<SessionUser | null> {
     },
   });
 }
-
