@@ -78,14 +78,15 @@
 
 ## Certification checklist
 
-Fill during Preview/Production smoke:
-
 | Gate | Result |
 |------|--------|
-| Lint | |
-| Build | |
-| Tests | |
-| `tsc --noEmit` | |
-| Preview | |
-| Production | |
-| Final GO / NO-GO | |
+| Lint | PASS |
+| Build | PASS |
+| Tests | **4662/4662** |
+| `tsc --noEmit` | PASS |
+| Migration deploy | `20260809120000_studio_s5_projects_assets_library` applied to Neon production branch |
+| Preview | **GREEN** — `dpl_JBzDGVDGr3JsauBtxDt19DYXq5dK` / `homecheff-motion-nfap861zc-…` via `scripts/_s5-preview-e2e.mjs` |
+| Production | (post-merge) |
+| Implementation commit | `fc649b7c` |
+| PR | #6 |
+| Final GO / NO-GO | Pending Production smoke |
