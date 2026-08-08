@@ -32,6 +32,25 @@ import { usdToCredits } from "@/lib/studio-credit-constants";
 import { STUDIO_ACTION_COST_REGISTRY } from "@/server/studio-account/studio-action-cost-registry";
 import type { StudioActionType } from "@/server/studio-account/studio-action-cost-registry";
 import type { Prisma } from "@prisma/client";
+import { registerLibraryAssetFromGeneration } from "@/server/studio-library/register-generation-output";
+
+/** Best-effort S.5 library index — never throws into generation path. */
+function indexSucceededGenerationJob(job: StudioGenerationJobRow): void {
+  if (job.status !== "succeeded" || !job.outputAssetId) return;
+  void registerLibraryAssetFromGeneration({
+    ownerId: job.ownerId,
+    generationJobId: job.id,
+    capability: job.capability,
+    outputAssetId: job.outputAssetId,
+    generator: job.providerAdapter,
+    creditsSpent: job.creditsCharged,
+    metadata: {
+      storyboardId: job.storyboardId,
+      sceneId: job.sceneId,
+      actionType: job.actionType,
+    },
+  });
+}
 
 export type CreateGenerationJobInput = {
   ownerId: string;
@@ -211,6 +230,7 @@ export async function runSynchronousGenerationJob<T>(input: {
     chargeFinalized: outcome.creditsCharged > 0 ? true : undefined,
   });
 
+  indexSucceededGenerationJob(job);
   return { ok: true, job, result: outcome.result };
 }
 
@@ -307,6 +327,7 @@ export async function technicalRetryGenerationJob(input: {
     outputAssetId: outcome.outputAssetId ?? job.outputAssetId,
     metadataJson: (outcome.metadata ?? job.metadataJson ?? {}) as Prisma.InputJsonValue,
   });
+  indexSucceededGenerationJob(job);
   return { ok: true, job };
 }
 
@@ -366,7 +387,7 @@ export async function refreshAsyncGenerationJob(input: {
   const status = await input.adapter.getStatus(providerJobId);
   if (status.studioStatus === "succeeded") {
     const result = input.adapter.getResult ? await input.adapter.getResult(providerJobId) : {};
-    return updateGenerationJobStatus(input.job.id, {
+    const succeeded = await updateGenerationJobStatus(input.job.id, {
       status: "succeeded",
       completedAt: new Date(),
       outputAssetId: result.outputAssetId ?? input.job.outputAssetId,
@@ -377,6 +398,8 @@ export async function refreshAsyncGenerationJob(input: {
         ...(result.metadata ?? {}),
       } as Prisma.InputJsonValue,
     });
+    indexSucceededGenerationJob(succeeded);
+    return succeeded;
   }
   if (status.studioStatus === "failed" || status.studioStatus === "cancelled") {
     return updateGenerationJobStatus(input.job.id, {
