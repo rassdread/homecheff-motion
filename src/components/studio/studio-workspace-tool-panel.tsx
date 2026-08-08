@@ -106,6 +106,12 @@ function StudioWorkspaceVoicePanel({
       <div>
         <h2 className="text-lg font-semibold text-zinc-900">{t("studio.tools.voice")}</h2>
         <p className="mt-1 text-sm text-zinc-600">{t("studio.workspace.voice.hint")}</p>
+        <p
+          className="mt-2 rounded-lg border border-indigo-100 bg-indigo-50/50 px-3 py-2 text-xs font-medium text-indigo-950"
+          data-testid="studio-audio-ownership-voice"
+        >
+          {t("studio.workspace.audioOwnership.voice")}
+        </p>
       </div>
       <StudioV9VoiceLibraryPanel
         storyboardId={storyboardId}
@@ -508,6 +514,12 @@ export function StudioWorkspaceToolPanel({
         <div>
           <h2 className="text-lg font-semibold text-zinc-900">{t("studio.tools.music")}</h2>
           <p className="mt-1 text-sm text-zinc-600">{t("studio.workspace.music.planningHint")}</p>
+          <p
+            className="mt-2 rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-xs font-medium text-emerald-950"
+            data-testid="studio-audio-ownership-music"
+          >
+            {t("studio.workspace.audioOwnership.music")}
+          </p>
         </div>
         <StudioV9MusicPanel
           storyboardId={storyboardId}
@@ -526,6 +538,12 @@ export function StudioWorkspaceToolPanel({
         <div>
           <h2 className="text-lg font-semibold text-zinc-900">{t("studio.tools.sound")}</h2>
           <p className="mt-1 text-sm text-zinc-600">{t("studio.workspace.sound.planningHint")}</p>
+          <p
+            className="mt-2 rounded-lg border border-amber-100 bg-amber-50/70 px-3 py-2 text-xs font-medium text-amber-950"
+            data-testid="studio-audio-ownership-sound"
+          >
+            {t("studio.workspace.audioOwnership.sound")}
+          </p>
         </div>
         <StudioV9SoundEffectsPanel
           storyboardId={storyboardId}

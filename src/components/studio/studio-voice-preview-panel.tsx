@@ -5,6 +5,7 @@ import { StudioAudioPreviewPlayer } from "@/components/studio/studio-audio-previ
 import { useActiveTranslator } from "@/i18n/client";
 import { VOICE_GENERATION_DISPLAY_CREDITS } from "@/lib/studio-credit-constants";
 import { trackStudioCreativeEvent } from "@/lib/studio-creative-analytics";
+import { StudioGenerationStatusChrome } from "@/components/studio/studio-generation-status-chrome";
 import {
   fetchStoryboardVoiceBundle,
   generateStoryboardVoiceApi,
@@ -179,6 +180,13 @@ export function StudioVoicePreviewPanel({
       <div className="mt-3 flex flex-wrap gap-2">
         {canModify ?
           <>
+            <StudioGenerationStatusChrome
+              className="w-full"
+              status={error ? "failed" : voice?.status ?? "ready"}
+              busy={generating}
+              label={t("studio.tools.voice")}
+              onRetry={error ? () => void handleGenerate() : undefined}
+            />
             <button
               type="button"
               disabled={generating}

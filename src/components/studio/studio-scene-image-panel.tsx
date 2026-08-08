@@ -24,6 +24,7 @@ import {
   SCENE_GENERATION_DISPLAY_CREDITS,
 } from "@/lib/studio-credit-constants";
 import { trackStudioCreativeEvent } from "@/lib/studio-creative-analytics";
+import { StudioGenerationStatusChrome } from "@/components/studio/studio-generation-status-chrome";
 import type { StudioSceneDetail } from "@/types/studio-api";
 import { StudioSceneConsistencyPanel } from "@/components/studio/studio-scene-consistency-panel";
 import { StudioSceneCharacterIdentityPanel } from "@/components/studio/studio-scene-character-identity-panel";
@@ -530,6 +531,13 @@ export function StudioSceneImagePanel({
       <div className="flex flex-wrap gap-2">
         {canModify ? (
           <>
+            <StudioGenerationStatusChrome
+              className="w-full"
+              status={latest?.status ?? (error ? "failed" : "ready")}
+              busy={busy}
+              label={t("studio.tools.visual")}
+              onRetry={error || latest?.status === "failed" ? () => void handleGenerate() : undefined}
+            />
             <button
               type="button"
               disabled={busy}

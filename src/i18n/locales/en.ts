@@ -4068,6 +4068,30 @@ export const en: LocaleSchema = {
   "studio.paidAction.credits": "~{credits} credits",
   "studio.paidAction.beforeGenerate":
     "{action} uses about {credits} credits (estimate). Balance is checked before charging.",
+  "studio.generation.ux.ready": "Ready",
+  "studio.generation.ux.queued": "Queued",
+  "studio.generation.ux.generating": "Generating…",
+  "studio.generation.ux.processing": "Processing…",
+  "studio.generation.ux.completed": "Completed",
+  "studio.generation.ux.failed": "Failed",
+  "studio.generation.ux.cancelled": "Cancelled",
+  "studio.generation.ux.retry": "Retry",
+  "studio.generation.ux.canContinue": "You can keep editing other scenes while this runs.",
+  "studio.generation.ux.wait": "Please wait for this step to finish.",
+  "studio.generation.ux.failedHint": "Retry or adjust your input — you do not need to rebuild the scene.",
+  "studio.workspace.enterPreview": "Preview",
+  "studio.workspace.backToEdit": "Back to edit",
+  "studio.workspace.previewModeLabel": "Preview",
+  "studio.workspace.previewModeHint":
+    "Approximate final composition for this scene. Return to edit to change tools and content.",
+  "studio.workspace.previewModeBanner":
+    "Preview mode — editing tools are hidden. Scene selection still works.",
+  "studio.workspace.audioOwnership.music":
+    "Project music — background music for the whole project (applied when you render in Motion).",
+  "studio.workspace.audioOwnership.sound":
+    "Scene sound — effects planned for the selected scene (not the voice track).",
+  "studio.workspace.audioOwnership.voice":
+    "Voice track — project narration / character speech (separate from music and SFX).",
   "studio.start.newStory": "New video story",
   "studio.start.photosToVideo": "Photos to video",
   "studio.start.photosToVideoHint": "Upload photos and make a video quickly.",
@@ -4574,7 +4598,8 @@ export const en: LocaleSchema = {
   "studio.workspace.assets.worldContextHint": "Visual world context comes from linked characters, location, and props.",
   "studio.workspace.assets.noSceneWorld": "No world profile detected from scene assets yet.",
   "studio.workspace.assets.worldNeedsLocation": "Link a location to this scene before applying a world profile.",
-  "studio.workspace.voice.hint": "Choose a voice, preview narration, and manage character voices for this story.",
+  "studio.workspace.voice.hint":
+    "Choose a voice, preview narration, and manage character voices for this project.",
   "studio.workspace.visual.hint": "Prepare visuals, generate scenes, and review visual production — without leaving the workspace.",
   "studio.visualProduction.overview.title": "Visual production",
   "studio.visualProduction.overview.scenesReady": "Scenes ready",
@@ -4743,8 +4768,10 @@ export const en: LocaleSchema = {
   "studio.workspace.subtitles.requiresVoiceTitle": "Subtitles need a voice track",
   "studio.workspace.subtitles.scopeHint": "This unlocks subtitle generation for the project voice — it does not translate on-screen text or rewrite your story.",
   "studio.workspace.subtitles.openVoiceTab": "Open Voice tab",
-  "studio.workspace.music.planningHint": "Music planning only — audio is applied when you make your video in Motion.",
-  "studio.workspace.sound.planningHint": "Sound planning only — effects are applied when you make your video in Motion.",
+  "studio.workspace.music.planningHint":
+    "Plan project music here. It is applied when you make your video in Motion.",
+  "studio.workspace.sound.planningHint":
+    "Plan scene sound effects here. They are applied when you make your video in Motion.",
   "studio.workspace.translate.hint": "Create language versions from a completed video linked to this story.",
   "studio.workspace.translate.waitForVideo": "Finish your first video export before starting translations.",
   "studio.workspace.export.hint": "Download your current video and language versions — without leaving Studio.",

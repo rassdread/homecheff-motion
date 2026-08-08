@@ -4062,6 +4062,30 @@ export const nl = {
   "studio.paidAction.credits": "~{credits} credits",
   "studio.paidAction.beforeGenerate":
     "{action} kost ongeveer {credits} credits (schatting). Saldo wordt gecontroleerd vóór afschrijving.",
+  "studio.generation.ux.ready": "Gereed",
+  "studio.generation.ux.queued": "In wachtrij",
+  "studio.generation.ux.generating": "Genereren…",
+  "studio.generation.ux.processing": "Verwerken…",
+  "studio.generation.ux.completed": "Voltooid",
+  "studio.generation.ux.failed": "Mislukt",
+  "studio.generation.ux.cancelled": "Geannuleerd",
+  "studio.generation.ux.retry": "Opnieuw",
+  "studio.generation.ux.canContinue": "Je kunt andere scènes blijven bewerken terwijl dit loopt.",
+  "studio.generation.ux.wait": "Wacht tot deze stap klaar is.",
+  "studio.generation.ux.failedHint": "Probeer opnieuw of pas je invoer aan — je hoeft de scène niet opnieuw te bouwen.",
+  "studio.workspace.enterPreview": "Voorbeeld",
+  "studio.workspace.backToEdit": "Terug naar bewerken",
+  "studio.workspace.previewModeLabel": "Voorbeeld",
+  "studio.workspace.previewModeHint":
+    "Geschatte eindcompositie voor deze scène. Ga terug naar bewerken om tools en inhoud te wijzigen.",
+  "studio.workspace.previewModeBanner":
+    "Voorbeeldmodus — bewerktools zijn verborgen. Scènekeuze blijft werken.",
+  "studio.workspace.audioOwnership.music":
+    "Projectmuziek — achtergrondmuziek voor het hele project (toegepast bij renderen in Motion).",
+  "studio.workspace.audioOwnership.sound":
+    "Scènegeluid — effecten voor de geselecteerde scène (niet de stemtrack).",
+  "studio.workspace.audioOwnership.voice":
+    "Stemtrack — projectnarratie / personagespraak (apart van muziek en SFX).",
   "studio.start.newStory": "Nieuw videoverhaal",
   "studio.start.photosToVideo": "Foto's naar video",
   "studio.start.photosToVideoHint": "Upload foto's en maak snel een video.",
@@ -4569,7 +4593,8 @@ export const nl = {
   "studio.workspace.assets.worldContextHint": "Visuele wereldcontext komt van gekoppelde personages, locatie en props.",
   "studio.workspace.assets.noSceneWorld": "Nog geen wereldprofiel gedetecteerd uit scène-assets.",
   "studio.workspace.assets.worldNeedsLocation": "Koppel eerst een locatie aan deze scène voordat je een wereld toepast.",
-  "studio.workspace.voice.hint": "Kies een stem, beluister vertelling en beheer personagestemmen voor dit verhaal.",
+  "studio.workspace.voice.hint":
+    "Kies een stem, beluister vertelling en beheer personagestemmen voor dit project.",
   "studio.workspace.visual.hint": "Bereid beelden voor, genereer scènes en bekijk je visuele productie — zonder de workspace te verlaten.",
   "studio.visualProduction.overview.title": "Visuele productie",
   "studio.visualProduction.overview.scenesReady": "Scènes klaar",
@@ -4738,8 +4763,10 @@ export const nl = {
   "studio.workspace.subtitles.requiresVoiceTitle": "Ondertitels hebben een stemtrack nodig",
   "studio.workspace.subtitles.scopeHint": "Dit ontgrendelt ondertitelgeneratie voor de projectstem — het vertaalt geen schermtekst en herschrijft je verhaal niet.",
   "studio.workspace.subtitles.openVoiceTab": "Open Stem-tabblad",
-  "studio.workspace.music.planningHint": "Alleen muziekplanning — audio wordt toegepast wanneer je je video maakt in Motion.",
-  "studio.workspace.sound.planningHint": "Alleen geluidsplanning — effecten worden toegepast wanneer je je video maakt in Motion.",
+  "studio.workspace.music.planningHint":
+    "Plan hier projectmuziek. Die wordt toegepast wanneer je je video maakt in Motion.",
+  "studio.workspace.sound.planningHint":
+    "Plan hier scènegeluidseffecten. Die worden toegepast wanneer je je video maakt in Motion.",
   "studio.workspace.translate.hint": "Maak taalversies van een voltooide video gekoppeld aan dit verhaal.",
   "studio.workspace.translate.waitForVideo": "Rond eerst je eerste video-export af voordat je vertalingen start.",
   "studio.workspace.export.hint": "Download je huidige video en taalversies — zonder Studio te verlaten.",
