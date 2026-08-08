@@ -122,14 +122,30 @@
 
 ## Merge & production
 
-_Filled after merge._
-
 | Field | Value |
 |-------|--------|
-| Merge commit | _pending_ |
-| Merge timestamp | _pending_ |
-| Production deployment | _pending_ |
-| Production smoke | _pending_ |
+| Merge commit | `70a8370c038f0ac112ed14fadde5885298d3a452` |
+| Merge timestamp | 2026-08-08T18:21:14Z |
+| Production deployment ID | `dpl_5qrnTwVfDzPgyjwHz5VnU9iY2bKz` |
+| Production URL | `https://studio.homecheff.eu` |
+| Production commit | merge `70a8370c` (main) |
+| Production status | **Ready** |
+
+### Production smoke (2026-08-08)
+
+Authenticated against production with controlled user + storyboard `cmskoth260002jm04xz7cbnlu`:
+
+| Check | Result |
+|-------|--------|
+| Login / session | PASS (`studio_session`; PR #1 cookie isolation on main) |
+| `/studio` + `/studio?storyboardId=` | PASS — shell loads, dpl matches Ready deploy |
+| Legacy `/studio/workspace?storyboardId=` | PASS — redirects to canonical with storyboard preserved |
+| Credits preview fusion_render / voice_clone | PASS — 25 / 400, no drift |
+| Audio library API | PASS — 200 |
+| Editor | PASS |
+| Logout / relogin | PASS |
+| Hydration / page errors / node:crypto in HTML | PASS — none |
+| HTML served from deploy | `dpl_5qrnTwVfDzPgyjwHz5VnU9iY2bKz` |
 
 ---
 
@@ -155,6 +171,16 @@ Align Studio with HomeCheff / Growth ecosystem workspace principles:
 
 ---
 
-## Final decision (post production smoke)
+## Final decision
 
-_See end of this file after production certification._
+**S.1 Definition of Done: COMPLETE**
+
+**GO FOR STUDIO S.2 — WORKSPACE & INFORMATION ARCHITECTURE**
+
+Do not start S.2 automatically from this certification; proceed only as a separate task.
+
+### Residual non-blocking risks
+
+- Full paid render/export/audio-byte handoff not exercised on free 0-credit account (credit **preview** + architecture tests certify pricing SSOT).
+- Interactive Playwright against protected Preview URLs hits Vercel SSO; Preview certified via `vercel curl` + identical local `next start` browser; Production browser smoke used for live UI.
+- Bundle analyzer still not quantified (performance ACCEPTABLE qualitatively).
