@@ -66,6 +66,11 @@ import { resolveStudioWorkspaceLoadFailure } from "@/lib/studio-workspace-load-e
 import type { StudioWorkspaceLoadFailure } from "@/lib/studio-workspace-load-error";
 import { hydrateStudioWorkspaceStateFromServer } from "@/lib/studio-workspace-state-hydrate";
 import { StudioWorkspaceLoadError } from "@/components/studio/studio-workspace-load-error";
+import { useStudioWorkspaceLayoutPlan } from "@/hooks/use-studio-workspace-layout-plan";
+import {
+  shouldRenderPermanentStudioRobot,
+  STUDIO_POSTURE_BREAKPOINTS,
+} from "@/lib/studio-workspace-posture";
 
 type Props = {
   storyboardId: string;
@@ -76,6 +81,7 @@ type MobilePane = "list" | "editor";
 export function StudioWorkspaceShell({ storyboardId }: Props) {
   const t = useActiveTranslator();
   const session = useAuthSession();
+  const layoutPlan = useStudioWorkspaceLayoutPlan();
   const [storyboard, setStoryboard] = useState<StudioStoryboardDetail | null>(null);
   const [locations, setLocations] = useState<StudioLocationListItem[]>([]);
   const [characters, setCharacters] = useState<StudioCharacterListItem[]>([]);
@@ -91,7 +97,10 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
   const [assetsDrawerOpen, setAssetsDrawerOpen] = useState(false);
   const [mobilePane, setMobilePane] = useState<MobilePane>("list");
   const [mobileInsightsOpen, setMobileInsightsOpen] = useState(false);
+  const [rightRailOpen, setRightRailOpen] = useState(true);
+  const [leftRailOpen, setLeftRailOpen] = useState(true);
   const { projects: motionProjects } = useStoryboardMotionProjects(storyboardId, Boolean(storyboard));
+  const permanentRobot = shouldRenderPermanentStudioRobot(layoutPlan);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -339,11 +348,29 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
 
   const handleToolChange = (tool: StudioToolId) => {
     setActiveTool(tool);
-    if (tool !== "story" && typeof window !== "undefined" && window.innerWidth < 1024) {
+    if (
+      tool !== "story" &&
+      typeof window !== "undefined" &&
+      window.innerWidth < STUDIO_POSTURE_BREAKPOINTS.compactMinWidth
+    ) {
       setMobilePane("editor");
       setAssetsDrawerOpen(false);
     }
   };
+
+  const widthClass = layoutPlan.unconstrainedWidth ? "w-full" : "mx-auto w-full max-w-[1600px]";
+  const showLeftRail =
+    layoutPlan.showInlineLeftRail && leftRailOpen;
+  const showRightRail =
+    layoutPlan.showInlineRightRail && rightRailOpen;
+  const gridClass =
+    showLeftRail && showRightRail ?
+      "lg:grid lg:grid-cols-[minmax(180px,240px)_minmax(0,1fr)_minmax(260px,340px)] lg:gap-4"
+    : showLeftRail ?
+      "lg:grid lg:grid-cols-[minmax(180px,240px)_minmax(0,1fr)] lg:gap-4"
+    : showRightRail ?
+      "lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(260px,340px)] lg:gap-4"
+    : "flex flex-1 flex-col";
 
   const selectScene = (sceneId: string) => {
     setActiveSceneId(sceneId);
@@ -360,7 +387,24 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
 
   return (
     <StudioAuthGate>
-      <main className={`flex ${growthSidebarLayoutClasses.pageFloorFlex} ${brand.softGradientBg}`}>
+      <main
+        className={`flex ${growthSidebarLayoutClasses.pageFloorFlex} ${brand.softGradientBg} ${
+          layoutPlan.showSideToolRail ? "flex-row" : "flex-col"
+        }`}
+        data-studio-posture={layoutPlan.posture}
+        data-studio-orientation={layoutPlan.orientation}
+        data-studio-permanent-robot={permanentRobot ? "true" : "false"}
+        data-testid="studio-adaptive-workspace"
+      >
+        {layoutPlan.showSideToolRail && storyboard && !loadFailure ?
+          <StudioToolStrip
+            activeTool={activeTool}
+            onToolChange={handleToolChange}
+            variant="side"
+          />
+        : null}
+
+        <div className="flex min-w-0 flex-1 flex-col">
         <StudioShellHeader
           projectTitle={storyboard?.title}
           storyboardId={storyboardId}
@@ -368,7 +412,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
         />
 
         {advancedFeatures ?
-          <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center gap-2 px-4 pt-2 sm:px-6">
+          <div className={`flex w-full flex-wrap items-center gap-2 px-4 pt-2 sm:px-6 ${widthClass}`}>
             <Link
               href={studioClassicEditorHref(storyboardId)}
               className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
@@ -389,7 +433,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
         : null}
 
         {error ?
-          <p className="mx-auto max-w-[1600px] px-4 py-3 text-sm text-red-700 sm:px-6">{error}</p>
+          <p className={`px-4 py-3 text-sm text-red-700 sm:px-6 ${widthClass}`}>{error}</p>
         : null}
 
         {loadFailure ?
@@ -405,12 +449,47 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
         : !storyboard || loadFailure ?
           null
         : (
-          <div className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col lg:grid lg:grid-cols-[220px_minmax(0,1fr)_300px] lg:gap-4 lg:px-4" data-testid="studio-three-pane-layout">
-            <aside
-              className={`border-b border-zinc-200 bg-white lg:border-b-0 lg:border-r ${
-                mobilePane === "editor" && activeTool === "story" ? "hidden lg:block" : "block"
-              }`}
+          <>
+            {layoutPlan.showInlineLeftRail || layoutPlan.showInlineRightRail ?
+              <div className={`flex flex-wrap items-center gap-2 px-4 pt-2 sm:px-6 ${widthClass}`}>
+                {layoutPlan.showInlineLeftRail ?
+                  <button
+                    type="button"
+                    onClick={() => setLeftRailOpen((v) => !v)}
+                    className="min-h-10 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                    aria-pressed={leftRailOpen}
+                  >
+                    {t("studio.workspace.toggleScenes")}
+                  </button>
+                : null}
+                {layoutPlan.showInlineRightRail ?
+                  <button
+                    type="button"
+                    onClick={() => setRightRailOpen((v) => !v)}
+                    className="min-h-10 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                    aria-pressed={rightRailOpen}
+                  >
+                    {t("studio.workspace.toggleInspector")}
+                  </button>
+                : null}
+              </div>
+            : null}
+
+            <div
+              className={`flex flex-1 flex-col px-0 lg:px-4 ${widthClass} ${gridClass}`}
+              data-testid="studio-three-pane-layout"
             >
+            {showLeftRail || !layoutPlan.showInlineLeftRail ?
+              <aside
+                className={`border-b border-zinc-200 bg-white lg:border-b-0 lg:border-r ${
+                  layoutPlan.showInlineLeftRail ?
+                    showLeftRail ? "block" : "hidden"
+                  : mobilePane === "editor" && activeTool === "story" ?
+                    "hidden lg:hidden"
+                  : "block lg:hidden"
+                }`}
+                data-testid="studio-left-rail"
+              >
               <div className="border-b border-zinc-200 px-3 py-2 lg:border-b-0">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                   {t("studio.workspace.scenes")}
@@ -424,18 +503,23 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                 canModify={canModify}
               />
             </aside>
+            : null}
 
             <section
-              className={`min-h-[50vh] flex-1 bg-white px-4 py-4 sm:px-6 ${
-                mobilePane === "list" ? "hidden lg:block" : "block pb-36 lg:pb-4"
+              className={`min-h-[50vh] min-w-0 flex-1 bg-white px-4 py-4 sm:px-6 ${
+                mobilePane === "list" && !layoutPlan.showInlineLeftRail ?
+                  "hidden lg:block"
+                : layoutPlan.showSideToolRail ?
+                  "block pb-4"
+                : "block pb-36 lg:pb-4"
               }`}
               data-testid="studio-center-panel"
             >
-              {mobilePane === "editor" ?
+              {mobilePane === "editor" && !layoutPlan.showInlineLeftRail ?
                 <button
                   type="button"
                   onClick={() => setMobilePane("list")}
-                  className="mb-3 text-xs font-semibold text-[#0067B1] lg:hidden"
+                  className="mb-3 min-h-11 text-xs font-semibold text-[#0067B1] lg:hidden"
                 >
                   ← {t("studio.workspace.backToScenes")}
                 </button>
@@ -575,7 +659,11 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
               )}
             </section>
 
-            <aside className="hidden border-t border-zinc-200 bg-zinc-50/50 p-4 lg:block lg:border-l lg:border-t-0">
+            {showRightRail ?
+              <aside
+                className="hidden border-t border-zinc-200 bg-zinc-50/50 p-4 lg:block lg:border-l lg:border-t-0"
+                data-testid="studio-right-rail"
+              >
               <div className="mb-3 border-b border-zinc-200 pb-2">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                   {t("studio.v9.right.panelLabel" as never)}
@@ -598,26 +686,37 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                 <p className="text-sm text-zinc-600">{t("studio.shell.emptyDirectorHint")}</p>
               )}
             </aside>
+            : null}
           </div>
+          </>
         )}
 
-        {storyboard && !loadFailure ?
-          <StudioToolStrip activeTool={activeTool} onToolChange={handleToolChange} />
+        {storyboard && !loadFailure && layoutPlan.showBottomToolStrip ?
+          <StudioToolStrip activeTool={activeTool} onToolChange={handleToolChange} variant="bottom" />
         : null}
 
-        {storyboard && activeScene && activeSceneIndex >= 0 ?
+        {storyboard && activeScene && activeSceneIndex >= 0 && layoutPlan.showOnDemandAiEntry && !permanentRobot ?
           <>
             <div
-              className="fixed inset-x-0 bottom-[52px] z-30 px-4 py-2 lg:hidden"
-              style={{ paddingBottom: "max(env(safe-area-inset-bottom), 8px)" }}
+              className={`z-30 px-4 py-2 ${
+                layoutPlan.showSideToolRail ?
+                  "sticky bottom-0 border-t border-zinc-200 bg-white/95"
+                : "fixed inset-x-0 bottom-[52px] lg:hidden"
+              }`}
+              style={
+                layoutPlan.showSideToolRail ?
+                  undefined
+                : { paddingBottom: "max(env(safe-area-inset-bottom), 8px)" }
+              }
             >
               <button
                 type="button"
                 onClick={() => setMobileInsightsOpen(true)}
                 className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[#006D52] px-4 text-sm font-semibold text-white shadow-lg"
+                data-testid="studio-ai-ondemand"
               >
                 <span aria-hidden>✦</span>
-                {t("studio.shell.aiDirector")}
+                {t("studio.workspace.aiOnDemand")}
               </button>
             </div>
             <StudioMobileInsightsSheet
@@ -651,6 +750,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
             setActiveTool("story");
           }}
         />
+        </div>
       </main>
     </StudioAuthGate>
   );

@@ -154,25 +154,22 @@ See `docs/architecture/studio-s1-boundary-inventory.md`
 
 See `docs/audits/studio-s1-release-certification.md` for Preview → merge → production evidence.
 
-## 16. S.2 carry-forward (not implemented in S.1)
+## 16. Adaptive Workspace (S.2)
 
-### Adaptive workspace
+Studio inherits the ecosystem Adaptive Workspace System (`homecheff-adaptive-workspace-system.md`, ADR-006).
 
-Studio must follow the same ecosystem workspace principles as HomeCheff and Growth:
+Canonical Studio docs:
 
-| Breakpoint | Expectation |
-|------------|-------------|
-| Desktop / wide | Left rail · central creative workspace · right context/inspector where useful |
-| Tablet | Collapsible rails · workspace prioritized |
-| Mobile portrait | Single primary workspace · panels on demand · no permanent multi-column rails |
-| Mobile landscape | Maximize creative workspace · compact side nav · avoid portrait-style nav wasting horizontal room |
+- `docs/architecture/studio-workspace.md`
+- `docs/architecture/studio-information-architecture.md`
+- `docs/architecture/adr/ADR-STUDIO-005-adaptive-workspace-postures.md`
 
 ### Robot / mascot
 
 | Breakpoint | Expectation |
 |------------|-------------|
 | Mobile portrait / landscape | Robot/mascot **not** permanently rendered |
-| Tablet | Conditional / collapsible |
-| Desktop | May remain as contextual assistant |
+| Tablet (FOCUSED) | On-demand AI only |
+| Desktop | Contextual AI in right rail / suite copilot — no permanent character chrome |
 
-AI remains accessible on mobile via toolbar, sheet, modal, or equivalent on-demand UI. Creative workspace always has priority.
+AI remains accessible on mobile via on-demand toolbar / sheet. Creative workspace always has priority.
