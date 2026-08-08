@@ -2,8 +2,8 @@
 
 **Status:** CANONICAL PRODUCT ARCHITECTURE (Phase S.1)  
 **Yields to:** `homecheff-central-identity.md` for identity / SSO decisions (when published)  
-**Phase:** S.1 Architecture Foundation & Boundary Cleanup  
-**Branch:** `refactor/studio-s1-architecture-foundation`
+**Phase:** S.1–S.4 (foundation → generation orchestration)  
+**Branch:** see release audits; generation: `docs/architecture/studio-generation-orchestration.md`
 
 ---
 

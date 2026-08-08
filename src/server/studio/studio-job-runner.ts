@@ -26,6 +26,7 @@ import {
 } from "@/server/studio/studio-storyboard-service";
 import { prisma } from "@/lib/prisma";
 import { mapStudioSceneImageToListItem } from "@/lib/studio-scene-image-map";
+import { billProviderAction } from "@/server/studio-account/bill-provider-action";
 import type {
   StudioJobCreateInput,
   StudioJobResult,
@@ -36,6 +37,40 @@ import type { SessionUser } from "@/server/auth/session";
 
 function viewerFromJob(ownerId: string): Pick<SessionUser, "id" | "role"> {
   return { id: ownerId, role: "user" };
+}
+
+async function billedSceneImageGenerate(
+  storyboardId: string,
+  sceneId: string,
+  ownerId: string,
+  bulkJobId: string
+) {
+  const user = await prisma.user.findUnique({
+    where: { id: ownerId },
+    select: { id: true, email: true, role: true },
+  });
+  if (!user) {
+    return { error: { message: "User not found for billed generation.", code: "UNAUTHORIZED", httpStatus: 401 } };
+  }
+  const billed = await billProviderAction({
+    user,
+    actionType: "scene_generation",
+    projectId: storyboardId,
+    confirmed: true,
+    relatedJobId: bulkJobId,
+    execute: () => generateStudioSceneImage(storyboardId, sceneId, viewerFromJob(ownerId)),
+    isFailure: (result) => "error" in result,
+  });
+  if ("blocked" in billed) {
+    return {
+      error: {
+        message: "Insufficient credits for scene image generation.",
+        code: "INSUFFICIENT_CREDITS",
+        httpStatus: 403,
+      },
+    };
+  }
+  return billed.result;
 }
 
 function emptyResult(startedAt: Date): StudioJobResult {
@@ -151,7 +186,12 @@ export async function runStudioJob(jobId: string): Promise<void> {
 
     try {
       if (job.type === "generate_scene_images") {
-        const gen = await generateStudioSceneImage(job.storyboardId, step.sceneId, viewer);
+        const gen = await billedSceneImageGenerate(
+          job.storyboardId,
+          step.sceneId,
+          job.ownerId,
+          jobId
+        );
         if ("error" in gen) {
           stepResult.error = gen.error.message;
           result.errors.push({ sceneId: step.sceneId, sceneTitle: step.sceneTitle, message: gen.error.message });
@@ -272,16 +312,46 @@ export async function runStudioJob(jobId: string): Promise<void> {
           }
         }
       } else if (job.type === "improve_weak_scenes") {
-        const improved = await improveSceneImageWithApproval(
-          job.storyboardId,
-          step.sceneId,
-          undefined,
-          viewer,
-          {
-            autoSelect:
-              input.options?.autoSelect ?? job.storyboard.autoSelectImprovedImage,
-          }
-        );
+        const ownerUser = await prisma.user.findUnique({
+          where: { id: job.ownerId },
+          select: { id: true, email: true, role: true },
+        });
+        if (!ownerUser) {
+          stepResult.error = "User not found for billed improvement.";
+          result.errors.push({
+            sceneId: step.sceneId,
+            sceneTitle: step.sceneTitle,
+            message: stepResult.error,
+          });
+          result.failedSceneCount += 1;
+          result.sceneResults.push(stepResult);
+          continue;
+        }
+        const improvedBilled = await billProviderAction({
+          user: ownerUser,
+          actionType: "scene_generation",
+          projectId: job.storyboardId,
+          confirmed: true,
+          relatedJobId: jobId,
+          execute: () =>
+            improveSceneImageWithApproval(job.storyboardId, step.sceneId, undefined, viewer, {
+              autoSelect:
+                input.options?.autoSelect ?? job.storyboard.autoSelectImprovedImage,
+            }),
+          isFailure: (result) => "error" in result,
+        });
+        if ("blocked" in improvedBilled) {
+          stepResult.error = "Insufficient credits for scene improvement.";
+          result.errors.push({
+            sceneId: step.sceneId,
+            sceneTitle: step.sceneTitle,
+            message: stepResult.error,
+          });
+          result.failedSceneCount += 1;
+          result.sceneResults.push(stepResult);
+          continue;
+        }
+        const improved = improvedBilled.result;
         if ("error" in improved) {
           stepResult.error = improved.error.message;
           result.errors.push({

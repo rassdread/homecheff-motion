@@ -20,6 +20,7 @@ import { recordCostEventLinked } from "@/server/provider-cost/provider-cost-even
 import { validateProductionTransactionForAction } from "@/server/studio/production-transaction-validator";
 import type { SessionUser } from "@/server/auth/session";
 import type { CostActionType } from "@/server/provider-cost/cost-event-types";
+import { prisma } from "@/lib/prisma";
 
 export type { ProviderCostSpec };
 
@@ -65,28 +66,60 @@ async function resolveCostSpec<T>(
   });
 }
 
+/**
+ * ProviderCostEvent.projectId FK → AnimationProject only.
+ * Studio storyboard/session ids must not be written as projectId.
+ */
+async function resolveAnimationProjectIdForCostEvent(
+  projectId?: string | null
+): Promise<string | null> {
+  if (!projectId?.trim()) {
+    return null;
+  }
+  const row = await prisma.animationProject.findUnique({
+    where: { id: projectId },
+    select: { id: true },
+  });
+  return row?.id ?? null;
+}
+
 async function writeProviderCostEvent(spec: ProviderCostSpec | null): Promise<string | null> {
   if (!spec) {
     return null;
   }
-  return recordCostEventLinked({
-    provider: spec.provider,
-    actionType: spec.costActionType as CostActionType,
-    projectId: spec.projectId,
-    userId: spec.userId,
-    relatedJobId: spec.relatedJobId,
-    relatedExportId: spec.relatedExportId,
-    status: spec.status ?? "completed",
-    unitType: spec.unitType,
-    unitsUsed: spec.unitsUsed,
-    unitCostUsd: spec.unitCostUsd,
-    isEstimated: spec.isEstimated ?? true,
-    estimateReason: spec.estimateReason ?? "bill_provider_action",
-    metadataJson: {
-      ...spec.metadataJson,
-      studioWalletCaptured: true,
-    },
-  });
+  const animationProjectId = await resolveAnimationProjectIdForCostEvent(spec.projectId);
+  try {
+    return await recordCostEventLinked({
+      provider: spec.provider,
+      actionType: spec.costActionType as CostActionType,
+      projectId: animationProjectId,
+      userId: spec.userId,
+      relatedJobId: spec.relatedJobId,
+      relatedExportId: spec.relatedExportId,
+      status: spec.status ?? "completed",
+      unitType: spec.unitType,
+      unitsUsed: spec.unitsUsed,
+      unitCostUsd: spec.unitCostUsd,
+      isEstimated: spec.isEstimated ?? true,
+      estimateReason: spec.estimateReason ?? "bill_provider_action",
+      metadataJson: {
+        ...spec.metadataJson,
+        studioWalletCaptured: true,
+        ...(spec.projectId && !animationProjectId
+          ? { studioProjectRef: spec.projectId, studioProjectRefKind: "non_animation_project" }
+          : {}),
+      },
+    });
+  } catch (error) {
+    /** Cost telemetry must not fail a successful billed generation. */
+    console.error("provider_cost_event_write_failed", {
+      actionType: spec.costActionType,
+      projectId: spec.projectId,
+      animationProjectId,
+      message: error instanceof Error ? error.message : "unknown",
+    });
+    return null;
+  }
 }
 
 /**
