@@ -317,6 +317,13 @@ model User {
   studioWallet         StudioWallet?
   studioLedgerEntries  StudioLedgerEntry[]
   studioShowcaseItemsCreated StudioShowcaseItem[] @relation("ShowcaseItemCreator")
+  /** S.5 canonical project + library */
+  studioCreativeProjects StudioCreativeProject[]
+  studioLibraryAssets    StudioLibraryAsset[]
+  studioAssetCollections StudioAssetCollection[]
+  studioFavorites        StudioFavorite[]
+  studioBrandKits        StudioBrandKit[]
+  studioPromptPresets    StudioPromptPreset[]
 }
 
 /** HomeCheff Studio account — plan, billing, credit policy (1:1 with User). */
@@ -1339,4 +1346,254 @@ model ProviderCreditBalanceSnapshot {
   metadataJson Json?
 
   @@index([provider, capturedAt])
+}
+
+/**
+ * S.5 — Canonical creative project (lightweight container).
+ * Links optionally to storyboard / Motion / HC without replacing them.
+ */
+model StudioCreativeProject {
+  id                   String   @id @default(cuid())
+  ownerId              String
+  owner                User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title                String
+  description          String   @default("")
+  /** active | archived | template */
+  status               String   @default("active")
+  pinned               Boolean  @default(false)
+  favorite             Boolean  @default(false)
+  /** Optional linked containers (nullable — project may exist alone) */
+  storyboardId         String?
+  animationProjectId   String?
+  homeCheffProjectId   String?
+  editorCanvasProjectId String?
+  coverAssetId         String?
+  tagsJson             Json?
+  metadataJson         Json?
+  lastOpenedAt         DateTime?
+  archivedAt           DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  assets               StudioLibraryAsset[]
+  collections          StudioAssetCollection[]
+  brandKits            StudioBrandKit[]
+  promptPresets        StudioPromptPreset[]
+
+  @@index([ownerId, updatedAt])
+  @@index([ownerId, status])
+  @@index([ownerId, pinned])
+  @@index([ownerId, favorite])
+  @@index([storyboardId])
+  @@index([animationProjectId])
+  @@index([homeCheffProjectId])
+}
+
+/**
+ * S.5 — Canonical library asset index (permanent creative memory).
+ * Domain entities remain SoT where they already exist; this indexes reuse.
+ */
+model StudioLibraryAsset {
+  id                 String   @id @default(cuid())
+  ownerId            String
+  owner              User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  projectId          String?
+  project            StudioCreativeProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  /**
+   * image | video | voice | music | sfx | subtitle | character | location |
+   * prop | world | brand | prompt_preset | upload | other
+   */
+  family             String
+  /** Finer category (may mirror StudioAssetCategory or upload kind) */
+  category           String   @default("")
+  title              String
+  description        String   @default("")
+  tagsJson           Json?
+  /**
+   * generated | uploaded | derived | manual | system | imported
+   */
+  origin             String   @default("uploaded")
+  /** active | draft | archived | deleted */
+  status             String   @default("active")
+  favorite           Boolean  @default(false)
+  previewUrl         String   @default("")
+  downloadUrl        String   @default("")
+  storageKey         String   @default("")
+  mimeType           String   @default("")
+  /** Backing store: prisma_entity | blob_manifest | external_url | generation_job */
+  backingStore       String   @default("blob_manifest")
+  /** e.g. character | scene_image | user_upload | audio_library | voice_clone */
+  sourceKind         String   @default("")
+  sourceId           String   @default("")
+  parentAssetId      String?
+  parentAsset        StudioLibraryAsset?  @relation("LibraryAssetLineage", fields: [parentAssetId], references: [id], onDelete: SetNull)
+  derivedAssets      StudioLibraryAsset[] @relation("LibraryAssetLineage")
+  generationJobId    String?
+  promptSummary      String   @default("")
+  aiModel            String   @default("")
+  generator          String   @default("")
+  creditsSpent       Int      @default(0)
+  width              Int?
+  height             Int?
+  durationSeconds    Float?
+  language           String   @default("")
+  aspectRatio        String   @default("")
+  usageCount         Int      @default(0)
+  metadataJson       Json?
+  archivedAt         DateTime?
+  deletedAt          DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  versions           StudioLibraryAssetVersion[]
+  collectionMembers  StudioAssetCollectionMember[]
+  relationsFrom      StudioAssetRelation[] @relation("AssetRelationFrom")
+  relationsTo        StudioAssetRelation[] @relation("AssetRelationTo")
+  usageEvents        StudioAssetUsageEvent[]
+
+  @@unique([ownerId, sourceKind, sourceId])
+  @@index([ownerId, family, status])
+  @@index([ownerId, updatedAt])
+  @@index([ownerId, favorite])
+  @@index([projectId, status])
+  @@index([parentAssetId])
+  @@index([generationJobId])
+}
+
+/** Immutable versions — never overwrite originals. */
+model StudioLibraryAssetVersion {
+  id            String   @id @default(cuid())
+  assetId       String
+  asset         StudioLibraryAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  versionNumber Int
+  label         String   @default("")
+  previewUrl    String   @default("")
+  downloadUrl   String   @default("")
+  storageKey    String   @default("")
+  promptSummary String   @default("")
+  metadataJson  Json?
+  createdAt     DateTime @default(now())
+
+  @@unique([assetId, versionNumber])
+  @@index([assetId, createdAt])
+}
+
+/** Logical grouping — never duplicates files. */
+model StudioAssetCollection {
+  id          String   @id @default(cuid())
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     StudioCreativeProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  name        String
+  description String   @default("")
+  labelKey    String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  members     StudioAssetCollectionMember[]
+
+  @@index([ownerId, updatedAt])
+  @@index([projectId])
+}
+
+model StudioAssetCollectionMember {
+  id           String   @id @default(cuid())
+  collectionId String
+  collection   StudioAssetCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  assetId      String
+  asset        StudioLibraryAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@unique([collectionId, assetId])
+  @@index([assetId])
+}
+
+/** Universal favorites across projects/assets/presets/kits. */
+model StudioFavorite {
+  id         String   @id @default(cuid())
+  ownerId    String
+  owner      User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  /** project | asset | voice | character | music | prompt_preset | brand_kit | collection */
+  targetKind String
+  targetId   String
+  createdAt  DateTime @default(now())
+
+  @@unique([ownerId, targetKind, targetId])
+  @@index([ownerId, createdAt])
+}
+
+model StudioBrandKit {
+  id          String   @id @default(cuid())
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     StudioCreativeProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  name        String
+  description String   @default("")
+  /** logo/colors/fonts/watermark/intro/outro/voice/music/links JSON — no secrets */
+  kitJson     Json
+  favorite    Boolean  @default(false)
+  status      String   @default("active")
+  archivedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ownerId, updatedAt])
+  @@index([projectId])
+}
+
+/**
+ * Prompt preset storage only (S.5) — no Prompt Matrix optimization (S.6).
+ */
+model StudioPromptPreset {
+  id          String   @id @default(cuid())
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     StudioCreativeProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  name        String
+  description String   @default("")
+  /** user | project | brand | default | system */
+  scope       String   @default("user")
+  /** Safe prompt body / structured fields — avoid secrets */
+  presetJson  Json
+  tagsJson    Json?
+  favorite    Boolean  @default(false)
+  status      String   @default("active")
+  archivedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ownerId, scope, updatedAt])
+  @@index([projectId])
+}
+
+model StudioAssetRelation {
+  id           String   @id @default(cuid())
+  fromAssetId  String
+  fromAsset    StudioLibraryAsset @relation("AssetRelationFrom", fields: [fromAssetId], references: [id], onDelete: Cascade)
+  toAssetId    String
+  toAsset      StudioLibraryAsset @relation("AssetRelationTo", fields: [toAssetId], references: [id], onDelete: Cascade)
+  /** uses_voice | uses_character | derived_from | belongs_to | subtitle_of | brand_of | … */
+  relationType String
+  metadataJson Json?
+  createdAt    DateTime @default(now())
+
+  @@unique([fromAssetId, toAssetId, relationType])
+  @@index([toAssetId])
+  @@index([relationType])
+}
+
+model StudioAssetUsageEvent {
+  id         String   @id @default(cuid())
+  assetId    String
+  asset      StudioLibraryAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  /** storyboard | scene | motion_project | character | campaign | other */
+  entityType String
+  entityId   String
+  entityName String   @default("")
+  contextJson Json?
+  createdAt  DateTime @default(now())
+
+  @@index([assetId, createdAt])
+  @@index([entityType, entityId])
 }
