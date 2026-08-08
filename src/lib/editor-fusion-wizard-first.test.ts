@@ -243,7 +243,8 @@ test("fusion render API route uses credit gate before provider execute", () => {
     join(__dirname, "../app/api/editor/fusion/render/route.ts"),
     "utf8"
   );
-  assert.match(routeSrc, /withStudioCreditGate/);
+  assert.match(routeSrc, /billProviderAction/);
+  assert.match(routeSrc, /createGenerationJob/);
   assert.match(routeSrc, /executeFusionWizardRender/);
   assert.match(routeSrc, /POST/);
 });

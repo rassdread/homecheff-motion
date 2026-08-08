@@ -247,9 +247,195 @@ export async function getAuthorizedGenerationJob(
 }
 
 /**
+ * Technical retry: same paid attempt — resume/reprocess without a new charge.
+ * Distinct from {@link retryGenerationJobAsNewAttempt} (new paid generation).
+ */
+export async function technicalRetryGenerationJob(input: {
+  jobId: string;
+  ownerId: string;
+  reprocess: () => Promise<{
+    ok: true;
+    outputAssetId?: string | null;
+    metadata?: Record<string, unknown>;
+  } | {
+    ok: false;
+    errorCode: StudioGenerationErrorCode;
+    safeMessage?: string;
+  }>;
+}): Promise<
+  | { ok: true; job: StudioGenerationJobRow }
+  | { ok: false; job: StudioGenerationJobRow; errorCode: StudioGenerationErrorCode }
+> {
+  const existing = await getGenerationJobForOwner(input.jobId, input.ownerId);
+  if (!existing) {
+    throw new Error("UNAUTHORIZED");
+  }
+  if (existing.status === "succeeded" && existing.outputAssetId) {
+    return { ok: true, job: existing };
+  }
+  if (existing.errorCode !== "STORAGE_FAILED" && existing.status !== "failed") {
+    return {
+      ok: false,
+      job: existing,
+      errorCode: "INTERNAL_ERROR",
+    };
+  }
+
+  let job = await updateGenerationJobStatus(existing.id, {
+    status: "processing",
+    attempt: existing.attempt + 1,
+  });
+
+  const outcome = await input.reprocess();
+  if (!outcome.ok) {
+    job = await updateGenerationJobStatus(job.id, {
+      status: "failed",
+      failedAt: new Date(),
+      errorCode: outcome.errorCode,
+      errorMessageSafe:
+        outcome.safeMessage ?? safeStudioGenerationErrorMessage(outcome.errorCode),
+    });
+    return { ok: false, job, errorCode: outcome.errorCode };
+  }
+
+  job = await updateGenerationJobStatus(job.id, {
+    status: "succeeded",
+    completedAt: new Date(),
+    failedAt: null,
+    errorCode: "",
+    errorMessageSafe: "",
+    outputAssetId: outcome.outputAssetId ?? job.outputAssetId,
+    metadataJson: (outcome.metadata ?? job.metadataJson ?? {}) as Prisma.InputJsonValue,
+  });
+  return { ok: true, job };
+}
+
+/**
  * Explicit new paid attempt — requires a new idempotency key (caller responsibility).
- * Same key must never create a second charge.
+ * Same key must never create a second charge. Never reuse technical retry for this.
  */
 export async function retryGenerationJobAsNewAttempt(input: CreateGenerationJobInput) {
   return createGenerationJob(input);
+}
+
+/**
+ * Begin an async_poll generation: mark generating + store providerJobId.
+ * Credit capture must already have happened (or be deferred) before calling when billable.
+ */
+export async function beginAsyncGenerationJob(input: {
+  job: StudioGenerationJobRow;
+  providerJobId: string;
+  metadata?: Record<string, unknown>;
+  creditsCharged?: number;
+  creditReservationId?: string | null;
+}): Promise<StudioGenerationJobRow> {
+  if (input.creditsCharged && input.creditsCharged > 0) {
+    await finalizeGenerationChargeOnce({
+      jobId: input.job.id,
+      creditsCharged: input.creditsCharged,
+      creditReservationId: input.creditReservationId,
+    });
+  }
+  return updateGenerationJobStatus(input.job.id, {
+    status: "generating",
+    startedAt: input.job.startedAt ?? new Date(),
+    providerJobId: input.providerJobId,
+    attempt: input.job.attempt + 1,
+    metadataJson: (input.metadata ?? {}) as Prisma.InputJsonValue,
+    creditsCharged: input.creditsCharged,
+    chargeFinalized: input.creditsCharged && input.creditsCharged > 0 ? true : undefined,
+  });
+}
+
+/**
+ * Refresh async job from adapter.getStatus / getResult.
+ * Safe across refresh/resume — never starts a second provider job.
+ */
+export async function refreshAsyncGenerationJob(input: {
+  job: StudioGenerationJobRow;
+  adapter: StudioGenerationProviderAdapter;
+}): Promise<StudioGenerationJobRow> {
+  if (isStudioGenerationTerminal(input.job.status)) {
+    return input.job;
+  }
+  const providerJobId = input.job.providerJobId;
+  if (!providerJobId || !input.adapter.getStatus) {
+    return input.job;
+  }
+
+  const status = await input.adapter.getStatus(providerJobId);
+  if (status.studioStatus === "succeeded") {
+    const result = input.adapter.getResult ? await input.adapter.getResult(providerJobId) : {};
+    return updateGenerationJobStatus(input.job.id, {
+      status: "succeeded",
+      completedAt: new Date(),
+      outputAssetId: result.outputAssetId ?? input.job.outputAssetId,
+      metadataJson: {
+        ...(typeof input.job.metadataJson === "object" && input.job.metadataJson && !Array.isArray(input.job.metadataJson)
+          ? (input.job.metadataJson as Record<string, unknown>)
+          : {}),
+        ...(result.metadata ?? {}),
+      } as Prisma.InputJsonValue,
+    });
+  }
+  if (status.studioStatus === "failed" || status.studioStatus === "cancelled") {
+    return updateGenerationJobStatus(input.job.id, {
+      status: status.studioStatus,
+      failedAt: status.studioStatus === "failed" ? new Date() : undefined,
+      cancelledAt: status.studioStatus === "cancelled" ? new Date() : undefined,
+      errorCode: status.errorCode ?? (status.studioStatus === "failed" ? "PROVIDER_REJECTED" : ""),
+      errorMessageSafe:
+        status.errorMessageSafe ??
+        safeStudioGenerationErrorMessage(
+          (status.errorCode as StudioGenerationErrorCode) || "PROVIDER_REJECTED"
+        ),
+    });
+  }
+  return updateGenerationJobStatus(input.job.id, {
+    status: status.studioStatus,
+  });
+}
+
+/**
+ * Honest cancellation: only when capability/adapter supports it.
+ */
+export async function requestGenerationJobCancellation(input: {
+  jobId: string;
+  ownerId: string;
+  adapter?: StudioGenerationProviderAdapter;
+}): Promise<
+  | { ok: true; job: StudioGenerationJobRow }
+  | { ok: false; reason: "not_found" | "unsupported" | "terminal"; job?: StudioGenerationJobRow }
+> {
+  const job = await getGenerationJobForOwner(input.jobId, input.ownerId);
+  if (!job) {
+    return { ok: false, reason: "not_found" };
+  }
+  if (isStudioGenerationTerminal(job.status)) {
+    return { ok: false, reason: "terminal", job };
+  }
+
+  let supports = false;
+  if ((STUDIO_GENERATION_CAPABILITIES as readonly string[]).includes(job.capability)) {
+    supports = getStudioGenerationCapability(job.capability as StudioGenerationCapability)
+      .supportsCancellation;
+  }
+  if (input.adapter) {
+    supports = input.adapter.supportsCancellation;
+  }
+  if (!supports) {
+    return { ok: false, reason: "unsupported", job };
+  }
+
+  let next = await updateGenerationJobStatus(job.id, {
+    status: "cancel_requested",
+  });
+  if (input.adapter?.cancel && next.providerJobId) {
+    await input.adapter.cancel(next.providerJobId);
+  }
+  next = await updateGenerationJobStatus(job.id, {
+    status: "cancelled",
+    cancelledAt: new Date(),
+  });
+  return { ok: true, job: next };
 }

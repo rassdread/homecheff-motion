@@ -1,43 +1,79 @@
-# Studio S.4 — AI Pipeline Audit (in progress)
+# Studio S.4 — AI Pipeline Audit
 
 **Branch:** `refactor/studio-s4-generation-orchestration`  
-**Base:** `21a759c6` (S.3 GO on main)
+**Base:** `21a759c6` (S.3 GO on main)  
+**PR:** #5
 
 ## Inventory summary
 
-See explore inventory in phase kickoff. Live providers: OpenAI (image/vision), ElevenLabs (voice/music/SFX/STT), Vidu (motion), ffmpeg (publish). Registry lists Replicate for some image actions but runtime uses OpenAI.
+Live providers: OpenAI (image/vision), ElevenLabs (voice/music/SFX/STT), Vidu (motion), ffmpeg (publish). Registry lists Replicate for some image actions but runtime uses OpenAI.
 
-## Fragmentation (top)
+## Fragmentation (resolved / adapted)
 
 | Item | Class | S.4 action |
 |------|-------|------------|
 | StudioJob bulk unbilled generate | RISKY | Fixed — bill per step |
-| Dual fusion/variant paths | DUPLICATE | Document; share adapter later |
-| Orphan registry keys | LEGACY | Leave catalog; no fake routes |
-| Planned provider registry | LEGACY | Not runtime |
-| Scene image sync vs job vs bulk | DUPLICATE | Canonical job on sync route first |
+| Dual fusion/variant paths | DUPLICATE | Fusion render on GenerationJob; share adapter later |
+| Orphan registry keys | LEGACY | Catalog classification; no fake routes |
+| Scene image sync vs job vs bulk | DUPLICATE | Canonical job on sync route |
+| Voice bypassed orchestrator | RISKY | Migrated to VOICE_TTS job |
+| Video scattered poll | RISKY | Vidu adapter + GenerationJob on start/poll |
+| Fusion credit without job | RISKY | FUSION_RENDER job + chargeFinalized |
 
-## Implemented this slice
+## Implemented
 
-- `StudioGenerationJob` schema + migration (additive)
-- Status / errors / capability registry (SHARED_PURE)
-- Orchestrator + job service + fake adapter
-- Image POST route wired to orchestrator + idempotency
-- Generation job GET (owner-scoped)
-- Bulk job runner credit gate for generate/improve
-- ADRs 006–008 + architecture docs
-- Unit/contract tests
+- `StudioGenerationJob` schema + additive migration  
+- Status / errors / capability registry  
+- Orchestrator (sync + async + cancel + technical retry)  
+- Image / Voice / Fusion sync routes  
+- Video start/poll async path + `vidu_motion` adapter  
+- Job GET refresh, history list, cancel, recover  
+- Client poller + render prerequisite gate  
+- Fake adapter harness + contract tests  
+- ADRs 006–008 + architecture docs  
+
+## Voice audit (pre-migration → now)
+
+| Item | Was | Now |
+|------|-----|-----|
+| Provider | ElevenLabs / mock | same via adapter body |
+| Credit action | `voice_generation` | same + job.chargeFinalized |
+| Status | implicit HTTP | canonical GenerationJob |
+| Retry | resubmit | technical vs new key |
+| Persistence | StudioStoryboardVoice | + job.outputAssetId = voiceId |
+| Target | storyboard | frozen storyboardId + language |
+| Failure | HTTP error | FAILED + safe message |
+
+## Video audit
+
+| Item | Path |
+|------|------|
+| Provider | Vidu via animation-jobs |
+| providerJobId | AnimationTransition + GenerationJob.providerJobId |
+| Poll | jobs/poll → refreshAsyncGenerationJob |
+| Credits | motion_render at project create (not on start) |
+| Cancel | unsupported (honest) |
 
 ## PITR / migration
 
-Additive table only. Before production migrate: confirm PITR/restore per HomeCheff governance. Checkpoint: pre-migrate `main` tip.
+Additive table only. Before production migrate: confirm PITR/restore per HomeCheff governance.
 
-## Remaining for full S.4 DoD
+| Field | Value |
+|-------|-------|
+| Project | frameflow-ai / homecheff-motion |
+| Branch | refactor/studio-s4-generation-orchestration → main after merge |
+| Migration | `20260808120000_studio_generation_job` |
+| Destructive SQL | none |
 
-- Voice/music/SFX/fusion/video adapters migrated
-- Centralized polling hook
-- Preview E2E refresh/resume/concurrency
-- Production certification
+## Preview / production certification
+
+| Gate | Status |
+|------|--------|
+| Code migration voice/video/fusion | DONE (this slice) |
+| Preview DB migrate | PENDING |
+| Preview E2E refresh/resume/concurrency/credits | PENDING |
+| PR #5 merge | PENDING |
+| Production migrate + smoke | PENDING |
 
 ## Current gate
 

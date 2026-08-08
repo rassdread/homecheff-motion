@@ -59,6 +59,39 @@ export async function getGenerationJobForOwner(
   });
 }
 
+export async function listGenerationJobsForOwner(input: {
+  ownerId: string;
+  storyboardId?: string | null;
+  animationProjectId?: string | null;
+  limit?: number;
+}): Promise<StudioGenerationJobRow[]> {
+  const limit = Math.min(100, Math.max(1, input.limit ?? 40));
+  if (input.animationProjectId) {
+    const rows = await prisma.studioGenerationJob.findMany({
+      where: { ownerId: input.ownerId },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    });
+    return rows
+      .filter((row) => {
+        const meta = row.metadataJson;
+        if (!meta || typeof meta !== "object" || Array.isArray(meta)) {
+          return false;
+        }
+        return (meta as { animationProjectId?: string }).animationProjectId === input.animationProjectId;
+      })
+      .slice(0, limit);
+  }
+  return prisma.studioGenerationJob.findMany({
+    where: {
+      ownerId: input.ownerId,
+      ...(input.storyboardId ? { storyboardId: input.storyboardId } : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+  });
+}
+
 export async function createGenerationJobRow(input: {
   ownerId: string;
   storyboardId?: string | null;
