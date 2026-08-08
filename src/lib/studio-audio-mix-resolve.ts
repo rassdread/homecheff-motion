@@ -12,7 +12,7 @@ import {
   type StudioAudioMixHandoffPlan,
 } from "@/lib/studio-audio-mix-timeline";
 import { parseStoryboardAudioAssetLinks } from "@/lib/studio-storyboard-audio-asset-links";
-import { findUserAudioLibraryAsset } from "@/server/studio/studio-user-audio-library-blob";
+import { findUserAudioLibraryAsset } from "@/lib/studio-user-audio-library-find";
 import { isAudioDuckingMode } from "@/lib/studio-audio-production-validation";
 import type { StudioStoryboardDetail } from "@/types/studio-api";
 import type { UserAudioLibraryAsset } from "@/types/studio-user-audio-library";

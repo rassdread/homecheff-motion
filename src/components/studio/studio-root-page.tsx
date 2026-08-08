@@ -1,12 +1,12 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { EditorStudioEntryBanner } from "@/components/studio/editor-studio-entry-banner";
 import { StudioHomeDashboard } from "@/components/studio/studio-home-dashboard";
 import { StudioShellHeader } from "@/components/studio/studio-shell-header";
-import { StudioWorkspaceShell } from "@/components/studio/studio-workspace-shell";
 import { HcProjectWorkspaceControls } from "@/components/projects/hc-project-workspace-controls";
 import { HcProjectAutoCreateBridge } from "@/components/projects/hc-project-auto-create-bridge";
 import {
@@ -26,6 +26,22 @@ import {
 } from "@/lib/homecheff-project-open";
 import { loadHomeCheffProject } from "@/lib/homecheff-project-persist";
 import type { HomeCheffProjectPackage } from "@/types/homecheff-project-package";
+
+/** S.1 — defer workspace shell until storyboardId is present (ADR-STUDIO-004). */
+const StudioWorkspaceShell = dynamic(
+  () =>
+    import("@/components/studio/studio-workspace-shell").then((m) => ({
+      default: m.StudioWorkspaceShell,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <main className="flex-1">
+        <WorkspaceLoadingSkeleton />
+      </main>
+    ),
+  }
+);
 
 function StudioRootContent() {
   const router = useRouter();

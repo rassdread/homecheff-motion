@@ -1,3 +1,8 @@
+/**
+ * SERVER_ONLY — attaches audio mix plan to Motion handoff (Blob library read).
+ * Do not import from `"use client"` graphs.
+ */
+
 import { buildStoryboardAudioMixPlan } from "@/lib/studio-audio-mix-resolve";
 import { listUserAudioLibraryAssets } from "@/server/studio/studio-user-audio-library-blob";
 import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";

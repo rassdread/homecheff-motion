@@ -1,12 +1,21 @@
+/**
+ * SERVER_ONLY — Vercel Blob I/O for user audio library manifests/assets.
+ * Do not import from `"use client"` graphs (enforced by S.1 architecture tests).
+ * Pure lookup: `@/lib/studio-user-audio-library-find`.
+ */
+
 import { randomUUID } from "node:crypto";
 import {
   resolvePublicBlobUrlByPathname,
   uploadPublicBlob,
 } from "@/lib/vercel-blob-config";
+import { findUserAudioLibraryAsset } from "@/lib/studio-user-audio-library-find";
 import type {
   UserAudioLibraryAsset,
   UserAudioLibraryManifest,
 } from "@/types/studio-user-audio-library";
+
+export { findUserAudioLibraryAsset };
 
 function manifestPathname(ownerId: string): string {
   return `studio/${ownerId}/audio-library/manifest.json`;
@@ -126,15 +135,4 @@ export async function uploadUserAudioLibraryAsset(params: {
 export async function listUserAudioLibraryAssets(ownerId: string): Promise<UserAudioLibraryAsset[]> {
   const manifest = await readUserAudioLibraryManifest(ownerId);
   return manifest.assets;
-}
-
-export function findUserAudioLibraryAsset(
-  assets: UserAudioLibraryAsset[],
-  assetId: string | null | undefined
-): UserAudioLibraryAsset | null {
-  const id = assetId?.trim();
-  if (!id) {
-    return null;
-  }
-  return assets.find((a) => a.id === id) ?? null;
 }
