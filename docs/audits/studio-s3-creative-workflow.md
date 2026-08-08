@@ -105,10 +105,43 @@ Lint PASS · Build PASS · Tests **4629/4629** · tsc PASS
 
 ## Merge & production
 
-Filled after merge/smoke in this document’s final section upon completion.
+See certified section below.
 
 ---
 
 ## Definition of Done (certification decision)
 
-See Final Report in PR / agent response after production smoke.
+COMPLETE — see Merge & production (certified).
+
+## Merge & production (certified)
+
+| Field | Value |
+|-------|--------|
+| PR | [#4](https://github.com/rassdread/homecheff-motion/pull/4) MERGED |
+| Merge commit | `1f15c60e` |
+| Merge timestamp | 2026-08-08T20:12:01Z |
+| Production deployment | `dpl_8QLWPMXbSBM9omzFXCbB85eMBVZ1` |
+| Production URL | `https://studio.homecheff.eu` |
+| Production status | Ready |
+| Production commit | `1f15c60e` |
+
+### Production smoke
+
+- Login / session / logout / relogin PASS (`studio_session`)
+- `/studio/start` 200; workspace 200 for cert project
+- Scene list intact (4 scenes, reorder preserved from Preview)
+- Paid gate scene_generation `requiredCredits: 30` — no charge
+- Alias `studio.homecheff.eu` 200
+- No unexplained runtime blockers in smoke path
+
+### Final
+
+**S.3 Definition of Done: COMPLETE**
+
+Non-blocking residuals:
+- Live provider image/voice generation not charged on free cert account (gate + registry harness used)
+- Interactive Playwright against protected Preview hits Vercel SSO; UI certified via local `next start` of same build + `vercel curl` APIs
+- Safari/WebKit not separately automated (Chromium smoke)
+
+**GO FOR STUDIO S.4 — AI PIPELINE & GENERATION ORCHESTRATION**
+
