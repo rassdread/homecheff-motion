@@ -86,7 +86,7 @@
 | `tsc --noEmit` | PASS |
 | Migration deploy | `20260809120000_studio_s5_projects_assets_library` applied to Neon production branch |
 | Preview | **GREEN** — `dpl_JBzDGVDGr3JsauBtxDt19DYXq5dK` / `homecheff-motion-nfap861zc-…` via `scripts/_s5-preview-e2e.mjs` |
-| Production | (post-merge) |
-| Implementation commit | `fc649b7c` |
-| PR | #6 |
-| Final GO / NO-GO | Pending Production smoke |
+| Production | **GREEN** — `dpl_GS4ct2KZFtu9u7yZk1QgVgWvDw6a` / aliases `studio.homecheff.eu` + `motion.homecheff.eu` |
+| Implementation commit | `fc649b7c` (squash merge `87022ad5`) |
+| PR | #6 (merged) |
+| Final GO / NO-GO | **GO FOR STUDIO S.6 — PROMPT MATRIX & CREATIVE DIRECTOR** |
