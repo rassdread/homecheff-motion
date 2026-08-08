@@ -31,15 +31,16 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 
   if (!isStudioGenerationTerminal(job.status) && job.providerJobId) {
-    if (job.providerAdapter === "vidu_motion" || job.capability === "VIDEO_GENERATE") {
-      job = await refreshAsyncGenerationJob({
-        job,
-        adapter: createViduMotionAdapter(),
-      });
-    } else if (job.providerAdapter === "fake") {
+    /** Prefer explicit adapter id — do not force Vidu for VIDEO_GENERATE harness/fake jobs. */
+    if (job.providerAdapter === "fake") {
       job = await refreshAsyncGenerationJob({
         job,
         adapter: createFakeProviderAdapter("async_success"),
+      });
+    } else if (job.providerAdapter === "vidu_motion" || job.capability === "VIDEO_GENERATE") {
+      job = await refreshAsyncGenerationJob({
+        job,
+        adapter: createViduMotionAdapter(),
       });
     }
   }
