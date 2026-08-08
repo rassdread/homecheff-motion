@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { StudioAudioPreviewPlayer } from "@/components/studio/studio-audio-preview-player";
 import { useActiveTranslator } from "@/i18n/client";
+import { VOICE_GENERATION_DISPLAY_CREDITS } from "@/lib/studio-credit-constants";
+import { trackStudioCreativeEvent } from "@/lib/studio-creative-analytics";
+import { StudioGenerationStatusChrome } from "@/components/studio/studio-generation-status-chrome";
 import {
   fetchStoryboardVoiceBundle,
   generateStoryboardVoiceApi,
@@ -95,15 +98,30 @@ export function StudioVoicePreviewPanel({
     }
     setGenerating(true);
     setError(null);
+    trackStudioCreativeEvent("GENERATION_STARTED", {
+      storyboardId,
+      action: "voice_generation",
+      tool: "voice",
+    });
     try {
       const res = await generateStoryboardVoiceApi(storyboardId, { language });
       if (!res.ok) {
+        trackStudioCreativeEvent("GENERATION_FAILED", {
+          storyboardId,
+          action: "voice_generation",
+          tool: "voice",
+        });
         setError(
           ("error" in res && typeof res.error === "string" ? res.error : null) ??
             t("studio.common.generationFailed")
         );
         return;
       }
+      trackStudioCreativeEvent("GENERATION_SUCCESS", {
+        storyboardId,
+        action: "voice_generation",
+        tool: "voice",
+      });
       await refresh();
       onVoiceGenerated?.();
     } finally {
@@ -161,18 +179,34 @@ export function StudioVoicePreviewPanel({
       : null}
       <div className="mt-3 flex flex-wrap gap-2">
         {canModify ?
-          <button
-            type="button"
-            disabled={generating}
-            onClick={() => void handleGenerate()}
-            className="rounded-full bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-          >
-            {generating ?
-              t("studio.voice.preview.generating")
-            : ready ?
-              t("studio.voice.preview.regenerate")
-            : t("studio.voice.preview.generate")}
-          </button>
+          <>
+            <StudioGenerationStatusChrome
+              className="w-full"
+              status={error ? "failed" : voice?.status ?? "ready"}
+              busy={generating}
+              label={t("studio.tools.voice")}
+              onRetry={error ? () => void handleGenerate() : undefined}
+            />
+            <button
+              type="button"
+              disabled={generating}
+              onClick={() => void handleGenerate()}
+              className="rounded-full bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              data-testid="studio-voice-preview-generate"
+            >
+              {generating ?
+                t("studio.voice.preview.generating")
+              : ready ?
+                `${t("studio.voice.preview.regenerate")} · ${t("studio.paidAction.credits", { credits: VOICE_GENERATION_DISPLAY_CREDITS })}`
+              : `${t("studio.voice.preview.generate")} · ${t("studio.paidAction.credits", { credits: VOICE_GENERATION_DISPLAY_CREDITS })}`}
+            </button>
+            <p className="w-full text-xs text-zinc-600" data-testid="studio-voice-credit-hint">
+              {t("studio.paidAction.beforeGenerate", {
+                action: ready ? t("studio.voice.preview.regenerate") : t("studio.voice.preview.generate"),
+                credits: VOICE_GENERATION_DISPLAY_CREDITS,
+              })}
+            </p>
+          </>
         : null}
       </div>
     </div>

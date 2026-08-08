@@ -8,7 +8,9 @@ type Props = {
   activeSceneId: string | null;
   onSelectScene: (sceneId: string) => void;
   onAddScene?: () => void;
+  onMoveScene?: (sceneId: string, direction: "up" | "down") => void;
   canModify: boolean;
+  reordering?: boolean;
 };
 
 export function StudioWorkspaceSceneSidebar({
@@ -16,7 +18,9 @@ export function StudioWorkspaceSceneSidebar({
   activeSceneId,
   onSelectScene,
   onAddScene,
+  onMoveScene,
   canModify,
+  reordering = false,
 }: Props) {
   const t = useActiveTranslator();
 
@@ -42,6 +46,16 @@ export function StudioWorkspaceSceneSidebar({
           <li className="px-2 py-6 text-center">
             <p className="text-sm font-medium text-zinc-800">{t("studio.workspace.emptyScenesTitle")}</p>
             <p className="mt-1 text-xs text-zinc-500">{t("studio.workspace.emptyScenesHint")}</p>
+            {canModify && onAddScene ?
+              <button
+                type="button"
+                onClick={onAddScene}
+                className="mt-4 min-h-11 w-full rounded-full bg-[#006D52] px-3 text-sm font-semibold text-white"
+                data-testid="studio-empty-add-scene"
+              >
+                {t("studio.workspace.createFirstScene")}
+              </button>
+            : null}
           </li>
         : scenes.map((scene, index) => {
             const selected = scene.id === activeSceneId;
@@ -49,35 +63,62 @@ export function StudioWorkspaceSceneSidebar({
               scene.sceneImages.find((img) => img.id === scene.selectedSceneImageId)?.thumbnailUrl ??
               scene.sceneImages[0]?.thumbnailUrl;
             return (
-              <li key={scene.id}>
-                <button
-                  type="button"
-                  onClick={() => onSelectScene(scene.id)}
-                  className={`flex w-full items-start gap-2 rounded-xl px-2 py-2 text-left transition ${
-                    selected
-                      ? "bg-[#006D52]/10 ring-1 ring-[#006D52]/30"
-                      : "hover:bg-zinc-50"
+              <li key={scene.id} className="mb-1">
+                <div
+                  className={`flex w-full items-start gap-1 rounded-xl px-1 py-1 transition ${
+                    selected ? "bg-[#006D52]/10 ring-1 ring-[#006D52]/30" : "hover:bg-zinc-50"
                   }`}
                 >
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[10px] font-bold text-zinc-600">
-                    {index + 1}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-semibold text-zinc-900">
-                      {scene.title || t("studio.textBeatsPreview.untitledScene")}
+                  <button
+                    type="button"
+                    onClick={() => onSelectScene(scene.id)}
+                    className="flex min-w-0 flex-1 items-start gap-2 px-1 py-1 text-left"
+                    aria-current={selected ? "true" : undefined}
+                  >
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[10px] font-bold text-zinc-600">
+                      {index + 1}
                     </span>
-                    <span className="block truncate text-[10px] text-zinc-500">
-                      {scene.durationSeconds}s · {scene.characters.length}{" "}
-                      {t("studio.workspace.charactersShort")}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-semibold text-zinc-900">
+                        {scene.title || t("studio.textBeatsPreview.untitledScene")}
+                      </span>
+                      <span className="block truncate text-[10px] text-zinc-500">
+                        {scene.durationSeconds}s · {scene.characters.length}{" "}
+                        {t("studio.workspace.charactersShort")}
+                      </span>
                     </span>
-                  </span>
-                  {thumb ?
-                    <span
-                      className="h-10 w-14 shrink-0 rounded-lg bg-zinc-100 bg-cover bg-center"
-                      style={{ backgroundImage: `url(${thumb})` }}
-                    />
+                    {thumb ?
+                      <span
+                        className="h-10 w-14 shrink-0 rounded-lg bg-zinc-100 bg-cover bg-center"
+                        style={{ backgroundImage: `url(${thumb})` }}
+                      />
+                    : null}
+                  </button>
+                  {canModify && onMoveScene && scenes.length > 1 ?
+                    <div className="flex shrink-0 flex-col gap-0.5 py-0.5 pr-0.5">
+                      <button
+                        type="button"
+                        disabled={reordering || index === 0}
+                        onClick={() => onMoveScene(scene.id, "up")}
+                        aria-label={t("studio.workspace.moveSceneUp")}
+                        data-testid="studio-scene-move-up"
+                        className="flex min-h-9 min-w-9 items-center justify-center rounded-lg border border-zinc-200 text-xs font-semibold text-zinc-700 disabled:opacity-30"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        disabled={reordering || index === scenes.length - 1}
+                        onClick={() => onMoveScene(scene.id, "down")}
+                        aria-label={t("studio.workspace.moveSceneDown")}
+                        data-testid="studio-scene-move-down"
+                        className="flex min-h-9 min-w-9 items-center justify-center rounded-lg border border-zinc-200 text-xs font-semibold text-zinc-700 disabled:opacity-30"
+                      >
+                        ↓
+                      </button>
+                    </div>
                   : null}
-                </button>
+                </div>
               </li>
             );
           })}

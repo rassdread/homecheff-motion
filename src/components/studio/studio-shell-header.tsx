@@ -14,9 +14,18 @@ type Props = {
   storyboardId?: string | null;
   showMakeVideo?: boolean;
   hcProjectId?: string | null;
+  saveState?: "saved" | "unsaved" | "saving" | null;
+  workflowStageLabel?: string | null;
 };
 
-export function StudioShellHeader({ projectTitle, storyboardId, showMakeVideo = false, hcProjectId }: Props) {
+export function StudioShellHeader({
+  projectTitle,
+  storyboardId,
+  showMakeVideo = false,
+  hcProjectId,
+  saveState = null,
+  workflowStageLabel = null,
+}: Props) {
   const t = useActiveTranslator();
   const hcProject = hcProjectId ? loadHomeCheffProject(hcProjectId) : null;
   const legacyHandoffHref =
@@ -44,10 +53,32 @@ export function StudioShellHeader({ projectTitle, storyboardId, showMakeVideo = 
                 · {t("studio.workspace.projectContext")}
               </span>
             : null}
+            {workflowStageLabel ?
+              <span className="ml-2 rounded-full bg-zinc-100 px-2 py-0.5 font-semibold normal-case tracking-normal text-zinc-600">
+                {workflowStageLabel}
+              </span>
+            : null}
           </p>
           <h1 className="truncate text-lg font-bold text-zinc-900" title={title}>
             {title}
           </h1>
+          {saveState ?
+            <p
+              className={`text-xs font-medium ${
+                saveState === "unsaved" ? "text-amber-700"
+                : saveState === "saving" ? "text-zinc-500"
+                : "text-[#006D52]"
+              }`}
+              data-testid="studio-save-state"
+              data-save-state={saveState}
+            >
+              {saveState === "unsaved" ?
+                t("studio.context.unsaved")
+              : saveState === "saving" ?
+                t("studio.context.saving")
+              : t("studio.context.saved")}
+            </p>
+          : null}
           {hcProject ?
             <HcProjectStateBadge project={hcProject} compact />
           : null}
@@ -63,7 +94,7 @@ export function StudioShellHeader({ projectTitle, storyboardId, showMakeVideo = 
             </Link>
           : null}
           <Link
-            href="/studio"
+            href="/studio/start"
             prefetch={false}
             className={`min-h-[44px] px-3 py-2 text-xs !text-zinc-800 !border-zinc-300 !bg-white/90 ${studioVisual.btnOutline}`}
           >

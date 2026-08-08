@@ -749,14 +749,28 @@ export async function reorderStudioScenes(
     }
   }
 
-  await prisma.$transaction(
-    sceneIds.map((id, order) =>
-      prisma.studioScene.update({
-        where: { id },
-        data: { order },
-      })
-    )
-  );
+  // @@unique([storyboardId, order]) — must vacate orders before assigning finals.
+  const orderOffset = existing.length + 1000;
+  try {
+    await prisma.$transaction(async (tx) => {
+      for (let i = 0; i < sceneIds.length; i += 1) {
+        await tx.studioScene.update({
+          where: { id: sceneIds[i] },
+          data: { order: orderOffset + i },
+        });
+      }
+      for (let order = 0; order < sceneIds.length; order += 1) {
+        await tx.studioScene.update({
+          where: { id: sceneIds[order] },
+          data: { order },
+        });
+      }
+    });
+  } catch {
+    return {
+      error: serviceError("REORDER_FAILED", "Could not reorder scenes.", 500),
+    };
+  }
 
   return { ok: true };
 }

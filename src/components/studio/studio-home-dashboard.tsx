@@ -15,6 +15,7 @@ import { studioVisual } from "@/lib/studio-visual-tokens";
 import type { UserStudioDashboardReport } from "@/types/studio-profitability";
 
 const QUICK_LINKS = [
+  { href: "/studio/storyboards/new", labelKey: "studio.shell.newStory", emoji: "✨" },
   { href: "/studio/start", labelKey: "studio.orchestrator.createVideo", emoji: "🎬" },
   { href: "/studio/characters/new", labelKey: "studio.home.quick.character", emoji: "🎭" },
   { href: "/studio/props/new", labelKey: "studio.home.quick.prop", emoji: "📦" },

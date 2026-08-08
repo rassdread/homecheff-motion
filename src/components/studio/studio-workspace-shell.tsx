@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { StudioWorkspaceAssetEvolutionPanel } from "@/components/studio/studio-workspace-asset-evolution-panel";
 import { StudioWorkspaceProductionPlanPanel } from "@/components/studio/studio-workspace-production-plan-panel";
@@ -50,6 +50,7 @@ import { storyboardToFlowInput } from "@/lib/studio-movie-director-quality";
 import {
   createStudioSceneApi,
   fetchStudioStoryboard,
+  reorderStudioScenesApi,
   updateStudioSceneApi,
 } from "@/lib/studio-storyboards-client";
 import type {
@@ -71,6 +72,13 @@ import {
   shouldRenderPermanentStudioRobot,
   STUDIO_POSTURE_BREAKPOINTS,
 } from "@/lib/studio-workspace-posture";
+import { inferStudioCreativeStage } from "@/lib/studio-creative-workflow";
+import { trackStudioCreativeEvent } from "@/lib/studio-creative-analytics";
+import {
+  readStudioWorkspacePlace,
+  writeStudioWorkspacePlace,
+} from "@/lib/studio-workspace-place";
+import type { TranslationKey } from "@/i18n";
 
 type Props = {
   storyboardId: string;
@@ -99,8 +107,16 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
   const [mobileInsightsOpen, setMobileInsightsOpen] = useState(false);
   const [rightRailOpen, setRightRailOpen] = useState(true);
   const [leftRailOpen, setLeftRailOpen] = useState(true);
+  const [sceneDirty, setSceneDirty] = useState(false);
+  const [reordering, setReordering] = useState(false);
+  const [workspaceViewMode, setWorkspaceViewMode] = useState<"edit" | "preview">("edit");
+  const placeRestoredRef = useRef(false);
   const { projects: motionProjects } = useStoryboardMotionProjects(storyboardId, Boolean(storyboard));
   const permanentRobot = shouldRenderPermanentStudioRobot(layoutPlan);
+
+  useEffect(() => {
+    placeRestoredRef.current = false;
+  }, [storyboardId]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -141,12 +157,22 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
     setStoryboard(sbRes.data.storyboard);
     rememberRecentStoryboardId(storyboardId);
     void hydrateStudioWorkspaceStateFromServer(storyboardId);
+    const shouldRestorePlace = !placeRestoredRef.current;
+    const savedPlace = shouldRestorePlace ? readStudioWorkspacePlace(storyboardId) : null;
+    placeRestoredRef.current = true;
     setActiveSceneId((prev) => {
+      if (savedPlace?.sceneId && sbRes.data.storyboard.scenes.some((s) => s.id === savedPlace.sceneId)) {
+        return savedPlace.sceneId;
+      }
       if (prev && sbRes.data.storyboard.scenes.some((s) => s.id === prev)) {
         return prev;
       }
       return sbRes.data.storyboard.scenes[0]?.id ?? null;
     });
+    if (savedPlace?.tool) {
+      setActiveTool(savedPlace.tool);
+    }
+    setSceneDirty(false);
     if (locRes.ok) setLocations(locRes.data.locations);
     if (charRes.ok) setCharacters(charRes.data.characters);
     if (propRes.ok) setProps(propRes.data.props);
@@ -302,6 +328,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
   );
 
   const handleSceneDraftChange = (updated: StudioSceneDetail) => {
+    setSceneDirty(true);
     setStoryboard((prev) =>
       prev
         ? { ...prev, scenes: prev.scenes.map((s) => (s.id === updated.id ? updated : s)) }
@@ -310,6 +337,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
   };
 
   const handleStoryboardNotesUpdated = (notes: string) => {
+    setSceneDirty(true);
     setStoryboard((prev) => (prev ? { ...prev, aiDirectorPrompt: notes } : prev));
   };
 
@@ -325,6 +353,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
         (res.data as { error?: string }).error ?? t("studio.storyboards.error.saveSceneFailed")
       );
     }
+    setSceneDirty(false);
     setStoryboard((prev) =>
       prev
         ? { ...prev, scenes: prev.scenes.map((s) => (s.id === activeScene.id ? res.data.scene : s)) }
@@ -342,12 +371,16 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
       return;
     }
     setActiveSceneId(res.data.scene.id);
+    writeStudioWorkspacePlace(storyboardId, { sceneId: res.data.scene.id, tool: activeTool });
+    trackStudioCreativeEvent("SCENE_CREATED", { storyboardId, tool: activeTool });
     setMobilePane("editor");
     await load();
   };
 
   const handleToolChange = (tool: StudioToolId) => {
     setActiveTool(tool);
+    writeStudioWorkspacePlace(storyboardId, { sceneId: activeSceneId, tool });
+    trackStudioCreativeEvent("TOOL_CHANGED", { storyboardId, tool });
     if (
       tool !== "story" &&
       typeof window !== "undefined" &&
@@ -374,9 +407,53 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
 
   const selectScene = (sceneId: string) => {
     setActiveSceneId(sceneId);
-    setActiveTool("story");
     setMobilePane("editor");
+    writeStudioWorkspacePlace(storyboardId, { sceneId, tool: activeTool });
   };
+
+  const handleMoveScene = async (sceneId: string, direction: "up" | "down") => {
+    if (!storyboard || reordering) {
+      return;
+    }
+    const ids = storyboard.scenes.map((s) => s.id);
+    const index = ids.indexOf(sceneId);
+    if (index < 0) {
+      return;
+    }
+    const target = direction === "up" ? index - 1 : index + 1;
+    if (target < 0 || target >= ids.length) {
+      return;
+    }
+    const next = [...ids];
+    const [moved] = next.splice(index, 1);
+    next.splice(target, 0, moved);
+    setReordering(true);
+    const res = await reorderStudioScenesApi(storyboardId, next);
+    setReordering(false);
+    if (!res.ok) {
+      setError((res.data as { error?: string }).error ?? t("studio.storyboards.error.reorderFailed"));
+      return;
+    }
+    setActiveSceneId(sceneId);
+    writeStudioWorkspacePlace(storyboardId, { sceneId, tool: activeTool });
+    trackStudioCreativeEvent("SCENE_REORDERED", { storyboardId });
+    await load();
+  };
+
+  const creativeStage =
+    workspaceViewMode === "preview" ?
+      "preview"
+    : inferStudioCreativeStage({
+        hasScenes: scenes.length > 0,
+        activeTool,
+      });
+  const stageLabelKey = `studio.workflow.stage.${creativeStage}` as TranslationKey;
+  const isPreviewMode = workspaceViewMode === "preview";
+  const saveState =
+    savingSceneId ? "saving"
+    : sceneDirty ? "unsaved"
+    : storyboard && !loadFailure ? "saved"
+    : null;
 
   const assetTab = studioToolToAssetTab(activeTool);
   const drawerTab =
@@ -396,7 +473,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
         data-studio-permanent-robot={permanentRobot ? "true" : "false"}
         data-testid="studio-adaptive-workspace"
       >
-        {layoutPlan.showSideToolRail && storyboard && !loadFailure ?
+        {layoutPlan.showSideToolRail && storyboard && !loadFailure && !isPreviewMode ?
           <StudioToolStrip
             activeTool={activeTool}
             onToolChange={handleToolChange}
@@ -409,6 +486,8 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
           projectTitle={storyboard?.title}
           storyboardId={storyboardId}
           showMakeVideo={Boolean(storyboard && !loadFailure)}
+          saveState={saveState}
+          workflowStageLabel={storyboard && !loadFailure ? t(stageLabelKey) : null}
         />
 
         {advancedFeatures ?
@@ -500,7 +579,9 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                 activeSceneId={activeSceneId}
                 onSelectScene={selectScene}
                 onAddScene={canModify ? () => void handleAddScene() : undefined}
+                onMoveScene={canModify ? (id, dir) => void handleMoveScene(id, dir) : undefined}
                 canModify={canModify}
+                reordering={reordering}
               />
             </aside>
             : null}
@@ -535,131 +616,142 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                 />
               : null}
 
-              {activeScene && activeSceneIndex >= 0 && activeTool !== "story" ?
+              {activeScene && activeSceneIndex >= 0 ?
                 <StudioWorkspaceCenterScenePreview
                   scene={activeScene}
                   sceneIndex={activeSceneIndex}
                   sceneCount={scenes.length}
+                  previewMode={isPreviewMode}
+                  onEnterPreview={() => setWorkspaceViewMode("preview")}
+                  onExitPreview={() => setWorkspaceViewMode("edit")}
                 />
               : null}
 
-              {activeTool === "production" ?
-                <StudioWorkspaceProductionPlanPanel
-                  storyboard={storyboard}
-                  characters={characters}
-                  locations={locations}
-                  props={props}
-                  worlds={worlds}
-                  projectMemory={projectMemory}
-                  styleProfile={styleProfile}
-                  directorProfile={directorProfile}
-                  onSwitchTool={handleToolChange}
-                />
-              : activeTool === "story" ?
-                <>
-                  <StudioWorkspaceAssetEvolutionPanel
-                    storyboard={storyboard}
-                    characters={characters}
-                    locations={locations}
-                    props={props}
-                    worlds={worlds}
-                    memory={projectMemory}
-                    canModify={canModify}
-                    onApplied={() => void load()}
-                    onSwitchTool={handleToolChange}
-                  />
-                  <StudioDirectorProposalFlow
+              {isPreviewMode ?
+                <p className="mb-4 text-sm text-zinc-600" data-testid="studio-preview-mode-banner">
+                  {t("studio.workspace.previewModeBanner")}
+                </p>
+              : null}
+
+              {!isPreviewMode ?
+                activeTool === "production" ?
+                  <StudioWorkspaceProductionPlanPanel
                     storyboard={storyboard}
                     characters={characters}
                     locations={locations}
                     props={props}
                     worlds={worlds}
                     projectMemory={projectMemory}
-                    canModify={canModify}
-                    onApplied={() => void load()}
+                    styleProfile={styleProfile}
+                    directorProfile={directorProfile}
+                    onSwitchTool={handleToolChange}
                   />
-                  {activeScene && activeSceneIndex >= 0 ?
-                    <StudioDirectorPanelV2
+                : activeTool === "story" ?
+                  <>
+                    <StudioWorkspaceAssetEvolutionPanel
+                      storyboard={storyboard}
+                      characters={characters}
+                      locations={locations}
+                      props={props}
+                      worlds={worlds}
+                      memory={projectMemory}
+                      canModify={canModify}
+                      onApplied={() => void load()}
+                      onSwitchTool={handleToolChange}
+                    />
+                    <StudioDirectorProposalFlow
+                      storyboard={storyboard}
+                      characters={characters}
+                      locations={locations}
+                      props={props}
+                      worlds={worlds}
+                      projectMemory={projectMemory}
+                      canModify={canModify}
+                      onApplied={() => void load()}
+                    />
+                    {activeScene && activeSceneIndex >= 0 ?
+                      <StudioDirectorPanelV2
+                      storyboardId={storyboardId}
+                      storyboard={storyboard}
+                      scene={activeScene}
+                      sceneIndex={activeSceneIndex}
+                      sceneCount={scenes.length}
+                      flowScenes={flowScenes}
+                      storyboardTitle={storyboard.title}
+                      storyboardDescription={storyboard.description}
+                      aiDirectorPrompt={storyboard.aiDirectorPrompt}
+                      aiDirectorStyleStrength={storyboard.aiDirectorStyleStrength}
+                      directorProfile={directorProfile}
+                      styleProfile={styleProfile}
+                      characters={characters}
+                      locations={locations}
+                      props={props}
+                      worlds={worlds}
+                      canModify={canModify}
+                      saving={savingSceneId === activeScene.id}
+                      onSave={handleSaveScene}
+                      onSceneDraftChange={handleSceneDraftChange}
+                      onStoryboardNotesUpdated={handleStoryboardNotesUpdated}
+                      onCharactersRefresh={() => void load()}
+                    />
+                    : (
+                      <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-12 text-center text-sm text-zinc-600">
+                        {t("studio.storyboards.noScenes")}
+                      </p>
+                    )}
+                  </>
+                : assetTab ?
+                  <StudioWorkspaceSceneAssetsPanel
+                    tab={assetTab}
                     storyboardId={storyboardId}
-                    storyboard={storyboard}
                     scene={activeScene}
                     sceneIndex={activeSceneIndex}
-                    sceneCount={scenes.length}
-                    flowScenes={flowScenes}
-                    storyboardTitle={storyboard.title}
-                    storyboardDescription={storyboard.description}
-                    aiDirectorPrompt={storyboard.aiDirectorPrompt}
-                    aiDirectorStyleStrength={storyboard.aiDirectorStyleStrength}
-                    directorProfile={directorProfile}
-                    styleProfile={styleProfile}
                     characters={characters}
                     locations={locations}
                     props={props}
                     worlds={worlds}
                     canModify={canModify}
-                    saving={savingSceneId === activeScene.id}
-                    onSave={handleSaveScene}
-                    onSceneDraftChange={handleSceneDraftChange}
-                    onStoryboardNotesUpdated={handleStoryboardNotesUpdated}
-                    onCharactersRefresh={() => void load()}
+                    storyLanguage={storyboard.voiceLanguage ?? "en"}
+                    storyVoiceProfile={storyboard.voiceProfile}
+                    storyboard={storyboard}
+                    memory={projectMemory}
+                    isAdmin={session.user?.role === "admin"}
+                    onSceneUpdated={handleSceneAssetUpdated}
+                    onAssetsChanged={() => void refreshAssetLibraries()}
+                    onCharacterUpdated={handleCharacterUpdated}
+                    onLocationUpdated={handleLocationUpdated}
+                    onPropUpdated={handlePropUpdated}
+                    onWorldUpdated={handleWorldUpdated}
+                    onSwitchTool={handleToolChange}
                   />
-                  : (
-                    <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-12 text-center text-sm text-zinc-600">
-                      {t("studio.storyboards.noScenes")}
-                    </p>
-                  )}
-                </>
-              : assetTab ?
-                <StudioWorkspaceSceneAssetsPanel
-                  tab={assetTab}
-                  storyboardId={storyboardId}
-                  scene={activeScene}
-                  sceneIndex={activeSceneIndex}
-                  characters={characters}
-                  locations={locations}
-                  props={props}
-                  worlds={worlds}
-                  canModify={canModify}
-                  storyLanguage={storyboard.voiceLanguage ?? "en"}
-                  storyVoiceProfile={storyboard.voiceProfile}
-                  storyboard={storyboard}
-                  memory={projectMemory}
-                  isAdmin={session.user?.role === "admin"}
-                  onSceneUpdated={handleSceneAssetUpdated}
-                  onAssetsChanged={() => void refreshAssetLibraries()}
-                  onCharacterUpdated={handleCharacterUpdated}
-                  onLocationUpdated={handleLocationUpdated}
-                  onPropUpdated={handlePropUpdated}
-                  onWorldUpdated={handleWorldUpdated}
-                  onSwitchTool={handleToolChange}
-                />
-              : (
-                <StudioWorkspaceToolPanel
-                  tool={activeTool}
-                  storyboardId={storyboardId}
-                  storyboard={storyboard}
-                  activeScene={activeScene}
-                  activeSceneIndex={activeSceneIndex}
-                  sceneCount={scenes.length}
-                  characters={characters}
-                  locations={locations}
-                  props={props}
-                  worlds={worlds}
-                  projectMemory={projectMemory}
-                  styleProfile={styleProfile}
-                  directorProfile={directorProfile}
-                  canModify={canModify}
-                  isAdmin={session.user?.role === "admin"}
-                  onStoryboardUpdated={setStoryboard}
-                  onSceneUpdated={handleSceneDraftChange}
-                  onRefreshStoryboard={() => void load()}
-                  onCharacterUpdated={handleCharacterUpdated}
-                  onSwitchTool={handleToolChange}
-                />
-              )}
+                : (
+                  <StudioWorkspaceToolPanel
+                    tool={activeTool}
+                    storyboardId={storyboardId}
+                    storyboard={storyboard}
+                    activeScene={activeScene}
+                    activeSceneIndex={activeSceneIndex}
+                    sceneCount={scenes.length}
+                    characters={characters}
+                    locations={locations}
+                    props={props}
+                    worlds={worlds}
+                    projectMemory={projectMemory}
+                    styleProfile={styleProfile}
+                    directorProfile={directorProfile}
+                    canModify={canModify}
+                    isAdmin={session.user?.role === "admin"}
+                    onStoryboardUpdated={setStoryboard}
+                    onSceneUpdated={handleSceneDraftChange}
+                    onRefreshStoryboard={() => void load()}
+                    onCharacterUpdated={handleCharacterUpdated}
+                    onSwitchTool={handleToolChange}
+                  />
+                )
+              : null}
             </section>
 
-            {showRightRail ?
+            {showRightRail && !isPreviewMode ?
               <aside
                 className="hidden border-t border-zinc-200 bg-zinc-50/50 p-4 lg:block lg:border-l lg:border-t-0"
                 data-testid="studio-right-rail"
@@ -691,7 +783,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
           </>
         )}
 
-        {storyboard && !loadFailure && layoutPlan.showBottomToolStrip ?
+        {storyboard && !loadFailure && layoutPlan.showBottomToolStrip && !isPreviewMode ?
           <StudioToolStrip activeTool={activeTool} onToolChange={handleToolChange} variant="bottom" />
         : null}
 
