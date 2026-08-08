@@ -69,12 +69,21 @@ Additive table only. Before production migrate: confirm PITR/restore per HomeChe
 
 | Gate | Status |
 |------|--------|
-| Code migration voice/video/fusion | DONE (this slice) |
-| Preview DB migrate | PENDING |
-| Preview E2E refresh/resume/concurrency/credits | PENDING |
-| PR #5 merge | PENDING |
+| Code migration voice/video/fusion | DONE (`9f7a0efa`) |
+| Preview deploy | Ready — `dpl_8PEuwuPq77uekkW2zB2NevVQpWCL` |
+| Preview URL | https://homecheff-motion-o5jva2v1y-sergio-s-projects-f7b64ee1.vercel.app |
+| PITR confirmation | **BLOCKER** — not reconfirmed this run |
+| Preview/Production DB migrate | **BLOCKER** — `20260808120000_studio_generation_job` not applied; shared `DATABASE_URL` Preview+Production; local history also drifts (`20260624120000_studio_asset_intelligence_cache` on DB only) |
+| Preview E2E refresh/resume/concurrency/credits | **BLOCKER** — blocked until migrate |
+| PR #5 merge | PENDING (do not merge until Preview GREEN) |
 | Production migrate + smoke | PENDING |
 
 ## Current gate
 
-**NO-GO FOR S.5** until Preview GREEN + production smoke for full DoD.
+**NO-GO FOR S.5**
+
+Blocking issues:
+1. PITR/restore capability not reconfirmed
+2. Additive GenerationJob migration not applied (shared Preview/Production DB)
+3. Preview paid E2E / refresh / concurrency not certified
+4. PR #5 not merged; production smoke not run
