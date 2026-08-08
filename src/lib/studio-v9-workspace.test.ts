@@ -27,7 +27,8 @@ describe("Studio V9 workspace", () => {
       "utf8"
     );
     assert.match(shell, /data-testid="studio-three-pane-layout"/);
-    assert.match(shell, /lg:grid-cols-\[220px_minmax\(0,1fr\)_300px\]/);
+    assert.match(shell, /lg:grid-cols-\[minmax\(180px,240px\)_minmax\(0,1fr\)_minmax\(260px,340px\)\]/);
+    assert.match(shell, /data-testid="studio-adaptive-workspace"/);
     assert.match(shell, /StudioWorkspaceCenterScenePreview/);
   });
 

@@ -28,15 +28,25 @@ export function StudioShellHeader({ projectTitle, storyboardId, showMakeVideo = 
     : legacyHandoffHref;
   const publishHref = hcProjectId ? buildHcHandoffUrl(hcProjectId, "publish") : null;
 
+  const title = projectTitle?.trim() || t("studio.shell.defaultTitle");
+
   return (
-    <header className={`sticky top-0 z-20 px-4 py-3 sm:px-6 ${studioVisual.editorSurface}`}>
-      <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3">
+    <header
+      className={`sticky top-0 z-20 px-4 py-3 sm:px-6 ${studioVisual.editorSurface}`}
+      data-testid="studio-project-context"
+    >
+      <div className="mx-auto flex w-full flex-wrap items-center justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-[#006D52]">
             {t("studio.shell.brand")}
+            {storyboardId ?
+              <span className="ml-2 font-medium normal-case tracking-normal text-zinc-500">
+                · {t("studio.workspace.projectContext")}
+              </span>
+            : null}
           </p>
-          <h1 className="truncate text-lg font-bold text-zinc-900">
-            {projectTitle?.trim() || t("studio.shell.defaultTitle")}
+          <h1 className="truncate text-lg font-bold text-zinc-900" title={title}>
+            {title}
           </h1>
           {hcProject ?
             <HcProjectStateBadge project={hcProject} compact />
