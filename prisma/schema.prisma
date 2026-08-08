@@ -310,6 +310,7 @@ model User {
   studioWorldProfiles  StudioWorldProfile[]
   studioStoryboards    StudioStoryboard[]
   studioJobs           StudioJob[]
+  studioGenerationJobs StudioGenerationJob[]
   editorCanvasProjects EditorCanvasProject[]
   homeCheffProjects    HomeCheffProject[]
   studioAccount        StudioAccount?
@@ -938,6 +939,69 @@ model StudioJob {
   @@index([status])
   @@index([createdAt])
   @@index([storyboardId, status])
+}
+
+/**
+ * Canonical Studio generation job (S.4).
+ * Product-level orchestration record — not a second credit ledger.
+ * Credits still authorize/capture via existing wallet reservation APIs.
+ */
+model StudioGenerationJob {
+  id                 String   @id @default(cuid())
+  ownerId            String
+  owner              User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  /** Optional storyboard/project scope */
+  storyboardId       String?
+  /** Immutable scene target for scene-scoped jobs (null = project-level) */
+  sceneId            String?
+  /** Capability id from studio-generation-capabilities (e.g. IMAGE_GENERATE) */
+  capability         String
+  /** StudioActionType used for credit authorization */
+  actionType         String
+  /**
+   * pending | queued | starting | generating | processing |
+   * succeeded | failed | cancel_requested | cancelled
+   */
+  status             String   @default("pending")
+  /** sync | async_poll | async_callback | local_process */
+  executionMode      String   @default("sync")
+  /** Adapter id (openai_image | elevenlabs_tts | fake | …) — diagnostics only */
+  providerAdapter    String   @default("")
+  providerJobId      String?
+  /** SHA-256 hex of normalized input refs (no secrets/prompt bodies required) */
+  inputHash          String   @default("")
+  /** Client/server idempotency key — unique per owner */
+  idempotencyKey     String
+  creditCost         Int      @default(0)
+  creditsReserved    Int      @default(0)
+  creditsCharged     Int      @default(0)
+  /** Wallet reservation id when reserved */
+  creditReservationId String?
+  /** true once a capture succeeded — never charge again for this job */
+  chargeFinalized    Boolean  @default(false)
+  attempt            Int      @default(0)
+  maxAttempts        Int      @default(1)
+  startedAt          DateTime?
+  completedAt        DateTime?
+  failedAt           DateTime?
+  cancelledAt        DateTime?
+  errorCode          String   @default("")
+  /** Safe user-facing message only */
+  errorMessageSafe   String   @default("")
+  outputAssetId      String?
+  /** Safe metadata: refs, adapter diagnostics — never provider secrets */
+  metadataJson       Json?
+  /** Input snapshot refs/IDs — avoid large blobs and raw private prompts when possible */
+  inputSnapshotJson  Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([ownerId, idempotencyKey])
+  @@index([ownerId, createdAt])
+  @@index([storyboardId, status])
+  @@index([sceneId, status])
+  @@index([status, updatedAt])
+  @@index([providerAdapter, providerJobId])
 }
 
 /** Single composed scene within a storyboard. */

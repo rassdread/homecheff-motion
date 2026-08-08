@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
-import { withStudioCreditGate } from "@/server/studio-account/with-studio-credit-gate";
+import { billProviderAction } from "@/server/studio-account/bill-provider-action";
 import {
   generateStudioSceneImage,
   listStudioSceneImages,
 } from "@/server/studio/studio-scene-image-service";
+import {
+  createGenerationJob,
+  runSynchronousGenerationJob,
+  toStudioGenerationUiContract,
+} from "@/server/studio-generation/generation-orchestrator";
 import type {
   StudioSceneImageDetailResponse,
   StudioSceneImageListResponse,
@@ -39,34 +44,142 @@ export async function POST(request: Request, context: RouteContext) {
 
   const { id: storyboardId, sceneId } = await context.params;
   let confirmed = false;
+  let clientMutationId: string | null = null;
   try {
-    const body = (await request.json().catch(() => ({}))) as { confirmed?: boolean };
+    const body = (await request.json().catch(() => ({}))) as {
+      confirmed?: boolean;
+      clientMutationId?: string;
+    };
     confirmed = body.confirmed === true;
+    clientMutationId =
+      typeof body.clientMutationId === "string" && body.clientMutationId.trim() ?
+        body.clientMutationId.trim().slice(0, 128)
+      : null;
   } catch {
     /* empty body ok */
   }
 
-  const gated = await withStudioCreditGate({
-    user,
-    actionType: "scene_generation",
-    projectId: storyboardId,
-    confirmed,
-    execute: () => generateStudioSceneImage(storyboardId, sceneId, user),
-    isFailure: (result) => "error" in result,
+  const headerKey = request.headers.get("idempotency-key")?.trim().slice(0, 128) || null;
+  const idempotencyKey =
+    headerKey ||
+    clientMutationId ||
+    `scene_image:${storyboardId}:${sceneId}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
+
+  const created = await createGenerationJob({
+    ownerId: user.id,
+    idempotencyKey,
+    capability: "IMAGE_GENERATE",
+    storyboardId,
+    sceneId,
+    inputSnapshot: {
+      storyboardId,
+      sceneId,
+      action: "scene_image_generate",
+    },
   });
 
-  if ("blocked" in gated) {
-    return gated.blocked;
-  }
-
-  const result = gated.result;
-  if ("error" in result) {
+  if (created.kind === "replay" && created.job.status === "succeeded" && created.job.outputAssetId) {
     return NextResponse.json(
-      { error: result.error.message, code: result.error.code },
-      { status: result.error.httpStatus }
+      {
+        image: { id: created.job.outputAssetId },
+        generationJob: toStudioGenerationUiContract(created.job),
+        replay: true,
+      },
+      { status: 200 }
     );
   }
 
-  const body: StudioSceneImageDetailResponse = { image: result.image };
+  if (created.kind === "resumed" && created.job.status === "generating") {
+    return NextResponse.json(
+      {
+        error: "A generation with this request is already in progress.",
+        code: "CONFLICT",
+        generationJob: toStudioGenerationUiContract(created.job),
+      },
+      { status: 409 }
+    );
+  }
+
+  const run = await runSynchronousGenerationJob({
+    job: created.job,
+    executeBilled: async () => {
+      const billed = await billProviderAction({
+        user,
+        actionType: "scene_generation",
+        projectId: storyboardId,
+        confirmed,
+        relatedJobId: created.job.id,
+        execute: () => generateStudioSceneImage(storyboardId, sceneId, user),
+        isFailure: (result) => "error" in result,
+      });
+
+      if ("blocked" in billed) {
+        const payload = await billed.blocked.clone().json().catch(() => ({}));
+        const code =
+          typeof payload === "object" && payload && "code" in payload ?
+            String((payload as { code?: string }).code)
+          : "";
+        return {
+          ok: false as const,
+          errorCode:
+            code === "free_account_provider_action" ||
+            code === "insufficient_credits" ||
+            code === "insufficient_balance" ?
+              ("INSUFFICIENT_CREDITS" as const)
+            : ("PROVIDER_REJECTED" as const),
+          safeMessage:
+            typeof payload === "object" && payload && "error" in payload ?
+              String((payload as { error?: string }).error)
+            : undefined,
+        };
+      }
+
+      const result = billed.result;
+      if ("error" in result) {
+        return {
+          ok: false as const,
+          errorCode: "PROVIDER_REJECTED" as const,
+          safeMessage: result.error.message,
+        };
+      }
+
+      return {
+        ok: true as const,
+        result,
+        creditsCharged: billed.billing.captured ? (billed.billing.estimatedCredits ?? 0) : 0,
+        outputAssetId: result.image.id,
+      };
+    },
+  });
+
+  if (!run.ok) {
+    return NextResponse.json(
+      {
+        error: run.job.errorMessageSafe || "Generation failed.",
+        code: run.errorCode,
+        generationJob: toStudioGenerationUiContract(run.job),
+        creditGate: run.errorCode === "INSUFFICIENT_CREDITS",
+      },
+      { status: run.errorCode === "INSUFFICIENT_CREDITS" ? 403 : 500 }
+    );
+  }
+
+  if (run.replay) {
+    return NextResponse.json(
+      {
+        image: { id: run.job.outputAssetId },
+        generationJob: toStudioGenerationUiContract(run.job),
+        replay: true,
+      },
+      { status: 200 }
+    );
+  }
+
+  const body: StudioSceneImageDetailResponse & {
+    generationJob: ReturnType<typeof toStudioGenerationUiContract>;
+  } = {
+    image: run.result.image,
+    generationJob: toStudioGenerationUiContract(run.job),
+  };
   return NextResponse.json(body, { status: 201 });
 }
