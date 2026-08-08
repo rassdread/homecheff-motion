@@ -1,8 +1,12 @@
 # Studio S.3 — Creative Workflow Audit & Certification
 
 **Branch:** `refactor/studio-s3-creative-workflow`  
-**Base:** post S.2 (`d6e7e6fc` era)  
-**Scope:** Workflow **inside** Adaptive Workspace — no shell redesign, no auth/credits/billing semantic changes.
+**Base commit:** `d6e7e6fc`  
+**Implementation commit:** `e08a5561`  
+**PR:** https://github.com/rassdread/homecheff-motion/pull/4  
+**Scope:** Workflow **inside** Adaptive Workspace — no shell redesign, no auth/credits/billing semantic changes.  
+**Local gates:** lint PASS · build PASS · tsc PASS · tests **4623/4623**  
+**Preview / Production:** NOT YET CERTIFIED → **NO-GO for S.4** until green.
 
 ---
 
