@@ -149,3 +149,30 @@ Core nav/shell stays eager.
 ## 14. Inventory companion
 
 See `docs/architecture/studio-s1-boundary-inventory.md`
+
+## 15. Release certification
+
+See `docs/audits/studio-s1-release-certification.md` for Preview → merge → production evidence.
+
+## 16. S.2 carry-forward (not implemented in S.1)
+
+### Adaptive workspace
+
+Studio must follow the same ecosystem workspace principles as HomeCheff and Growth:
+
+| Breakpoint | Expectation |
+|------------|-------------|
+| Desktop / wide | Left rail · central creative workspace · right context/inspector where useful |
+| Tablet | Collapsible rails · workspace prioritized |
+| Mobile portrait | Single primary workspace · panels on demand · no permanent multi-column rails |
+| Mobile landscape | Maximize creative workspace · compact side nav · avoid portrait-style nav wasting horizontal room |
+
+### Robot / mascot
+
+| Breakpoint | Expectation |
+|------------|-------------|
+| Mobile portrait / landscape | Robot/mascot **not** permanently rendered |
+| Tablet | Conditional / collapsible |
+| Desktop | May remain as contextual assistant |
+
+AI remains accessible on mobile via toolbar, sheet, modal, or equivalent on-demand UI. Creative workspace always has priority.
