@@ -17,13 +17,29 @@
 
 KEEP — advanced-gated legacy; not deleted.
 
-## Remaining for full S.2 DoD
+## Preview
 
-- Preview deployment GREEN across all viewports
-- Production smoke after merge
-- Broader empty/loading/error polish pass (partial via existing surfaces)
-- Keyboard shortcut audit (documented target only unless foundations exist)
+| Field | Value |
+|-------|--------|
+| Deployment | `dpl_8BqawPPYkSJFWJYBP3N1z1mMtHL9` |
+| URL | `https://homecheff-motion-e80m0vnly-sergio-s-projects-f7b64ee1.vercel.app` |
+| Commit | `f343dcd6` |
+| Status | Ready |
 
-## Robot gate
+### Viewport posture smoke (local `next start` of same build)
 
-`data-studio-permanent-robot="false"` on adaptive shell; mobile on-demand AI via `studio-ai-ondemand`.
+| Viewport | Posture | Robot permanent | Notes |
+|----------|---------|-----------------|-------|
+| Ultrawide 1800 | full | false | bottom tools |
+| Desktop 1280 | compact | false | |
+| Laptop 1100 | compact | false | |
+| Tablet portrait | focused | false | |
+| Tablet landscape | compact | false | |
+| Mobile portrait | mobile | false | |
+| Mobile landscape | mobile | false | **side tool rail** |
+
+Page errors: 0 · overflowX: false all viewports.
+
+## Gates
+
+Lint PASS · Build PASS · Tests **4614/4614** · tsc PASS
