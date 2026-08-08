@@ -271,6 +271,16 @@ describe("S.4 wiring contracts", () => {
     assert.match(recover, /recharged: false/);
   });
 
+  it("billProviderAction resolves non-animation projectId for cost events", () => {
+    const src = readFileSync(
+      join(process.cwd(), "src/server/studio-account/bill-provider-action.ts"),
+      "utf8"
+    );
+    assert.match(src, /resolveAnimationProjectIdForCostEvent/);
+    assert.match(src, /studioProjectRef/);
+    assert.match(src, /provider_cost_event_write_failed/);
+  });
+
   it("vidu adapter refuses fake cancellation", () => {
     const adapter = readFileSync(
       join(process.cwd(), "src/server/studio-generation/vidu-motion-adapter.ts"),
