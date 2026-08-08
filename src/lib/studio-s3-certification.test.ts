@@ -42,6 +42,17 @@ describe("S.3 paid-action display harness", () => {
       VOICE_GENERATION_DISPLAY_CREDITS,
       STUDIO_ACTION_COST_REGISTRY.voice_generation.defaultCreditCost
     );
+    assert.equal(SCENE_GENERATION_DISPLAY_CREDITS, 30);
+    assert.equal(VOICE_GENERATION_DISPLAY_CREDITS, 15);
+  });
+
+  it("scene reorder uses two-phase order updates for unique constraint safety", () => {
+    const service = readFileSync(
+      join(process.cwd(), "src/server/studio/studio-storyboard-service.ts"),
+      "utf8"
+    );
+    assert.match(service, /orderOffset/);
+    assert.match(service, /@@unique\(\[storyboardId, order\]\)/);
   });
 
   it("wires generation status chrome into image and voice panels", () => {
