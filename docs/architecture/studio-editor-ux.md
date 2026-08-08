@@ -60,9 +60,11 @@ Non-blocking: other scenes/tools remain editable while a generation runs **when*
 
 ## Preview vs Edit
 
-- **Edit:** tool chrome + inspector + scene list  
-- **Preview stage:** Insights / creative review tools (approximate review)  
-Full chrome-free preview mode is incremental — do not invent a second playback engine.
+- **Edit:** tool chrome + inspector + scene list + tool strip  
+- **Preview mode:** header stage chip Preview; hide tool strip / inspector / tool panels; enlarge center scene composition; **Back to edit**  
+- Stage inference also maps Insights / creative review tools to preview when not in explicit preview mode  
+
+Do not invent a second playback engine.
 
 ---
 

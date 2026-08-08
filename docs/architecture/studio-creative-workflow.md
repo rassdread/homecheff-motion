@@ -87,3 +87,32 @@ Suggested query/body contract (not implemented):
 ## Classic / Advanced editor
 
 Advanced-gated parallel at `/studio/storyboards/[id]/classic`. Label: **Advanced editor**. Default users stay on Adaptive Workspace.
+
+---
+
+## Generation UX lifecycle
+
+Mapped from existing backend status strings (no new DB enums):
+
+`ready → queued → generating → processing → completed | failed | cancelled`
+
+UI chrome: `StudioGenerationStatusChrome`. Retry available on failed contextual generations without rebuilding the scene.
+
+## Edit vs Preview
+
+Workspace view mode:
+
+- **Edit** — tools, inspector, tool strip  
+- **Preview** — reduced chrome, enlarged scene composition, immediate Back to edit  
+
+## Audio ownership (UX)
+
+| Layer | Scope |
+|-------|--------|
+| Voice track | Project narration / character speech |
+| Project music | Whole-project background |
+| Scene sound | SFX planned for selected scene |
+
+## Scene reorder
+
+Persisted via `reorderStudioScenesApi`. Server uses two-phase order updates to respect `@@unique([storyboardId, order])`.
