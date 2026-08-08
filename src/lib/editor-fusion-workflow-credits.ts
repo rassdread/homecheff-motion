@@ -31,7 +31,6 @@ export const FUSION_INTELLIGENCE_WORKFLOWS = new Set<EditorFusionIntent>([
   "human_into_mascot",
   "mascot_into_human",
   "character_upgrade",
-  "character_role_variant",
   "outfit_from_reference",
   "person_outfit",
   "person_background",

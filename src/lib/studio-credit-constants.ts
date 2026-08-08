@@ -35,7 +35,6 @@ export const FUSION_INTENT_RENDER_CREDITS: Partial<Record<EditorFusionIntent, nu
   human_into_mascot: 20,
   mascot_into_human: 20,
   character_upgrade: 15,
-  character_role_variant: 15,
   outfit_from_reference: 15,
   person_outfit: 15,
   person_background: 15,
