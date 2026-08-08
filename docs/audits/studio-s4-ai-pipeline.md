@@ -89,4 +89,24 @@ Storyboard-scoped `billProviderAction` wrote `ProviderCostEvent.projectId` with 
 
 ## Current gate
 
-Preview GREEN. Proceed merge → production smoke for S.4 DoD completion.
+Preview GREEN. Production certified.
+
+
+## Production certification
+
+| Field | Value |
+|-------|-------|
+| Merge commit | `e6f136f8` (2026-08-08T22:05:04Z) |
+| Deployment | `dpl_3Bq8F1XWrMeJpYCD2ZqTyYS5uhZ7` |
+| Status | Ready |
+| URL | https://studio.homecheff.eu |
+| Commit on deploy | `e6f136f` |
+| Smoke | PASS (image, voice, async fake video, refresh/resume, navigation, recovery, security, credits) |
+| Credit sanity | Cert wallet 380 → 305; delta 75 = 30+30+15 intentional captures; no unexplained ledger |
+| Runtime | No P2003 / migration errors in smoke window after billing fix |
+
+## Final gate
+
+**GO FOR STUDIO S.5 — PROJECTS, ASSETS & MEDIA LIBRARY**
+
+Do not start S.5 automatically — await explicit kickoff.
