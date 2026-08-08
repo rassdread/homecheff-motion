@@ -20,6 +20,10 @@ import {
 import { StudioImproveImageConfirmModal } from "@/components/studio/studio-improve-image-confirm-modal";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import { useActiveTranslator } from "@/i18n/client";
+import {
+  SCENE_GENERATION_DISPLAY_CREDITS,
+} from "@/lib/studio-credit-constants";
+import { trackStudioCreativeEvent } from "@/lib/studio-creative-analytics";
 import type { StudioSceneDetail } from "@/types/studio-api";
 import { StudioSceneConsistencyPanel } from "@/components/studio/studio-scene-consistency-panel";
 import { StudioSceneCharacterIdentityPanel } from "@/components/studio/studio-scene-character-identity-panel";
@@ -146,12 +150,27 @@ export function StudioSceneImagePanel({
   const handleGenerate = async () => {
     setBusy(true);
     setError("");
+    trackStudioCreativeEvent("GENERATION_STARTED", {
+      storyboardId,
+      action: "scene_generation",
+      tool: "visual",
+    });
     const res = await generateStudioSceneImageApi(storyboardId, scene.id);
     setBusy(false);
     if (!res.ok) {
+      trackStudioCreativeEvent("GENERATION_FAILED", {
+        storyboardId,
+        action: "scene_generation",
+        tool: "visual",
+      });
       setError((res.data as { error?: string }).error ?? t("studio.sceneImage.error.generateFailed"));
       return;
     }
+    trackStudioCreativeEvent("GENERATION_SUCCESS", {
+      storyboardId,
+      action: "scene_generation",
+      tool: "visual",
+    });
     onSceneUpdated({
       ...scene,
       sceneImages: [res.data.image, ...scene.sceneImages],
@@ -516,13 +535,20 @@ export function StudioSceneImagePanel({
               disabled={busy}
               onClick={() => void handleGenerate()}
               className="rounded-full bg-[#006D52] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              data-testid="studio-scene-image-generate"
             >
               {busy
                 ? t("studio.sceneImage.generating")
                 : latest
-                  ? t("studio.sceneImage.regenerate")
-                  : t("studio.sceneImage.generate")}
+                  ? `${t("studio.sceneImage.regenerate")} · ${t("studio.paidAction.credits", { credits: SCENE_GENERATION_DISPLAY_CREDITS })}`
+                  : `${t("studio.sceneImage.generate")} · ${t("studio.paidAction.credits", { credits: SCENE_GENERATION_DISPLAY_CREDITS })}`}
             </button>
+            <p className="w-full text-xs text-zinc-500" data-testid="studio-scene-image-credit-hint">
+              {t("studio.paidAction.beforeGenerate", {
+                action: latest ? t("studio.sceneImage.regenerate") : t("studio.sceneImage.generate"),
+                credits: SCENE_GENERATION_DISPLAY_CREDITS,
+              })}
+            </p>
             {latest?.status === "completed" ? (
               <>
                 <button

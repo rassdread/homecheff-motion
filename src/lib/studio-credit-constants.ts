@@ -57,3 +57,13 @@ export function usdToCredits(usd: number, minimum = 1): number {
 export function fusionIntentRenderCredits(intent: EditorFusionIntent): number {
   return FUSION_INTENT_RENDER_CREDITS[intent] ?? FUSION_INTENT_RENDER_FALLBACK_CREDITS;
 }
+
+/**
+ * Client-safe display defaults — mirror STUDIO_ACTION_COST_REGISTRY reserved USD.
+ * Server still authorizes/charges via the registry; do not invent alternate prices.
+ */
+export const SCENE_GENERATION_RESERVED_USD = 0.06;
+export const VOICE_GENERATION_RESERVED_USD = 0.03;
+
+export const SCENE_GENERATION_DISPLAY_CREDITS = usdToCredits(SCENE_GENERATION_RESERVED_USD);
+export const VOICE_GENERATION_DISPLAY_CREDITS = usdToCredits(VOICE_GENERATION_RESERVED_USD);

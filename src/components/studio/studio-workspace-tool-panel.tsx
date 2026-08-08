@@ -191,7 +191,9 @@ function StudioWorkspaceSubtitlesPanel({
       </div>
       {!voiceEnabled ?
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          <p>{t("studio.workspace.subtitles.enableVoiceHint")}</p>
+          <p className="font-medium">{t("studio.workspace.subtitles.requiresVoiceTitle")}</p>
+          <p className="mt-1">{t("studio.workspace.subtitles.enableVoiceHint")}</p>
+          <p className="mt-1 text-xs text-amber-900/80">{t("studio.workspace.subtitles.scopeHint")}</p>
           {onSwitchTool ?
             <button
               type="button"
