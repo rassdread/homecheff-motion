@@ -1,8 +1,8 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { EditorCanvasWorkspace } from "@/components/editor/editor-canvas-workspace";
 import { EditorSessionRecoveryPanel } from "@/components/editor/editor-session-recovery-panel";
 import { EditorStartScreen } from "@/components/editor/editor-start-screen";
 import { HcProjectStateBadge } from "@/components/projects/hc-project-state-badge";
@@ -40,6 +40,22 @@ import { beginEditorOpenTimingSession, markEditorOpenTiming, recordEditorOpenSta
 import { useActiveTranslator } from "@/i18n/client";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 import type { HomeCheffProjectPackage } from "@/types/homecheff-project-package";
+
+/** S.1 — defer ~3.3k LOC canvas workspace until an editor session is open (ADR-STUDIO-004). */
+const EditorCanvasWorkspace = dynamic(
+  () =>
+    import("@/components/editor/editor-canvas-workspace").then((m) => ({
+      default: m.EditorCanvasWorkspace,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex flex-1 items-center justify-center p-8">
+        <HomeCheffOrbitLoader />
+      </div>
+    ),
+  }
+);
 
 type SessionHydrationState = "idle" | "loading" | "ready" | "not_found";
 

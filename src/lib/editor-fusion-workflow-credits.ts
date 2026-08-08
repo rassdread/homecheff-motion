@@ -1,11 +1,15 @@
 /**
  * Fusion workflow render credit pricing — separate from premium analysis (5 credits/image once).
+ * Intent credits live in SHARED_PURE `studio-credit-constants` (no server imports).
  */
 
 import { normalizeFusionIntent } from "@/lib/editor-image-fusion-catalog";
 import { BASE_EDITOR_GENERATION_PROVIDER_COST_USD } from "@/lib/editor-generation-access-config";
 import { PREMIUM_VISION_ANALYSIS_CREDITS } from "@/lib/editor-premium-vision-credits";
-import { USD_PER_CREDIT } from "@/server/studio-account/studio-action-cost-registry";
+import {
+  fusionIntentRenderCredits,
+  USD_PER_CREDIT,
+} from "@/lib/studio-credit-constants";
 import type {
   FusionAnalysisReadiness,
   FusionIntelligenceState,
@@ -13,28 +17,6 @@ import type {
   ReferenceAnalysisProfile,
 } from "@/types/editor-fusion-intelligence";
 import type { EditorFusionIntent } from "@/types/editor-instruction-studio";
-
-const FUSION_RENDER_CREDITS: Partial<Record<EditorFusionIntent, number>> = {
-  character_fusion: 25,
-  animal_human_fusion: 25,
-  genetic_blend: 35,
-  future_child: 35,
-  human_into_mascot: 20,
-  mascot_into_human: 20,
-  character_upgrade: 15,
-  outfit_from_reference: 15,
-  person_outfit: 15,
-  person_background: 15,
-  product_branding: 20,
-  product_packaging: 20,
-  product_family: 25,
-  life_timeline: 50,
-  how_will_i_look: 15,
-  product_environment: 15,
-  ad_composition: 20,
-  poster_composition: 20,
-  campaign_variant: 25,
-};
 
 const PREMIUM_ANALYSIS_PROVIDER_COST_USD = 0.025;
 const BLUEPRINT_COST_USD = 0.001;
@@ -49,6 +31,7 @@ export const FUSION_INTELLIGENCE_WORKFLOWS = new Set<EditorFusionIntent>([
   "human_into_mascot",
   "mascot_into_human",
   "character_upgrade",
+  "character_role_variant",
   "outfit_from_reference",
   "person_outfit",
   "person_background",
@@ -64,8 +47,7 @@ export function fusionWorkflowUsesIntelligence(intent: EditorFusionIntent): bool
 }
 
 export function fusionWorkflowRenderCredits(intent: EditorFusionIntent): number {
-  const normalized = normalizeFusionIntent(intent);
-  return FUSION_RENDER_CREDITS[normalized] ?? 20;
+  return fusionIntentRenderCredits(normalizeFusionIntent(intent));
 }
 
 export function estimateFusionAnalysisCredits(

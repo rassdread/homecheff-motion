@@ -1,7 +1,21 @@
 /**
  * Central registry for all Studio billable actions.
  * Credits are based on reservedCost + margin, not actual provider cost alone.
+ *
+ * SERVER_AUTHORITATIVE — charged amounts are resolved on the server
+ * (getActionCost / overrideCredits). Client display math must use
+ * `@/lib/studio-credit-constants` only; do not import this module from
+ * `"use client"` components (enforced by architecture tests).
  */
+
+import {
+  CREDIT_MARGIN_MULTIPLIER,
+  FUSION_RENDER_ACTION_DEFAULT_CREDITS,
+  USD_PER_CREDIT,
+  usdToCredits,
+} from "@/lib/studio-credit-constants";
+
+export { CREDIT_MARGIN_MULTIPLIER, USD_PER_CREDIT, usdToCredits };
 
 export const STUDIO_ACTION_TYPES = [
   "ai_analysis",
@@ -57,16 +71,6 @@ export type StudioActionCostEntry = {
   /** Provider-cost action — blocked for free accounts without credits */
   requiresProviderCost: boolean;
 };
-
-/** Margin multiplier applied to reserved cost when converting to credits. */
-export const CREDIT_MARGIN_MULTIPLIER = 2.5;
-/** USD per credit unit for pricing conversion */
-export const USD_PER_CREDIT = 0.005;
-
-export function usdToCredits(usd: number, minimum = 1): number {
-  const raw = Math.ceil((usd * CREDIT_MARGIN_MULTIPLIER) / USD_PER_CREDIT);
-  return Math.max(minimum, raw);
-}
 
 function entry(
   actionType: StudioActionType,
@@ -261,7 +265,7 @@ export const STUDIO_ACTION_COST_REGISTRY: Record<StudioActionType, StudioActionC
     0.04,
     0.04,
     15,
-    25
+    FUSION_RENDER_ACTION_DEFAULT_CREDITS
   ),
   image_edit: entry("image_edit", "account.action.imageEdit", "editor", "openai", 0.03),
   transformation_session: entry(

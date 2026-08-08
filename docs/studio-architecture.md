@@ -1,5 +1,8 @@
 # HomeCheff Studio — architecture (V1)
 
+> **Canonical live architecture:** [`docs/architecture/studio-architecture.md`](./architecture/studio-architecture.md) (Phase S.1).  
+> This file is **historical V1 foundation** context and is superseded for current boundaries, credits, and workspace routing.
+
 Foundation release: navigation, landing page, placeholder routes, and TypeScript models only. Motion workflow is unchanged.
 
 ## Product split

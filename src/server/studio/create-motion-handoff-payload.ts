@@ -38,7 +38,7 @@ import { attachMusicToHandoffPayload } from "@/lib/attach-music-handoff";
 import { attachSoundToHandoffPayload } from "@/lib/attach-sound-handoff";
 import { attachAudioProductionToHandoffPayload } from "@/lib/attach-audio-production-handoff";
 import { attachAudioAssetToHandoffPayload } from "@/lib/attach-audio-asset-handoff";
-import { attachAudioMixToHandoffPayload } from "@/lib/attach-audio-mix-handoff";
+import { attachAudioMixToHandoffPayload } from "@/server/studio/attach-audio-mix-handoff";
 import { attachVoiceIdentityToHandoffPayload } from "@/lib/attach-voice-identity-handoff";
 import { attachCharacterVoicePlanToHandoff } from "@/lib/attach-character-voice-plan-handoff";
 import { attachMediaAssetToHandoffPayload } from "@/lib/attach-media-asset-handoff";
