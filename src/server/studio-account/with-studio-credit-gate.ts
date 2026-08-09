@@ -61,16 +61,15 @@ export async function requireStudioCredits(input: {
 
   if (input.productionReservationId) {
     return {
-      authorized: true,
-      productionBypass: true,
-      reservation: {
-        reservationId: input.productionReservationId ?? "production-chain-bypass",
-        requiredCredits: 0,
-        service: "studio",
-        provider: "production_chain",
-        reservedCostUsd: 0,
-        marginEstimate: 0,
-      },
+      blocked: NextResponse.json(
+        {
+          error:
+            "productionReservationId alone cannot authorize generation. Use a validated productionTransactionId.",
+          code: "FORGED_PRODUCTION_RESERVATION",
+          creditGate: true,
+        },
+        { status: 403 }
+      ),
     };
   }
 

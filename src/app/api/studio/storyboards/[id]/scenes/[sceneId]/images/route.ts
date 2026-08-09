@@ -10,6 +10,7 @@ import {
   runSynchronousGenerationJob,
   toStudioGenerationUiContract,
 } from "@/server/studio-generation/generation-orchestrator";
+import { resolveStudioGenerationIdempotencyKey } from "@/lib/studio-generation-idempotency";
 import type {
   StudioSceneImageDetailResponse,
   StudioSceneImageListResponse,
@@ -59,11 +60,12 @@ export async function POST(request: Request, context: RouteContext) {
     /* empty body ok */
   }
 
-  const headerKey = request.headers.get("idempotency-key")?.trim().slice(0, 128) || null;
-  const idempotencyKey =
-    headerKey ||
-    clientMutationId ||
-    `scene_image:${storyboardId}:${sceneId}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
+  const idempotencyKey = resolveStudioGenerationIdempotencyKey({
+    headerKey: request.headers.get("idempotency-key"),
+    clientMutationId,
+    fallbackPrefix: `scene_image:${storyboardId}:${sceneId}`,
+    operationFingerprint: `scene_image:${storyboardId}:${sceneId}`,
+  });
 
   const created = await createGenerationJob({
     ownerId: user.id,

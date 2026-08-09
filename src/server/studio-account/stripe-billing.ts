@@ -3,7 +3,13 @@
  */
 
 import { prisma } from "@/lib/prisma";
-import { getStripeClient, assertStripeSecretKeyConfigured } from "@/lib/stripe-server";
+import {
+  getStripeClient,
+  assertStripeSecretKeyConfigured,
+  assertConfiguredStripePriceMatchesKeyMode,
+  getStripeSecretKeyMode,
+} from "@/lib/stripe-server";
+import { isStripeCheckoutSessionIdMatchingMode } from "@/lib/stripe-mode";
 import { ensureStudioAccount } from "@/server/studio-account/ensure-studio-account";
 import {
   getStudioCreditPackBySlug,
@@ -216,7 +222,17 @@ export async function createCreditPackCheckout(input: {
   const priceId = resolvePackStripePriceId(pack);
   const customerId = await ensureStripeCustomer(input.userId, input.email);
   const stripe = getStripeClient();
+  const keyMode = getStripeSecretKeyMode();
   const totalCredits = totalPackCredits(pack);
+
+  if (priceId) {
+    try {
+      await assertConfiguredStripePriceMatchesKeyMode(priceId);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Stripe mode mismatch.";
+      return { error: message };
+    }
+  }
 
   const useStripePromo = Boolean(stripePromotionCodeId && priceId);
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = useStripePromo
@@ -275,6 +291,12 @@ export async function createCreditPackCheckout(input: {
     return { error: "Failed to create checkout session." };
   }
 
+  if (!isStripeCheckoutSessionIdMatchingMode(session.id, keyMode)) {
+    return {
+      error: `STRIPE_MODE_MIXED: checkout session ${session.id} does not match secret key mode ${keyMode}.`,
+    };
+  }
+
   return { sessionId: session.id, url: session.url, promoPreview };
 }
 
@@ -309,18 +331,54 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
   if (type === "credit_pack") {
     const credits = Number(session.metadata?.totalCredits ?? session.metadata?.credits ?? 0);
     if (credits > 0) {
-      await grantStudioCredits({
-        userId,
-        credits,
-        actionType: "credit_purchase",
-        creditOrigin: "PURCHASED",
-        service: "billing",
-        metadataJson: {
-          stripeSessionId: session.id,
-          packId: session.metadata?.packId,
-          packSlug: session.metadata?.packSlug,
+      const alreadyGranted = await prisma.studioLedgerEntry.findFirst({
+        where: {
+          userId,
+          actionType: "credit_purchase",
+          AND: [
+            {
+              metadataJson: {
+                path: ["stripeSessionId"],
+                equals: session.id,
+              },
+            },
+          ],
         },
-        lifetimeField: "lifetimePurchased",
+        select: { id: true },
+      });
+      if (!alreadyGranted) {
+        await grantStudioCredits({
+          userId,
+          credits,
+          actionType: "credit_purchase",
+          creditOrigin: "PURCHASED",
+          service: "billing",
+          metadataJson: {
+            stripeSessionId: session.id,
+            packId: session.metadata?.packId,
+            packSlug: session.metadata?.packSlug,
+            financialCorrelationId: `stripe_pack:${session.id}`,
+          },
+          lifetimeField: "lifetimePurchased",
+        });
+      }
+      await prisma.studioAutoTopUpAttempt.updateMany({
+        where: {
+          userId,
+          stripeCheckoutSessionId: session.id,
+          status: { in: ["pending", "failed"] },
+        },
+        data: {
+          status: "succeeded",
+          creditsGranted: credits > 0 ? credits : 0,
+        },
+      });
+      await prisma.studioAccount.updateMany({
+        where: { userId, autoTopUpEnabled: true },
+        data: {
+          autoTopUpLastSuccessAt: new Date(),
+          autoTopUpStatus: "enabled",
+        },
       });
     }
     const promoCode = session.metadata?.promoCode;

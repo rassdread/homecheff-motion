@@ -6,6 +6,7 @@ import {
 } from "@/server/studio-account/studio-plan-config";
 import { subscriptionYearlyPriceEur } from "@/lib/studio-subscription-prices";
 import type { StudioSubscriptionPlanSnapshot } from "@/types/studio-billing";
+import { resolveStripeSecretKeyMode } from "@/lib/stripe-mode";
 
 function parseFeatureFlags(raw: unknown): string[] {
   if (!Array.isArray(raw)) {
@@ -204,13 +205,21 @@ export function resolvePlanStripePriceId(
   plan: StudioSubscriptionPlanSnapshot,
   interval: "monthly" | "yearly" = "monthly"
 ): string | null {
+  const envPrice =
+    plan.slug in STUDIO_PLANS
+      ? resolveStripePriceId(plan.slug as StudioPlanId, interval)
+      : null;
   const dbPrice =
     interval === "yearly" ? plan.stripePriceIdYearly : plan.stripePriceIdMonthly;
+  // Preview TEST isolation: env catalog must win over shared-DB LIVE price IDs.
+  if (resolveStripeSecretKeyMode() === "test") {
+    return envPrice || dbPrice?.trim() || null;
+  }
   if (dbPrice?.trim()) {
     return dbPrice.trim();
   }
   if (plan.source === "fallback" && plan.slug in STUDIO_PLANS) {
-    return resolveStripePriceId(plan.slug as StudioPlanId, interval);
+    return envPrice;
   }
-  return null;
+  return envPrice;
 }

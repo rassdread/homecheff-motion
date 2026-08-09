@@ -143,8 +143,21 @@ describe("S.4 input hash + errors + idempotency", () => {
       headerKey: "hdr-1",
       clientMutationId: "mut-1",
       fallbackPrefix: "voice_tts:sb",
+      operationFingerprint: "voice_tts:sb:en",
     });
     assert.equal(key, "hdr-1");
+  });
+
+  it("uses deterministic fingerprint when client omits keys", () => {
+    const a = resolveStudioGenerationIdempotencyKey({
+      fallbackPrefix: "voice_tts:sb",
+      operationFingerprint: "voice_tts:sb:en",
+    });
+    const b = resolveStudioGenerationIdempotencyKey({
+      fallbackPrefix: "voice_tts:sb",
+      operationFingerprint: "voice_tts:sb:en",
+    });
+    assert.equal(a, b);
   });
 });
 

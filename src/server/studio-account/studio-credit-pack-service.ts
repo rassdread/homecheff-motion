@@ -5,6 +5,7 @@ import {
   type StudioCreditPackId,
 } from "@/server/studio-account/studio-credit-packs";
 import type { StudioCreditPackSnapshot } from "@/types/studio-billing";
+import { resolveStripeSecretKeyMode } from "@/lib/stripe-mode";
 
 function mapDbPack(row: {
   id: string;
@@ -146,13 +147,18 @@ export async function upsertStudioCreditPack(input: {
 }
 
 export function resolvePackStripePriceId(pack: StudioCreditPackSnapshot): string | null {
+  const envPrice = resolveCreditPackStripePriceId(pack.slug);
+  // Preview TEST isolation: env catalog must win over shared-DB LIVE price IDs.
+  if (resolveStripeSecretKeyMode() === "test") {
+    return envPrice || pack.stripePriceId?.trim() || null;
+  }
   if (pack.stripePriceId?.trim()) {
     return pack.stripePriceId.trim();
   }
   if (pack.source === "fallback") {
-    return resolveCreditPackStripePriceId(pack.slug);
+    return envPrice;
   }
-  return null;
+  return envPrice;
 }
 
 export function totalPackCredits(pack: StudioCreditPackSnapshot): number {

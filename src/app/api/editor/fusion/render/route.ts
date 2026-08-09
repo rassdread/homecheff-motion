@@ -84,6 +84,7 @@ export async function POST(request: Request) {
     headerKey: request.headers.get("idempotency-key"),
     clientMutationId: body.clientMutationId,
     fallbackPrefix: `fusion_render:${sessionId}:${workflowType}`,
+    operationFingerprint: `fusion_render:${sessionId}:${workflowType}`,
   });
 
   const created = await createGenerationJob({

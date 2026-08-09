@@ -193,16 +193,18 @@ export async function billProviderAction<T>(input: {
   }
 
   if (input.productionReservationId) {
-    const result = await input.execute();
+    // S.8B: standalone reservation id is not a free-generation bypass.
+    // Production-chain free steps require a validated productionTransactionId.
     return {
-      ok: true,
-      result,
-      billing: {
-        estimatedCredits: 0,
-        providerCostEventId: null,
-        captured: false,
-        adminBypass: true,
-      },
+      blocked: NextResponse.json(
+        {
+          error:
+            "productionReservationId alone cannot authorize generation. Use a validated productionTransactionId.",
+          code: "FORGED_PRODUCTION_RESERVATION",
+          creditGate: true,
+        },
+        { status: 403 }
+      ),
     };
   }
 

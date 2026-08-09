@@ -46,6 +46,7 @@ export async function POST(request: Request) {
     request,
     clientMutationId,
     fallbackPrefix: `sfx_generate:${user.id}`,
+    operationFingerprint: `${user.id}:${prompt.slice(0, 200)}:${category}:${durationSeconds}:${sceneLabel ?? ""}`,
   });
 
   return runAudioGenerationJobRoute({

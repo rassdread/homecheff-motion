@@ -47,6 +47,7 @@ export async function POST(request: Request) {
     request,
     clientMutationId,
     fallbackPrefix: `music_generate:${user.id}`,
+    operationFingerprint: `${user.id}:${prompt.slice(0, 200)}:${durationSeconds}:${genre ?? ""}:${mood ?? ""}:${instrumental ? 1 : 0}`,
   });
 
   return runAudioGenerationJobRoute({

@@ -51,6 +51,7 @@ export async function POST(request: Request, context: RouteContext) {
     request,
     clientMutationId,
     fallbackPrefix: `voice_clone:character:${characterId}`,
+    operationFingerprint: `character:${characterId}:${sample.size}:${sample.name}:${voiceName}`,
   });
 
   return runAudioGenerationJobRoute({
