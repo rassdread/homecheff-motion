@@ -30,7 +30,7 @@ There are **no dedicated** `/studio/voice`, `/studio/music`, or `/studio/audio` 
 
 ---
 
-## Product law (unchanged)
+## Product law (unchanged + audio)
 
 ```
 Continuity owns identity
@@ -38,9 +38,19 @@ Continuity owns identity
   → Creative Director orchestrates
   → Provider Transform is last
   → Generation executes
+
+Audio:
+  Character owns Character voice identity
+  Storyboard owns narration defaults
+  Scene owns scene-specific audio intent
+  Project/Storyboard owns project-wide music/mix
+  Asset Library owns reusable audio assets
+  GenerationJob owns billable generation execution
 ```
 
-**Audio truth today:** most audio routes **bypass** ContinuityBundle → Matrix → Transform. Only **VOICE_TTS** uses `StudioGenerationJob`. Clone / music / SFX / STT / translate are **bare billed routes**.
+**S.7B update:** Foundation contracts + GenerationJob wrap for clone/music/SFX. See `studio-audio-foundation.md`.
+
+**Audio truth after S.7B:** VOICE_TTS / VOICE_CLONE / MUSIC_GENERATE / SFX_GENERATE use `StudioGenerationJob`. STT / translate remain bare billed routes (deferred). Many audio routes still do not assemble via ContinuityBundle → Matrix → Transform end-to-end — foundation prepares that path.
 
 ---
 

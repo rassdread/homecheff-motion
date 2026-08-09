@@ -29,6 +29,25 @@ export type ContinuityVoiceIdentity = {
   locked: boolean;
 };
 
+/**
+ * S.7B — Minimal audio continuity extension (identity/metadata only).
+ * Not provider prompt syntax. Brand audio remains unwired.
+ */
+export type ContinuityAudioContext = {
+  narratorVoice: ContinuityVoiceIdentity | null;
+  storyboardLanguage: string | null;
+  projectMusicAssetId: string | null;
+  sfxBedAssetId: string | null;
+  /** Scene planning intent only — not timed render hits. */
+  sceneAudioIntent: string | null;
+  brandAudio: {
+    voiceAssetId: string | null;
+    musicAssetId: string | null;
+    jingleAssetId: string | null;
+    wired: false;
+  };
+};
+
 export type ContinuityBrandIdentity = {
   brandKitId: string;
   name: string | null;
@@ -87,6 +106,8 @@ export type ContinuityBundle = {
     camera: string | null;
   };
   voice: ContinuityVoiceIdentity[];
+  /** Optional audio identity block for downstream audio planning (S.7B). */
+  audio: ContinuityAudioContext | null;
   style: ContinuityStyleContext;
   references: ContinuityReferenceDescriptor[];
   memoryBundle: SceneMemoryBundle | null;
@@ -126,6 +147,7 @@ export function emptyContinuityBundle(partial?: Partial<ContinuityBundle>): Cont
       camera: null,
     },
     voice: [],
+    audio: null,
     style: { styleProfile: null, worldVisualStyle: null },
     references: [],
     memoryBundle: null,
@@ -182,6 +204,7 @@ export function resolveContinuityBundleFromPromptInput(
     durationSeconds?: number | null;
     brand?: ContinuityBrandIdentity | null;
     voice?: ContinuityVoiceIdentity[];
+    audio?: ContinuityAudioContext | null;
     sourceImageUrl?: string | null;
     continuityCase?: ContinuityCase;
   }
@@ -251,6 +274,7 @@ export function resolveContinuityBundleFromPromptInput(
       camera: input.scene.camera ?? null,
     },
     voice: options?.voice ?? [],
+    audio: options?.audio ?? null,
     style: {
       styleProfile: input.styleProfile ?? null,
       worldVisualStyle: world?.visualStyle ?? null,

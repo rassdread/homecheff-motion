@@ -1,4 +1,4 @@
-# Studio Audio Continuity (S.7A)
+# Studio Audio Continuity (S.7A → S.7B)
 
 Rates how audio identity survives across scenes / storyboards / projects.
 
@@ -10,14 +10,14 @@ Scale: **STRONG** · **PARTIAL** · **WEAK** · **NONE**
 
 | Dimension | Across scenes | Across storyboards | Across projects | Rating | Mechanism |
 |-----------|---------------|--------------------|-----------------|--------|-----------|
-| **Character voice identity** | Same character → same profile when multi-cast path used | Reuse Character entity | Reuse Character / clone library | **PARTIAL** | Character fields + history; narrator can diverge |
+| **Character voice identity** | Same character → same profile when speaking-role resolver used | Reuse Character entity | Reuse Character / clone library | **PARTIAL** | Character fields + `resolveVoiceIdentity`; narrator can still diverge on single-narrator path |
 | **Narrator / storyboard voice** | Shared storyboard profile | Per storyboard | Not automatic | **PARTIAL** | `StudioStoryboard` + `StudioStoryboardVoice` |
 | **Music theme (planning)** | Scene cue overrides on shared storyboard style | Per storyboard fields | Manual re-apply | **WEAK→PARTIAL** | Director metadata |
 | **Music stem** | One project bed looped full timeline | Relink library asset | Reuse library asset | **PARTIAL** | Library ID link |
 | **SFX motifs / ambient bed** | One looped bed (not timed hits) | Relink | Reuse library | **WEAK** | Scene cue IDs not rendered |
 | **Subtitle style** | Fixed ASS burn-in style | Per language track | Manual | **WEAK** | No user style identity |
 | **Language** | Storyboard `voiceLanguage` + subtitle language | Per board / export | Manual | **PARTIAL** | Multi-lang TTS rows; overlay export separate |
-| **Brand audio** | — | — | BrandKit IDs if set | **NONE→WEAK** | Unwired into mix |
+| **Brand audio** | — | — | BrandKit IDs if set | **NONE→WEAK** | Unwired into mix (`wired: false`) |
 
 ---
 
@@ -27,25 +27,33 @@ Scale: **STRONG** · **PARTIAL** · **WEAK** · **NONE**
 |-----|--------|----------|
 | Character → Scene | **WEAK** | No scene voice identity columns |
 | Character → Storyboard TTS | **PARTIAL** | Multi-speaker uses character assignment; single narrator uses storyboard profile |
-| Storyboard → Motion | **PARTIAL** | Handoff attaches voice/music/sound/mix plans |
+| Storyboard → Motion | **PARTIAL** | Handoff attaches voice/music/sound/mix; S.7B uses `resolveVoiceIdentity` on voice identity handoff |
 | Motion → Render | **PARTIAL** | Mux voice ± linked beds ± burn-in when export enabled |
 
-**Overall Character voice continuity into final video: PARTIAL**
+**Overall Character voice continuity into final video: PARTIAL**  
+(Do **not** claim STRONG until Preview E2E cert proves locked voice through render.)
 
 ---
 
-## Soft lock model
+## Soft lock model (S.7B)
 
-`voiceLock` on Character is intended to prevent storyboard override. Enforcement:
+`voiceLock` on Character prevents silent storyboard replacement for **speaking roles**:
 
-- Identity warnings (`locked_voice_overridden`, `voice_mismatch`)
-- Resolver prefers Character when locked (multi-cast)
-- Single-narrator generate path can still use storyboard `voiceProfile`
-
-Not silent substitution by design — but **not hard-enforced** for all TTS paths.
+- `resolveVoiceIdentity({ role: "character", ... })` returns `overrideBlocked` when locked + divergent storyboard profile
+- Motion voice-identity handoff uses the same precedence
+- Narrator / unassigned / project default still use Storyboard voice
 
 ---
 
-## Non-goal of this doc
+## ContinuityBundle audio extension (S.7B)
 
-Does not prescribe ContinuityBundle schema changes. S.7B should decide whether Character voice becomes Continuity-owned identity like visual Character refs.
+`ContinuityBundle.audio` (optional) carries:
+
+- narrator/default voice
+- storyboard language
+- project music asset id
+- SFX bed asset id
+- scene audio intent (planning)
+- brand audio refs with `wired: false`
+
+Audio continuity is **metadata/identity**, not provider prompt syntax.

@@ -31,7 +31,13 @@
 | Storyboard | Narrator / default TTS profile + script |
 | Scene | Links to characters; mix priority only |
 
-**Conflict:** Locked Character ≠ Storyboard narrator can diverge. Warnings + multi-cast resolver exist; single-narrator TTS still prefers storyboard profile.
+**S.7B precedence (`resolveVoiceIdentity`):**
+
+- Speaking role + Character with `voiceLock=true` → **Character wins** (storyboard override blocked; no silent replace)
+- Narrator / unassigned / project default → Storyboard narration voice
+- Provenance always returned (`source`, `reason`, `overrideBlocked`)
+
+Runtime SoT table: `src/lib/studio-audio-ownership.ts`
 
 ---
 

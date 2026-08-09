@@ -1,4 +1,5 @@
 import { collectStoryboardCharacters } from "@/lib/studio-character-voice";
+import { resolveVoiceIdentity } from "@/lib/studio-audio-voice-resolver";
 import {
   normalizeVoiceIdentityLanguage,
   resolveCharacterVoiceIdentity,
@@ -15,17 +16,30 @@ export function attachVoiceIdentityToHandoffPayload(
   const voiceIdentityPlan = buildMotionVoiceIdentityHandoffPlan(options.storyboard);
   const storyLang = normalizeVoiceIdentityLanguage(options.storyboard.voiceLanguage ?? "en");
   const characters = collectStoryboardCharacters(options.storyboard);
+  const storyboardOverride = options.storyboard.voiceProfile?.trim() || null;
 
   const characterResolvedVoices: MotionCharacterResolvedVoiceHandoff[] = characters.map(
     (character) => {
-      const identity = resolveCharacterVoiceIdentity({ character, language: storyLang });
+      // Canonical S.7B precedence: locked Character voice cannot be silently replaced.
+      const resolved = resolveVoiceIdentity({
+        role: "character",
+        character,
+        language: storyLang,
+        storyboardVoiceProfile: storyboardOverride,
+        storyboardVoiceLanguage: storyLang,
+      });
+      const identity = resolveCharacterVoiceIdentity({
+        character,
+        language: storyLang,
+        attemptedOverrideProfile: storyboardOverride,
+      });
       return {
         characterId: character.id,
         characterName: character.name,
-        voiceProfile: identity.voiceProfile,
-        voiceLanguage: String(identity.language),
+        voiceProfile: resolved.voiceProfile,
+        voiceLanguage: String(resolved.language),
         displayLabel: identity.displayLabel,
-        voiceLock: identity.voiceLock,
+        voiceLock: resolved.voiceLock,
         presetLabelKey: identity.presetLabelKey,
       };
     }

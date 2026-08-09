@@ -98,7 +98,8 @@ export const STUDIO_GENERATION_CAPABILITY_REGISTRY: Record<
     capability: "SFX_GENERATE",
     actionType: "sfx_generation",
     executionMode: "sync",
-    targetScope: "scene",
+    /** User audio library bed — not timed scene hits (S.7A/S.7B honesty). */
+    targetScope: "user",
     supportsCancellation: false,
     defaultAdapterId: "elevenlabs_sfx",
   },
