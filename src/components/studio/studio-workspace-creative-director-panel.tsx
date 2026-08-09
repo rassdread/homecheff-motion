@@ -2,10 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
+import { StudioDirectorAdaptivePresentation } from "@/components/studio/director-presentation/studio-director-adaptive-presentation";
+import type { DirectorPackNode } from "@/components/studio/director-presentation/studio-director-pack-views";
 import {
   listProductExperiencesByFamily,
   orchestrateCreativeDirector,
   type StudioProductExperienceFamily,
+  type StudioProductExperienceId,
   type StudioProductMode,
 } from "@/lib/studio-creative-director";
 import type { StudioStoryboardDetail } from "@/types/studio-api";
@@ -25,8 +28,9 @@ const FAMILIES: StudioProductExperienceFamily[] = [
 const MODES: StudioProductMode[] = ["QUICK", "PROFESSIONAL", "DIRECTOR"];
 
 /**
- * Thin Adaptive Workspace surface for S.6F Creative Director orchestration.
+ * Thin Adaptive Workspace surface for Creative Director orchestration (S.6F + S.6H presentation).
  * Does not generate media, charge credits, or rewrite Continuity/Matrix.
+ * S.6H only changes how Experience Packs are presented (globe / compact / cards).
  */
 export function StudioWorkspaceCreativeDirectorPanel({ storyboard }: Props) {
   const t = useActiveTranslator();
@@ -35,6 +39,17 @@ export function StudioWorkspaceCreativeDirectorPanel({ storyboard }: Props) {
   const [family, setFamily] = useState<StudioProductExperienceFamily>("PEOPLE");
 
   const experiences = useMemo(() => listProductExperiencesByFamily(family), [family]);
+
+  const packs: DirectorPackNode[] = useMemo(
+    () =>
+      experiences.map((exp) => ({
+        experienceId: exp.experienceId as StudioProductExperienceId,
+        label: exp.label,
+        goal: exp.creativeGoal,
+        family: exp.family,
+      })),
+    [experiences]
+  );
 
   const orchestration = useMemo(
     () =>
@@ -104,20 +119,14 @@ export function StudioWorkspaceCreativeDirectorPanel({ storyboard }: Props) {
             </button>
           ))}
         </div>
-        <label className="block text-xs text-zinc-600">
-          {t("studio.creativeDirector.chooseExperience")}
-          <select
-            className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900"
-            value={experienceId}
-            onChange={(e) => setExperienceId(e.target.value)}
-          >
-            {experiences.map((exp) => (
-              <option key={exp.experienceId} value={exp.experienceId}>
-                {exp.label} ({exp.status})
-              </option>
-            ))}
-          </select>
-        </label>
+        <StudioDirectorAdaptivePresentation
+          packs={packs}
+          selectedId={experienceId}
+          productMode={mode}
+          onSelect={(id) => setExperienceId(id)}
+          title={t("studio.creativeDirector.chooseExperience")}
+          showSearch
+        />
       </section>
 
       <section className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-4 space-y-2">
