@@ -268,7 +268,7 @@ describe("S.6E preset safety + brand honesty", () => {
       fields: { primaryColor: "#111" },
       available: true,
     };
-    let spec = assembleCreativeSpecification({
+    const spec = assembleCreativeSpecification({
       experienceId: "SCENE_STILL",
       continuity,
       promptPreset: {
