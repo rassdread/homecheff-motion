@@ -34,7 +34,7 @@
 
 | Gate | Status |
 |------|--------|
-| Preview | PENDING |
+| Preview | GREEN — `dpl_GhumFBRZKBjLd6mtWgqF7CX1xSQY` · `/studio/experience` HTTP 200 |
 | Production smoke | PENDING |
 
-Update this file after Preview GREEN and production smoke.
+**Preview verdict:** GO FOR MERGE

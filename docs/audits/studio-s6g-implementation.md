@@ -87,7 +87,7 @@ Evidence: P0 doors call `openExperience` → Director; guided questions; Continu
 - [x] Matrix / transforms / jobs / billing unchanged as owners
 - [x] MISSING honesty
 - [x] lint / build / test (`4720/4720`) / tsc PASS
-- [ ] Preview GREEN
+- [x] Preview GREEN (`dpl_GhumFBRZKBjLd6mtWgqF7CX1xSQY`, HEAD `b216c1c1`)
 - [ ] Production smoke
 
 ---
