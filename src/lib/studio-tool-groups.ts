@@ -42,6 +42,7 @@ export const STUDIO_TOOL_GROUPS: StudioToolGroup[] = [
       "production",
       "insights",
       "creationAssistant",
+      "creativeDirector",
       "creativeReview",
       "storyArchitecture",
       "directorPreferences",

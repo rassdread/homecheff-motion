@@ -52,6 +52,7 @@ export function inferStudioCreativeStage(input: {
     case "production":
     case "storyArchitecture":
     case "directorPreferences":
+    case "creativeDirector":
       return "setup";
     case "insights":
     case "creativeReview":
