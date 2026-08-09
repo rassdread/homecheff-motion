@@ -61,8 +61,12 @@ export default function AdminBillingOverviewPage() {
           items={[
             { label: "MRR (EUR)", value: analytics.mrrEur },
             { label: "ARR (EUR)", value: analytics.arrEur },
-            { label: "Active subscriptions", value: analytics.activeSubscriptions },
+            { label: "Gross revenue (EUR)", value: analytics.grossRevenueEur },
             { label: "Gross margin %", value: analytics.grossMarginPercent },
+            { label: "Pack revenue (EUR)", value: analytics.packRevenueEur },
+            { label: "Subscription revenue (EUR)", value: analytics.subscriptionRevenueEur },
+            { label: "Active subscriptions", value: analytics.activeSubscriptions },
+            { label: "Provider cost (EUR)", value: analytics.providerCostEur },
           ]}
         />
       ) : null}

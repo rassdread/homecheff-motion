@@ -347,6 +347,12 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
         select: { id: true },
       });
       if (!alreadyGranted) {
+        const amountTotalCents =
+          typeof session.amount_total === "number" && Number.isFinite(session.amount_total)
+            ? session.amount_total
+            : null;
+        const amountEur =
+          amountTotalCents != null ? Math.round(amountTotalCents) / 100 : null;
         await grantStudioCredits({
           userId,
           credits,
@@ -357,6 +363,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
             stripeSessionId: session.id,
             packId: session.metadata?.packId,
             packSlug: session.metadata?.packSlug,
+            amountTotalCents,
+            amountEur,
+            currency: session.currency ?? "eur",
             financialCorrelationId: `stripe_pack:${session.id}`,
           },
           lifetimeField: "lifetimePurchased",
@@ -479,6 +488,44 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
     where: { userId: account.userId },
     data: { billingStatus: "active" },
   });
+
+  // S.8E — Record commercial subscription cash (creditsDelta 0; does not mint wallet credits).
+  const amountPaidCents =
+    typeof invoice.amount_paid === "number" && Number.isFinite(invoice.amount_paid)
+      ? invoice.amount_paid
+      : 0;
+  if (amountPaidCents > 0 && invoice.id) {
+    const already = await prisma.studioLedgerEntry.findFirst({
+      where: {
+        userId: account.userId,
+        actionType: "subscription_payment",
+        AND: [{ metadataJson: { path: ["stripeInvoiceId"], equals: invoice.id } }],
+      },
+      select: { id: true },
+    });
+    if (!already) {
+      const wallet = await prisma.studioWallet.findUnique({
+        where: { userId: account.userId },
+        select: { balance: true },
+      });
+      await prisma.studioLedgerEntry.create({
+        data: {
+          userId: account.userId,
+          service: "billing",
+          actionType: "subscription_payment",
+          creditsDelta: 0,
+          balanceAfter: wallet?.balance ?? 0,
+          metadataJson: {
+            stripeInvoiceId: invoice.id,
+            amountTotalCents: amountPaidCents,
+            amountEur: Math.round(amountPaidCents) / 100,
+            currency: invoice.currency ?? "eur",
+            financialCorrelationId: `stripe_invoice:${invoice.id}`,
+          },
+        },
+      });
+    }
+  }
 }
 
 export async function createStripeCustomerPortalSession(input: {

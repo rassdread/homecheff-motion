@@ -11540,6 +11540,8 @@ export const en: LocaleSchema = {
   "auth.form.submittingSignup": "Creating account…",
 
   "admin.nav.dashboard": "Admin",
+  "admin.nav.billing": "Billing",
+  "admin.nav.studioFinance": "Studio finance",
   "admin.nav.invites": "Invites",
   "admin.nav.users": "Users",
   "admin.nav.renderAnalytics": "Render analytics",

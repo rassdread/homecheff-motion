@@ -11544,6 +11544,8 @@ export const nl = {
   "auth.form.submittingSignup": "Account aanmaken…",
 
   "admin.nav.dashboard": "Beheer",
+  "admin.nav.billing": "Billing",
+  "admin.nav.studioFinance": "Studio-finance",
   "admin.nav.invites": "Uitnodigingen",
   "admin.nav.users": "Gebruikers",
   "admin.nav.renderAnalytics": "Render-analytics",

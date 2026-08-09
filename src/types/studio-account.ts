@@ -24,6 +24,7 @@ export type StudioBillingStatus = (typeof STUDIO_BILLING_STATUSES)[number];
 export const STUDIO_LEDGER_ACTION_TYPES = [
   "credit_purchase",
   "subscription_grant",
+  "subscription_payment",
   "admin_grant",
   "promotional_grant",
   "usage_charge",

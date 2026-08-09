@@ -34,6 +34,15 @@ export function AdminLayoutChrome({ forbidden = false, children }: AdminLayoutCh
         <Link href="/admin" className="rounded-full px-3 py-1 hover:bg-white/10 hover:text-white">
           {t("admin.nav.dashboard")}
         </Link>
+        <Link href="/admin/billing" className="rounded-full px-3 py-1 hover:bg-white/10 hover:text-white">
+          {t("admin.nav.billing")}
+        </Link>
+        <Link
+          href="/admin/studio-finance"
+          className="rounded-full px-3 py-1 hover:bg-white/10 hover:text-white"
+        >
+          {t("admin.nav.studioFinance")}
+        </Link>
         <Link href="/admin/invites" className="rounded-full px-3 py-1 hover:bg-white/10 hover:text-white">
           {t("admin.nav.invites")}
         </Link>

@@ -5,6 +5,7 @@ type Translator = (key: TranslationKey, params?: Record<string, string | number>
 const LEDGER_ACTION_KEYS: Record<string, TranslationKey> = {
   credit_purchase: "account.ledger.action.creditPurchase",
   subscription_grant: "account.ledger.action.subscriptionGrant",
+  subscription_payment: "account.ledger.action.subscriptionGrant",
   admin_grant: "account.ledger.action.adminGrant",
   promotional_grant: "account.ledger.action.promotionalGrant",
   bonus_grant: "account.ledger.action.bonusGrant",

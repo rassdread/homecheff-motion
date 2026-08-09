@@ -9,7 +9,11 @@ const NAV = [
   { href: "/admin/billing/subscriptions", label: "Subscriptions" },
   { href: "/admin/billing/credit-packs", label: "Credit packs" },
   { href: "/admin/billing/promotions", label: "Promotions" },
+  { href: "/admin/billing/promo-codes", label: "Promo codes" },
   { href: "/admin/billing/campaigns", label: "New user campaigns" },
+  { href: "/admin/billing/auto-topup", label: "Auto Top-Up" },
+  { href: "/admin/billing/generation-jobs", label: "Generation jobs" },
+  { href: "/admin/billing/reconciliation", label: "Reconciliation" },
   { href: "/admin/billing/stripe", label: "Stripe readiness" },
   { href: "/admin/billing/analytics", label: "Analytics" },
 ];
@@ -38,7 +42,8 @@ export function AdminBillingShell({
             key={item.href}
             href={item.href}
             className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-              pathname === item.href
+              pathname === item.href ||
+              (item.href !== "/admin/billing" && pathname.startsWith(`${item.href}/`))
                 ? "bg-emerald-600 text-white"
                 : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
             }`}

@@ -25,18 +25,33 @@ export default function AdminBillingAnalyticsPage() {
 
   return (
     <AdminBillingShell title="Billing analytics">
+      <p className="text-sm text-zinc-600">
+        Commercial EUR from Stripe Checkout pack purchases and recorded subscription invoices — not
+        credits × $0.005.
+      </p>
       <AdminStatGrid
         items={[
           { label: "MRR (EUR)", value: analytics.mrrEur },
           { label: "ARR (EUR)", value: analytics.arrEur },
+          { label: "Pack revenue (EUR)", value: analytics.packRevenueEur },
+          { label: "Subscription revenue (EUR)", value: analytics.subscriptionRevenueEur },
+          { label: "Gross revenue (EUR)", value: analytics.grossRevenueEur },
+          { label: "Provider cost (EUR)", value: analytics.providerCostEur },
+          { label: "Net revenue (EUR)", value: analytics.netRevenueEur },
+          { label: "Gross margin %", value: analytics.grossMarginPercent },
           { label: "Credits sold", value: analytics.creditsSold },
           { label: "Credits consumed", value: analytics.creditsConsumed },
           { label: "Credits granted", value: analytics.creditsGranted },
-          { label: "Gross revenue (EUR)", value: analytics.grossRevenueEur },
-          { label: "Net revenue (EUR)", value: analytics.netRevenueEur },
-          { label: "Gross margin %", value: analytics.grossMarginPercent },
+          { label: "Active subscriptions", value: analytics.activeSubscriptions },
         ]}
       />
+
+      <section className="rounded-xl border border-zinc-200 bg-white p-4 text-xs text-zinc-600">
+        Revenue sources — Stripe amounts: {analytics.revenueSource.stripeAmountPurchases} · Catalog
+        fallback: {analytics.revenueSource.catalogFallbackPurchases} · Unresolved:{" "}
+        {analytics.revenueSource.unresolvedPurchases} · Subscription invoices:{" "}
+        {analytics.revenueSource.subscriptionInvoiceCount}
+      </section>
 
       <section className="grid gap-4 lg:grid-cols-3">
         <div className="rounded-xl border border-zinc-200 bg-white p-5">
@@ -64,7 +79,7 @@ export default function AdminBillingAnalyticsPage() {
           <ul className="mt-3 space-y-2 text-sm">
             {analytics.topCreditPacks.map((row) => (
               <li key={row.slug}>
-                {row.name}: {row.creditsSold} credits sold
+                {row.name}: {row.creditsSold} credits · €{row.revenueEur.toFixed(2)}
               </li>
             ))}
           </ul>

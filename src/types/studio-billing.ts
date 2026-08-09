@@ -213,14 +213,27 @@ export type BillingAnalyticsSnapshot = {
   creditsConsumed: number;
   creditsGranted: number;
   providerCostUsd: number;
+  /** Provider COGS converted to EUR via admin FX (for margin only). */
+  providerCostEur: number;
+  /** Commercial cash from credit pack Checkouts (Stripe amount or pack catalog). */
+  packRevenueEur: number;
+  /** Commercial cash from recorded Stripe subscription invoices. */
+  subscriptionRevenueEur: number;
+  /** packRevenueEur + subscriptionRevenueEur — never credits × USD_PER_CREDIT. */
   grossRevenueEur: number;
   netRevenueEur: number;
   grossMarginPercent: number;
+  revenueSource: {
+    stripeAmountPurchases: number;
+    catalogFallbackPurchases: number;
+    unresolvedPurchases: number;
+    subscriptionInvoiceCount: number;
+  };
   activeSubscriptions: number;
   churnedSubscriptions: number;
   topPromotions: Array<{ name: string; redemptions: number; creditsGranted: number }>;
   topPlans: Array<{ slug: string; name: string; subscribers: number }>;
-  topCreditPacks: Array<{ slug: string; name: string; creditsSold: number }>;
+  topCreditPacks: Array<{ slug: string; name: string; creditsSold: number; revenueEur: number }>;
 };
 
 export type StripeReadinessSnapshot = {

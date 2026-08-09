@@ -15,3 +15,12 @@ Non-blocking for S.8C start:
 - ElevenLabs Preview key missing `speech_to_text` permission (fix STT provider permission separately)
 - Shared Neon Preview/Production
 - Temporary Stripe TEST sandbox claim/expiry
+
+## S.8C completion (2026-08-09)
+
+Margin math and commercial model are documented (read-only). See:
+
+- `docs/audits/studio-s8c-final-report.md`
+- `docs/architecture/studio-provider-margin-model.md`
+- `docs/architecture/studio-commercial-model.md`
+- `docs/architecture/studio-financial-profit-model.md`
