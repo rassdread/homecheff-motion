@@ -10,7 +10,7 @@ import { ensureStudioWallet } from "@/server/studio-account/studio-wallet-servic
 export async function GET() {
   const user = await requireActiveUser();
   if (user instanceof NextResponse) return user;
-  const data = await getAutoTopUpSettings(user.id);
+  const data = await getAutoTopUpSettings(user.id, user.email);
   return NextResponse.json({ ok: true, ...data });
 }
 
@@ -29,7 +29,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
   }
   try {
-    const settings = await patchAutoTopUpSettings(user.id, body);
+    const settings = await patchAutoTopUpSettings(user.id, user.email, body);
     return NextResponse.json({ ok: true, settings });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Update failed.";

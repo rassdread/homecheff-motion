@@ -43,12 +43,15 @@ function mapSettings(account: {
   };
 }
 
-export async function getAutoTopUpSettings(userId: string): Promise<{
+export async function getAutoTopUpSettings(
+  userId: string,
+  email: string
+): Promise<{
   settings: StudioAutoTopUpSettings;
   planId: string;
   planEligible: boolean;
 }> {
-  const account = await ensureStudioAccount(userId);
+  const account = await ensureStudioAccount(userId, email);
   const row = await prisma.studioAccount.findUniqueOrThrow({ where: { userId } });
   const settings = mapSettings(row);
   return {
@@ -60,6 +63,7 @@ export async function getAutoTopUpSettings(userId: string): Promise<{
 
 export async function patchAutoTopUpSettings(
   userId: string,
+  email: string,
   patch: {
     enabled?: boolean;
     thresholdCredits?: number;
@@ -67,7 +71,7 @@ export async function patchAutoTopUpSettings(
     consent?: boolean;
   }
 ): Promise<StudioAutoTopUpSettings> {
-  await ensureStudioAccount(userId);
+  await ensureStudioAccount(userId, email);
   const pack = patch.topUpPackId ? getCreditPack(patch.topUpPackId) : null;
   if (patch.topUpPackId && !pack) {
     throw new Error("INVALID_PACK");
@@ -124,7 +128,10 @@ export async function attemptAutoTopUpForInsufficientCredits(input: {
       message: string;
     }
 > {
-  const { settings, planId, planEligible } = await getAutoTopUpSettings(input.userId);
+  const { settings, planId, planEligible } = await getAutoTopUpSettings(
+    input.userId,
+    input.email
+  );
   const evalResult = evaluateAutoTopUpTrigger({
     settings,
     planId,
