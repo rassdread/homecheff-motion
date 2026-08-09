@@ -35,6 +35,7 @@
 | Gate | Status |
 |------|--------|
 | Preview | GREEN — `dpl_GhumFBRZKBjLd6mtWgqF7CX1xSQY` · `/studio/experience` HTTP 200 |
-| Production smoke | PENDING |
+| Merge | `ba137e83` (PR #10) |
+| Production | GREEN — `dpl_i2mMfpmR3qpjasP8P4o18NyEubQv` · aliases studio.homecheff.eu |
 
-**Preview verdict:** GO FOR MERGE
+**Final verdict:** S.6G COMPLETE · GO FOR S.7 (Audio Ecosystem) — start only when product asks.

@@ -88,7 +88,10 @@ Evidence: P0 doors call `openExperience` → Director; guided questions; Continu
 - [x] MISSING honesty
 - [x] lint / build / test (`4720/4720`) / tsc PASS
 - [x] Preview GREEN (`dpl_GhumFBRZKBjLd6mtWgqF7CX1xSQY`, HEAD `b216c1c1`)
-- [ ] Production smoke
+- [x] PR [#10](https://github.com/rassdread/homecheff-motion/pull/10) MERGED (`ba137e83`)
+- [x] Production GREEN (`dpl_i2mMfpmR3qpjasP8P4o18NyEubQv`) — `/studio/experience` HTTP 200
+
+**Final verdict:** S.6G COMPLETE · **GO FOR STUDIO S.7 — AUDIO ECOSYSTEM** (do not start automatically)
 
 ---
 
