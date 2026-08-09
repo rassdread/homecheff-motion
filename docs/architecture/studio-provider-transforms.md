@@ -1,6 +1,7 @@
 # Studio Provider Transforms (S.6E)
 
-**Last step before GenerationJob.** Transforms adapt CreativeSpecification + ContinuityBundle (or approved subset) into provider-oriented requests.
+**Last step before GenerationJob.** Transforms adapt CreativeSpecification + ContinuityBundle (or approved subset) into provider-oriented requests.  
+**Certification:** S.6E wrappers verified on Preview/Production (OpenAI scene still, Fusion pixel contract, Vidu handoff continuity cases).
 
 ## Runtime providers (truth)
 

@@ -1,6 +1,7 @@
 # Studio Experience Registry (S.6E)
 
-Many UI doors → few canonical engines.
+Many UI doors → few canonical engines.  
+**S.6E registry size:** 24 canonical IDs (0 native / 9 wrapped / 10 partial / 4 legacy / 1 experimental).
 
 ## Canonical IDs
 

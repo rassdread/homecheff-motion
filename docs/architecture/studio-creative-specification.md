@@ -1,6 +1,7 @@
 # Studio Creative Specification (S.6E)
 
-Provider-neutral intermediate representation produced by the Prompt Matrix. **Not** a giant prompt string.
+Provider-neutral intermediate representation produced by the Prompt Matrix. **Not** a giant prompt string.  
+**Certification:** S.6E Preview + Production smoke 2026-08-09 — see `docs/audits/studio-s6e-prompt-matrix.md`.
 
 ## Shape (conceptual)
 

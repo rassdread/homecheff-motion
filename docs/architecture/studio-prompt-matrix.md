@@ -1,6 +1,6 @@
 # Studio Prompt Matrix (S.6E)
 
-**Status:** Architecture + initial wiring (scene stills MATRIX_WRAPPED) — Preview certified 2026-08-09  
+**Status:** Architecture + initial wiring (scene stills MATRIX_WRAPPED) — Preview + Production certified 2026-08-09 (`e8f863f5`)  
 **Version:** `matrixVersion = 6e.1`  
 **Law:** Continuity owns identity → Prompt Matrix assembles → Directors orchestrate → Provider Transform last → Generation executes. Nothing bypasses ContinuityBundle.  
 **Compliance honesty:** 0 MATRIX_NATIVE / 9 MATRIX_WRAPPED / 10 MATRIX_PARTIAL / 4 LEGACY / 1 EXPERIMENTAL (24 canonical IDs). Scene T2I pixel conditioning remains PARTIAL.
