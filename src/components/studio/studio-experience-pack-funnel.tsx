@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { StudioGuidedQuestions } from "@/components/studio/studio-guided-questions";
+import { StudioDirectorAdaptivePresentation } from "@/components/studio/director-presentation/studio-director-adaptive-presentation";
+import { toDirectorPackNodes } from "@/components/studio/director-presentation/studio-director-pack-views";
 import {
   acceptCoachOnExperience,
   applyGuidedAnswer,
@@ -78,28 +80,16 @@ export function StudioExperiencePackFunnel() {
   }, [opened, experienceId, answers]);
 
   if (!experienceParam && !entryFan && !photoIntent && !preset && !flow) {
+    const packs = toDirectorPackNodes(P0_EXPERIENCE_PACKS);
     return (
-      <div className="mx-auto w-full max-w-2xl space-y-4 px-4 py-10">
-        <h1 className="text-2xl font-bold text-zinc-900">Choose an experience</h1>
-        <p className="text-sm text-zinc-600">
-          Simple guided flows. Studio handles continuity, prompts, and generation behind the scenes.
-        </p>
-        <ul className="grid gap-3 sm:grid-cols-2">
-          {P0_EXPERIENCE_PACKS.map((id) => {
-            const entry = getProductExperience(id);
-            return (
-              <li key={id}>
-                <Link
-                  href={buildExperiencePackHref({ experienceId: id, mode: "QUICK" })}
-                  className="flex min-h-14 flex-col rounded-2xl border border-zinc-200 bg-white px-4 py-3 transition hover:border-[#006D52]/40"
-                >
-                  <span className="font-semibold text-zinc-900">{entry.label}</span>
-                  <span className="text-xs text-zinc-500">{entry.creativeGoal.replace(/_/g, " ")}</span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+      <div className="mx-auto w-full max-w-5xl space-y-4 px-4 py-10">
+        <StudioDirectorAdaptivePresentation
+          packs={packs}
+          productMode="QUICK"
+          linkMode
+          title="Choose an experience"
+          subtitle="Simple guided flows. Studio handles continuity, prompts, and generation behind the scenes. Presentation adapts to your workspace — same Experience Packs everywhere."
+        />
       </div>
     );
   }
