@@ -24,6 +24,7 @@ import {
   applyAssistantPrefillToInstantMotion,
 } from "@/components/assistant/instant-assistant-prefill-applier";
 import { MotionHubQueryPrefillApplier } from "@/components/motion/motion-hub-query-prefill";
+import { StudioConsumerExperienceBridge } from "@/components/studio/studio-consumer-experience-bridge";
 import { MotionActionPresetMotionReadyPrompt } from "@/components/instant/motion-action-preset-motion-ready-prompt";
 import { MotionPresetEnginePanel } from "@/components/instant/motion-preset-engine-panel";
 import {
@@ -1869,6 +1870,9 @@ export default function InstantPremiumPage() {
 
   return (
     <main className={`${growthSidebarLayoutClasses.pageFloorFlex} ${brand.softGradientBg}`}>
+      <Suspense fallback={null}>
+        <StudioConsumerExperienceBridge />
+      </Suspense>
       <EditorMotionBootstrapBridge />
       <HcMotionBootstrapBridge />
       <HcInstantProjectBar />

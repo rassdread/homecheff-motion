@@ -9,8 +9,12 @@ import { brand } from "@/lib/brand";
 
 export function MaakChoicePage() {
   const t = useActiveTranslator();
-  const newStoryHref = useAuthActionHref("/studio/storyboards/new");
-  const photosHref = useAuthActionHref("/animate/instant");
+  const newStoryHref = useAuthActionHref(
+    "/studio/experience?experience=CREATIVE_STORYBOARD&mode=quick"
+  );
+  const photosHref = useAuthActionHref(
+    "/studio/experience?experience=CREATIVE_ANIMATION&mode=quick&photoIntent=photo_to_video"
+  );
   const storiesHref = useAuthActionHref("/studio/storyboards");
   const studioHref = useAuthActionHref("/studio");
   const editorHref = useAuthActionHref("/editor");

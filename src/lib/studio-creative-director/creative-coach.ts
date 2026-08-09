@@ -72,6 +72,15 @@ const PACKS: Partial<Record<StudioProductExperienceId, CreativeCoachSuggestion[]
     { id: "wd_luxury", label: "luxury version", category: "variation", forced: false },
     { id: "wd_reel", label: "social highlight reel", category: "platform", forced: false },
   ],
+  IDENTITY_OUTFIT: [
+    { id: "out_outdoor", label: "outdoor fashion version", category: "variation", forced: false },
+    { id: "out_studio", label: "clean studio lighting", category: "visual", forced: false },
+    { id: "out_full", label: "full-body framing", category: "visual", forced: false },
+  ],
+  CREATIVE_ANIMATION: [
+    { id: "an_gentle", label: "gentler motion", category: "visual", forced: false },
+    { id: "an_vertical", label: "vertical social version", category: "platform", forced: false },
+  ],
 };
 
 const FAMILY_FALLBACK: Record<StudioProductExperienceFamily, CreativeCoachSuggestion[]> = {

@@ -1,8 +1,9 @@
 # Studio Experience Packs (S.6G)
 
-**Status:** Architecture defined (audit COMPLETE) · Consumer wiring NOT COMPLETE  
+**Status:** P0 consumer wiring IMPLEMENTED (`/studio/experience`) · Preview pending  
 **Role:** Curated workflows on top of Continuity + Prompt Matrix + Creative Director  
-**Not:** New AI engines, new prompt stacks, or billing systems
+**Not:** New AI engines, new prompt stacks, or billing systems  
+**Entry contract:** `openExperience()` in `consumer-entry.ts`
 
 ---
 

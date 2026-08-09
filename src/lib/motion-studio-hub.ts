@@ -10,6 +10,7 @@ import type {
 } from "@/types/motion-studio-hub";
 import type { MotionActionPresetId } from "@/types/motion-action-presets";
 import { getAllMotionActionPresets } from "@/lib/motion-action-presets";
+import { resolveCreativeExperience } from "@/lib/studio-creative-director/experience-resolver";
 
 export const MOTION_STUDIO_HUB_PATH = "/motion";
 
@@ -152,15 +153,33 @@ export function buildMotionHubInstantHref(input: {
   prefillId?: string;
   showcaseItemId?: string;
 }): string {
+  // S.6G — photo intents + presets that own a Product Experience Pack enter the guided funnel.
+  // Unowned presets keep Instant + Matrix MOTION_PRESET (no fake pack).
+  if (input.photoIntentId) {
+    const funnelParams = new URLSearchParams({
+      mode: "quick",
+      photoIntent: input.photoIntentId,
+    });
+    return `/studio/experience?${funnelParams.toString()}`;
+  }
+  if (input.presetId) {
+    const resolved = resolveCreativeExperience({ entryFan: input.presetId });
+    if (resolved.resolveSource === "entryFan") {
+      const funnelParams = new URLSearchParams({
+        mode: "quick",
+        preset: input.presetId,
+        experience: resolved.experienceId,
+      });
+      return `/studio/experience?${funnelParams.toString()}`;
+    }
+  }
+
   const params = new URLSearchParams();
   if (input.prefillId) {
     params.set("prefill", input.prefillId);
   }
   if (input.presetId) {
     params.set("preset", input.presetId);
-  }
-  if (input.photoIntentId) {
-    params.set("photoIntent", input.photoIntentId);
   }
   if (input.showcaseItemId) {
     params.set("showcaseItem", input.showcaseItemId);

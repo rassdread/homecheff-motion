@@ -14,6 +14,8 @@ export type CreativeIntentAnswers = {
   background?: string | null;
   smile?: string | null;
   suit?: string | null;
+  /** Alias for suit / clothing (LinkedIn attire question). */
+  attire?: string | null;
   mood?: string | null;
   energy?: string | null;
   camera?: string | null;
@@ -34,6 +36,9 @@ export type CreativeIntentAnswers = {
   quality?: string | null;
   voice?: string | null;
   music?: string | null;
+  /** HomeCheff / food packs */
+  dish?: string | null;
+  appetite?: string | null;
 };
 
 export type CreativeIntent = {
@@ -98,7 +103,7 @@ function defaultAspectForPlatform(platform: string | null): string | null {
 function mapSmileToEmotion(smile: string | null | undefined): string | null {
   if (!smile) return null;
   const s = smile.toLowerCase();
-  if (s.includes("soft") || s.includes("subtle")) return "warm_smile";
+  if (s.includes("soft") || s.includes("subtle") || s.includes("natural")) return "warm_smile";
   if (s.includes("big") || s.includes("bright")) return "confident_smile";
   if (s.includes("serious") || s.includes("none")) return "professional_neutral";
   return smile;
@@ -180,7 +185,8 @@ export function planCreativeIntent(input: {
     mappedStyle.lighting ??
     (a.background?.toLowerCase().includes("office") ? "soft_office" : null);
 
-  const styleProfile = a.styleProfile ?? mappedStyle.styleProfile;
+  const styleProfile =
+    a.styleProfile ?? mappedStyle.styleProfile ?? (a.appetite ? `appetite_${a.appetite}` : null);
 
   const qualityNotes: string[] = [];
   if (a.quality) qualityNotes.push(a.quality);
@@ -190,11 +196,13 @@ export function planCreativeIntent(input: {
   if (input.experience.status === "PARTIAL") {
     qualityNotes.push("experience_partial_engine");
   }
-  if (a.suit) qualityNotes.push(`attire:${a.suit}`);
+  if (a.suit || a.attire) qualityNotes.push(`attire:${a.suit ?? a.attire}`);
   if (a.background) qualityNotes.push(`background:${a.background}`);
   if (a.logo) qualityNotes.push("include_logo");
   if (a.brandColors) qualityNotes.push(`brand_colors:${a.brandColors}`);
   if (a.commercialTone) qualityNotes.push(`tone:${a.commercialTone}`);
+  if (a.dish) qualityNotes.push(`dish:${a.dish}`);
+  if (a.appetite) qualityNotes.push(`appetite:${a.appetite}`);
   if (a.music && policy.allowCameraVoiceMusicControls) qualityNotes.push(`music:${a.music}`);
   if (a.voice && policy.allowCameraVoiceMusicControls) qualityNotes.push(`voice:${a.voice}`);
 
@@ -262,11 +270,36 @@ export function planCreativeIntent(input: {
     qualityGuidance.push("advanced_fusion_motion_movie_via_director_mode");
   }
 
-  const unanswered = input.experience.quickQuestions.filter((q) => {
-    const key = q as keyof CreativeIntentAnswers;
-    const val = a[key];
-    return val == null || val === "";
-  }).slice(0, policy.maxQuickQuestions);
+  const registryKeyToAnswer: Record<string, keyof CreativeIntentAnswers> = {
+    business_style: "businessStyle",
+    background: "background",
+    smile: "smile",
+    attire: "suit",
+    suit: "suit",
+    logo: "logo",
+    brand_colors: "brandColors",
+    audience: "audience",
+    platform: "platform",
+    commercial_tone: "commercialTone",
+    dish: "dish",
+    appetite: "appetite",
+    vibe: "mood",
+    outdoor_indoor: "background",
+    moment: "story",
+    mood: "mood",
+    music: "music",
+    energy: "energy",
+    style: "styleProfile",
+  };
+
+  const unanswered = input.experience.quickQuestions
+    .filter((q) => {
+      const key = registryKeyToAnswer[q] ?? (q as keyof CreativeIntentAnswers);
+      const val = a[key];
+      if (key === "suit") return (a.suit == null || a.suit === "") && (a.attire == null || a.attire === "");
+      return val == null || val === "";
+    })
+    .slice(0, policy.maxQuickQuestions);
 
   return {
     intent,
