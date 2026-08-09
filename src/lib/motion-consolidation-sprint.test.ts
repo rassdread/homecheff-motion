@@ -30,10 +30,10 @@ describe("motion consolidation sprint", () => {
     assert.ok(sports.some((e) => e.presetId === "penalty_kick"));
   });
 
-  it("photo intent prefill targets instant wizard", () => {
+  it("photo intent prefill targets Experience Pack funnel (S.6G)", () => {
     const pkg = buildMotionHubPrefillPackage({ photoIntentId: "animate_photo" });
     assert.ok(pkg);
-    assert.match(pkg!.targetRoute, /\/animate\/instant/);
+    assert.match(pkg!.targetRoute, /\/studio\/experience/);
     assert.equal(pkg!.protectionSettings?.preserveIdentity, true);
   });
 

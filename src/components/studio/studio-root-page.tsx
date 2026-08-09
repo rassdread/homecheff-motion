@@ -17,6 +17,7 @@ import { WorkspaceLoadingSkeleton } from "@/components/ui/motion-studio-primitiv
 import {
   resolveOrchestratorIntentFromSearchParams,
 } from "@/components/studio/studio-production-orchestrator-panel";
+import { StudioConsumerExperienceBridge } from "@/components/studio/studio-consumer-experience-bridge";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { brand } from "@/lib/brand";
 import { growthSidebarLayoutClasses } from "@/lib/growth-sidebar-layout";
@@ -125,6 +126,7 @@ function StudioRootContent() {
   return (
     <StudioAuthGate>
       <main className={`flex ${growthSidebarLayoutClasses.pageFloorFlex} ${brand.softGradientBg}`}>
+        <StudioConsumerExperienceBridge redirectQuickToFunnel />
         <HcProjectAutoCreateBridge sourceModule="studio" />
         <StudioShellHeader
           projectTitle={hcProject?.title}
