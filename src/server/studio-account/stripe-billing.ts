@@ -3,7 +3,13 @@
  */
 
 import { prisma } from "@/lib/prisma";
-import { getStripeClient, assertStripeSecretKeyConfigured } from "@/lib/stripe-server";
+import {
+  getStripeClient,
+  assertStripeSecretKeyConfigured,
+  assertConfiguredStripePriceMatchesKeyMode,
+  getStripeSecretKeyMode,
+} from "@/lib/stripe-server";
+import { isStripeCheckoutSessionIdMatchingMode } from "@/lib/stripe-mode";
 import { ensureStudioAccount } from "@/server/studio-account/ensure-studio-account";
 import {
   getStudioCreditPackBySlug,
@@ -216,7 +222,17 @@ export async function createCreditPackCheckout(input: {
   const priceId = resolvePackStripePriceId(pack);
   const customerId = await ensureStripeCustomer(input.userId, input.email);
   const stripe = getStripeClient();
+  const keyMode = getStripeSecretKeyMode();
   const totalCredits = totalPackCredits(pack);
+
+  if (priceId) {
+    try {
+      await assertConfiguredStripePriceMatchesKeyMode(priceId);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Stripe mode mismatch.";
+      return { error: message };
+    }
+  }
 
   const useStripePromo = Boolean(stripePromotionCodeId && priceId);
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = useStripePromo
@@ -273,6 +289,12 @@ export async function createCreditPackCheckout(input: {
 
   if (!session.url) {
     return { error: "Failed to create checkout session." };
+  }
+
+  if (!isStripeCheckoutSessionIdMatchingMode(session.id, keyMode)) {
+    return {
+      error: `STRIPE_MODE_MIXED: checkout session ${session.id} does not match secret key mode ${keyMode}.`,
+    };
   }
 
   return { sessionId: session.id, url: session.url, promoPreview };
