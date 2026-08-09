@@ -8,6 +8,7 @@ import {
 import type { StudioWorldProfileListItem } from "@/types/studio-api";
 import { buildSceneMemoryBundleFromSceneRow } from "@/lib/studio-scene-memory-bundle";
 import { studioSceneDetailToPromptInput } from "@/lib/studio-scene-to-prompt-input";
+import { buildSceneStillViaMatrix } from "@/lib/studio-prompt-matrix/scene-still";
 import type { PromptBuilderOutput } from "@/types/studio-prompt-builder";
 import type { SceneSnapshot } from "@/types/studio-scene-snapshot";
 import type { StudioSceneDetail, StudioStoryboardDetail } from "@/types/studio-api";
@@ -37,7 +38,9 @@ function buildPromptSourceEntitiesFromSceneRow(
   return buildPromptSourceEntitiesFromSceneDetail(sceneDetail, collectWorldsFromWorldProfilePicks(worldPicks));
 }
 
-/** Unified production prompt path — same sourceEntities + director context as preview. */
+/** Unified production prompt path — same sourceEntities + director context as preview.
+ * S.6E: ContinuityBundle → Prompt Matrix → existing builder (output remains builder-equivalent).
+ */
 export function buildScenePromptFromSceneRow(
   row: StudioStoryboardSceneRow,
   styleProfile?: StudioPromptStyleProfile | string,
@@ -50,12 +53,16 @@ export function buildScenePromptFromSceneRow(
     storyboard: options?.storyboard,
   });
 
-  return buildScenePromptFromInput(
-    studioSceneDetailToPromptInput(sceneDetail, styleProfile, directorProfile, {
-      sourceEntities,
-      directorContextLines,
-    })
-  );
+  const input = studioSceneDetailToPromptInput(sceneDetail, styleProfile, directorProfile, {
+    sourceEntities,
+    directorContextLines,
+  });
+
+  return buildSceneStillViaMatrix(input, {
+    durationSeconds: sceneDetail.durationSeconds ?? null,
+    storyboardId: options?.storyboard?.id ?? null,
+    storyboardTitle: options?.storyboard?.title ?? null,
+  }).builderOutput;
 }
 
 export function buildScenePromptForDetail(
@@ -73,12 +80,15 @@ export function buildScenePromptForDetail(
   const directorContextLines = buildSceneDirectorContextLines(scene, sourceEntities, {
     storyboard: options?.storyboard,
   });
-  return buildScenePromptFromInput(
-    studioSceneDetailToPromptInput(scene, styleProfile, undefined, {
-      sourceEntities,
-      directorContextLines,
-    })
-  );
+  const input = studioSceneDetailToPromptInput(scene, styleProfile, undefined, {
+    sourceEntities,
+    directorContextLines,
+  });
+  return buildSceneStillViaMatrix(input, {
+    durationSeconds: scene.durationSeconds ?? null,
+    storyboardId: options?.storyboard?.id ?? null,
+    storyboardTitle: options?.storyboard?.title ?? null,
+  }).builderOutput;
 }
 
 export function buildScenePromptForSnapshot(
