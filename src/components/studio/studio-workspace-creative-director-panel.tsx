@@ -164,6 +164,23 @@ export function StudioWorkspaceCreativeDirectorPanel({ storyboard }: Props) {
         </ol>
       </section>
 
+      <section className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-2">
+        <h3 className="text-sm font-semibold text-zinc-900">
+          {t("studio.creativeDirector.section.coach")}
+        </h3>
+        <p className="text-xs text-zinc-500">{t("studio.creativeDirector.coach.hint")}</p>
+        <ul className="mt-2 flex flex-wrap gap-2">
+          {orchestration.coachSuggestions.map((s) => (
+            <li
+              key={s.id}
+              className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs text-zinc-700"
+            >
+              {s.label}
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <section className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4">
         <h3 className="text-sm font-semibold text-amber-950">
           {t("studio.creativeDirector.section.boundaries")}

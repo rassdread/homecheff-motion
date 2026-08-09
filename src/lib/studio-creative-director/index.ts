@@ -55,3 +55,9 @@ export {
   type CreativeDirectorOrchestrateInput,
   type CreativeDirectorOrchestration,
 } from "@/lib/studio-creative-director/director-engine";
+
+export {
+  assertCoachSuggestionsNeverForced,
+  getCreativeCoachSuggestions,
+  type CreativeCoachSuggestion,
+} from "@/lib/studio-creative-director/creative-coach";

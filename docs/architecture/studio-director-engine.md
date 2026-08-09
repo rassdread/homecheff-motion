@@ -35,6 +35,7 @@ Creative Director never bypasses this chain.
 | Experience resolver | `experience-resolver.ts` | Door / fan → product experience |
 | Mode policy | `mode-policy.ts` | Quick / Professional / Director gates |
 | Creative planner | `creative-planner.ts` | Provider-neutral intent + Matrix selections |
+| Creative Coach | `creative-coach.ts` | Optional suggestions (`forced: false` always) |
 | Director engine | `director-engine.ts` | `orchestrateCreativeDirector` |
 
 ---
@@ -73,3 +74,11 @@ Creative Director never bypasses this chain.
 - `delegatedSystems` (continuity, matrix, transform, jobs, fusion, motion, billing, credits)
 
 Downstream systems remain authoritative for their layers.
+
+---
+
+## Creative Coach in the chain
+
+`orchestrateCreativeDirector` attaches `coachSuggestions` after resolve/plan.
+
+Coach output is advisory only. It is not Continuity, not Matrix assembly, and not a GenerationJob input unless the user later accepts a suggestion into answers/selections.

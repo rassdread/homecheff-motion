@@ -157,4 +157,20 @@ describe("S.6F Creative Director", () => {
     assert.equal(dating.experience.status, "MISSING");
     assert.ok(dating.plan.intent.qualityNotes.includes("experience_pack_not_implemented"));
   });
+
+  it("offers Creative Coach suggestions that are never forced", () => {
+    const restaurant = orchestrateCreativeDirector({
+      experienceId: "BUSINESS_RESTAURANT",
+      mode: "PROFESSIONAL",
+    });
+    assert.ok(restaurant.coachSuggestions.length >= 3);
+    assert.ok(restaurant.coachSuggestions.every((s) => s.forced === false));
+    assert.ok(restaurant.coachSuggestions.some((s) => /food|chef|steam|menu/i.test(s.label)));
+
+    const linkedin = orchestrateCreativeDirector({
+      experienceId: "PEOPLE_LINKEDIN_PHOTO",
+      mode: "QUICK",
+    });
+    assert.ok(linkedin.coachSuggestions.some((s) => /smile|background|clothing/i.test(s.label)));
+  });
 });

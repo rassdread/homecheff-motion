@@ -11,6 +11,11 @@
  */
 
 import {
+  assertCoachSuggestionsNeverForced,
+  getCreativeCoachSuggestions,
+  type CreativeCoachSuggestion,
+} from "@/lib/studio-creative-director/creative-coach";
+import {
   planCreativeIntent,
   type CreativeIntentAnswers,
   type CreativePlan,
@@ -74,6 +79,8 @@ export type CreativeDirectorOrchestration = {
   experience: ResolvedCreativeExperience;
   plan: CreativePlan;
   recommendedPlanners: StudioDelegatedPlannerId[];
+  /** Optional Creative Coach ideas — never forced, never identity-mutating. */
+  coachSuggestions: CreativeCoachSuggestion[];
   ownership: typeof STUDIO_CREATIVE_DIRECTOR_OWNERSHIP;
   handoff: CreativeDirectorHandoff;
   /** Human-readable orchestration summary (no provider prompts). */
@@ -127,6 +134,14 @@ export function orchestrateCreativeDirector(
     mode
   );
 
+  const coachSuggestions = getCreativeCoachSuggestions({
+    experienceId: experience.experienceId,
+    family: experience.family,
+  });
+  if (!assertCoachSuggestionsNeverForced(coachSuggestions)) {
+    throw new Error("Creative Coach must never force suggestions");
+  }
+
   const handoff: CreativeDirectorHandoff = {
     requiresContinuityBundle: true,
     continuityRequirements: experience.continuityRequirements,
@@ -163,6 +178,7 @@ export function orchestrateCreativeDirector(
     experience,
     plan,
     recommendedPlanners,
+    coachSuggestions,
     ownership: STUDIO_CREATIVE_DIRECTOR_OWNERSHIP,
     handoff,
     summary,

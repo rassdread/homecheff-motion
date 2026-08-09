@@ -121,13 +121,34 @@ Storyboard → Characters / Locations / Props / Worlds → Scenes → Movie Buil
 
 ---
 
-## 8. Future compatibility
+## 8. Creative Coach
 
-Prepared for Marketplace, Growth, HomeCheff, Studio, Enterprise **without coupling** — Director only emits product intent + Matrix selections + planner recommendations.
+Director also acts as Creative Coach (`creative-coach.ts`).
+
+- Proactive optional suggestions (restaurant, LinkedIn, dating, wedding, HomeCheff, family fallbacks).
+- Every suggestion has `forced: false`.
+- Never mutates Character / Location / Prop / World / Brand identity or user intent.
+- Shown in the workspace panel; user decides what to apply.
+
+Learning may improve future recommendations later. It must never silently rewrite identity or Continuity.
 
 ---
 
-## 9. Related docs
+## 9. Future AI agents
+
+Specialized coaches (Marketing, Brand, Restaurant, Fashion, Social, Video, Photography, HomeCheff) may **advise** the Creative Director.
+
+They never bypass ContinuityBundle → Prompt Matrix → Provider Transform → GenerationJobs.
+
+---
+
+## 10. Future compatibility
+
+Prepared for Marketplace, Growth, HomeCheff, Studio, Enterprise **without coupling** — Director only emits product intent + Matrix selections + planner recommendations + optional coach ideas.
+
+---
+
+## 11. Related docs
 
 - `docs/architecture/studio-director-engine.md`
 - `docs/architecture/studio-experience-registry.md`

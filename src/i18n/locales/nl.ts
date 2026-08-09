@@ -4473,6 +4473,9 @@ export const nl = {
   "studio.creativeDirector.section.mode": "Productmodus",
   "studio.creativeDirector.section.experience": "Creatieve ervaring",
   "studio.creativeDirector.section.plan": "Orkestratieplan",
+  "studio.creativeDirector.section.coach": "Creative Coach-ideeën",
+  "studio.creativeDirector.coach.hint":
+    "Alleen optionele suggesties. Niets wordt toegepast totdat jij kiest. Identiteit en Continuity blijven van jou.",
   "studio.creativeDirector.section.boundaries": "Eigendomsgrenzen",
   "studio.creativeDirector.mode.QUICK": "Snel",
   "studio.creativeDirector.mode.PROFESSIONAL": "Professioneel",

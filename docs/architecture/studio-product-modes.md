@@ -39,3 +39,9 @@ requested mode → else preferDirector → else preferProfessional → else QUIC
 ```
 
 Matrix `detailLevel` mirrors the product mode (QUICK | PROFESSIONAL | DIRECTOR).
+
+---
+
+## Coach across modes
+
+Creative Coach suggestions are available in all three modes. Mode policy may later filter suggestion density; suggestions remain optional and never auto-apply.

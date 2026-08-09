@@ -18,6 +18,7 @@
 | Director Engine `orchestrateCreativeDirector` | DONE |
 | Three product modes (policy) | DONE |
 | Adaptive Workspace thin tool (`creativeDirector`) | DONE |
+| Creative Coach (optional suggestions, never forced) | DONE |
 | Continuity / Matrix / Jobs / Fusion / Motion / Credits / Billing untouched as owners | DONE |
 | Architecture docs | DONE |
 
@@ -25,7 +26,7 @@
 
 ## Code
 
-- `src/lib/studio-creative-director/*`
+- `src/lib/studio-creative-director/*` (incl. `creative-coach.ts`)
 - Workspace: `StudioToolId.creativeDirector` + `StudioWorkspaceCreativeDirectorPanel`
 - Tests: `src/lib/studio-creative-director/studio-creative-director.test.ts`
 
@@ -33,9 +34,9 @@
 
 ## Ownership preserved
 
-Director **owns:** experience selection, creative intent, planner recommendations, workflow/quality guidance, mode, Matrix selections.
+Director **owns:** experience selection, creative intent, planner recommendations, workflow/quality guidance, mode, Matrix selections, optional Creative Coach ideas.
 
-Director **never owns:** identity entities, ContinuityBundle, prompt assembly, provider transforms, credits, billing, GenerationJobs, Fusion pixel rules.
+Director **never owns:** identity entities, ContinuityBundle, prompt assembly, provider transforms, credits, billing, GenerationJobs, Fusion pixel rules. Coach never forces and never silently mutates identity.
 
 ---
 

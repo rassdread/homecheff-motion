@@ -4479,6 +4479,9 @@ export const en: LocaleSchema = {
   "studio.creativeDirector.section.mode": "Product mode",
   "studio.creativeDirector.section.experience": "Creative experience",
   "studio.creativeDirector.section.plan": "Orchestration plan",
+  "studio.creativeDirector.section.coach": "Creative Coach ideas",
+  "studio.creativeDirector.coach.hint":
+    "Optional suggestions only. Nothing is applied until you choose it. Identity and Continuity stay yours.",
   "studio.creativeDirector.section.boundaries": "Ownership boundaries",
   "studio.creativeDirector.mode.QUICK": "Quick",
   "studio.creativeDirector.mode.PROFESSIONAL": "Professional",

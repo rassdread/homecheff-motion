@@ -37,6 +37,10 @@ MISSING packs (e.g. dating, memorial) stay registered without fake LIVE engines.
 
 Experience ID · Family · Creative goal · Required/optional assets · Recommended planners · Continuity requirements · Generation strategy · Provider capabilities · Quick questions
 
+### Expandable / data-driven
+
+New experiences are registry rows (family + Matrix mapping + planners + status). No hardcoded per-experience workflows in the Director Engine. The same resolver → planner → Matrix chain must support hundreds of experiences (People, Business, Lifestyle, Travel, Luxury, Food, Pets, Automotive, Fashion, Real Estate, Sports, Education, Entertainment, Health, Seasonal, Holiday, Events, …).
+
 ---
 
 ## S.6E Matrix registry (engines)
