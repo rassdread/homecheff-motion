@@ -1,11 +1,13 @@
 # Studio Experience Registry
 
-Two layers (do not collapse):
+Three layers (do not collapse):
 
 1. **S.6E Prompt Matrix registry** — canonical *engine* IDs (`StudioCreativeExperienceId`, 24 IDs).
 2. **S.6F Product experience registry** — canonical *product* experiences users choose (`StudioProductExperienceId`, 51 IDs).
+3. **S.6G Experience Packs** — curated consumer workflows (= product IDs with guided doors/questions/coach). Not new engines.
 
-Product experiences map onto Matrix engines. Product registry never duplicates Matrix ownership.
+Product experiences map onto Matrix engines. Product registry never duplicates Matrix ownership.  
+Packs are the consumer name for product experiences (`docs/architecture/studio-experience-packs.md`).
 
 ---
 
@@ -64,3 +66,12 @@ SEO marketing slugs are **not** product or Matrix experience IDs.
 ## Migration honesty
 
 Do not claim MATRIX_NATIVE for all experiences because scene stills are wrapped. Compliance is per Matrix registry entry.
+
+---
+
+## S.6G Experience Packs
+
+**Audit:** `docs/audits/studio-s6g-consumer-experience-audit.md`  
+**Pack catalog:** `docs/audits/studio-s6g-experience-pack-registry.md`
+
+Experience Packs reuse the S.6F product registry as SoT. S.6G work connects Instant / Fusion / Motion / Studio start / Maak doors through Creative Director → Continuity → Matrix without redesigning Workspace or inventing engines.
