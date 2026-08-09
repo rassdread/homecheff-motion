@@ -73,5 +73,5 @@ Global Studio law still applies: Continuity → Matrix → Creative Director →
 
 ## Next
 
-S.7D — Music & SFX Ecosystem (certified separately).  
-S.7E — Subtitles & Translation (after S.7D GO).
+S.7E — Subtitles & Translation (certified separately).  
+S.8 — Billing, Credits & Financial Audit (after S.7E GO).
