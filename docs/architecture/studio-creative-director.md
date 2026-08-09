@@ -1,9 +1,10 @@
 # Studio Creative Director (S.6F)
 
-**Status:** Implemented (architecture + thin workspace surface)  
+**Status:** COMPLETE / production GREEN  
 **Version:** `6f.1`  
 **Code:** `src/lib/studio-creative-director/`  
-**Depends on:** S.6C Continuity Foundation, S.6E Prompt Matrix (COMPLETE / production GREEN)
+**Depends on:** S.6C Continuity Foundation, S.6E Prompt Matrix (COMPLETE / production GREEN)  
+**Merge:** `c5bdeec5` (PR #9) · Production: `dpl_Da2pRrGqhjoFDhC34zkQY6FW74Cg`
 
 ---
 

@@ -79,7 +79,8 @@ Storyboard → characters / locations / props / worlds → scenes → Movie Buil
 - [x] Build PASS
 - [x] TypeScript PASS
 - [x] Preview GREEN (`dpl_EgRakbq9NFEu9zXvSfiUNeu5Khmq`, HEAD `e77c4170`)
-- [ ] PR / Merge / Production (after this cert)
+- [x] PR [#9](https://github.com/rassdread/homecheff-motion/pull/9) MERGED (`c5bdeec5`)
+- [x] Production GREEN (`dpl_Da2pRrGqhjoFDhC34zkQY6FW74Cg`)
 
 ---
 
@@ -94,6 +95,20 @@ Storyboard → characters / locations / props / worlds → scenes → Movie Buil
 | Smoke | App shell responds; Studio workspace route served (auth-gated as expected) |
 
 **Verdict after Preview GREEN:** GO FOR MERGE
+
+---
+
+## Production certification
+
+| Field | Value |
+|-------|-------|
+| Merge | `c5bdeec5` |
+| Deploy | `dpl_Da2pRrGqhjoFDhC34zkQY6FW74Cg` |
+| Status | Ready |
+| Aliases | https://studio.homecheff.eu · https://motion.homecheff.eu |
+| Smoke | `/studio/workspace` and `/login` HTTP 200 |
+
+**Final verdict:** GO — S.6F Creative Director COMPLETE
 
 ---
 
