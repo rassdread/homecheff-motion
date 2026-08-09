@@ -11,7 +11,7 @@
 |-------|-------|
 | **Repository** | `homecheff video ai` |
 | **Branch** | `main` |
-| **Implementation commit** | `a29c2e88784346bba3dda20819b7e8b69bbd8508` |
+| **Implementation commit** | `0930f043d00dd31d4a75b1f6b3ace7a953754c57` |
 | **Admin surfaces extended** | Billing analytics/overview; Billing tabs: Auto Top-Up, Generation jobs, Reconciliation, Promo codes; Admin top nav Billing + Studio finance |
 | **Billing Analytics fixed** | **YES** — commercial EUR from Stripe amounts / pack catalog + subscription_payment; FX-correct margin |
 | **Auto Top-Up monitoring** | **YES** — `/admin/billing/auto-topup` |
