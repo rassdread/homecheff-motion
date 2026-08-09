@@ -18,6 +18,7 @@ const TOOL_LABEL_KEYS: Record<StudioToolId, TranslationKey> = {
   creativeReview: "studio.tools.creativeReview",
   storyArchitecture: "studio.tools.storyArchitecture",
   directorPreferences: "studio.tools.directorPreferences",
+  creativeDirector: "studio.tools.creativeDirector",
   story: "studio.tools.story",
   characters: "studio.tools.characters",
   locations: "studio.tools.locations",

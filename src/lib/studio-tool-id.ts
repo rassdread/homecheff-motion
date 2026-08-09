@@ -6,6 +6,7 @@ export type StudioToolId =
   | "creativeReview"
   | "storyArchitecture"
   | "directorPreferences"
+  | "creativeDirector"
   | "story"
   | "characters"
   | "locations"
@@ -32,6 +33,7 @@ export const STUDIO_TOOL_IDS: StudioToolId[] = [
   "creativeReview",
   "storyArchitecture",
   "directorPreferences",
+  "creativeDirector",
   "story",
   "characters",
   "locations",

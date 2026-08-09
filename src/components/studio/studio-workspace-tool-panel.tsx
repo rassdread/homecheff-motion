@@ -24,6 +24,7 @@ import { StudioWorkspaceCreationAssistantPanel } from "@/components/studio/studi
 import { StudioWorkspaceProductionHistoryPanel } from "@/components/studio/studio-workspace-production-history-panel";
 import { StudioWorkspaceStoryArchitecturePanel } from "@/components/studio/studio-workspace-story-architecture-panel";
 import { StudioWorkspaceDirectorPreferencesPanel } from "@/components/studio/studio-workspace-director-preferences-panel";
+import { StudioWorkspaceCreativeDirectorPanel } from "@/components/studio/studio-workspace-creative-director-panel";
 import { StudioWorkspaceInsightsHubPanel } from "@/components/studio/studio-workspace-insights-hub-panel";
 import { StudioWorkspaceSnapshotsSection } from "@/components/studio/studio-workspace-snapshots-section";
 import {
@@ -345,6 +346,10 @@ export function StudioWorkspaceToolPanel({
 
   if (tool === "directorPreferences") {
     return <StudioWorkspaceDirectorPreferencesPanel storyboard={storyboard} />;
+  }
+
+  if (tool === "creativeDirector") {
+    return <StudioWorkspaceCreativeDirectorPanel storyboard={storyboard} />;
   }
 
   if (tool === "productionHistory") {

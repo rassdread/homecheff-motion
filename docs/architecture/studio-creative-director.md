@@ -1,9 +1,9 @@
-# Studio Creative Director (S.6F Architecture — Design Only)
+# Studio Creative Director (S.6F)
 
-**Status:** Architecture design — **not implemented**  
-**Date:** 2026-08-09  
-**Depends on:** S.6C Continuity Foundation, S.6E Prompt Matrix (COMPLETE / production GREEN)  
-**Nature:** Orchestrator over existing Directors/planners. Does **not** replace Continuity, Matrix, Transforms, or GenerationJobs.
+**Status:** Implemented (architecture + thin workspace surface)  
+**Version:** `6f.1`  
+**Code:** `src/lib/studio-creative-director/`  
+**Depends on:** S.6C Continuity Foundation, S.6E Prompt Matrix (COMPLETE / production GREEN)
 
 ---
 
@@ -24,139 +24,113 @@ It must **never** own Character/Location/Prop/World memory or provider prompt sy
 
 ---
 
-## 2. What exists today (discovery summary)
+## 2. Responsibilities
 
-Studio already has a **Director swarm** (~40 planning systems), not a single Creative Director:
+### Owns
 
-| Cluster | Examples | Status |
-|---------|----------|--------|
-| Profile directors | `directorProfile` (6), `promptStyleProfile` (6) | LIVE |
-| Scene camera language | shot / movement / energy (`studio-scene-director`) | LIVE |
-| Auto planning | Auto Shot Planner, shot planner UI, story arc, energy curve | LIVE |
-| Proposal pipeline | `buildDirectorProposal` → apply / compare / memory | LIVE |
-| Domain directors | Music, Sound, Voice, Voice-identity, Audio-production, Audio-asset, Media-asset, Composition, Placement, Blocking, Attention | LIVE planning / PARTIAL (many handoff-only) |
-| Interpreter / wizard | AI Director interpreter + direction, V10/V11, production brief | LIVE / PARTIAL |
-| UI shells | Director V2 panel (default), Classic AI Director | LIVE / LEGACY |
-| Production surfaces | Movie Builder, Production Center, Production Planner, HC orchestrator | ADVANCED |
-| Assistants | Creation Assistant, Homecheff Assistant interpret/execute | LIVE entry fans |
-| Provider planning | Provider assignment + execution director | PARTIAL (plan ≠ runtime) |
-| Not found as modules | Dedicated lighting / mood / style / camera planners | — |
+- Experience selection
+- Creative intent
+- Planning recommendations
+- Workflow guidance
+- Quality guidance
+- Mode selection (Quick / Professional / Director)
+- CreativeSpecification **selections** (feeds Matrix)
 
-S.6F’s job is to **orchestrate these**, not invent Director #N+1 that owns identity or prompts.
+### Never owns
 
----
-
-## 3. Target orchestration role
-
-```
-User intent / mode (Quick | Professional | Director)
-        ↓
-Creative Director (policy + proposal orchestration)
-        ↓
-Existing domain directors / planners (shot, music, voice, …)
-        ↓
-Scene / storyboard field writes (persisted creative choices)
-        ↓
-ContinuityBundle resolve (unchanged ownership)
-        ↓
-Prompt Matrix → CreativeSpecification
-        ↓
-Provider Transform → GenerationJob → Runtime provider
-```
-
-### Creative Director MUST
-
-- Accept `detailLevel`: QUICK | PROFESSIONAL | DIRECTOR
-- Call existing planners (auto-shot, music, voice, …) via a **policy interface**
-- Respect explicit user locks
-- Emit proposals that apply to scene/storyboard fields
-- Pass through ContinuityBundle untouched
-- Remain inside `StudioWorkspaceShell` (`/studio?storyboardId=`)
-
-### Creative Director MUST NOT
-
-- Rewrite Continuity entity memory
-- Flatten Characters/Locations/Props into anonymous prose
-- Call providers or invent provider prompt strings
-- Own credit/price decisions
-- Become a separate app/shell
-- Delete Classic/Director V2/Movie Builder surfaces
+- Character / location / prop / world identity
+- ContinuityBundle
+- Prompt writing / assembly
+- Provider transforms
+- Credits / billing
+- Providers / GenerationJobs
+- Fusion pixel preservation
 
 ---
 
-## 4. Policy interface (conceptual)
+## 3. Director Engine
+
+See `docs/architecture/studio-director-engine.md`.
+
+Entry: `orchestrateCreativeDirector({ experienceId | entryFan | doorHint, mode, answers })`.
+
+Chain:
 
 ```
-DirectorPolicy {
-  detailLevel
-  experienceId          // from S.6E registry
-  userLocks             // fields user set explicitly
-  continuitySummary     // IDs + strengths only (not rewrite)
-  existingSceneState
-}
-
-DirectorProposal {
-  shotType?, cameraMovement?, sceneEnergy?
-  directorProfile?, styleProfile?
-  durationHint?, platformHint?, aspectHint?
-  musicPlan?, soundPlan?, voicePlan?
-  rationale[]
-  sourcePlanners[]      // which existing modules contributed
-}
+User → Creative Director → Experience Resolver → Creative Planner
+  → selections → ContinuityBundle → Prompt Matrix → Provider Transform
+  → GenerationJob → Provider
 ```
-
-Apply path remains today’s `applyDirectorProposal` (or successor wrapper) — **writes scene fields**, then Matrix reads them.
 
 ---
 
-## 5. Provider independence
+## 4. Experience Registry
 
-Director works only with **creative intent** and persisted scene/storyboard fields.
+Canonical product registry: `docs/architecture/studio-experience-registry.md` (S.6F section).  
+51 product experiences · 5 families · unique entry-fan ownership · maps to S.6E Matrix IDs.
 
-| Allowed | Forbidden |
+---
+
+## 5. Three product modes
+
+See `docs/architecture/studio-product-modes.md`.
+
+| Mode | Target |
+|------|--------|
+| Quick | Consumers — fastest path |
+| Professional | Businesses — brand / audience / platform |
+| Director | Pro creators — full Studio, no feature loss |
+
+Architecture only; no shell redesign.
+
+---
+
+## 6. Workspace integration
+
+Lives inside Adaptive Workspace (`StudioWorkspaceShell`):
+
+| Surface | Placement |
 |---------|-----------|
-| “Use close-up + push_in + energetic” | “Vidu requires …” |
-| Prefer short social duration | Embedding Vidu negative strings |
-| Prefer cinematic style profile | OpenAI image-edit payload crafting |
+| Desktop | Right tools — Creative Director (Direct group) |
+| Tablet | Contextual panel |
+| Mobile | On-demand sheet (existing tool sheet) |
 
-Provider transforms (S.6E) remain the only provider-specific layer.
-
----
-
-## 6. Relation to S.6E Matrix
-
-| Layer | Owner after S.6F |
-|-------|------------------|
-| ContinuityBundle | Continuity |
-| CreativeSpecification assembly | Prompt Matrix |
-| Shot/energy/style **choices** | Creative Director (orchestrates existing planners) |
-| Provider request shaping | Provider Transform |
-| Job / credits | Generation orchestration |
-
-Matrix already accepts `detailLevel`. S.6F supplies policy that **feeds** selections; Matrix does not become the Director.
+- Tool id: `creativeDirector`
+- Panel: `StudioWorkspaceCreativeDirectorPanel`
+- No floating robot
+- No separate application
+- Classic / Fusion / Movie Builder / Production Center remain
 
 ---
 
-## 7. Non-negotiables validation
+## 7. Journeys
 
-Creative Director design respects NN-01…NN-15:
+### Consumer (Quick)
 
-- Storyboard multi-scene structure preserved  
-- Characters/Locations/Props/Worlds remain first-class  
-- Fusion pixel preservation stays outside Director text policy  
-- Motion handoff still carries source stills + approved continuity subset  
-- Canonical shell remains `/studio?storyboardId=`  
-- BrandKit/PromptPreset remain optional overlays (not identity)
+Upload selfie → LinkedIn Photo → business style / background / smile / suit → Director → ContinuityBundle → Prompt Matrix → Generation
+
+Same engine powers Wedding, Dating (MISSING pack), Family, Restaurant, Christmas (MISSING), Baby (MISSING), Travel, etc.
+
+### Professional
+
+Restaurant → logo / brand colors / audience / Instagram / commercial → Director → Matrix → Generation
+
+### Director
+
+Storyboard → Characters / Locations / Props / Worlds → Scenes → Movie Builder → Production → Motion → Publish
 
 ---
 
-## 8. Implementation readiness (audit verdict)
+## 8. Future compatibility
 
-**Ready to implement as orchestrator** if S.6F Implementation:
+Prepared for Marketplace, Growth, HomeCheff, Studio, Enterprise **without coupling** — Director only emits product intent + Matrix selections + planner recommendations.
 
-1. Introduces a thin orchestration API over existing planners  
-2. Does not rewrite Matrix / Continuity / Transforms  
-3. Modes = policy only (no mandatory new UI product)  
-4. Keeps Director V2 as the primary advanced surface  
+---
 
-See audit pack under `docs/audits/studio-s6f-creative-director-audit.md`.
+## 9. Related docs
+
+- `docs/architecture/studio-director-engine.md`
+- `docs/architecture/studio-experience-registry.md`
+- `docs/architecture/studio-product-modes.md`
+- `docs/audits/studio-s6f-implementation.md`
+- `docs/audits/studio-s6f-creative-director-audit.md`
