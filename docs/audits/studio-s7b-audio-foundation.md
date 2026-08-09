@@ -1,58 +1,72 @@
-# Studio S.7B — Audio Foundation Audit / Certification
+# Studio S.7B — Audio Foundation Certification
 
 **Date:** 2026-08-09  
+**PR:** [#11](https://github.com/rassdread/homecheff-motion/pull/11) — **MERGED**  
 **Branch:** `feat/studio-s7b-audio-foundation`  
-**Audit baseline:** `a2bc0a7b` (`docs(studio): freeze S.7A audio product truth`)
+**Implementation HEAD:** `9c750069`  
+**Merge commit:** `f65e0bb7`  
+**Audit baseline:** `a2bc0a7b`
 
 ---
 
-## Definition of Done checklist
+## Preview
 
-| Item | Status |
-|------|--------|
-| S.7A docs frozen | PASS |
-| Canonical audio ownership | PASS |
-| Dual voice SoT precedence | PASS |
-| Locked Character voice cannot be silently overridden | PASS (resolver + handoff) |
-| Narrator/default voice supported | PASS |
-| AudioSpecification | PASS |
-| Audio Continuity contract | PASS |
-| ElevenLabs provider boundary | PASS |
-| VOICE_TTS regression | PASS (unchanged path) |
-| VOICE_CLONE normalized/idempotent | PASS |
-| MUSIC_GENERATE normalized/idempotent | PASS |
-| SFX_GENERATE normalized/idempotent | PASS |
-| Cache-hit semantics explicit | PASS |
-| Admin/internal bypass classified | PASS |
-| Music ownership explicit | PASS (project bed) |
-| SFX current semantics honest | PASS (one bed) |
-| Subtitle / translation ownership explicit | PASS (docs + ownership module) |
-| Audio mix contract | PASS |
-| Character voice survives Motion handoff | PASS (resolver wired) |
-| Music survives render handoff | PASS (existing link; no regen on handoff) |
-| Audio assets reusable without regen | PASS (library + cache) |
-| Creative Director orchestrator only | PASS |
-| Prompt Matrix assembler | PASS |
-| Billing / credit prices unchanged | PASS |
-| Dubbing / lip-sync NOT_IMPLEMENTED | PASS |
-| S.8 registry updated | PASS |
-| Security / privacy / idempotency tests | Unit coverage + existing gates |
-| Lint / build / tests / tsc | See final report |
+| Check | Result |
+|-------|--------|
+| Vercel status | SUCCESS / Ready |
+| Deployment | [H4gib8rCMXZ4nKPJcPftrMzgcDZo](https://vercel.com/sergio-s-projects-f7b64ee1/homecheff-motion/H4gib8rCMXZ4nKPJcPftrMzgcDZo) |
+| Preview URL | https://homecheff-motion-git-feat-stu-df2b11-sergio-s-projects-f7b64ee1.vercel.app |
+| Commit | `9c750069` matches PR head |
+| Failed deploy | None |
+| Auth note | Preview behind Vercel SSO — Ready status + build success certified |
+
+## Local / code certification (committed implementation)
+
+| Area | Result | Evidence |
+|------|--------|----------|
+| Voice ownership / lock precedence | PASS | `resolveVoiceIdentity` + S.7B unit tests (12/12) |
+| ContinuityBundle.audio | PASS | `continuity-bundle.ts` + builder |
+| AudioSpecification provider-neutral | PASS | structured fields only; no ElevenLabs payload |
+| Prompt Matrix assembler | PASS | Matrix tests; no billing/jobs ownership |
+| ElevenLabs transform boundary | PASS | `studio-audio-provider-transforms.ts` |
+| VOICE_TTS / CLONE / MUSIC / SFX Jobs | PASS | routes + `runAudioGenerationJobRoute` |
+| Idempotency | PASS | header / clientMutationId → createGenerationJob |
+| Cache | PASS | skipCapture + CACHE_HIT_NO_CHARGE |
+| Motion handoff voice | PASS | `attach-voice-identity-handoff` uses resolver |
+| Billing / credits | PASS | `studio-action-cost-registry.ts` unchanged vs main |
+| Security ownership | PASS | clone/link filters `ownerId`; library scoped to session user |
+| Privacy | PASS | no sample/transcript/secret logging in new paths |
+| Lint / build / test / tsc | PASS | **4732/4732** |
+
+## Production
+
+| Check | Result |
+|-------|--------|
+| Vercel status | SUCCESS / Ready |
+| Deployment | [G6WwxXonDVhqvP2hs8E3rqduaG6o](https://vercel.com/sergio-s-projects-f7b64ee1/homecheff-motion/G6WwxXonDVhqvP2hs8E3rqduaG6o) |
+| Commit | `f65e0bb7` (merge of PR #11) |
+| `https://studio.homecheff.eu/` | HTTP 200 |
+| `https://studio.homecheff.eu/studio` | HTTP 200 (no error markers) |
+| `https://studio.homecheff.eu/studio/start` | HTTP 200 |
+| `https://studio.homecheff.eu/studio/experience` | HTTP 200 |
+| `https://motion.homecheff.eu/` | HTTP 308 → studio (expected) |
+| `/api/auth/session` | HTTP 200 |
+| Runtime boot errors | None observed |
+
+## Honest limits of this certification
+
+- Interactive paid ElevenLabs double-click smoke on production was **not** executed (avoid unnecessary provider spend); idempotency/cache certified via job wrapper + unit tests + route wiring.
+- Preview interactive UI behind Vercel SSO — deployment Ready + code gates used.
+- Character voice continuity into final render remains product-rated **PARTIAL** (single-narrator path can still use storyboard profile); lock precedence for speaking roles is certified.
 
 ---
 
-## GenerationJob coverage
+## Definition of Done
 
-| Capability | Before | After |
-|------------|--------|-------|
-| VOICE_TTS | Job | Job |
-| VOICE_CLONE | Bare | Job |
-| MUSIC_GENERATE | Bare | Job |
-| SFX_GENERATE | Bare | Job |
-| STT / Translate | Bare | Bare (deferred) |
+S.7B COMPLETE · Preview GREEN · Production GREEN
 
----
+## Verdict
 
-## Final decision
+**GO FOR STUDIO S.7C — VOICE & CHARACTER AUDIO**
 
-Issued only after Preview GREEN + production smoke in the final report.
+Do not start S.7C automatically.
