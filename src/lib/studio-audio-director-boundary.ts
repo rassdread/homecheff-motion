@@ -48,12 +48,12 @@ export const CREATIVE_DIRECTOR_AUDIO_BOUNDARY: Record<
   },
 };
 
-/** Experience pack status — S.7C voice packs are PARTIAL (mapped, not full consumer UIs). */
+/** Experience pack status — S.7C voice + S.7D music/sfx packs are PARTIAL. */
 export const STUDIO_AUDIO_EXPERIENCE_PACK_STATUS = {
   VoiceStudio: "PARTIAL",
   VoiceCloneStudio: "PARTIAL",
-  MusicStudio: "ENGINE_ONLY",
-  SfxStudio: "ENGINE_ONLY",
+  MusicStudio: "PARTIAL",
+  SfxStudio: "PARTIAL",
   SubtitleStudio: "PARTIAL",
   TranslateStudio: "PARTIAL",
 } as const;
