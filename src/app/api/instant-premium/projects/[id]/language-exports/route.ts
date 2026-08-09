@@ -25,7 +25,51 @@ import type { InstantSceneText } from "@/lib/story-overlay-templates";
 import { parseSceneTextsJson } from "@/lib/translate-scene-texts";
 import { parseInstantMode } from "@/lib/instant-premium-mode-types";
 import { projectUsesStoryOverlay } from "@/lib/story-language-export";
-import { runBilledProviderRoute, withEstimatedCredits } from "@/server/studio-account/studio-billed-route";
+import { withEstimatedCredits } from "@/server/studio-account/studio-billed-route";
+import {
+  resolveAudioRouteIdempotencyKey,
+  runAudioGenerationJobRoute,
+} from "@/server/studio-generation/run-audio-generation-job-route";
+import type { SessionUser } from "@/server/auth/session";
+
+async function runTranslationJobRoute<T>(input: {
+  request: Request;
+  user: Pick<SessionUser, "id" | "email" | "role">;
+  projectId: string;
+  clientMutationId?: string | null;
+  fingerprint: string;
+  confirmed?: boolean;
+  execute: () => Promise<T>;
+  isFailure: (result: T) => boolean;
+  getOutputAssetId: (result: T) => string | null;
+  mapSuccess: (result: T, estimatedCredits?: number) => Record<string, unknown>;
+  mapFailure: (result: T) => { error: string; code: string; status?: number };
+}): Promise<import("next/server").NextResponse> {
+  const idempotencyKey = resolveAudioRouteIdempotencyKey({
+    request: input.request,
+    clientMutationId: input.clientMutationId,
+    fallbackPrefix: `translate:${input.projectId}`,
+    operationFingerprint: input.fingerprint,
+  });
+  return runAudioGenerationJobRoute({
+    user: input.user,
+    capability: "TRANSLATE",
+    actionType: "translation_export",
+    idempotencyKey,
+    projectId: input.projectId,
+    confirmed: input.confirmed,
+    inputSnapshot: {
+      projectId: input.projectId,
+      fingerprint: input.fingerprint,
+      action: "translation_export",
+    },
+    execute: input.execute,
+    isFailure: input.isFailure,
+    getOutputAssetId: input.getOutputAssetId,
+    mapSuccess: input.mapSuccess,
+    mapFailure: input.mapFailure,
+  });
+}
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -101,7 +145,14 @@ export async function POST(request: Request, context: RouteContext) {
     sceneTexts?: InstantSceneText[];
     exportId?: string;
     versionNote?: string;
+    clientMutationId?: string;
+    confirmed?: boolean;
   };
+  const clientMutationId =
+    typeof raw.clientMutationId === "string" && raw.clientMutationId.trim()
+      ? raw.clientMutationId.trim().slice(0, 128)
+      : null;
+  const confirmed = raw.confirmed === true;
 
   if (raw.action === "update") {
     if (!raw.exportId?.trim()) {
@@ -134,11 +185,13 @@ export async function POST(request: Request, context: RouteContext) {
         { status: 400 }
       );
     }
-    return runBilledProviderRoute({
+    return runTranslationJobRoute({
+      request,
       user,
-      actionType: "translation_export",
       projectId,
-      relatedJobId: raw.exportId.trim(),
+      clientMutationId,
+      confirmed,
+      fingerprint: `translation_export:rerender:${projectId}:${raw.exportId.trim()}`,
       execute: async () => {
         try {
           const { exportId } = await rerenderLanguageExport({
@@ -156,24 +209,24 @@ export async function POST(request: Request, context: RouteContext) {
         }
       },
       isFailure: (result) => !result.ok,
-      onSuccess: (result, estimatedCredits) => {
+      getOutputAssetId: (result) => (result.ok ? result.exportId : null),
+      mapFailure: (result) =>
+        result.ok
+          ? { error: "Rerender failed.", code: "RERENDER_FAILED" }
+          : { error: result.message, code: result.code },
+      mapSuccess: (result, estimatedCredits) => {
         if (!result.ok) {
-          return NextResponse.json(
-            { ok: false, code: result.code, message: result.message },
-            { status: 400 }
-          );
+          return { ok: false, code: result.code, message: result.message };
         }
-        return NextResponse.json(
-          withEstimatedCredits(
-            {
-              ok: true,
-              exportId: result.exportId,
-              status: result.created?.status ?? "queued",
-              export: result.created ? mapExportRow(result.created) : null,
-              exports: result.exports.map(mapExportRow),
-            },
-            estimatedCredits
-          )
+        return withEstimatedCredits(
+          {
+            ok: true,
+            exportId: result.exportId,
+            status: result.created?.status ?? "queued",
+            export: result.created ? mapExportRow(result.created) : null,
+            exports: result.exports.map(mapExportRow),
+          },
+          estimatedCredits
         );
       },
     });
@@ -186,10 +239,13 @@ export async function POST(request: Request, context: RouteContext) {
         { status: 400 }
       );
     }
-    return runBilledProviderRoute({
+    return runTranslationJobRoute({
+      request,
       user,
-      actionType: "translation_export",
       projectId,
+      clientMutationId,
+      confirmed,
+      fingerprint: `translation_export:prepare:${projectId}:${raw.languageCode}`,
       execute: async () => {
         try {
           const prepared = await prepareLanguageExport({
@@ -211,52 +267,56 @@ export async function POST(request: Request, context: RouteContext) {
         }
       },
       isFailure: (result) => !result.ok,
-      onSuccess: (result, estimatedCredits) => {
+      getOutputAssetId: (result) => {
+        if (!result.ok) return null;
+        if ("exportId" in result.prepared && result.prepared.exportId) {
+          return result.prepared.exportId;
+        }
+        return `prepare:${projectId}:${raw.languageCode}`;
+      },
+      mapFailure: (result) =>
+        result.ok
+          ? { error: "Prepare failed.", code: "PREPARE_FAILED" }
+          : { error: result.message, code: result.code, status: result.httpStatus },
+      mapSuccess: (result, estimatedCredits) => {
         if (!result.ok) {
-          return NextResponse.json(
-            { ok: false, code: result.code, message: result.message },
-            { status: result.httpStatus ?? 400 }
-          );
+          return { ok: false, code: result.code, message: result.message };
         }
         const prepared = result.prepared;
         if (prepared.mode === "story_overlay") {
-          return NextResponse.json(
-            withEstimatedCredits(
-              {
-                ok: true,
-                mode: "story_overlay",
-                languageCode: raw.languageCode,
-                exportId: prepared.exportId ?? null,
-                sceneTexts: prepared.sceneTexts,
-                translationProvider: prepared.translationProvider,
-                translationFailed: prepared.translationFailed ?? false,
-                message: prepared.message,
-                sourceLanguage: prepared.sourceLanguage,
-                targetLanguage: prepared.targetLanguage,
-              },
-              estimatedCredits
-            )
-          );
-        }
-        return NextResponse.json(
-          withEstimatedCredits(
+          return withEstimatedCredits(
             {
               ok: true,
-              mode: "typography",
-              exportId: null,
+              mode: "story_overlay",
               languageCode: raw.languageCode,
-              layers: prepared.layers,
-              textLayers: prepared.textLayers,
-              previews: prepared.previews,
-              layerCount: prepared.layerCount,
+              exportId: prepared.exportId ?? null,
+              sceneTexts: prepared.sceneTexts,
               translationProvider: prepared.translationProvider,
-              typographyRenderQuality: prepared.typographyRenderQuality,
-              translationFailed: prepared.translationFailed,
+              translationFailed: prepared.translationFailed ?? false,
               message: prepared.message,
-              layerSourceStats: prepared.layerSourceStats,
+              sourceLanguage: prepared.sourceLanguage,
+              targetLanguage: prepared.targetLanguage,
             },
             estimatedCredits
-          )
+          );
+        }
+        return withEstimatedCredits(
+          {
+            ok: true,
+            mode: "typography",
+            exportId: null,
+            languageCode: raw.languageCode,
+            layers: prepared.layers,
+            textLayers: prepared.textLayers,
+            previews: prepared.previews,
+            layerCount: prepared.layerCount,
+            translationProvider: prepared.translationProvider,
+            typographyRenderQuality: prepared.typographyRenderQuality,
+            translationFailed: prepared.translationFailed,
+            message: prepared.message,
+            layerSourceStats: prepared.layerSourceStats,
+          },
+          estimatedCredits
         );
       },
     });
@@ -296,10 +356,13 @@ export async function POST(request: Request, context: RouteContext) {
     ? parseSceneTextsJson(raw.sceneTexts)
     : undefined;
 
-  return runBilledProviderRoute({
+  return runTranslationJobRoute({
+    request,
     user,
-    actionType: "translation_export",
     projectId,
+    clientMutationId,
+    confirmed,
+    fingerprint: `translation_export:render:${projectId}:${raw.languageCode}:${raw.exportId?.trim() ?? "new"}`,
     execute: async () => {
       try {
         const { exportId } = await createAndRenderLanguageExport({
@@ -369,33 +432,37 @@ export async function POST(request: Request, context: RouteContext) {
       }
     },
     isFailure: (result) => !result.ok,
-    onSuccess: (result, estimatedCredits) => {
-      if (!result.ok) {
-        return NextResponse.json(
-          {
-            ok: false,
+    getOutputAssetId: (result) => (result.ok ? result.exportId : null),
+    mapFailure: (result) =>
+      result.ok
+        ? { error: "Language export failed.", code: "LANGUAGE_EXPORT_FAILED" }
+        : {
+            error: result.message,
             code: result.code,
-            message: result.message,
-            exportId: result.exportId ?? null,
-            status: result.status ?? "failed",
-            languageCode: result.languageCode,
+            status: "httpStatus" in result ? result.httpStatus : 400,
           },
-          { status: result.httpStatus ?? 400 }
-        );
+    mapSuccess: (result, estimatedCredits) => {
+      if (!result.ok) {
+        return {
+          ok: false,
+          code: result.code,
+          message: result.message,
+          exportId: result.exportId ?? null,
+          status: result.status ?? "failed",
+          languageCode: result.languageCode,
+        };
       }
-      return NextResponse.json(
-        withEstimatedCredits(
-          {
-            ok: true,
-            exportId: result.exportId,
-            status: result.status,
-            outputVideoUrl: result.outputVideoUrl,
-            languageCode: result.languageCode,
-            export: result.created ? mapExportRow(result.created) : null,
-            exports: result.exports.map(mapExportRow),
-          },
-          estimatedCredits
-        )
+      return withEstimatedCredits(
+        {
+          ok: true,
+          exportId: result.exportId,
+          status: result.status,
+          outputVideoUrl: result.outputVideoUrl,
+          languageCode: result.languageCode,
+          export: result.created ? mapExportRow(result.created) : null,
+          exports: result.exports.map(mapExportRow),
+        },
+        estimatedCredits
       );
     },
   });

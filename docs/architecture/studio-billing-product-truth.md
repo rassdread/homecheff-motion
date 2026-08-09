@@ -104,4 +104,4 @@ Profit risk surfaces: admin bypass, cache free paths, production-chain bypass, f
 2. Action price SoT is **`STUDIO_ACTION_COST_REGISTRY`** with optional **`StudioPricingRule`** DB override.
 3. Subscriptions today sell **plan benefits + pack discounts + storage**, not monthly credit pools (`monthlyCredits: 0`).
 4. Admin role is a **hard credit bypass** (`admin_bypass`).
-5. GenerationJob coverage is **partial** — bare billed routes still exist (STT, translation, many images, motion charge-at-create).
+5. GenerationJob coverage is **partial** — S.8B wraps STT (`SUBTITLE_GENERATE`) and translation (`TRANSLATE`); remaining bare billed routes include bulk/improve images and Motion charge-at-create (EUR/wallet correlation documented).

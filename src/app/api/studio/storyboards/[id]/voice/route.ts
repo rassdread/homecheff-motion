@@ -96,6 +96,7 @@ export async function POST(request: Request, context: RouteContext) {
     headerKey: request.headers.get("idempotency-key"),
     clientMutationId,
     fallbackPrefix: `voice_tts:${id}:${frozenLanguage}`,
+    operationFingerprint: `voice_tts:${id}:${frozenLanguage}`,
   });
 
   const created = await createGenerationJob({

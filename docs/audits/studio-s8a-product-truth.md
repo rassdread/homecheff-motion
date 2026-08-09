@@ -100,15 +100,18 @@ What happens if a normal `user` generates without buying extra credits:
 
 ## Blocking findings (for financial foundation — not for this audit’s DoD)
 
-These do **not** block S.8A Product Truth completion. They are **inputs for S.8B**:
+These did **not** block S.8A Product Truth completion. They were **inputs for S.8B**.
 
-1. Deferred GenerationJob wraps: STT, translation  
-2. Idempotency fallback allows double-charge without client key  
-3. Dual monetization narratives (wallet vs EUR CustomerBillingEvent / Vidu)  
-4. Registry provider label vs OpenAI execution drift  
-5. Client localStorage credits must stay non-authoritative  
-6. Carry/expiry policy storage without proven enforcement job  
-7. Stale audit docs that contradict S.7B Job wiring  
+S.8B status (2026-08-09, see `studio-s8b-billing-credit-foundation.md`):
+
+1. Deferred GenerationJob wraps: STT, translation — **addressed in S.8B**  
+2. Idempotency fallback allows double-charge without client key — **addressed in S.8B** (deterministic fingerprint; no random paid keys)  
+3. Dual monetization narratives (wallet vs EUR CustomerBillingEvent / Vidu) — **documented / correlated; wallet remains SoT**  
+4. Registry provider label vs OpenAI execution drift — **addressed in S.8B**  
+5. Client localStorage credits must stay non-authoritative — **preserved + tested**  
+6. Carry/expiry policy storage without proven enforcement job — **honesty: UNLIMITED only claimed in prod until scheduler exists**  
+7. Stale audit docs that contradict S.7B Job wiring — forensic history preserved; S.8B docs supersede runtime claims  
+
 
 ---
 

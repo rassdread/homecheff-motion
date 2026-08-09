@@ -1,9 +1,11 @@
 /** Shared animation quality presets (server + client safe; no secrets). */
 
+import { USD_PER_CREDIT } from "@/lib/studio-credit-constants";
+
 export type AnimationPresetId = "basic" | "standard" | "pro" | "smooth";
 
-/** 1 Vidu credit pricing assumption for UI estimates only (not billing). */
-export const CREDIT_USD = 0.005;
+/** @deprecated Use USD_PER_CREDIT from studio-credit-constants — same value, single SoT. */
+export const CREDIT_USD = USD_PER_CREDIT;
 
 export const MIN_ANIMATION_IMAGES = 2;
 

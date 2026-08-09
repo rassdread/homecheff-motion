@@ -31,11 +31,19 @@ export async function runAudioGenerationJobRoute<TResult>(input: {
   user: Pick<SessionUser, "id" | "email" | "role">;
   capability: Extract<
     StudioGenerationCapability,
-    "VOICE_CLONE" | "MUSIC_GENERATE" | "SFX_GENERATE"
+    | "VOICE_CLONE"
+    | "MUSIC_GENERATE"
+    | "SFX_GENERATE"
+    | "SUBTITLE_GENERATE"
+    | "TRANSLATE"
   >;
   actionType: Extract<
     StudioActionType,
-    "voice_clone" | "music_generation" | "sfx_generation"
+    | "voice_clone"
+    | "music_generation"
+    | "sfx_generation"
+    | "subtitle_transcription"
+    | "translation_export"
   >;
   idempotencyKey: string;
   storyboardId?: string | null;
@@ -194,10 +202,13 @@ export function resolveAudioRouteIdempotencyKey(input: {
   request: Request;
   clientMutationId?: string | null;
   fallbackPrefix: string;
+  /** Deterministic operation identity when client omits keys */
+  operationFingerprint?: string | null;
 }): string {
   return resolveStudioGenerationIdempotencyKey({
     headerKey: input.request.headers.get("idempotency-key"),
     clientMutationId: input.clientMutationId,
+    operationFingerprint: input.operationFingerprint,
     fallbackPrefix: input.fallbackPrefix,
   });
 }

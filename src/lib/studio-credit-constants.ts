@@ -14,6 +14,9 @@ export const CREDIT_MARGIN_MULTIPLIER = 2.5;
 /** USD per credit unit for pricing conversion */
 export const USD_PER_CREDIT = 0.005;
 
+/** Compatibility alias — prefer USD_PER_CREDIT (S.8B single SoT). */
+export const CREDIT_USD = USD_PER_CREDIT;
+
 /**
  * Registry default for actionType `fusion_render` when no intent override is supplied.
  * Kept in sync with STUDIO_ACTION_COST_REGISTRY.fusion_render.defaultCreditCost.
@@ -56,6 +59,34 @@ export function usdToCredits(usd: number, minimum = 1): number {
 
 export function fusionIntentRenderCredits(intent: EditorFusionIntent): number {
   return FUSION_INTENT_RENDER_CREDITS[intent] ?? FUSION_INTENT_RENDER_FALLBACK_CREDITS;
+}
+
+/**
+ * Fusion pricing precedence (S.8B — no price changes):
+ * 1. Per-intent override from FUSION_INTENT_RENDER_CREDITS
+ * 2. Else FUSION_INTENT_RENDER_FALLBACK_CREDITS when intent unknown
+ * 3. Registry fusion_render default when no intent supplied
+ */
+export function resolveFusionCreditsForCharge(input: {
+  intent?: EditorFusionIntent | null;
+}): {
+  credits: number;
+  precedence: "intent_override" | "intent_fallback" | "registry_default";
+} {
+  if (input.intent) {
+    const mapped = FUSION_INTENT_RENDER_CREDITS[input.intent];
+    if (typeof mapped === "number") {
+      return { credits: mapped, precedence: "intent_override" };
+    }
+    return {
+      credits: FUSION_INTENT_RENDER_FALLBACK_CREDITS,
+      precedence: "intent_fallback",
+    };
+  }
+  return {
+    credits: FUSION_RENDER_ACTION_DEFAULT_CREDITS,
+    precedence: "registry_default",
+  };
 }
 
 /**

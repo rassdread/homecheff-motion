@@ -46,6 +46,7 @@ export async function POST(request: Request, context: RouteContext) {
     headerKey: request.headers.get("idempotency-key"),
     clientMutationId,
     fallbackPrefix: `video_generate:${id}`,
+    operationFingerprint: `video_generate:${id}`,
   });
 
   const created = await createGenerationJob({

@@ -131,19 +131,19 @@ export const STUDIO_ACTION_COST_REGISTRY: Record<StudioActionType, StudioActionC
     "character_generation",
     "account.action.characterGeneration",
     "studio",
-    "replicate",
+    "openai",
     0.04
   ),
   location_generation: entry(
     "location_generation",
     "account.action.locationGeneration",
     "studio",
-    "replicate",
+    "openai",
     0.04
   ),
-  prop_generation: entry("prop_generation", "account.action.propGeneration", "studio", "replicate", 0.04),
-  world_generation: entry("world_generation", "account.action.worldGeneration", "studio", "replicate", 0.05),
-  scene_generation: entry("scene_generation", "account.action.sceneGeneration", "studio", "replicate", 0.06),
+  prop_generation: entry("prop_generation", "account.action.propGeneration", "studio", "openai", 0.04),
+  world_generation: entry("world_generation", "account.action.worldGeneration", "studio", "openai", 0.05),
+  scene_generation: entry("scene_generation", "account.action.sceneGeneration", "studio", "openai", 0.06),
   voice_generation: entry(
     "voice_generation",
     "account.action.voiceGeneration",
@@ -254,7 +254,7 @@ export const STUDIO_ACTION_COST_REGISTRY: Record<StudioActionType, StudioActionC
     "image_generation",
     "account.action.imageGeneration",
     "editor",
-    "replicate",
+    "openai",
     0.04
   ),
   fusion_render: entry(

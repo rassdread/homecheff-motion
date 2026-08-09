@@ -309,18 +309,54 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
   if (type === "credit_pack") {
     const credits = Number(session.metadata?.totalCredits ?? session.metadata?.credits ?? 0);
     if (credits > 0) {
-      await grantStudioCredits({
-        userId,
-        credits,
-        actionType: "credit_purchase",
-        creditOrigin: "PURCHASED",
-        service: "billing",
-        metadataJson: {
-          stripeSessionId: session.id,
-          packId: session.metadata?.packId,
-          packSlug: session.metadata?.packSlug,
+      const alreadyGranted = await prisma.studioLedgerEntry.findFirst({
+        where: {
+          userId,
+          actionType: "credit_purchase",
+          AND: [
+            {
+              metadataJson: {
+                path: ["stripeSessionId"],
+                equals: session.id,
+              },
+            },
+          ],
         },
-        lifetimeField: "lifetimePurchased",
+        select: { id: true },
+      });
+      if (!alreadyGranted) {
+        await grantStudioCredits({
+          userId,
+          credits,
+          actionType: "credit_purchase",
+          creditOrigin: "PURCHASED",
+          service: "billing",
+          metadataJson: {
+            stripeSessionId: session.id,
+            packId: session.metadata?.packId,
+            packSlug: session.metadata?.packSlug,
+            financialCorrelationId: `stripe_pack:${session.id}`,
+          },
+          lifetimeField: "lifetimePurchased",
+        });
+      }
+      await prisma.studioAutoTopUpAttempt.updateMany({
+        where: {
+          userId,
+          stripeCheckoutSessionId: session.id,
+          status: { in: ["pending", "failed"] },
+        },
+        data: {
+          status: "succeeded",
+          creditsGranted: credits > 0 ? credits : 0,
+        },
+      });
+      await prisma.studioAccount.updateMany({
+        where: { userId, autoTopUpEnabled: true },
+        data: {
+          autoTopUpLastSuccessAt: new Date(),
+          autoTopUpStatus: "enabled",
+        },
       });
     }
     const promoCode = session.metadata?.promoCode;

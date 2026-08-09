@@ -316,6 +316,7 @@ model User {
   studioAccount        StudioAccount?
   studioWallet         StudioWallet?
   studioLedgerEntries  StudioLedgerEntry[]
+  studioAutoTopUpAttempts StudioAutoTopUpAttempt[]
   studioShowcaseItemsCreated StudioShowcaseItem[] @relation("ShowcaseItemCreator")
   /** S.5 canonical project + library */
   studioCreativeProjects StudioCreativeProject[]
@@ -344,6 +345,15 @@ model StudioAccount {
   activatedAt           DateTime?
   autoChargeSmallActions Boolean  @default(true)
   confirmAboveCredits   Int       @default(100)
+  /** S.8B Auto Top-Up — explicit opt-in; never silent */
+  autoTopUpEnabled      Boolean   @default(false)
+  autoTopUpThresholdCredits Int   @default(50)
+  autoTopUpPackSlug     String    @default("pack_500")
+  autoTopUpConsentAt    DateTime?
+  autoTopUpStatus       String    @default("disabled")
+  autoTopUpLastAttemptAt DateTime?
+  autoTopUpLastSuccessAt DateTime?
+  autoTopUpFailureCount Int       @default(0)
   stripeCustomerId      String?
   stripeSubscriptionId  String?
   stripePriceId         String?
@@ -401,6 +411,30 @@ model StudioLedgerEntry {
   @@index([actionType])
   @@index([service])
   @@index([creditOrigin])
+}
+
+/** S.8B — Idempotent Auto Top-Up attempts (one Stripe charge per key). */
+model StudioAutoTopUpAttempt {
+  id                   String   @id @default(cuid())
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idempotencyKey       String
+  packSlug             String
+  status               String   @default("pending")
+  /** pending | succeeded | failed | duplicate_prevented | payment_auth_required | payment_method_required */
+  stripePaymentIntentId String?
+  stripeCheckoutSessionId String?
+  creditsGranted       Int      @default(0)
+  ledgerEntryId        String?
+  failureCode          String?
+  financialCorrelationId String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, createdAt])
+  @@index([stripePaymentIntentId])
+  @@index([stripeCheckoutSessionId])
 }
 
 /** Singleton billing policy — carry mode, defaults, plan benefits JSON. */

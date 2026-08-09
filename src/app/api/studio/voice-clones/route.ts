@@ -50,6 +50,7 @@ export async function POST(request: Request) {
     request,
     clientMutationId,
     fallbackPrefix: `voice_clone:user:${user.id}`,
+    operationFingerprint: `user:${user.id}:${sample.size}:${sample.name}:${voiceName}:${linkCharacterId ?? ""}`,
   });
 
   return runAudioGenerationJobRoute({
