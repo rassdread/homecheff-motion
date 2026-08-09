@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
-import { runBilledProviderRoute, withEstimatedCredits } from "@/server/studio-account/studio-billed-route";
+import { withEstimatedCredits } from "@/server/studio-account/studio-billed-route";
 import { cloneCharacterVoice } from "@/server/studio/clone-character-voice";
+import {
+  resolveAudioRouteIdempotencyKey,
+  runAudioGenerationJobRoute,
+} from "@/server/studio-generation/run-audio-generation-job-route";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -37,14 +41,32 @@ export async function POST(request: Request, context: RouteContext) {
   const voiceLock = voiceLockRaw === "true" || voiceLockRaw === "1";
   const languageEntry = form.get("language");
   const language = typeof languageEntry === "string" ? languageEntry : undefined;
+  const mutationEntry = form.get("clientMutationId");
+  const clientMutationId =
+    typeof mutationEntry === "string" && mutationEntry.trim() ? mutationEntry.trim() : null;
   const forceMock = process.env.NODE_ENV === "test" || form.get("mock") === "true";
 
   const buffer = Buffer.from(await sample.arrayBuffer());
+  const idempotencyKey = resolveAudioRouteIdempotencyKey({
+    request,
+    clientMutationId,
+    fallbackPrefix: `voice_clone:character:${characterId}`,
+  });
 
-  return runBilledProviderRoute({
+  return runAudioGenerationJobRoute({
     user,
+    capability: "VOICE_CLONE",
     actionType: "voice_clone",
+    idempotencyKey,
     relatedJobId: characterId,
+    inputSnapshot: {
+      action: "voice_clone",
+      characterId,
+      voiceName,
+      language: language ?? null,
+      sampleBytes: buffer.length,
+      sampleName: sample.name.slice(0, 120),
+    },
     execute: () =>
       cloneCharacterVoice({
         characterId,
@@ -59,14 +81,32 @@ export async function POST(request: Request, context: RouteContext) {
         forceProvider: forceMock ? "mock" : undefined,
       }),
     isFailure: (result) => "error" in result,
-    onSuccess: (result, estimatedCredits) => {
-      if ("error" in result) {
-        return NextResponse.json(
-          { error: result.error.message, code: result.error.code },
-          { status: result.error.httpStatus }
-        );
-      }
-      return NextResponse.json(withEstimatedCredits({ ok: true, ...result.data }, estimatedCredits));
+    getOutputAssetId: (result) => {
+      if ("error" in result) return null;
+      return result.data.voiceProfileRef || result.data.characterId;
     },
+    mapFailure: (result) => {
+      if ("error" in result) {
+        return {
+          error: result.error.message,
+          code: result.error.code,
+          status: result.error.httpStatus,
+        };
+      }
+      return { error: "Clone failed.", code: "CLONE_FAILED" };
+    },
+    mapSuccess: (result, estimatedCredits) => {
+      if ("error" in result) {
+        return { error: result.error.message };
+      }
+      return withEstimatedCredits({ ok: true, ...result.data }, estimatedCredits) as unknown as Record<
+        string,
+        unknown
+      >;
+    },
+    mapReplay: async (job) => ({
+      characterId,
+      voiceProfileRef: job.outputAssetId,
+    }),
   });
 }
