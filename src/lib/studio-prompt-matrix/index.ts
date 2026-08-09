@@ -22,6 +22,7 @@ export {
   getExperienceRegistryEntry,
   listExperiencesByCompliance,
   type StudioExperienceRegistryEntry,
+  type StudioExperienceFamily,
 } from "@/lib/studio-prompt-matrix/experience-registry";
 
 export {
