@@ -80,7 +80,20 @@
 | test | 4784/4784 |
 | tsc --noEmit | PASS |
 
+## Merge & Production (2026-08-09)
+
+| Field | Value |
+|-------|--------|
+| PR | [#16](https://github.com/rassdread/homecheff-motion/pull/16) **MERGED** |
+| Merge commit | `3a9ac8b6` @ 2026-08-09T20:00:49Z |
+| Production deployment | `dpl_69z6ZNuWS6w96TPjSN9bpA9jjKUP` **Ready** |
+| Aliases | `motion.homecheff.eu`, `studio.homecheff.eu` |
+| Production Stripe | **LIVE** (no TEST bleed) |
+| Non-spend smoke (`/`, `/studio`, `/studio/start`, `/account/billing`, `/pricing`) | PASS (200, correct dpl, no runtime error) |
+| Plan discounts | PASS (creator 10 / pro 15 / studio 20) |
+| Production Auto Top-Up charge | **NOT RUN** (by design) |
+
 ## Final decision
 
-**GO FOR STUDIO S.8C — PROVIDER COST & MARGIN AUDIT**  
-(contingent on merge of PR #16 + Production LIVE non-spend smoke)
+**GO FOR STUDIO S.8C — PROVIDER COST & MARGIN AUDIT**
+
