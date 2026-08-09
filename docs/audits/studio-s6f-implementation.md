@@ -75,11 +75,25 @@ Storyboard → characters / locations / props / worlds → scenes → Movie Buil
 - [x] Workspace integration (tool in Direct group)
 - [x] Product Truth / Continuity / Matrix / Jobs / Fusion / Motion preserved
 - [x] Credits / Billing unchanged
-- [x] Tests PASS (`4707/4707`)
+- [x] Tests PASS (`4708/4708`)
 - [x] Build PASS
 - [x] TypeScript PASS
-- [ ] Preview GREEN
-- [ ] PR / Merge / Production (after Preview GREEN)
+- [x] Preview GREEN (`dpl_EgRakbq9NFEu9zXvSfiUNeu5Khmq`, HEAD `e77c4170`)
+- [ ] PR / Merge / Production (after this cert)
+
+---
+
+## Preview certification
+
+| Field | Value |
+|-------|-------|
+| PR | https://github.com/rassdread/homecheff-motion/pull/9 |
+| Deploy | `dpl_EgRakbq9NFEu9zXvSfiUNeu5Khmq` |
+| Status | Ready / Vercel check pass |
+| Alias | https://homecheff-motion-git-feat-stu-07b88f-sergio-s-projects-f7b64ee1.vercel.app |
+| Smoke | App shell responds; Studio workspace route served (auth-gated as expected) |
+
+**Verdict after Preview GREEN:** GO FOR MERGE
 
 ---
 
@@ -88,3 +102,4 @@ Storyboard → characters / locations / props / worlds → scenes → Movie Buil
 - Many product experiences remain PARTIAL / MISSING (dating, baby, Christmas, memorial, real estate packs) — registry is honest; engines not faked LIVE.
 - Workspace panel is orchestration UI only; full Quick Mode consumer funnel is future product work on top of this engine.
 - Mascot maps to Matrix `CHARACTER_FUSION` until a dedicated Matrix experience exists.
+- Scene T2I pixel continuity remains PARTIAL (unchanged; not claimed solved by S.6F).
