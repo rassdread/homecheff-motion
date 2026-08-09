@@ -73,5 +73,5 @@ Global Studio law still applies: Continuity → Matrix → Creative Director →
 
 ## Next
 
-S.7C — Voice & Character Audio (Character Voice Studio, dialogue, casting, packs).
-S.7D — Music & SFX Ecosystem (after S.7C certified).
+S.7D — Music & SFX Ecosystem (certified separately).  
+S.7E — Subtitles & Translation (after S.7D GO).
