@@ -14,7 +14,8 @@ export type CreativeDirectorAudioRole =
   | "SoundDirector"
   | "AudioProductionDirector"
   | "AudioAssetDirector"
-  | "VoiceIdentityDirector";
+  | "VoiceIdentityDirector"
+  | "VoicePerformanceDirector";
 
 export const CREATIVE_DIRECTOR_AUDIO_BOUNDARY: Record<
   CreativeDirectorAudioRole,
@@ -40,12 +41,17 @@ export const CREATIVE_DIRECTOR_AUDIO_BOUNDARY: Record<
     functions: ["PLAN", "WRITE_METADATA", "HANDOFF"],
     mayCallElevenLabs: false,
   },
+  /** S.7C — recommend emotion/delivery/pace only */
+  VoicePerformanceDirector: {
+    functions: ["RECOMMEND", "PLAN"],
+    mayCallElevenLabs: false,
+  },
 };
 
-/** Experience pack preparation status — full packs wait for S.7H. */
+/** Experience pack status — S.7C voice packs are PARTIAL (mapped, not full consumer UIs). */
 export const STUDIO_AUDIO_EXPERIENCE_PACK_STATUS = {
-  VoiceStudio: "ENGINE_ONLY",
-  VoiceCloneStudio: "ENGINE_ONLY",
+  VoiceStudio: "PARTIAL",
+  VoiceCloneStudio: "PARTIAL",
   MusicStudio: "ENGINE_ONLY",
   SfxStudio: "ENGINE_ONLY",
   SubtitleStudio: "PARTIAL",
