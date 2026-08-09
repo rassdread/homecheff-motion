@@ -181,7 +181,7 @@ export async function attemptAutoTopUpForInsufficientCredits(input: {
   const existing = await prisma.studioAutoTopUpAttempt.findUnique({
     where: { userId_idempotencyKey: { userId: input.userId, idempotencyKey } },
   });
-  if (existing) {
+  if (existing && existing.status !== "failed") {
     return {
       ok: true,
       status: existing.status === "succeeded" ? "duplicate_prevented" : "already_pending",
@@ -189,6 +189,9 @@ export async function attemptAutoTopUpForInsufficientCredits(input: {
       attemptId: existing.id,
       idempotencyKey,
     };
+  }
+  if (existing?.status === "failed") {
+    await prisma.studioAutoTopUpAttempt.delete({ where: { id: existing.id } });
   }
 
   const recentCount = await prisma.studioAutoTopUpAttempt.count({
