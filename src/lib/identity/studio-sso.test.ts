@@ -147,3 +147,16 @@ describe("SP.2B.1 presentation deep links", () => {
     assert.equal(hasStudioWelcomeCookie(""), false);
   });
 });
+
+describe("SP.2B.3 account selection intent", () => {
+  it("maps IDENTITY_NOT_LINKED to actionable copy", () => {
+    assert.match(
+      studioSsoErrorMessage("IDENTITY_NOT_LINKED"),
+      /couldn't find a Studio account linked/i,
+    );
+  });
+
+  it("keeps studio_session host-only cookie name", () => {
+    assert.equal(AUTH_COOKIE_NAMES.studio, "studio_session");
+  });
+});

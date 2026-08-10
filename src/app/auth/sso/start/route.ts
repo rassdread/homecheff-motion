@@ -5,6 +5,11 @@
  * intent=login (default): open Studio SSO / email-hint presentation.
  * intent=claim: dual-proof legacy claim — requires authenticated Studio session;
  *   pending cookie binds claimStudioUserId to that session user only.
+ *
+ * interaction (HC IdP):
+ *   select_account — explicit login / Google / email (default for Studio buttons)
+ *   claim — account linking (always confirm)
+ *   silent — returning SSO only when explicitly requested
  */
 
 import { NextResponse } from "next/server";
@@ -15,6 +20,7 @@ import {
   homecheffIdentityOrigin,
   studioSsoRedirectUri,
 } from "@/lib/identity/sso/exchange-client";
+import { logStudioSsoEvent } from "@/lib/identity/sso/observability";
 import { codeChallengeS256, generateCodeVerifier, generateState } from "@/lib/identity/sso/pkce";
 import {
   applySsoPendingCookie,
@@ -43,6 +49,19 @@ function normalizeEmailHint(raw: string | null): string | null {
   return email;
 }
 
+function resolveInteraction(
+  intent: SsoPendingIntent,
+  raw: string | null,
+): "silent" | "select_account" | "claim" {
+  const v = (raw ?? "").trim().toLowerCase();
+  if (intent === "claim") return "claim";
+  if (v === "silent") return "silent";
+  if (v === "claim") return "claim";
+  if (v === "login" || v === "select_account") return "select_account";
+  // Explicit Studio login buttons / default start → never silent-hijack HC session.
+  return "select_account";
+}
+
 export async function GET(req: Request) {
   if (!isCentralSsoLive()) {
     return errorRedirect("SSO_DISABLED");
@@ -56,6 +75,7 @@ export async function GET(req: Request) {
     const emailHint = normalizeEmailHint(url.searchParams.get("email"));
     const intentRaw = (url.searchParams.get("intent") ?? "login").trim().toLowerCase();
     const intent: SsoPendingIntent = intentRaw === "claim" ? "claim" : "login";
+    const interaction = resolveInteraction(intent, url.searchParams.get("interaction"));
 
     let claimStudioUserId: string | undefined;
     if (intent === "claim") {
@@ -86,14 +106,29 @@ export async function GET(req: Request) {
     start.searchParams.set("state", state);
     start.searchParams.set("code_challenge", codeChallenge);
     start.searchParams.set("code_challenge_method", "S256");
+    start.searchParams.set("interaction", interaction);
+    if (emailHint) start.searchParams.set("login_hint", emailHint);
 
-    // Prefill HC login when Studio collected an email (login presentation only).
+    logStudioSsoEvent("sso_interaction_started", {
+      intent,
+      interaction,
+      hasEmailHint: Boolean(emailHint),
+    });
+
+    // Prefill HC login when Studio collected an email (hint only — not identity proof).
     let destination = start.toString();
     if (intent === "login" && emailHint) {
       const login = new URL(`${homecheffIdentityOrigin()}/login`);
       login.searchParams.set("email", emailHint);
       login.searchParams.set("callbackUrl", `${start.pathname}${start.search}`);
+      login.searchParams.set("ssoInteraction", interaction);
+      if (interaction !== "silent") {
+        login.searchParams.set("prompt", "select_account");
+      }
       destination = login.toString();
+      logStudioSsoEvent("email_login_selected", { hasEmailHint: true });
+    } else if (intentRaw === "google") {
+      logStudioSsoEvent("google_account_selected", { phase: "start" });
     }
 
     const res = NextResponse.redirect(destination, 302);

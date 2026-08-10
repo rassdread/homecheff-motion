@@ -11520,6 +11520,7 @@ export const nl = {
   "auth.login.nativeSubtitle": "Ga verder met creëren met je HomeCheff-account.",
   "auth.login.continueGoogle": "Doorgaan met Google",
   "auth.login.continueEmail": "Doorgaan met e-mail",
+  "auth.login.useAnotherAccount": "Ander account gebruiken",
   "auth.login.continueEmailHint":
     "We openen HomeCheff om je wachtwoord te controleren — Studio bewaart je centrale wachtwoord nooit.",
   "auth.login.emailHintPlaceholder": "E-mail (optioneel)",
@@ -14094,6 +14095,16 @@ export const nl = {
   "account.identity.linking": "Bezig…",
   "account.identity.claimConfirm":
     "Dit Studio-account koppelen aan de HomeCheff-identiteit waarmee je hierna inlogt? Projecten en wallet blijven hier.",
+  "account.identity.claimTitle": "Dit Studio-account koppelen aan je HomeCheff-account?",
+  "account.identity.claimBody":
+    "Bevestig hieronder het HomeCheff-account. Projecten, wallet en facturatie blijven bij dit Studio-profiel.",
+  "account.identity.homecheffAccount": "HomeCheff-account",
+  "account.identity.studioAccount": "Studio-account",
+  "account.identity.linkAccounts": "Accounts koppelen",
+  "account.identity.useAnotherHomecheff": "Ander HomeCheff-account gebruiken",
+  "account.identity.cancelClaim": "Annuleren",
+  "account.identity.claimError":
+    "Koppelen is niet gelukt. Probeer opnieuw of gebruik een ander account.",
   "account.identity.ssoUnavailable": "HomeCheff-koppeling is tijdelijk niet beschikbaar.",
   "account.billing.pageTitle": "Facturatie & credits",
   "account.billing.pageIntro":

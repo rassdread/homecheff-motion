@@ -11517,6 +11517,7 @@ export const en: LocaleSchema = {
   "auth.login.nativeSubtitle": "Continue creating with your HomeCheff account.",
   "auth.login.continueGoogle": "Continue with Google",
   "auth.login.continueEmail": "Continue with email",
+  "auth.login.useAnotherAccount": "Use another account",
   "auth.login.continueEmailHint":
     "We’ll open HomeCheff to verify your password — Studio never stores your central password.",
   "auth.login.emailHintPlaceholder": "Email (optional)",
@@ -14078,6 +14079,15 @@ export const en: LocaleSchema = {
   "account.identity.linking": "Continuing…",
   "account.identity.claimConfirm":
     "Link this Studio account to the HomeCheff identity you sign in with next? Projects and wallet stay here.",
+  "account.identity.claimTitle": "Link this Studio account to your HomeCheff account?",
+  "account.identity.claimBody":
+    "Confirm the HomeCheff account below. Projects, wallet, and billing stay on this Studio profile.",
+  "account.identity.homecheffAccount": "HomeCheff account",
+  "account.identity.studioAccount": "Studio account",
+  "account.identity.linkAccounts": "Link accounts",
+  "account.identity.useAnotherHomecheff": "Use another HomeCheff account",
+  "account.identity.cancelClaim": "Cancel",
+  "account.identity.claimError": "We couldn't complete the link. Try again or use another account.",
   "account.identity.ssoUnavailable": "HomeCheff linking is temporarily unavailable.",
   "account.billing.pageTitle": "Billing & credits",
   "account.billing.pageIntro":
