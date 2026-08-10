@@ -103,6 +103,22 @@
 
 ---
 
+## Commits / PRs
+
+| Item | Value |
+|------|-------|
+| Studio base | `2434dd1d0cacc8813ae18ac0eb9946ac86a7a602` |
+| Studio impl | `192fa4410ff0875a83a3b0ffb35201f4e4ccd2f9` |
+| Studio branch | `feat/sp2b-studio-sso-consumer` |
+| Studio PR | https://github.com/rassdread/homecheff-motion/pull/17 |
+| HomeCheff base | `origin/main` at branch create |
+| HomeCheff impl | `5f35eb8bfdc2b28e0ec105088398c8b8b4f05aac` |
+| HomeCheff branch | `feat/sp2b-studio-sso-issuer` |
+| HomeCheff PR | https://github.com/rassdread/homecheff-app/pull/12 |
+| HC unrelated WIP committed | **NO** |
+
+---
+
 ## Final decision
 
 # NO-GO FOR SP.2C — PUBLIC PRODUCT & WEBSITE COMPLETION
