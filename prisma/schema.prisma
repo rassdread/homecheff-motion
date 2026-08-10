@@ -285,7 +285,15 @@ model AnimationExport {
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
-  passwordHash String
+  /**
+   * Local password (scrypt). Null for SSO-provisioned users — passwords live on HomeCheff only.
+   * Legacy Studio-only accounts retain a hash until linked/migrated.
+   */
+  passwordHash String?
+  /** HomeCheff central identity id (UUID). Unique when set. */
+  centralUserId String? @unique
+  /** When centralUserId was first linked (SSO or migration). */
+  centralLinkedAt DateTime?
   /** admin | power | user */
   role         String   @default("user")
   isActive     Boolean  @default(true)

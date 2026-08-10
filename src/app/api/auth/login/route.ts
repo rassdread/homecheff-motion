@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isLegacyStudioLoginEnabled } from "@/lib/identity/flags";
 import { prisma } from "@/lib/prisma";
 import { apiServiceUnavailable } from "@/server/api-error-response";
 import { createSession, verifyPassword } from "@/server/auth/session";
@@ -9,6 +10,16 @@ type LoginPayload = {
 };
 
 export async function POST(request: Request) {
+  if (!isLegacyStudioLoginEnabled()) {
+    return NextResponse.json(
+      {
+        error: "Use Continue with HomeCheff to sign in.",
+        code: "LEGACY_LOGIN_DISABLED",
+      },
+      { status: 403 },
+    );
+  }
+
   let payload: LoginPayload;
   try {
     payload = (await request.json()) as LoginPayload;
@@ -32,7 +43,7 @@ export async function POST(request: Request) {
     return apiServiceUnavailable("auth/login", error);
   }
 
-  if (!user || !verifyPassword(password, user.passwordHash)) {
+  if (!user?.passwordHash || !verifyPassword(password, user.passwordHash)) {
     return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
   }
 
