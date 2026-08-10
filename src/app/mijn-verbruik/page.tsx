@@ -1,7 +1,7 @@
-import { redirect } from "next/navigation";
 import { ProductPageShell } from "@/components/layout/product-page-shell";
 import { CustomerUsageDashboard } from "@/components/usage/customer-usage-dashboard";
 import { getActiveTranslator } from "@/i18n";
+import { redirectUnauthenticatedPrivate } from "@/lib/identity/sso/private-entry";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import { getAuthenticatedUser } from "@/server/auth/session";
 import {
@@ -13,15 +13,16 @@ import type { CustomerUsageReport } from "@/types/customer-usage";
 export default async function MijnVerbruikPage() {
   const user = await getAuthenticatedUser();
   if (!user) {
-    redirect("/login?next=/mijn-verbruik");
+    await redirectUnauthenticatedPrivate("/mijn-verbruik");
   }
+  const sessionUser = user!;
 
   const t = await getActiveTranslator();
   let initialReport: CustomerUsageReport | null = null;
   let initialError: string | null = null;
 
   try {
-    const { summary, rows } = await loadUserBillingUsage(user.id, "last30Days");
+    const { summary, rows } = await loadUserBillingUsage(sessionUser.id, "last30Days");
     initialReport = {
       generatedAt: new Date().toISOString(),
       summary,

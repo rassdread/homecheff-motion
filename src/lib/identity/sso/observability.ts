@@ -3,6 +3,13 @@
  */
 
 export type StudioSsoObsEvent =
+  | "silent_sso_attempt"
+  | "silent_sso_success"
+  | "silent_sso_no_central_session"
+  | "silent_sso_failure"
+  | "silent_sso_loop_prevented"
+  | "product_session_created"
+  | "product_session_reused"
   | "sso_interaction_started"
   | "sso_callback_received"
   | "silent_sso"

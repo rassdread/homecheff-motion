@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { ReactNode } from "react";
-import { redirect } from "next/navigation";
 import { StudioAccountNav } from "@/components/account/studio-account-nav";
 import { ProductPageShell } from "@/components/layout/product-page-shell";
 import { getActiveTranslator } from "@/i18n";
 import { buildNoIndexMetadata, buildPageMetadata } from "@/lib/seo/site-metadata";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import { getAuthenticatedUser } from "@/server/auth/session";
+import { redirectUnauthenticatedPrivate } from "@/lib/identity/sso/private-entry";
 
 export const metadata: Metadata = {
   ...buildPageMetadata({
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 export default async function AccountLayout({ children }: { children: ReactNode }) {
   const user = await getAuthenticatedUser();
   if (!user) {
-    redirect("/login?next=/account");
+    await redirectUnauthenticatedPrivate("/account");
   }
 
   const t = await getActiveTranslator();

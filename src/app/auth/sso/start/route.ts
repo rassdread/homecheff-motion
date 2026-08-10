@@ -28,6 +28,7 @@ import {
   encodeSsoPending,
   type SsoPendingIntent,
 } from "@/lib/identity/sso/state";
+import { clearSkipSilentSsoCookie } from "@/lib/identity/sso/silent-guard";
 import { getAuthenticatedUser } from "@/server/auth/session";
 
 export const dynamic = "force-dynamic";
@@ -133,6 +134,10 @@ export async function GET(req: Request) {
 
     const res = NextResponse.redirect(destination, 302);
     applySsoPendingCookie(res, encoded);
+    // Explicit login/switch/claim clears post-logout skip so the new auth can complete.
+    if (interaction !== "silent") {
+      clearSkipSilentSsoCookie(res);
+    }
     return res;
   } catch (err) {
     const code = err instanceof StudioSsoError ? err.code : "CONFIG_ERROR";
