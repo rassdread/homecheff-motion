@@ -2,67 +2,94 @@
 
 **Phase:** SP.2B.1  
 **Date:** 2026-08-10  
-**Mode:** UX presentation layer on top of existing SP.2B SSO  
+**Mode:** UX presentation layer on top of existing SP.2B SSO — clean freeze
 
 ---
 
-## Verdict
+## Identity card
 
 | Field | Value |
 |-------|-------|
-| Architecture changed? | **No** (HC IdP / Studio SSO consumer intact) |
+| Repository | `rassdread/homecheff-motion` |
+| Branch | `feat/sp2b-studio-sso-consumer` |
+| Base commit (pre SP.2B.1) | `9004c9e9` |
+| SP.2B.1 commit | `2f76ce84` |
+| PR | https://github.com/rassdread/homecheff-motion/pull/17 (**OPEN**, not merged) |
+| Architecture changed? | **No** |
 | Studio-native Google OAuth? | **No** |
-| “Continue with HomeCheff” primary CTA? | **Removed** from login / error primary path |
-| Native Google + email UI? | **Yes** (Studio) |
+| Visible “Continue with HomeCheff”? | **Removed** (primary UX) |
+| Native Google + email UI? | **Yes** (Studio code) |
 | First-visit Studio wizard? | **Yes** (`/welcome`) |
-| Growth native login? | **Deferred** (sibling repo) |
-| Silent on-page password verify? | **Not possible** without new HC API — documented gap |
-| Preview live cert | **PENDING** (inherits SP.2B Preview block) |
+| Growth native login? | **Deferred** |
+| Silent on-page password verify? | **Gap** — password validated on HomeCheff |
+| Preview live cert | **NO-GO** (Deployment Protection) |
 | Production SSO | **OFF** |
-| **GO / NO-GO for SP.2C** | **NO-GO** until SP.2B Preview SSO GREEN **and** SP.2B.1 Preview UX smoke PASS |
+| Merge | **NOT DONE** |
+| **GO / NO-GO for SP.2C** | **NO-GO** |
 
 ---
 
-## Deliverables
+## Product law (re-verified)
 
-| Deliverable | Path |
-|-------------|------|
-| Unified Login UX audit | `docs/audits/studio-sp2b1-unified-login-ux-audit.md` |
-| Auth flow documentation | `docs/architecture/homecheff-unified-login-ux.md` |
-| Preview certification | `docs/audits/studio-sp2b1-preview-certification.md` |
-| Production certification | `docs/audits/studio-sp2b1-production-certification.md` |
-| Final report | this file |
-
----
-
-## Implementation summary (Studio)
-
-- Native login: `src/components/auth/login-page-content.tsx`
-- Signup → IdP register: `src/app/signup/page.tsx` + `homecheff-origin.ts`
-- Welcome wizard: `src/app/welcome/*` + `studio-welcome.ts`
-- SSO start email hint: `src/app/auth/sso/start/route.ts`
-- Callback first-visit: `src/app/auth/sso/callback/route.ts`
-- Unit tests extended: `src/lib/identity/studio-sso.test.ts`
+| Rule | Status |
+|------|--------|
+| HomeCheff = sole IdP | **PASS** |
+| Studio = SSO consumer | **PASS** |
+| Google button → HomeCheff | **PASS** (`/auth/sso/start`) |
+| Email/password → HomeCheff | **PASS** (email hint + IdP validate) |
+| Forgot password → HomeCheff | **PASS** |
+| Signup → HomeCheff register | **PASS** (SSO live) |
+| `studio_session` host-only | **PASS** |
+| No Studio Google provider | **PASS** |
+| No second password store for IdP users | **PASS** |
+| No duplicate identity architecture | **PASS** |
 
 ---
 
-## Success criteria (honest)
+## Local gates
 
-| Criterion | Status |
-|-----------|--------|
-| Users should never need “Continue with HomeCheff” | **PASS** (UI) |
-| Feel like logging into Studio | **PASS** (presentation) |
-| One identity / password / Google | **PASS** (architecture unchanged) |
-| Never leave Studio visually for Google/email | **PARTIAL** — redirects to HC still occur under the hood / for password |
-| One onboarding per product | **PASS** (Studio wizard; Growth TBD) |
-| No duplicate registration path when SSO live | **PASS** (legacy gated + IdP register) |
+| Gate | Result |
+|------|--------|
+| lint | **PASS** |
+| build | **PASS** |
+| tsc | **PASS** |
+| tests | **PASS** `4794/4794` |
+
+Excluded from commit: `scripts/_sp2b-db-snapshot.ts` (unrelated WIP).
+
+Included gate fix: `src/app/admin/billing/promo-codes/page.tsx` (pre-existing eslint `set-state-in-effect`).
 
 ---
 
-## Recommended next steps
+## Preview UX smoke
 
-1. Complete SP.2B Preview live SSO (protection bypass / env).  
-2. Smoke SP.2B.1 UX on Preview aliases.  
-3. Port the same presentation pattern to Growth.  
-4. Optional HC follow-ups: credential-forward API, forgot-password `returnTo`, Google prefer intent.  
-5. Only then **GO FOR SP.2C**.
+| Item | Status |
+|------|--------|
+| native `/login` | **CODE PASS** · live **BLOCKED** |
+| Google via HomeCheff | **CODE PASS** · live **BLOCKED** |
+| email/password via HomeCheff | **CODE PASS** · live **BLOCKED** |
+| signup | **CODE PASS** · live **BLOCKED** |
+| forgot password | **CODE PASS** · live **BLOCKED** |
+| first-use wizard | **CODE PASS** · live **BLOCKED** |
+| returning-user bypass | **CODE PASS** · live **BLOCKED** |
+| no duplicate identity | **CODE PASS** · live **BLOCKED** |
+| wallet/projects continuity | **CODE PASS** (resolve/JIT) · live **BLOCKED** |
+| studio_session | **CODE PASS** · live **BLOCKED** |
+| SP.2B SSO Preview GREEN | **NO** |
+
+---
+
+## Blocking issues
+
+1. Vercel Deployment Protection on Preview → `vercel.com/sso-api` (agent cannot smoke).  
+2. Underlying SP.2B live SSO still not GREEN.
+
+## Non-blocking risks
+
+1. Password field is UX continuity until HC credential-forward API exists.  
+2. Forgot-password has no Studio return URL on HC.  
+3. Growth UX parity not in this repo.
+
+## Recommended next step
+
+Human browser smoke on Studio + HomeCheff Preview aliases (bypass Vercel protection), then mark SP.2B + SP.2B.1 Preview GREEN before any merge or SP.2C.
