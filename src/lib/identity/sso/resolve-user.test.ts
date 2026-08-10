@@ -76,14 +76,29 @@ function makeFakeDb(seed: FakeUser[] = []) {
         return { count: 1 };
       },
       async create(args: { data: Partial<FakeUser> & { email: string; centralUserId: string } }) {
+        if (users.some((u) => u.centralUserId === args.data.centralUserId)) {
+          const err = Object.assign(new Error("Unique constraint failed"), {
+            code: "P2002",
+            meta: { target: ["centralUserId"] },
+          });
+          // Mimic Prisma known request error shape enough for isUniqueViolation when instanceof fails.
+          // Tests inject via constructor-less path — resolve-user checks PrismaClientKnownRequestError.
+          throw err;
+        }
+        if (users.some((u) => u.email.toLowerCase() === args.data.email.toLowerCase())) {
+          throw Object.assign(new Error("Unique constraint failed"), {
+            code: "P2002",
+            meta: { target: ["email"] },
+          });
+        }
         const u: FakeUser = {
           id: `created-${users.length + 1}`,
           email: args.data.email,
           isActive: true,
           centralUserId: args.data.centralUserId,
-          centralLinkedAt: new Date(),
-          passwordHash: null,
-          role: "user",
+          centralLinkedAt: (args.data.centralLinkedAt as Date | undefined) ?? new Date(),
+          passwordHash: args.data.passwordHash ?? null,
+          role: args.data.role ?? "user",
         };
         users.push(u);
         return { ...u };
@@ -162,13 +177,66 @@ describe("SP.2B resolve-user existing link vs JIT", () => {
     assert.equal(users.length, 0);
   });
 
-  it("creates when JIT true and no candidate", async () => {
+  it("JIT true + no candidate → exactly one Studio user with centralUserId and null password", async () => {
     const { deps, users } = depsFor([], true);
     const resolved = await resolveStudioUserFromCentralClaims(
-      { centralUserId: HC_A, email: "new@example.com" },
+      { centralUserId: HC_A, email: "admin@homecheff.eu" },
       deps,
     );
     assert.equal(resolved.firstProductVisit, true);
+    assert.equal(users.length, 1);
+    assert.equal(users[0]!.centralUserId, HC_A);
+    assert.equal(users[0]!.passwordHash, null);
+    assert.equal(users[0]!.email, "admin@homecheff.eu");
+    assert.equal(resolved.id, users[0]!.id);
+  });
+
+  it("repeat login reuses same Studio user (no second account)", async () => {
+    const { deps, users } = depsFor([], true);
+    const first = await resolveStudioUserFromCentralClaims(
+      { centralUserId: HC_A, email: "admin@homecheff.eu" },
+      deps,
+    );
+    const second = await resolveStudioUserFromCentralClaims(
+      { centralUserId: HC_A, email: "admin@homecheff.eu" },
+      deps,
+    );
+    assert.equal(first.id, second.id);
+    assert.equal(second.firstProductVisit, false);
+    assert.equal(users.length, 1);
+  });
+
+  it("parallel first logins → exactly one Studio user", async () => {
+    const { deps, users } = depsFor([], true);
+    const [a, b] = await Promise.all([
+      resolveStudioUserFromCentralClaims({ centralUserId: HC_A, email: "new@example.com" }, deps),
+      resolveStudioUserFromCentralClaims({ centralUserId: HC_A, email: "new@example.com" }, deps),
+    ]);
+    assert.equal(a.id, b.id);
+    assert.equal(users.length, 1);
+    assert.equal(users[0]!.centralUserId, HC_A);
+  });
+
+  it("same-email legacy candidate → link, no JIT create", async () => {
+    const { deps, users } = depsFor(
+      [
+        {
+          id: "legacy-1",
+          email: "same@example.com",
+          isActive: true,
+          centralUserId: null,
+          centralLinkedAt: null,
+          passwordHash: "legacy-hash",
+          role: "user",
+        },
+      ],
+      true,
+    );
+    const resolved = await resolveStudioUserFromCentralClaims(
+      { centralUserId: HC_A, email: "same@example.com" },
+      deps,
+    );
+    assert.equal(resolved.id, "legacy-1");
     assert.equal(users.length, 1);
     assert.equal(users[0]!.centralUserId, HC_A);
   });
@@ -186,12 +254,46 @@ describe("SP.2B resolve-user existing link vs JIT", () => {
           role: "user",
         },
       ],
-      false,
+      true,
     );
     await assert.rejects(
       () =>
         resolveStudioUserFromCentralClaims(
           { centralUserId: HC_A, email: "owner@example.com" },
+          deps,
+        ),
+      (err: unknown) => err instanceof StudioSsoError && err.code === "IDENTITY_EMAIL_COLLISION",
+    );
+  });
+
+  it("DENY ambiguous same-email candidates", async () => {
+    const { deps } = depsFor(
+      [
+        {
+          id: "a",
+          email: "dup@example.com",
+          isActive: true,
+          centralUserId: null,
+          centralLinkedAt: null,
+          passwordHash: null,
+          role: "user",
+        },
+        {
+          id: "b",
+          email: "Dup@example.com",
+          isActive: true,
+          centralUserId: null,
+          centralLinkedAt: null,
+          passwordHash: null,
+          role: "user",
+        },
+      ],
+      true,
+    );
+    await assert.rejects(
+      () =>
+        resolveStudioUserFromCentralClaims(
+          { centralUserId: HC_A, email: "dup@example.com" },
           deps,
         ),
       (err: unknown) => err instanceof StudioSsoError && err.code === "IDENTITY_EMAIL_COLLISION",
@@ -220,5 +322,30 @@ describe("SP.2B resolve-user existing link vs JIT", () => {
     assert.equal(resolved.id, "studio-1");
     assert.equal(resolved.firstProductVisit, false);
     assert.equal(users.length, 1);
+  });
+
+  it("does not attach mismatched legacy email via JIT (no candidate → new product user)", async () => {
+    const { deps, users } = depsFor(
+      [
+        {
+          id: "legacy-owner",
+          email: "sergio@homecheff.eu",
+          isActive: true,
+          centralUserId: null,
+          centralLinkedAt: null,
+          passwordHash: "keep",
+          role: "user",
+        },
+      ],
+      true,
+    );
+    const resolved = await resolveStudioUserFromCentralClaims(
+      { centralUserId: HC_A, email: "admin@homecheff.eu" },
+      deps,
+    );
+    assert.notEqual(resolved.id, "legacy-owner");
+    assert.equal(users.length, 2);
+    assert.equal(users.find((u) => u.id === "legacy-owner")!.passwordHash, "keep");
+    assert.equal(users.find((u) => u.id === "legacy-owner")!.centralUserId, null);
   });
 });
