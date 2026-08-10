@@ -7,7 +7,8 @@ export type StudioSsoObsEvent =
   | "existing_identity_candidate_found"
   | "existing_identity_linked"
   | "identity_not_linked"
-  | "identity_conflict";
+  | "identity_conflict"
+  | "central_identity_claim";
 
 export function logStudioSsoEvent(
   event: StudioSsoObsEvent,

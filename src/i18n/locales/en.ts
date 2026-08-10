@@ -14068,6 +14068,17 @@ export const en: LocaleSchema = {
   "account.settings.save": "Save",
   "account.settings.saving": "Saving…",
   "account.settings.saveError": "Failed to save settings.",
+  "account.identity.title": "HomeCheff identity",
+  "account.identity.intro":
+    "Link this Studio account to your HomeCheff account. Your projects, wallet, and billing stay on this Studio profile.",
+  "account.identity.linked": "This Studio account is linked to HomeCheff.",
+  "account.identity.unlinkedHint":
+    "You are signed in to Studio. Continue to authenticate with HomeCheff, then confirm the link.",
+  "account.identity.linkCta": "Link your HomeCheff account",
+  "account.identity.linking": "Continuing…",
+  "account.identity.claimConfirm":
+    "Link this Studio account to the HomeCheff identity you sign in with next? Projects and wallet stay here.",
+  "account.identity.ssoUnavailable": "HomeCheff linking is temporarily unavailable.",
   "account.billing.pageTitle": "Billing & credits",
   "account.billing.pageIntro":
     "One balance for everything you create. Your plan saves {percent}% on credit packs.",

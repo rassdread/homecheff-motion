@@ -6,12 +6,18 @@ import { StudioSsoError } from "./errors";
 export const STUDIO_SSO_PENDING_COOKIE = "studio_sso_pending";
 export const SSO_STATE_TTL_SEC = 10 * 60;
 
+export type SsoPendingIntent = "login" | "claim";
+
 export type SsoPendingPayload = {
   v: 1;
   state: string;
   codeVerifier: string;
   returnTo: string;
   exp: number;
+  /** Default login (email auto-link / JIT). claim = dual-proof legacy link. */
+  intent?: SsoPendingIntent;
+  /** Required when intent=claim — authenticated Studio session user id. */
+  claimStudioUserId?: string;
 };
 
 function signingSecret(): string {
@@ -61,6 +67,15 @@ export function decodeSsoPending(raw: string | undefined | null): SsoPendingPayl
     throw new StudioSsoError("SSO_EXPIRED");
   }
   parsed.returnTo = validateStudioReturnTo(parsed.returnTo);
+  const intent: SsoPendingIntent = parsed.intent === "claim" ? "claim" : "login";
+  parsed.intent = intent;
+  if (intent === "claim") {
+    const id = typeof parsed.claimStudioUserId === "string" ? parsed.claimStudioUserId.trim() : "";
+    if (!id) throw new StudioSsoError("CLAIM_UNAUTHORIZED");
+    parsed.claimStudioUserId = id;
+  } else {
+    delete parsed.claimStudioUserId;
+  }
   return parsed;
 }
 
@@ -68,16 +83,26 @@ export function buildSsoPending(input: {
   state: string;
   codeVerifier: string;
   returnTo?: string | null;
+  intent?: SsoPendingIntent;
+  claimStudioUserId?: string | null;
   now?: number;
 }): SsoPendingPayload {
   const now = input.now ?? Date.now();
-  return {
+  const intent: SsoPendingIntent = input.intent === "claim" ? "claim" : "login";
+  const payload: SsoPendingPayload = {
     v: 1,
     state: input.state,
     codeVerifier: input.codeVerifier,
     returnTo: validateStudioReturnTo(input.returnTo),
     exp: now + SSO_STATE_TTL_SEC * 1000,
+    intent,
   };
+  if (intent === "claim") {
+    const id = input.claimStudioUserId?.trim() ?? "";
+    if (!id) throw new StudioSsoError("CLAIM_UNAUTHORIZED");
+    payload.claimStudioUserId = id;
+  }
+  return payload;
 }
 
 function cookieSecure(): boolean {

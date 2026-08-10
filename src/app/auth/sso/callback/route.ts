@@ -1,6 +1,6 @@
 /**
  * SP.2B — GET /auth/sso/callback
- * Validate state → exchange → resolve/JIT Studio user → studio_session → redirect.
+ * Validate state → exchange → resolve OR dual-proof claim → studio_session → redirect.
  */
 
 import { NextResponse } from "next/server";
@@ -10,6 +10,7 @@ import {
   StudioSsoError,
   type StudioSsoErrorCode,
 } from "@/lib/identity/sso/errors";
+import { claimExistingStudioUser } from "@/lib/identity/sso/claim-user";
 import { exchangeHomeCheffSsoCode } from "@/lib/identity/sso/exchange-client";
 import { resolveStudioUserFromCentralClaims } from "@/lib/identity/sso/resolve-user";
 import {
@@ -17,7 +18,7 @@ import {
   clearSsoPendingCookie,
   decodeSsoPending,
 } from "@/lib/identity/sso/state";
-import { applyStudioSessionToResponse } from "@/server/auth/session";
+import { applyStudioSessionToResponse, getAuthenticatedUser } from "@/server/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -77,19 +78,40 @@ export async function GET(req: Request) {
       codeVerifier: pending.codeVerifier,
     });
 
-    const user = await resolveStudioUserFromCentralClaims({
-      centralUserId: claims.centralUserId,
-      email: claims.email,
-    });
+    let studioUserId: string;
+    let firstProductVisit = false;
+
+    if (pending.intent === "claim" && pending.claimStudioUserId) {
+      // Dual proof at callback: Studio session must still be the claim target.
+      const sessionUser = await getAuthenticatedUser();
+      if (!sessionUser || sessionUser.id !== pending.claimStudioUserId) {
+        throw new StudioSsoError("CLAIM_UNAUTHORIZED");
+      }
+
+      const claimed = await claimExistingStudioUser({
+        studioUserId: pending.claimStudioUserId,
+        centralUserId: claims.centralUserId,
+        claimMethod: "dual_proof_legacy_session",
+      });
+      studioUserId = claimed.id;
+      firstProductVisit = false;
+    } else {
+      const user = await resolveStudioUserFromCentralClaims({
+        centralUserId: claims.centralUserId,
+        email: claims.email,
+      });
+      studioUserId = user.id;
+      firstProductVisit = user.firstProductVisit;
+    }
 
     let nextPath = pending.returnTo;
-    if (user.firstProductVisit && !hasStudioWelcomeCookie(cookieHeader)) {
+    if (firstProductVisit && !hasStudioWelcomeCookie(cookieHeader)) {
       nextPath = `/welcome?next=${encodeURIComponent(pending.returnTo)}`;
     }
 
     const res = NextResponse.redirect(new URL(nextPath, appOrigin(req)), 302);
     clearSsoPendingCookie(res);
-    applyStudioSessionToResponse(res, user.id);
+    applyStudioSessionToResponse(res, studioUserId);
     return res;
   } catch (err) {
     const c: StudioSsoErrorCode =

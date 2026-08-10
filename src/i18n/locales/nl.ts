@@ -14084,6 +14084,17 @@ export const nl = {
   "account.settings.save": "Opslaan",
   "account.settings.saving": "Opslaan…",
   "account.settings.saveError": "Instellingen opslaan mislukt.",
+  "account.identity.title": "HomeCheff-identiteit",
+  "account.identity.intro":
+    "Koppel dit Studio-account aan je HomeCheff-account. Projecten, wallet en facturatie blijven bij dit Studio-profiel.",
+  "account.identity.linked": "Dit Studio-account is gekoppeld aan HomeCheff.",
+  "account.identity.unlinkedHint":
+    "Je bent ingelogd in Studio. Ga verder om je bij HomeCheff te authenticeren en bevestig daarna de koppeling.",
+  "account.identity.linkCta": "Koppel je HomeCheff-account",
+  "account.identity.linking": "Bezig…",
+  "account.identity.claimConfirm":
+    "Dit Studio-account koppelen aan de HomeCheff-identiteit waarmee je hierna inlogt? Projecten en wallet blijven hier.",
+  "account.identity.ssoUnavailable": "HomeCheff-koppeling is tijdelijk niet beschikbaar.",
   "account.billing.pageTitle": "Facturatie & credits",
   "account.billing.pageIntro":
     "Eén saldo voor alles wat je maakt. Je plan bespaart {percent}% op credit packs.",

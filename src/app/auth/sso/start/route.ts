@@ -2,9 +2,9 @@
  * SP.2B — GET /auth/sso/start
  * PKCE + state → HomeCheff SSO issuer (product=studio).
  *
- * Honest email UX: optional `email` is a hint only → HC `/login?email=` so
- * HomeCheff collects and validates the password. Studio never accepts a password.
- * Optional `intent=google|password` is presentation-only; HC remains sole IdP.
+ * intent=login (default): open Studio SSO / email-hint presentation.
+ * intent=claim: dual-proof legacy claim — requires authenticated Studio session;
+ *   pending cookie binds claimStudioUserId to that session user only.
  */
 
 import { NextResponse } from "next/server";
@@ -20,7 +20,9 @@ import {
   applySsoPendingCookie,
   buildSsoPending,
   encodeSsoPending,
+  type SsoPendingIntent,
 } from "@/lib/identity/sso/state";
+import { getAuthenticatedUser } from "@/server/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -52,12 +54,30 @@ export async function GET(req: Request) {
       url.searchParams.get("returnTo") ?? url.searchParams.get("next"),
     );
     const emailHint = normalizeEmailHint(url.searchParams.get("email"));
+    const intentRaw = (url.searchParams.get("intent") ?? "login").trim().toLowerCase();
+    const intent: SsoPendingIntent = intentRaw === "claim" ? "claim" : "login";
+
+    let claimStudioUserId: string | undefined;
+    if (intent === "claim") {
+      const sessionUser = await getAuthenticatedUser();
+      if (!sessionUser || sessionUser.isActive === false) {
+        throw new StudioSsoError("CLAIM_UNAUTHORIZED");
+      }
+      claimStudioUserId = sessionUser.id;
+    }
+
     const state = generateState();
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = codeChallengeS256(codeVerifier);
     const redirectUri = studioSsoRedirectUri();
 
-    const pending = buildSsoPending({ state, codeVerifier, returnTo });
+    const pending = buildSsoPending({
+      state,
+      codeVerifier,
+      returnTo,
+      intent,
+      claimStudioUserId,
+    });
     const encoded = encodeSsoPending(pending);
 
     const start = new URL(`${homecheffIdentityOrigin()}/auth/sso/start`);
@@ -67,9 +87,9 @@ export async function GET(req: Request) {
     start.searchParams.set("code_challenge", codeChallenge);
     start.searchParams.set("code_challenge_method", "S256");
 
-    // Prefill HC login when Studio collected an email (presentation only).
+    // Prefill HC login when Studio collected an email (login presentation only).
     let destination = start.toString();
-    if (emailHint) {
+    if (intent === "login" && emailHint) {
       const login = new URL(`${homecheffIdentityOrigin()}/login`);
       login.searchParams.set("email", emailHint);
       login.searchParams.set("callbackUrl", `${start.pathname}${start.search}`);

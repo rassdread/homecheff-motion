@@ -7,6 +7,8 @@ export const STUDIO_SSO_ERROR_CODES = [
   "IDENTITY_NOT_LINKED",
   "IDENTITY_MAPPING_CONFLICT",
   "IDENTITY_EMAIL_COLLISION",
+  "CLAIM_UNAUTHORIZED",
+  "CLAIM_ALREADY_LINKED",
   "CENTRAL_ACCOUNT_DISABLED",
   "RETRY_LATER",
   "CONFIG_ERROR",
@@ -67,6 +69,10 @@ export function studioSsoErrorMessage(code: StudioSsoErrorCode): string {
       return "We couldn't complete your Studio login.";
     case "IDENTITY_EMAIL_COLLISION":
       return "This email is already used by another Studio account. Contact support to link HomeCheff.";
+    case "CLAIM_UNAUTHORIZED":
+      return "Sign in to your existing Studio account first, then link HomeCheff.";
+    case "CLAIM_ALREADY_LINKED":
+      return "This Studio account is already linked to a different HomeCheff identity.";
     case "CENTRAL_ACCOUNT_DISABLED":
       return "This HomeCheff account cannot sign in to Studio.";
     case "RETRY_LATER":
