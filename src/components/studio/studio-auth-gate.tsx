@@ -1,14 +1,10 @@
 "use client";
 
-import Link from "next/link";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { HomeCheffOrbitLoader } from "@/components/ui/homecheff-orbit-loader";
-import { AppCard } from "@/components/ui/app-card";
 import type { TranslationKey } from "@/i18n";
-import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
-import { loginHref } from "@/lib/auth-login-href";
 import { brand } from "@/lib/brand";
 
 type StudioAuthGateProps = {
@@ -17,44 +13,28 @@ type StudioAuthGateProps = {
   authBodyKey?: TranslationKey;
 };
 
-export function StudioAuthGate({
-  children,
-  authTitleKey = "studio.characters.authRequiredTitle",
-  authBodyKey = "studio.characters.authRequiredBody",
-}: StudioAuthGateProps) {
-  const t = useActiveTranslator();
+/**
+ * Soft private gate for Studio workspace surfaces.
+ * SP.2B.5: unauthenticated → ONE silent SSO attempt via /auth/sso/silent
+ * (loop/skip cookies fall through to /login).
+ */
+export function StudioAuthGate({ children }: StudioAuthGateProps) {
   const session = useAuthSession();
   const pathname = usePathname();
-  const loginLink = loginHref(pathname);
+  const silentHref = `/auth/sso/silent?returnTo=${encodeURIComponent(pathname || "/")}`;
+  const started = useRef(false);
 
-  if (!session.resolved) {
+  useEffect(() => {
+    if (!session.resolved || session.user || started.current) return;
+    started.current = true;
+    window.location.assign(silentHref);
+  }, [session.resolved, session.user, silentHref]);
+
+  if (!session.resolved || !session.user) {
     return (
       <main className={`flex-1 ${brand.softGradientBg}`}>
         <section className="mx-auto flex max-w-lg flex-col items-center px-6 py-16">
           <HomeCheffOrbitLoader state="loading" size="md" />
-        </section>
-      </main>
-    );
-  }
-
-  if (!session.user) {
-    return (
-      <main className={`flex-1 ${brand.softGradientBg}`}>
-        <section className="mx-auto max-w-lg px-6 py-16">
-          <AppCard className="bg-white p-8 text-center">
-            <h1 className="text-xl font-semibold text-zinc-900">
-              {t(authTitleKey)}
-            </h1>
-            <p className="mt-2 text-sm text-zinc-600">
-              {t(authBodyKey)}
-            </p>
-            <Link
-              href={loginLink}
-              className="mt-6 inline-flex rounded-full border border-[#006D52]/40 bg-white px-5 py-2.5 text-sm font-semibold text-[#006D52] hover:bg-[#006D52]/5"
-            >
-              {t("nav.login")}
-            </Link>
-          </AppCard>
         </section>
       </main>
     );

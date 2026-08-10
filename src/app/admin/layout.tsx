@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { AdminLayoutChrome } from "@/components/admin/admin-layout-chrome";
 import { buildNoIndexMetadata, buildPageMetadata } from "@/lib/seo/site-metadata";
+import { redirectUnauthenticatedPrivate } from "@/lib/identity/sso/private-entry";
 import { getAuthenticatedUser } from "@/server/auth/session";
 import { canAccessAdmin } from "@/server/auth/permissions";
-import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   ...buildPageMetadata({
@@ -21,9 +21,9 @@ export default async function AdminLayout({
 }) {
   const user = await getAuthenticatedUser();
   if (!user) {
-    redirect("/login?next=/admin");
+    await redirectUnauthenticatedPrivate("/admin");
   }
-  if (!canAccessAdmin(user)) {
+  if (!canAccessAdmin(user!)) {
     return <AdminLayoutChrome forbidden>{children}</AdminLayoutChrome>;
   }
 

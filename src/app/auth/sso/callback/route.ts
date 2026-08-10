@@ -1,6 +1,7 @@
 /**
  * SP.2B — GET /auth/sso/callback
  * Validate state → exchange → resolve OR stage claim confirm → studio_session → redirect.
+ * SP.2B.5: silent login_required → safe /login (no error UI, no loop).
  */
 
 import { NextResponse } from "next/server";
@@ -23,6 +24,10 @@ import {
   decodeSsoPending,
 } from "@/lib/identity/sso/state";
 import { logStudioSsoEvent } from "@/lib/identity/sso/observability";
+import {
+  clearSilentSsoAttemptCookie,
+  clearSkipSilentSsoCookie,
+} from "@/lib/identity/sso/silent-guard";
 import { applyStudioSessionToResponse, getAuthenticatedUser } from "@/server/auth/session";
 
 export const dynamic = "force-dynamic";
@@ -44,6 +49,14 @@ function errorRedirect(req: Request, code: StudioSsoErrorCode): NextResponse {
   return res;
 }
 
+function loginRedirect(req: Request, returnTo: string): NextResponse {
+  const url = new URL("/login", appOrigin(req));
+  url.searchParams.set("next", returnTo);
+  const res = NextResponse.redirect(url, 302);
+  clearSsoPendingCookie(res);
+  return res;
+}
+
 export async function GET(req: Request) {
   if (!isCentralSsoLive()) {
     return errorRedirect(req, "SSO_DISABLED");
@@ -52,10 +65,7 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
-
-  if (!code || !state) {
-    return errorRedirect(req, "SSO_INVALID");
-  }
+  const oauthError = url.searchParams.get("error");
 
   const cookieHeader = req.headers.get("cookie") ?? "";
   const pendingRaw = cookieHeader
@@ -73,6 +83,20 @@ export async function GET(req: Request) {
     return errorRedirect(req, c);
   }
 
+  // SP.2B.5 — silent IdP: no HC session → login_required (not an SSO error page).
+  if (oauthError === "login_required") {
+    if (state && pending.state === state) {
+      logStudioSsoEvent("silent_sso_no_central_session", {});
+      return loginRedirect(req, pending.returnTo);
+    }
+    logStudioSsoEvent("silent_sso_failure", { reason: "login_required_state_mismatch" });
+    return loginRedirect(req, "/");
+  }
+
+  if (!code || !state) {
+    return errorRedirect(req, "SSO_INVALID");
+  }
+
   if (pending.state !== state) {
     return errorRedirect(req, "SSO_STATE_REJECTED");
   }
@@ -88,13 +112,11 @@ export async function GET(req: Request) {
     });
 
     if (pending.intent === "claim" && pending.claimStudioUserId) {
-      // Dual proof at callback: Studio session must still be the claim target.
       const sessionUser = await getAuthenticatedUser();
       if (!sessionUser || sessionUser.id !== pending.claimStudioUserId) {
         throw new StudioSsoError("CLAIM_UNAUTHORIZED");
       }
 
-      // Stage confirmation — never silently link on callback alone (SP.2B.3).
       const claimPending = buildClaimPending({
         claimStudioUserId: pending.claimStudioUserId,
         centralUserId: claims.centralUserId,
@@ -124,7 +146,14 @@ export async function GET(req: Request) {
 
     const res = NextResponse.redirect(new URL(nextPath, appOrigin(req)), 302);
     clearSsoPendingCookie(res);
+    clearSilentSsoAttemptCookie(res);
+    clearSkipSilentSsoCookie(res);
     applyStudioSessionToResponse(res, user.id);
+    logStudioSsoEvent(
+      user.firstProductVisit ? "product_session_created" : "product_session_reused",
+      { phase: "callback" },
+    );
+    logStudioSsoEvent("silent_sso_success", { phase: "callback" });
     logStudioSsoEvent("sso_success", { phase: "login" });
     return res;
   } catch (err) {
@@ -134,6 +163,7 @@ export async function GET(req: Request) {
       logStudioSsoEvent("identity_not_linked", {});
     }
     logStudioSsoEvent("sso_failure", { code: c });
+    logStudioSsoEvent("silent_sso_failure", { code: c });
     return errorRedirect(req, c);
   }
 }
