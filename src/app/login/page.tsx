@@ -1,32 +1,31 @@
-"use client";
+import { LoginPageContent } from "@/components/auth/login-page-content";
+import {
+  getCentralIdentityFlags,
+  isCentralSsoLive,
+  isLegacyStudioLoginEnabled,
+} from "@/lib/identity/flags";
+import { validateStudioReturnTo } from "@/lib/identity/return-path";
 
-import Link from "next/link";
-import { AuthForm } from "@/components/auth/auth-form";
-import { ProductPageShell } from "@/components/layout/product-page-shell";
-import { AppCard } from "@/components/ui/app-card";
-import { useActiveTranslator } from "@/i18n/client";
+type Search = Promise<{ next?: string | string[]; returnTo?: string | string[] }>;
 
-export default function LoginPage() {
-  const t = useActiveTranslator();
+export default async function LoginPage({ searchParams }: { searchParams: Search }) {
+  const sp = await searchParams;
+  const rawNext = typeof sp.next === "string" ? sp.next : undefined;
+  const rawReturn = typeof sp.returnTo === "string" ? sp.returnTo : undefined;
+  const returnTo = validateStudioReturnTo(rawReturn ?? rawNext);
+
+  const flags = getCentralIdentityFlags();
+  const ssoEnabled = isCentralSsoLive(flags);
+  const legacyEnabled = isLegacyStudioLoginEnabled(flags);
+
+  // SP.2B.1: keep native Studio login UI even when identity is required.
+  void flags.CENTRAL_IDENTITY_REQUIRED;
 
   return (
-    <ProductPageShell contained className="!min-h-[calc(100dvh-4rem)]">
-      <div className="mx-auto w-full max-w-xl py-6">
-      <AppCard>
-        <h1 className="text-2xl font-semibold">{t("auth.login.title")}</h1>
-        <p className="mt-2 text-sm text-zinc-600">{t("auth.login.subtitle")}</p>
-        <div className="mt-6">
-          <AuthForm mode="login" />
-        </div>
-        <p className="mt-4 text-sm text-zinc-600">
-          {t("auth.login.noAccount")}{" "}
-          <Link href="/signup" className="text-emerald-700 underline">
-            {t("auth.signup.link")}
-          </Link>
-        </p>
-      </AppCard>
-      </div>
-    </ProductPageShell>
+    <LoginPageContent
+      ssoEnabled={ssoEnabled}
+      legacyEnabled={legacyEnabled}
+      returnTo={returnTo}
+    />
   );
 }
-

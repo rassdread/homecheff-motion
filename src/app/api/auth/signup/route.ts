@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isLegacyStudioLoginEnabled } from "@/lib/identity/flags";
 import { prisma } from "@/lib/prisma";
 import { createSession, hashPassword } from "@/server/auth/session";
 import { hashInviteToken } from "@/server/auth/invite-token";
@@ -15,8 +16,19 @@ type SignupPayload = {
  * Public signup: anyone can register with role `user`.
  * First account in an empty database becomes `admin` (bootstrap).
  * Optional invite tokens still assign admin/power/user from admin-created links.
+ * Disabled when CENTRAL_IDENTITY_REQUIRED (HomeCheff is the only IdP).
  */
 export async function POST(request: Request) {
+  if (!isLegacyStudioLoginEnabled()) {
+    return NextResponse.json(
+      {
+        error: "Create your account from the Studio signup page.",
+        code: "LEGACY_SIGNUP_DISABLED",
+      },
+      { status: 403 },
+    );
+  }
+
   let payload: SignupPayload;
   try {
     payload = (await request.json()) as SignupPayload;

@@ -1,5 +1,6 @@
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import type { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
   AUTH_COOKIE_NAMES,
@@ -126,6 +127,19 @@ export async function createSession(userId: string): Promise<void> {
   const jar = await cookies();
   clearLegacyAndCanonical(jar);
   jar.set(AUTH_COOKIE_NAMES.studio, value, baseCookieOptions(60 * 60 * 24 * 30));
+}
+
+/** Set host-only studio_session on a redirect/response (SSO callback). */
+export function applyStudioSessionToResponse(res: NextResponse, userId: string): void {
+  const expire = baseCookieOptions(0);
+  res.cookies.set(AUTH_COOKIE_NAMES.studio, "", expire);
+  res.cookies.set(AUTH_COOKIE_NAMES.legacy, "", expire);
+  res.cookies.set(AUTH_COOKIE_NAMES.legacy, "", {
+    ...expire,
+    domain: LEGACY_SHARED_COOKIE_DOMAIN,
+  });
+  const value = encode({ userId, nonce: randomBytes(8).toString("hex") });
+  res.cookies.set(AUTH_COOKIE_NAMES.studio, value, baseCookieOptions(60 * 60 * 24 * 30));
 }
 
 export async function clearSession(): Promise<void> {
