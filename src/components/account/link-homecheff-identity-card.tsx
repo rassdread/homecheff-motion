@@ -19,11 +19,11 @@ export function LinkHomeCheffIdentityCard({ linked, ssoEnabled }: Props) {
 
   function startClaim() {
     if (!ssoEnabled || linked || busy) return;
-    const ok = window.confirm(t("account.identity.claimConfirm"));
-    if (!ok) return;
     setBusy(true);
     const returnTo = encodeURIComponent("/account/settings");
-    window.location.assign(`/auth/sso/start?intent=claim&returnTo=${returnTo}`);
+    window.location.assign(
+      `/auth/sso/start?intent=claim&interaction=claim&returnTo=${returnTo}`,
+    );
   }
 
   return (

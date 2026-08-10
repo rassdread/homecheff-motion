@@ -64,7 +64,7 @@ export function studioSsoErrorMessage(code: StudioSsoErrorCode): string {
     case "SSO_STATE_REJECTED":
       return "The sign-in request was invalid or expired.";
     case "IDENTITY_NOT_LINKED":
-      return "Your HomeCheff account is not linked to Studio yet.";
+      return "We couldn't find a Studio account linked to this HomeCheff account.";
     case "IDENTITY_MAPPING_CONFLICT":
       return "We couldn't complete your Studio login.";
     case "IDENTITY_EMAIL_COLLISION":

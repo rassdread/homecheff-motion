@@ -30,7 +30,7 @@ export function LoginPageContent({ ssoEnabled, legacyEnabled, returnTo }: Props)
 
   function startGoogle() {
     setBusy("google");
-    window.location.assign(`${ssoBase}&intent=google`);
+    window.location.assign(`${ssoBase}&intent=google&interaction=select_account`);
   }
 
   function startEmail(event: FormEvent<HTMLFormElement>) {
@@ -38,8 +38,17 @@ export function LoginPageContent({ ssoEnabled, legacyEnabled, returnTo }: Props)
     if (!ssoEnabled) return;
     setBusy("email");
     const hint = email.trim();
-    const qs = hint ? `&email=${encodeURIComponent(hint)}&intent=password` : `&intent=password`;
+    const qs = hint
+      ? `&email=${encodeURIComponent(hint)}&intent=password&interaction=select_account`
+      : `&intent=password&interaction=select_account`;
     window.location.assign(`${ssoBase}${qs}`);
+  }
+
+  function startSwitchAccount() {
+    setBusy("google");
+    window.location.assign(
+      `${ssoBase}&intent=login&interaction=select_account`,
+    );
   }
 
   return (
@@ -102,6 +111,15 @@ export function LoginPageContent({ ssoEnabled, legacyEnabled, returnTo }: Props)
                   </button>
                 </form>
               )}
+
+              <button
+                type="button"
+                onClick={startSwitchAccount}
+                disabled={busy !== null}
+                className="w-full text-center text-sm text-zinc-600 underline disabled:opacity-60"
+              >
+                {t("auth.login.useAnotherAccount")}
+              </button>
 
               <p className="text-sm text-zinc-600">
                 <a

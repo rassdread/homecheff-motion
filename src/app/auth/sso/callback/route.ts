@@ -1,6 +1,6 @@
 /**
  * SP.2B — GET /auth/sso/callback
- * Validate state → exchange → resolve OR dual-proof claim → studio_session → redirect.
+ * Validate state → exchange → resolve OR stage claim confirm → studio_session → redirect.
  */
 
 import { NextResponse } from "next/server";
@@ -10,7 +10,11 @@ import {
   StudioSsoError,
   type StudioSsoErrorCode,
 } from "@/lib/identity/sso/errors";
-import { claimExistingStudioUser } from "@/lib/identity/sso/claim-user";
+import {
+  applyClaimPendingCookie,
+  buildClaimPending,
+  encodeClaimPending,
+} from "@/lib/identity/sso/claim-pending";
 import { exchangeHomeCheffSsoCode } from "@/lib/identity/sso/exchange-client";
 import { resolveStudioUserFromCentralClaims } from "@/lib/identity/sso/resolve-user";
 import {
@@ -18,6 +22,7 @@ import {
   clearSsoPendingCookie,
   decodeSsoPending,
 } from "@/lib/identity/sso/state";
+import { logStudioSsoEvent } from "@/lib/identity/sso/observability";
 import { applyStudioSessionToResponse, getAuthenticatedUser } from "@/server/auth/session";
 
 export const dynamic = "force-dynamic";
@@ -73,13 +78,14 @@ export async function GET(req: Request) {
   }
 
   try {
+    logStudioSsoEvent("sso_callback_received", {
+      intent: pending.intent ?? "login",
+    });
+
     const claims = await exchangeHomeCheffSsoCode({
       code,
       codeVerifier: pending.codeVerifier,
     });
-
-    let studioUserId: string;
-    let firstProductVisit = false;
 
     if (pending.intent === "claim" && pending.claimStudioUserId) {
       // Dual proof at callback: Studio session must still be the claim target.
@@ -88,34 +94,46 @@ export async function GET(req: Request) {
         throw new StudioSsoError("CLAIM_UNAUTHORIZED");
       }
 
-      const claimed = await claimExistingStudioUser({
-        studioUserId: pending.claimStudioUserId,
-        centralUserId: claims.centralUserId,
-        claimMethod: "dual_proof_legacy_session",
-      });
-      studioUserId = claimed.id;
-      firstProductVisit = false;
-    } else {
-      const user = await resolveStudioUserFromCentralClaims({
+      // Stage confirmation — never silently link on callback alone (SP.2B.3).
+      const claimPending = buildClaimPending({
+        claimStudioUserId: pending.claimStudioUserId,
         centralUserId: claims.centralUserId,
         email: claims.email,
+        displayName: claims.displayName,
+        returnTo: pending.returnTo,
       });
-      studioUserId = user.id;
-      firstProductVisit = user.firstProductVisit;
+      const res = NextResponse.redirect(
+        new URL("/account/claim/confirm", appOrigin(req)),
+        302,
+      );
+      clearSsoPendingCookie(res);
+      applyClaimPendingCookie(res, encodeClaimPending(claimPending));
+      logStudioSsoEvent("claim_identity_confirmed", { phase: "staged" });
+      return res;
     }
 
+    const user = await resolveStudioUserFromCentralClaims({
+      centralUserId: claims.centralUserId,
+      email: claims.email,
+    });
+
     let nextPath = pending.returnTo;
-    if (firstProductVisit && !hasStudioWelcomeCookie(cookieHeader)) {
+    if (user.firstProductVisit && !hasStudioWelcomeCookie(cookieHeader)) {
       nextPath = `/welcome?next=${encodeURIComponent(pending.returnTo)}`;
     }
 
     const res = NextResponse.redirect(new URL(nextPath, appOrigin(req)), 302);
     clearSsoPendingCookie(res);
-    applyStudioSessionToResponse(res, studioUserId);
+    applyStudioSessionToResponse(res, user.id);
+    logStudioSsoEvent("sso_success", { phase: "login" });
     return res;
   } catch (err) {
     const c: StudioSsoErrorCode =
       err instanceof StudioSsoError ? err.code : "EXCHANGE_FAILED";
+    if (c === "IDENTITY_NOT_LINKED") {
+      logStudioSsoEvent("identity_not_linked", {});
+    }
+    logStudioSsoEvent("sso_failure", { code: c });
     return errorRedirect(req, c);
   }
 }
