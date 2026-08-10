@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { LoginPageContent } from "@/components/auth/login-page-content";
 import {
   getCentralIdentityFlags,
@@ -19,9 +18,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
   const ssoEnabled = isCentralSsoLive(flags);
   const legacyEnabled = isLegacyStudioLoginEnabled(flags);
 
-  if (flags.CENTRAL_IDENTITY_REQUIRED && ssoEnabled) {
-    redirect(`/auth/sso/start?returnTo=${encodeURIComponent(returnTo)}`);
-  }
+  // SP.2B.1: keep native Studio login UI even when identity is required.
+  void flags.CENTRAL_IDENTITY_REQUIRED;
 
   return (
     <LoginPageContent

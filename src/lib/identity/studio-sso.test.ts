@@ -5,7 +5,13 @@ import {
   isCentralSsoLive,
   isLegacyStudioLoginEnabled,
 } from "@/lib/identity/flags";
+import {
+  homecheffForgotPasswordHref,
+  homecheffRegisterHrefForStudio,
+  studioSsoStartAbsoluteHref,
+} from "@/lib/identity/homecheff-origin";
 import { validateStudioReturnTo } from "@/lib/identity/return-path";
+import { hasStudioWelcomeCookie } from "@/lib/identity/studio-welcome";
 import { mapHomeCheffExchangeError, studioSsoErrorMessage } from "@/lib/identity/sso/errors";
 import { validateSsoClaims } from "@/lib/identity/sso/exchange-client";
 import { codeChallengeS256, generateCodeVerifier } from "@/lib/identity/sso/pkce";
@@ -68,6 +74,12 @@ describe("SP.2B returnTo", () => {
     assert.equal(validateStudioReturnTo("https://evil.example/"), "/");
     assert.equal(validateStudioReturnTo("//evil"), "/");
   });
+
+  it("allows welcome and auth presentation paths (SP.2B.1)", () => {
+    assert.equal(validateStudioReturnTo("/welcome"), "/welcome");
+    assert.equal(validateStudioReturnTo("/login"), "/login");
+    assert.equal(validateStudioReturnTo("/signup"), "/signup");
+  });
 });
 
 describe("SP.2B PKCE + claims", () => {
@@ -105,5 +117,33 @@ describe("SP.2B cookie containment", () => {
   it("keeps studio_session product cookie name", () => {
     assert.equal(AUTH_COOKIE_NAMES.studio, "studio_session");
     assert.equal(AUTH_COOKIE_NAMES.legacy, "hc_session");
+  });
+});
+
+describe("SP.2B.1 presentation deep links", () => {
+  it("builds IdP register callback to Studio SSO start", () => {
+    withEnv(
+      {
+        HOMECHEFF_IDENTITY_ORIGIN: "https://homecheff.eu",
+        NEXT_PUBLIC_APP_URL: "https://studio.example",
+      },
+      () => {
+        assert.equal(
+          studioSsoStartAbsoluteHref("/studio"),
+          "https://studio.example/auth/sso/start?returnTo=%2Fstudio",
+        );
+        const reg = homecheffRegisterHrefForStudio("/studio");
+        assert.ok(reg.startsWith("https://homecheff.eu/register?"));
+        assert.ok(reg.includes(encodeURIComponent("https://studio.example/auth/sso/start")));
+        assert.equal(homecheffForgotPasswordHref(), "https://homecheff.eu/forgot-password");
+      },
+    );
+  });
+
+  it("detects studio welcome cookie", () => {
+    assert.equal(hasStudioWelcomeCookie("studio_welcome_done=1"), true);
+    assert.equal(hasStudioWelcomeCookie("a=1; studio_welcome_done=1; b=2"), true);
+    assert.equal(hasStudioWelcomeCookie("studio_welcome_done=0"), false);
+    assert.equal(hasStudioWelcomeCookie(""), false);
   });
 });

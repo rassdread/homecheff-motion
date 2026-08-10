@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   if (!isLegacyStudioLoginEnabled()) {
     return NextResponse.json(
       {
-        error: "Create your account on HomeCheff, then Continue with HomeCheff.",
+        error: "Create your account from the Studio signup page.",
         code: "LEGACY_SIGNUP_DISABLED",
       },
       { status: 403 },

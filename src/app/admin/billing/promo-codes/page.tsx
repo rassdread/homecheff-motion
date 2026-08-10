@@ -16,7 +16,16 @@ export default function AdminBillingPromoCodesPage() {
   }
 
   useEffect(() => {
-    void reload();
+    let cancelled = false;
+    void (async () => {
+      const res = await fetch("/api/admin/billing/promo-codes", { credentials: "include" });
+      if (!res.ok || cancelled) return;
+      const data = (await res.json()) as { codes: StudioPromoCodeSnapshot[] };
+      if (!cancelled) setCodes(data.codes);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function toggleActive(id: string, active: boolean) {

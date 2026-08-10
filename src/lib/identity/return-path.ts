@@ -18,6 +18,9 @@ const ALLOWED_PREFIXES = [
   "/projects",
   "/mijn-verbruik",
   "/pricing",
+  "/welcome",
+  "/login",
+  "/signup",
 ] as const;
 
 function decodeOnce(raw: string): string {

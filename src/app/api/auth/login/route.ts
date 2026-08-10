@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   if (!isLegacyStudioLoginEnabled()) {
     return NextResponse.json(
       {
-        error: "Use Continue with HomeCheff to sign in.",
+        error: "Sign in from the Studio login page (Google or email).",
         code: "LEGACY_LOGIN_DISABLED",
       },
       { status: 403 },

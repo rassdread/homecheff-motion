@@ -5,6 +5,7 @@
 
 import { NextResponse } from "next/server";
 import { isCentralSsoLive } from "@/lib/identity/flags";
+import { hasStudioWelcomeCookie } from "@/lib/identity/studio-welcome";
 import {
   StudioSsoError,
   type StudioSsoErrorCode,
@@ -81,7 +82,12 @@ export async function GET(req: Request) {
       email: claims.email,
     });
 
-    const res = NextResponse.redirect(new URL(pending.returnTo, appOrigin(req)), 302);
+    let nextPath = pending.returnTo;
+    if (user.firstProductVisit && !hasStudioWelcomeCookie(cookieHeader)) {
+      nextPath = `/welcome?next=${encodeURIComponent(pending.returnTo)}`;
+    }
+
+    const res = NextResponse.redirect(new URL(nextPath, appOrigin(req)), 302);
     clearSsoPendingCookie(res);
     applyStudioSessionToResponse(res, user.id);
     return res;

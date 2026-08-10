@@ -55,4 +55,6 @@ Public web (SEO + Universe home + product landings + pricing + help)
 Studio is **technically ready** and **partially product-ready**.  
 Public product completion requires experience/CTA/funnel work — not another architecture rewrite.
 
+**Gate:** SP.2C (Public Product Completion) must not start until SP.2B Preview SSO is GREEN **and** SP.2B.1 Unified Login UX Preview smoke is PASS. See `docs/audits/studio-sp2b1-final-report.md`.
+
 See `docs/audits/studio-sp1-*.md` and `studio-sp1-final-report.md`.

@@ -24,18 +24,22 @@ export default async function StudioSsoErrorPage({
     <ProductPageShell contained className="!min-h-[calc(100dvh-4rem)]">
       <div className="mx-auto w-full max-w-xl py-6">
         <AppCard>
-          <h1 className="text-2xl font-semibold">Sign-in problem</h1>
+          <p className="text-sm font-semibold text-emerald-800">HomeCheff Studio</p>
+          <h1 className="mt-2 text-2xl font-semibold">Sign-in problem</h1>
           <p className="mt-2 text-sm text-zinc-600">{message}</p>
           <p className="mt-1 text-xs text-zinc-400">Code: {code}</p>
           <div className="mt-6 flex flex-wrap gap-3 text-sm">
             <Link
-              href="/auth/sso/start"
+              href="/login"
               className="rounded-md bg-emerald-700 px-4 py-2 font-medium text-white"
             >
-              Continue with HomeCheff
-            </Link>
-            <Link href="/login" className="rounded-md border px-4 py-2 text-zinc-700">
               Back to login
+            </Link>
+            <Link
+              href="/auth/sso/start"
+              className="rounded-md border px-4 py-2 text-zinc-700"
+            >
+              Try again
             </Link>
           </div>
         </AppCard>

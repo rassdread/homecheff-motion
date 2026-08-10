@@ -17,6 +17,8 @@ export type ResolvedStudioUser = {
   id: string;
   email: string;
   isActive: boolean;
+  /** True when this SSO created or newly linked the Studio user. */
+  firstProductVisit: boolean;
 };
 
 export async function resolveStudioUserFromCentralClaims(input: {
@@ -42,13 +44,12 @@ export async function resolveStudioUserFromCentralClaims(input: {
       throw new StudioSsoError("CENTRAL_ACCOUNT_DISABLED");
     }
     if (user.email !== email) {
-      // Keep email in sync with HomeCheff (identity SoT)
       await prisma.user.update({
         where: { id: user.id },
         data: { email },
       });
     }
-    return { id: user.id, email, isActive: true };
+    return { id: user.id, email, isActive: true, firstProductVisit: false };
   }
 
   if (!isStudioJitProvisioningEnabled()) {
@@ -67,18 +68,18 @@ export async function resolveStudioUserFromCentralClaims(input: {
     if (byEmail.isActive === false) {
       throw new StudioSsoError("CENTRAL_ACCOUNT_DISABLED");
     }
+    const wasUnlinked = !byEmail.centralUserId;
     const linked = await prisma.user.update({
       where: { id: byEmail.id },
       data: {
         centralUserId,
         centralLinkedAt: new Date(),
-        // Passwords live on HomeCheff — clear local hash on link
         passwordHash: null,
       },
       select: { id: true, email: true, isActive: true },
     });
     await ensureStudioAccount(linked.id, linked.email);
-    return linked;
+    return { ...linked, firstProductVisit: wasUnlinked };
   }
 
   const created = await prisma.user.create({
@@ -93,5 +94,5 @@ export async function resolveStudioUserFromCentralClaims(input: {
     select: { id: true, email: true, isActive: true },
   });
   await ensureStudioAccount(created.id, created.email);
-  return created;
+  return { ...created, firstProductVisit: true };
 }

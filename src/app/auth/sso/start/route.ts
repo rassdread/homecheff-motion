@@ -1,6 +1,11 @@
 /**
- * SP.2B — GET /auth/sso/start
- * PKCE + state → HomeCheff /auth/sso/start?product=studio
+ * SP.2B / SP.2B.1 — GET /auth/sso/start
+ * PKCE + state → HomeCheff SSO issuer (product=studio).
+ *
+ * UX layer (SP.2B.1): optional `email` routes via HC `/login?email=` so the
+ * native Studio form can prefill IdP login without owning credentials.
+ * Optional `intent=google|password` is reserved for future IdP presentation;
+ * architecture is unchanged (HC remains sole IdP).
  */
 
 import { NextResponse } from "next/server";
@@ -30,6 +35,13 @@ function errorRedirect(code: string): NextResponse {
   return NextResponse.redirect(url);
 }
 
+function normalizeEmailHint(raw: string | null): string | null {
+  if (!raw) return null;
+  const email = raw.trim().toLowerCase();
+  if (!email || !email.includes("@") || email.length > 254) return null;
+  return email;
+}
+
 export async function GET(req: Request) {
   if (!isCentralSsoLive()) {
     return errorRedirect("SSO_DISABLED");
@@ -40,6 +52,7 @@ export async function GET(req: Request) {
     const returnTo = validateStudioReturnTo(
       url.searchParams.get("returnTo") ?? url.searchParams.get("next"),
     );
+    const emailHint = normalizeEmailHint(url.searchParams.get("email"));
     const state = generateState();
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = codeChallengeS256(codeVerifier);
@@ -55,7 +68,16 @@ export async function GET(req: Request) {
     start.searchParams.set("code_challenge", codeChallenge);
     start.searchParams.set("code_challenge_method", "S256");
 
-    const res = NextResponse.redirect(start.toString(), 302);
+    // Prefill HC login when Studio collected an email (presentation only).
+    let destination = start.toString();
+    if (emailHint) {
+      const login = new URL(`${homecheffIdentityOrigin()}/login`);
+      login.searchParams.set("email", emailHint);
+      login.searchParams.set("callbackUrl", `${start.pathname}${start.search}`);
+      destination = login.toString();
+    }
+
+    const res = NextResponse.redirect(destination, 302);
     applySsoPendingCookie(res, encoded);
     return res;
   } catch (err) {
