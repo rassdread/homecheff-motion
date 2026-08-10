@@ -20,7 +20,8 @@ Forensic history preserved in the alignment doc (Part 1). Prior SP.2B.1 cert doc
 |-------|--------|
 | Chosen Preview identity strategy | **Option C (scoped)** — HC Preview IdP uses Production identity DB |
 | Preferred Option A | Deferred — Production lacks Studio SSO product + SSO env; merge gated on Preview GREEN |
-| HomeCheff IdP host (Preview cert) | HC Preview deployment of `feat/sp2b-studio-sso-issuer` |
+| Reason | Credential + `centralUserId` fidelity without password copy/reset and without deploying unmerged issuer to Production |
+| HomeCheff IdP host (Preview cert) | HC Preview git alias for `feat/sp2b-studio-sso-issuer` |
 | HomeCheff identity DB (after align) | `ep-summer-darkness-a2l0745u…` |
 | Pre-align Preview DB | `ep-fragrant-smoke-a2jlex69…` (rollback target) |
 | Studio DB | `ep-wild-morning-alynrf2i…` |
@@ -31,11 +32,28 @@ Forensic history preserved in the alignment doc (Part 1). Prior SP.2B.1 cert doc
 | Email UX | Optional hint → HC `/login` |
 | Signup | HC register → Studio SSO |
 | Forgot password | HC reset |
-| JIT | **OFF** (`CENTRAL_SSO_JIT_PROVISIONING=false`) |
-| Existing-user link | Enabled without JIT (code) |
-| Legacy Studio scrypt | Compatibility only under legacy disclosure |
-| Production SSO flags | Remain OFF / unchanged |
-| Merge PR #17 / HC #12 | **DO NOT MERGE** until Preview GREEN |
+| Controlled HC / Studio users | Live smoke only (no emails in telemetry docs) |
+| `centralUserId` link | Code: existing unlinked email link without JIT |
+| `centralLinkedAt` | Set on link |
+| Duplicate prevention | Unique `centralUserId` + collision DENY |
+| JIT | **OFF** |
+| Legacy Studio scrypt | Compatibility disclosure only |
+| Existing-user / Google / Email E2E | **PENDING** human smoke |
+| Continuity (wallet/projects/…) | **PENDING** human smoke |
+| Welcome / deep-link / studio_session | **CODE READY** / live **PENDING** |
+| Cookie scope | host-only `studio_session` (unchanged design) |
+| Security allowlist | Exact redirect URIs; no wildcards |
+| Deployment Protection | Blocks agent automation — human Vercel SSO smoke required |
+| Studio lint | **PASS** (0 errors) |
+| Studio build | **PASS** |
+| Studio tests | **PASS** `4794/4794` |
+| Studio TypeScript | **PASS** |
+| HomeCheff auth tests | No dedicated SSO unit suite in repo; issuer allowlist comment + Preview redeploy |
+| Preview certification | **NOT GREEN** |
+| Studio PR | https://github.com/rassdread/homecheff-motion/pull/17 — HEAD `92a4a527` |
+| HomeCheff PR | https://github.com/rassdread/homecheff-app/pull/12 — HEAD `ad9764bd` |
+| Merge | **DO NOT MERGE** until Preview GREEN |
+| Production deploy / SSO flags | Unchanged / OFF |
 | Final GO / NO-GO for SP.2C | **NO-GO FOR SP.2C** |
 
 ---
@@ -50,12 +68,11 @@ Forensic history preserved in the alignment doc (Part 1). Prior SP.2B.1 cert doc
 ## Non-blocking risks
 
 1. Option C: Preview IdP writes NextAuth sessions into Production identity DB.
-2. Redeploy timing: branch `DATABASE_URL` override must be live on the active Preview deployment.
+2. Studio Preview must keep `HOMECHEFF_IDENTITY_ORIGIN` on the Studio-capable HC Preview issuer (not Production `main`).
 3. Google OAuth on Preview host must remain allowlisted in Google console.
 
 ## Recommended next step
 
-1. Confirm HC Preview redeploy Ready with Production identity DB.
-2. Human (Vercel-authenticated) smoke Part 25 on Studio Preview.
-3. On PASS → mark Preview GREEN → merge Studio PR #17 + HC PR #12 → controlled Production SSO rollout (flags still conservative).
-4. Do **not** start SP.2C until GREEN.
+1. While signed into Vercel, run Part 25 human smoke on Studio Preview against aligned HC Preview IdP.
+2. On PASS → mark Preview GREEN → merge Studio PR #17 + HC PR #12 → controlled Production SSO rollout (flags still conservative).
+3. Do **not** start SP.2C until GREEN.
