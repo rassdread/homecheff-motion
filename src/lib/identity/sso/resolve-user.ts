@@ -3,9 +3,15 @@
  *
  * Rules:
  * 1. Match by centralUserId (unique).
- * 2. If missing and JIT on: link existing Studio user by email when unlinked.
- * 3. If missing and JIT on: create Studio user (no local password) + billing bootstrap.
- * 4. Never invent a second identity for the same centralUserId.
+ * 2. If missing: after strong HC auth, link exactly one existing Studio user by email
+ *    when centralUserId is null (existing-user certification / migration link).
+ *    Conflicting centralUserId → DENY. Ambiguous duplicates → DENY.
+ * 3. If missing and no Studio user and JIT on: create Studio user (no local password)
+ *    + billing bootstrap.
+ * 4. If missing and no Studio user and JIT off: IDENTITY_NOT_LINKED.
+ * 5. Never invent a second identity for the same centralUserId.
+ *
+ * Existing-user link is NOT gated by JIT — JIT only controls new-user create.
  */
 
 import { prisma } from "@/lib/prisma";
@@ -52,10 +58,6 @@ export async function resolveStudioUserFromCentralClaims(input: {
     return { id: user.id, email, isActive: true, firstProductVisit: false };
   }
 
-  if (!isStudioJitProvisioningEnabled()) {
-    throw new StudioSsoError("IDENTITY_NOT_LINKED");
-  }
-
   const byEmail = await prisma.user.findUnique({
     where: { email },
     select: { id: true, email: true, isActive: true, centralUserId: true },
@@ -80,6 +82,10 @@ export async function resolveStudioUserFromCentralClaims(input: {
     });
     await ensureStudioAccount(linked.id, linked.email);
     return { ...linked, firstProductVisit: wasUnlinked };
+  }
+
+  if (!isStudioJitProvisioningEnabled()) {
+    throw new StudioSsoError("IDENTITY_NOT_LINKED");
   }
 
   const created = await prisma.user.create({

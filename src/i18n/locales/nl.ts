@@ -11519,6 +11519,10 @@ export const nl = {
   "auth.login.welcomeBack": "Welkom terug.",
   "auth.login.nativeSubtitle": "Ga verder met creëren met je HomeCheff-account.",
   "auth.login.continueGoogle": "Doorgaan met Google",
+  "auth.login.continueEmail": "Doorgaan met e-mail",
+  "auth.login.continueEmailHint":
+    "We openen HomeCheff om je wachtwoord te controleren — Studio bewaart je centrale wachtwoord nooit.",
+  "auth.login.emailHintPlaceholder": "E-mail (optioneel)",
   "auth.login.or": "of",
   "auth.login.continuing": "Bezig…",
   "auth.login.forgotPassword": "Wachtwoord vergeten?",

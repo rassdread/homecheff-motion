@@ -11516,6 +11516,10 @@ export const en: LocaleSchema = {
   "auth.login.welcomeBack": "Welcome back.",
   "auth.login.nativeSubtitle": "Continue creating with your HomeCheff account.",
   "auth.login.continueGoogle": "Continue with Google",
+  "auth.login.continueEmail": "Continue with email",
+  "auth.login.continueEmailHint":
+    "We’ll open HomeCheff to verify your password — Studio never stores your central password.",
+  "auth.login.emailHintPlaceholder": "Email (optional)",
   "auth.login.or": "or",
   "auth.login.continuing": "Continuing…",
   "auth.login.forgotPassword": "Forgot password?",

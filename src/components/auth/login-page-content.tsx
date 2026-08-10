@@ -15,15 +15,16 @@ type Props = {
 };
 
 /**
- * SP.2B.1 — Native Studio login presentation.
- * Backend remains HomeCheff IdP via /auth/sso/start (no Studio Google OAuth).
+ * SP.2B — Honest Studio login presentation.
+ * Password is NEVER collected on Studio (no discarded-password UX).
+ * Email/password validation happens only on HomeCheff hosted login.
+ * Google routes via HomeCheff IdP (no Studio Google OAuth).
  */
 export function LoginPageContent({ ssoEnabled, legacyEnabled, returnTo }: Props) {
   const t = useActiveTranslator();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [busy, setBusy] = useState<"google" | "password" | null>(null);
+  const [showEmailStep, setShowEmailStep] = useState(false);
+  const [busy, setBusy] = useState<"google" | "email" | null>(null);
 
   const ssoBase = `/auth/sso/start?returnTo=${encodeURIComponent(returnTo)}`;
 
@@ -32,15 +33,12 @@ export function LoginPageContent({ ssoEnabled, legacyEnabled, returnTo }: Props)
     window.location.assign(`${ssoBase}&intent=google`);
   }
 
-  function startPassword(event: FormEvent<HTMLFormElement>) {
+  function startEmail(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!ssoEnabled) return;
-    setBusy("password");
+    setBusy("email");
     const hint = email.trim();
     const qs = hint ? `&email=${encodeURIComponent(hint)}&intent=password` : `&intent=password`;
-    // Password is entered on Studio for UX; validation happens on HomeCheff IdP.
-    // We do not POST the password to Studio (no credential API / no duplicate IdP).
-    void password;
     window.location.assign(`${ssoBase}${qs}`);
   }
 
@@ -71,48 +69,39 @@ export function LoginPageContent({ ssoEnabled, legacyEnabled, returnTo }: Props)
                 <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-zinc-200" />
               </div>
 
-              <form onSubmit={startPassword} className="space-y-3">
-                <label className="block text-sm text-zinc-700">
-                  <span className="mb-1 block">{t("auth.form.email")}</span>
-                  <input
-                    type="email"
-                    name="email"
-                    autoComplete="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-                  />
-                </label>
-                <label className="block text-sm text-zinc-700">
-                  <span className="mb-1 block">{t("auth.form.password")}</span>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      name="password"
-                      autoComplete="current-password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full rounded-md border border-zinc-300 px-3 py-2 pr-16 text-sm"
-                    />
-                    <button
-                      type="button"
-                      className="absolute inset-y-0 right-2 text-xs text-zinc-500"
-                      onClick={() => setShowPassword((v) => !v)}
-                    >
-                      {showPassword ? t("auth.form.hidePassword") : t("auth.form.showPassword")}
-                    </button>
-                  </div>
-                </label>
+              {!showEmailStep ? (
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={() => setShowEmailStep(true)}
                   disabled={busy !== null}
                   className="flex w-full items-center justify-center rounded-md bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
                 >
-                  {busy === "password" ? t("auth.login.continuing") : t("auth.login.cta")}
+                  {t("auth.login.continueEmail")}
                 </button>
-              </form>
+              ) : (
+                <form onSubmit={startEmail} className="space-y-3">
+                  <p className="text-sm text-zinc-600">{t("auth.login.continueEmailHint")}</p>
+                  <label className="block text-sm text-zinc-700">
+                    <span className="mb-1 block">{t("auth.form.email")}</span>
+                    <input
+                      type="email"
+                      name="email"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder={t("auth.login.emailHintPlaceholder")}
+                      className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={busy !== null}
+                    className="flex w-full items-center justify-center rounded-md bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
+                  >
+                    {busy === "email" ? t("auth.login.continuing") : t("auth.login.continueEmail")}
+                  </button>
+                </form>
+              )}
 
               <p className="text-sm text-zinc-600">
                 <a

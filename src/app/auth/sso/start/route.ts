@@ -1,11 +1,10 @@
 /**
- * SP.2B / SP.2B.1 — GET /auth/sso/start
+ * SP.2B — GET /auth/sso/start
  * PKCE + state → HomeCheff SSO issuer (product=studio).
  *
- * UX layer (SP.2B.1): optional `email` routes via HC `/login?email=` so the
- * native Studio form can prefill IdP login without owning credentials.
- * Optional `intent=google|password` is reserved for future IdP presentation;
- * architecture is unchanged (HC remains sole IdP).
+ * Honest email UX: optional `email` is a hint only → HC `/login?email=` so
+ * HomeCheff collects and validates the password. Studio never accepts a password.
+ * Optional `intent=google|password` is presentation-only; HC remains sole IdP.
  */
 
 import { NextResponse } from "next/server";
