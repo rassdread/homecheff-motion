@@ -14,6 +14,7 @@ export type StudioSsoObsEvent =
   | "claim_cancelled"
   | "existing_identity_candidate_found"
   | "existing_identity_linked"
+  | "jit_product_user_created"
   | "identity_not_linked"
   | "identity_conflict"
   | "central_identity_claim"
