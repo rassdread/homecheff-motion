@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ReactNode } from "react";
 import { HomeCheffBrandMark } from "@/components/brand/homecheff-brand-mark";
 import { HomeCheffAssistantMount } from "@/components/assistant/homecheff-assistant-mount";
+import { OntdekHomeCheffShellControl } from "@/components/ecosystem/ontdek-homecheff-shell-control";
 import { AppShellPrimaryNav } from "@/components/layout/app-shell-primary-nav";
 import { AppShellUserBar } from "@/components/layout/app-shell-user-bar";
 import { BillingConversionShell } from "@/components/billing/billing-conversion-shell";
@@ -35,6 +36,7 @@ export function AppShell({ children }: AppShellProps) {
           </div>
 
           <div className="ml-auto flex min-w-0 shrink-0 items-center gap-1 sm:gap-2">
+            <OntdekHomeCheffShellControl />
             <LanguageSwitch />
             <GlobalCreditIndicator />
             <div className="hidden lg:block">
