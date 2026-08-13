@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { OntdekHomeCheffMenu } from "@/components/ecosystem/ontdek-homecheff-menu";
 import { GlobalCreditIndicator } from "@/components/billing/global-credit-indicator";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
@@ -168,7 +169,14 @@ export function AppShellUserBar({ compact = false }: Props) {
               </Link>
             );
           })}
-          <div className="my-1 border-t border-white/10" role="separator" />
+          <div className="my-1 border-t border-white/10 px-1 py-1" role="separator">
+            <OntdekHomeCheffMenu
+              currentProduct="studio"
+              authenticated
+              surface="account_menu"
+              variant="inline"
+            />
+          </div>
           <button
             type="button"
             className={`${studioVisual.userDropdownItem} w-full text-left`}
