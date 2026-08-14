@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server";
 import { isCentralSsoLive } from "@/lib/identity/flags";
 import { hasStudioWelcomeCookie } from "@/lib/identity/studio-welcome";
+import { isPublicStudioSurface } from "@/lib/identity/return-path";
 import {
   StudioSsoError,
   type StudioSsoErrorCode,
@@ -57,6 +58,16 @@ function loginRedirect(req: Request, returnTo: string): NextResponse {
   return res;
 }
 
+/** SP.2B.7 — public hydrate: no HC session → stay public (do not force /login). */
+function publicOrLoginRedirect(req: Request, returnTo: string): NextResponse {
+  if (isPublicStudioSurface(returnTo)) {
+    const res = NextResponse.redirect(new URL(returnTo, appOrigin(req)), 302);
+    clearSsoPendingCookie(res);
+    return res;
+  }
+  return loginRedirect(req, returnTo);
+}
+
 export async function GET(req: Request) {
   if (!isCentralSsoLive()) {
     return errorRedirect(req, "SSO_DISABLED");
@@ -83,14 +94,14 @@ export async function GET(req: Request) {
     return errorRedirect(req, c);
   }
 
-  // SP.2B.5 — silent IdP: no HC session → login_required (not an SSO error page).
+  // SP.2B.5 / SP.2B.7 — silent IdP: no HC session → public stay OR /login.
   if (oauthError === "login_required") {
     if (state && pending.state === state) {
       logStudioSsoEvent("silent_sso_no_central_session", {});
-      return loginRedirect(req, pending.returnTo);
+      return publicOrLoginRedirect(req, pending.returnTo);
     }
     logStudioSsoEvent("silent_sso_failure", { reason: "login_required_state_mismatch" });
-    return loginRedirect(req, "/");
+    return publicOrLoginRedirect(req, "/");
   }
 
   if (!code || !state) {

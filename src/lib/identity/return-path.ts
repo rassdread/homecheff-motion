@@ -96,3 +96,12 @@ export function validateStudioReturnTo(raw: string | null | undefined): string {
 
   return pathname;
 }
+
+/**
+ * Surfaces that must stay public when silent SSO finds no HC session.
+ * Used so login_required does not bounce anonymous visitors to /login.
+ */
+export function isPublicStudioSurface(path: string): boolean {
+  const p = validateStudioReturnTo(path);
+  return p === "/" || p === "/pricing" || p.startsWith("/pricing/");
+}
