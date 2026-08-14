@@ -48,7 +48,7 @@ export const ECOSYSTEM_PRODUCTS: readonly EcosystemProduct[] = [
     compactName: "Growth",
     benefit: "Vind klanten en laat je bedrijf groeien.",
     detail: "Slimmer zoeken, leads vinden en kansen omzetten in groei.",
-    href: "https://growth.homecheff.eu",
+    href: "https://growth.homecheff.eu/auth/sso/silent?mode=ecosystem&returnTo=%2F",
   },
 ] as const;
 
