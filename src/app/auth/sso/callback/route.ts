@@ -89,6 +89,11 @@ export async function GET(req: Request) {
   try {
     pending = decodeSsoPending(pendingRaw ? decodeURIComponent(pendingRaw) : null);
   } catch (err) {
+    // SP.2B.7 — missing pending + login_required must not show SSO error to public visitors.
+    if (oauthError === "login_required") {
+      logStudioSsoEvent("silent_sso_no_central_session", { reason: "no_pending" });
+      return publicOrLoginRedirect(req, "/");
+    }
     const c =
       err instanceof StudioSsoError ? err.code : ("SSO_STATE_REJECTED" as StudioSsoErrorCode);
     return errorRedirect(req, c);
