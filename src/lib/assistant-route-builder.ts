@@ -30,13 +30,22 @@ export function buildAssistantActionRoute(
   const base = getAssistantAction(actionId).canonicalRoute;
 
   switch (actionId) {
-    case "create_video_production":
-      return buildStudioStartHref({
-        intent: context.videoIntent,
-        hcProject: context.projectId ?? undefined,
-        idea: context.idea,
-        autoProduce: true,
-      });
+    case "create_video_production": {
+      // SP.3: natural entry = guided experience. Deep production start only when a project already exists.
+      if (context.projectId) {
+        return buildStudioStartHref({
+          intent: context.videoIntent,
+          hcProject: context.projectId,
+          idea: context.idea,
+          autoProduce: true,
+        });
+      }
+      const params = new URLSearchParams();
+      if (context.videoIntent) params.set("intent", context.videoIntent);
+      if (context.idea?.trim()) params.set("idea", context.idea.trim().slice(0, 500));
+      const qs = params.toString();
+      return qs ? `/studio/experience?${qs}` : "/studio/experience";
+    }
     case "create_character":
       return buildCharacterClusterHref("new", {
         hcProject: context.projectId ?? undefined,

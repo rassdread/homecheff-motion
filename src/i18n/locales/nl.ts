@@ -407,6 +407,7 @@ export const nl = {
   "universe.hero.highlight.branding": "Branding",
   "universe.hero.highlight.ctas": "CTA's",
   "universe.hero.cta.startProject": "Start nieuw project",
+  "universe.hero.cta.startWithIdea": "Begin met je idee",
   "universe.hero.cta.howItWorks": "Ontdek hoe het werkt",
   "universe.hero.cta.signIn": "Inloggen",
   "universe.productionLine.title": "Eén productie. Meerdere versies.",

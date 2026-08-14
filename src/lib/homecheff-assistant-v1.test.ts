@@ -56,7 +56,7 @@ describe("homecheff assistant v1", () => {
     assert.equal(match.kind, "action");
     if (match.kind === "action") {
       assert.equal(match.actionId, "create_video_production");
-      assert.match(buildAssistantActionRoute(match.actionId), /\/studio\/start/);
+      assert.match(buildAssistantActionRoute(match.actionId), /\/studio\/experience/);
     }
     const music = matchAssistantIntent("I want a music video");
     assert.equal(music.kind, "action");

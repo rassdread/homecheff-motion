@@ -411,6 +411,7 @@ export const en: LocaleSchema = {
   "universe.hero.highlight.branding": "Branding",
   "universe.hero.highlight.ctas": "CTAs",
   "universe.hero.cta.startProject": "Start new project",
+  "universe.hero.cta.startWithIdea": "Start with your idea",
   "universe.hero.cta.howItWorks": "Discover how it works",
   "universe.hero.cta.signIn": "Sign in",
   "universe.productionLine.title": "One production. Multiple versions.",

@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { loginHref } from "@/lib/auth-login-href";
 import { UNIVERSE_PLANETS } from "@/lib/universe-home-config";
 import {
   UNIVERSE_HERO_HIGHLIGHT_KEYS,
@@ -74,15 +73,15 @@ describe("universe production line messaging", () => {
     assert.match(componentSource, /UNIVERSE_PLANETS/);
   });
 
-  it("protected CTAs route to login with next when signed out", () => {
-    assert.equal(resolveUniverseStartProjectHref(false), loginHref("/editor"));
-    assert.equal(resolveUniverseStartProjectHref(true), "/editor");
-    assert.equal(resolveUniversePrimaryCtaHref(false), loginHref("/editor"));
-    assert.equal(resolveUniversePlanetHref("/studio", false), loginHref("/studio"));
+  it("SP.3: primary CTAs prefer guided creation over Editor/login walls", () => {
+    assert.equal(resolveUniverseStartProjectHref(false), "/studio/experience");
+    assert.equal(resolveUniverseStartProjectHref(true), "/studio/experience");
+    assert.equal(resolveUniversePrimaryCtaHref(false), "/studio/experience");
+    assert.equal(resolveUniversePlanetHref("/studio", false), "/studio");
   });
 
-  it("signed-in CTAs route directly", () => {
-    assert.equal(resolveUniversePrimaryCtaHref(true), "/editor");
+  it("signed-in discovery CTAs stay on product pages", () => {
+    assert.equal(resolveUniversePrimaryCtaHref(true), "/studio/experience");
     assert.equal(resolveUniversePlanetHref("/library", true), "/library");
   });
 

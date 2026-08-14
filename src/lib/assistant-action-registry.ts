@@ -53,8 +53,9 @@ export const ASSISTANT_ACTION_REGISTRY: Record<AssistantActionId, AssistantActio
   create_video_production: {
     id: "create_video_production",
     category: "motion",
-    description: "Start unified Studio video production from detected intent.",
-    canonicalRoute: "/studio/start",
+    description:
+      "Start guided Studio creation from natural intent (Experience Packs / Director when useful).",
+    canonicalRoute: "/studio/experience",
     execution: "registry_only",
   },
   create_character: {
