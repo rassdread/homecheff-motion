@@ -4,6 +4,8 @@ import { isAllowedApiOrigin } from "@/lib/allowed-api-origins";
 import { HOMECHEFF_BRAND_ICON_PATHS } from "@/lib/homecheff-brand-icon";
 import { logAuthCheck } from "@/server/auth/auth-check-log";
 import { AUTH_COOKIE_NAMES } from "@/server/auth/cookie-names";
+import { isCentralSsoLive } from "@/lib/identity/flags";
+import { canAttemptSilentSso } from "@/lib/identity/sso/silent-guard";
 
 function originMatchesRequestHost(request: NextRequest, origin: string): boolean {
   const host = request.headers.get("host");
@@ -81,11 +83,40 @@ function handleApiMiddleware(request: NextRequest): NextResponse {
   return response;
 }
 
+/**
+ * SP.2B.7 — hard redirect into silent hydrate before AppShell paints guest chrome.
+ */
+function maybePublicSilentHydrate(request: NextRequest): NextResponse | null {
+  const { pathname } = request.nextUrl;
+  if (pathname !== "/") return null;
+  if (request.method !== "GET" && request.method !== "HEAD") return null;
+
+  const hasStudioSession = Boolean(
+    request.cookies.get(AUTH_COOKIE_NAMES.studio)?.value ||
+      request.cookies.get(AUTH_COOKIE_NAMES.legacy)?.value,
+  );
+  if (hasStudioSession) return null;
+  if (!isCentralSsoLive()) return null;
+
+  const cookieHeader = request.headers.get("cookie");
+  if (!canAttemptSilentSso(cookieHeader)) return null;
+
+  const url = request.nextUrl.clone();
+  url.pathname = "/auth/sso/silent";
+  url.search = "";
+  url.searchParams.set("returnTo", "/");
+  url.searchParams.set("mode", "public");
+  return NextResponse.redirect(url, 307);
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (pathname.startsWith("/api/")) {
     return handleApiMiddleware(request);
   }
+
+  const silent = maybePublicSilentHydrate(request);
+  if (silent) return silent;
 
   const acceptsHtml = request.headers.get("accept")?.includes("text/html") ?? false;
   if (request.method === "GET" && acceptsHtml) {
