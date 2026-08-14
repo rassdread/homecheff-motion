@@ -10,7 +10,7 @@ import {
   homecheffRegisterHrefForStudio,
   studioSsoStartAbsoluteHref,
 } from "@/lib/identity/homecheff-origin";
-import { validateStudioReturnTo } from "@/lib/identity/return-path";
+import { validateStudioReturnTo, isPublicStudioSurface } from "@/lib/identity/return-path";
 import { hasStudioWelcomeCookie } from "@/lib/identity/studio-welcome";
 import { mapHomeCheffExchangeError, studioSsoErrorMessage } from "@/lib/identity/sso/errors";
 import { validateSsoClaims } from "@/lib/identity/sso/exchange-client";
@@ -79,6 +79,13 @@ describe("SP.2B returnTo", () => {
     assert.equal(validateStudioReturnTo("/welcome"), "/welcome");
     assert.equal(validateStudioReturnTo("/login"), "/login");
     assert.equal(validateStudioReturnTo("/signup"), "/signup");
+  });
+
+  it("marks public surfaces for silent hydrate (SP.2B.7)", () => {
+    assert.equal(isPublicStudioSurface("/"), true);
+    assert.equal(isPublicStudioSurface("/pricing"), true);
+    assert.equal(isPublicStudioSurface("/editor"), false);
+    assert.equal(isPublicStudioSurface("/account"), false);
   });
 });
 
