@@ -2,6 +2,7 @@
  * SP.2B — GET /auth/sso/callback
  * Validate state → exchange → resolve OR stage claim confirm → studio_session → redirect.
  * SP.2B.5: silent login_required → safe /login (no error UI, no loop).
+ * SP.2B.8: auth PASS + missing product profile ≠ EXCHANGE_FAILED; DB/provision → RETRY_LATER.
  */
 
 import { NextResponse } from "next/server";
@@ -10,6 +11,7 @@ import { hasStudioWelcomeCookie } from "@/lib/identity/studio-welcome";
 import { isPublicStudioSurface } from "@/lib/identity/return-path";
 import {
   StudioSsoError,
+  mapUnknownStudioCallbackFailure,
   type StudioSsoErrorCode,
 } from "@/lib/identity/sso/errors";
 import {
@@ -117,16 +119,24 @@ export async function GET(req: Request) {
     return errorRedirect(req, "SSO_STATE_REJECTED");
   }
 
-  try {
-    logStudioSsoEvent("sso_callback_received", {
-      intent: pending.intent ?? "login",
-    });
+  logStudioSsoEvent("sso_callback_received", {
+    intent: pending.intent ?? "login",
+  });
 
-    const claims = await exchangeHomeCheffSsoCode({
+  let claims;
+  try {
+    claims = await exchangeHomeCheffSsoCode({
       code,
       codeVerifier: pending.codeVerifier,
     });
+  } catch (err) {
+    const c = mapUnknownStudioCallbackFailure(err, "exchange");
+    logStudioSsoEvent("sso_failure", { code: c, phase: "exchange" });
+    logStudioSsoEvent("silent_sso_failure", { code: c, phase: "exchange" });
+    return errorRedirect(req, c);
+  }
 
+  try {
     if (pending.intent === "claim" && pending.claimStudioUserId) {
       const sessionUser = await getAuthenticatedUser();
       if (!sessionUser || sessionUser.id !== pending.claimStudioUserId) {
@@ -173,13 +183,17 @@ export async function GET(req: Request) {
     logStudioSsoEvent("sso_success", { phase: "login" });
     return res;
   } catch (err) {
-    const c: StudioSsoErrorCode =
-      err instanceof StudioSsoError ? err.code : "EXCHANGE_FAILED";
+    const c = mapUnknownStudioCallbackFailure(err, "resolve");
     if (c === "IDENTITY_NOT_LINKED") {
       logStudioSsoEvent("identity_not_linked", {});
     }
-    logStudioSsoEvent("sso_failure", { code: c });
-    logStudioSsoEvent("silent_sso_failure", { code: c });
+    const errName = err instanceof Error ? err.name : "unknown";
+    logStudioSsoEvent("sso_failure", {
+      code: c,
+      phase: "resolve",
+      errName,
+    });
+    logStudioSsoEvent("silent_sso_failure", { code: c, phase: "resolve" });
     return errorRedirect(req, c);
   }
 }

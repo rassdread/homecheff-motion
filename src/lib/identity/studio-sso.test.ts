@@ -12,7 +12,7 @@ import {
 } from "@/lib/identity/homecheff-origin";
 import { validateStudioReturnTo, isPublicStudioSurface } from "@/lib/identity/return-path";
 import { hasStudioWelcomeCookie } from "@/lib/identity/studio-welcome";
-import { mapHomeCheffExchangeError, studioSsoErrorMessage } from "@/lib/identity/sso/errors";
+import { mapHomeCheffExchangeError, mapUnknownStudioCallbackFailure, StudioSsoError, studioSsoErrorMessage } from "@/lib/identity/sso/errors";
 import { validateSsoClaims } from "@/lib/identity/sso/exchange-client";
 import { codeChallengeS256, generateCodeVerifier } from "@/lib/identity/sso/pkce";
 import { AUTH_COOKIE_NAMES } from "@/server/auth/cookie-names";
@@ -159,11 +159,40 @@ describe("SP.2B.3 account selection intent", () => {
   it("maps IDENTITY_NOT_LINKED to actionable copy", () => {
     assert.match(
       studioSsoErrorMessage("IDENTITY_NOT_LINKED"),
-      /couldn't find a Studio account linked/i,
+      /geen Studio-profiel|no Studio profile/i,
     );
   });
 
   it("keeps studio_session host-only cookie name", () => {
     assert.equal(AUTH_COOKIE_NAMES.studio, "studio_session");
+  });
+});
+
+describe("SP.2B.8 callback failure classification", () => {
+  it("maps Neon unreachable after exchange to RETRY_LATER not EXCHANGE_FAILED", () => {
+    assert.equal(
+      mapUnknownStudioCallbackFailure(
+        new Error(
+          "Can't reach database server at `ep-wild-morning-alynrf2i.c-3.eu-central-1.aws.neon.tech:5432`",
+        ),
+        "resolve",
+      ),
+      "RETRY_LATER",
+    );
+    assert.equal(
+      mapUnknownStudioCallbackFailure(new Error("boom"), "resolve"),
+      "INTERNAL_ERROR",
+    );
+    assert.equal(
+      mapUnknownStudioCallbackFailure(new Error("boom"), "exchange"),
+      "EXCHANGE_FAILED",
+    );
+  });
+
+  it("preserves StudioSsoError codes from resolve", () => {
+    assert.equal(
+      mapUnknownStudioCallbackFailure(new StudioSsoError("IDENTITY_EMAIL_COLLISION"), "resolve"),
+      "IDENTITY_EMAIL_COLLISION",
+    );
   });
 });

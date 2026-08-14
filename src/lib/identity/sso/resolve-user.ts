@@ -241,7 +241,13 @@ export async function resolveStudioUserFromCentralClaims(
       throw new StudioSsoError("CENTRAL_ACCOUNT_DISABLED");
     }
 
-    await ensureAccount(created.id, created.email);
+    try {
+      await ensureAccount(created.id, created.email);
+    } catch (ensureErr) {
+      if (ensureErr instanceof StudioSsoError) throw ensureErr;
+      // User row exists; retry will reuse by centralUserId. Surface as retryable infra.
+      throw new StudioSsoError("RETRY_LATER", "ensureStudioAccount failed");
+    }
     return {
       id: created.id,
       email: created.email,

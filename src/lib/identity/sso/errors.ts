@@ -51,12 +51,41 @@ export function mapHomeCheffExchangeError(code: string | undefined): StudioSsoEr
   }
 }
 
+/**
+ * SP.2B.8 — Map unexpected callback failures AFTER HomeCheff exchange succeeded.
+ * Never collapse DB / provisioning errors into EXCHANGE_FAILED (that misleads operators
+ * and shows a generic "sign-in problem" for authenticated new product users).
+ */
+export function mapUnknownStudioCallbackFailure(
+  err: unknown,
+  phase: "exchange" | "resolve" | "session" = "resolve",
+): StudioSsoErrorCode {
+  if (err instanceof StudioSsoError) return err.code;
+  if (phase === "exchange") return "EXCHANGE_FAILED";
+
+  const msg = err instanceof Error ? err.message : String(err ?? "");
+  const lower = msg.toLowerCase();
+  if (
+    lower.includes("can't reach database") ||
+    lower.includes("cannot reach database") ||
+    lower.includes("connection") ||
+    lower.includes("econnrefused") ||
+    lower.includes("etimedout") ||
+    lower.includes("p1001") ||
+    lower.includes("timed out")
+  ) {
+    return "RETRY_LATER";
+  }
+  return "INTERNAL_ERROR";
+}
+
+/** English fallbacks (tests / non-i18n). Prefer `auth.sso.error.*` keys in UI. */
 export function studioSsoErrorMessage(code: StudioSsoErrorCode): string {
   switch (code) {
     case "SSO_DISABLED":
       return "HomeCheff sign-in is not available right now.";
     case "SSO_INVALID":
-      return "We couldn't complete your Studio login.";
+      return "Inloggen bij Studio is niet gelukt.";
     case "SSO_EXPIRED":
       return "The sign-in request expired. Please try again.";
     case "SSO_USED":
@@ -64,11 +93,11 @@ export function studioSsoErrorMessage(code: StudioSsoErrorCode): string {
     case "SSO_STATE_REJECTED":
       return "The sign-in request was invalid or expired.";
     case "IDENTITY_NOT_LINKED":
-      return "We couldn't find a Studio account linked to this HomeCheff account.";
+      return "Er is nog geen Studio-profiel voor dit HomeCheff-account. Probeer opnieuw of neem contact op met support.";
     case "IDENTITY_MAPPING_CONFLICT":
-      return "We couldn't complete your Studio login.";
+      return "We hebben al een Studio-account gevonden dat nog niet aan dit HomeCheff-account is gekoppeld.";
     case "IDENTITY_EMAIL_COLLISION":
-      return "This email is already used by another Studio account. Contact support to link HomeCheff.";
+      return "We hebben al een Studio-account gevonden dat nog niet aan dit HomeCheff-account is gekoppeld.";
     case "CLAIM_UNAUTHORIZED":
       return "Sign in to your existing Studio account first, then link HomeCheff.";
     case "CLAIM_ALREADY_LINKED":
@@ -76,12 +105,14 @@ export function studioSsoErrorMessage(code: StudioSsoErrorCode): string {
     case "CENTRAL_ACCOUNT_DISABLED":
       return "This HomeCheff account cannot sign in to Studio.";
     case "RETRY_LATER":
-      return "Too many attempts. Please try again later.";
+      return "Studio is even niet bereikbaar. Probeer het zo opnieuw.";
     case "CONFIG_ERROR":
       return "Sign-in is temporarily unavailable.";
     case "EXCHANGE_FAILED":
-      return "We couldn't complete your Studio login.";
+      return "Inloggen bij Studio is niet gelukt.";
+    case "INTERNAL_ERROR":
+      return "Inloggen bij Studio is niet gelukt.";
     default:
-      return "We couldn't complete your Studio login.";
+      return "Inloggen bij Studio is niet gelukt.";
   }
 }

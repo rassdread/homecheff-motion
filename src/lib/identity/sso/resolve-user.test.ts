@@ -348,4 +348,25 @@ describe("SP.2B resolve-user existing link vs JIT", () => {
     assert.equal(users.find((u) => u.id === "legacy-owner")!.passwordHash, "keep");
     assert.equal(users.find((u) => u.id === "legacy-owner")!.centralUserId, null);
   });
+
+  it("ensureStudioAccount failure after JIT create → RETRY_LATER (user row kept for retry)", async () => {
+    const { api, users } = makeFakeDb([]);
+    const deps: ResolveUserDeps = {
+      db: api as unknown as ResolveUserDeps["db"],
+      jitEnabled: () => true,
+      ensureAccount: async () => {
+        throw new Error("Can't reach database server at neon");
+      },
+    };
+    await assert.rejects(
+      () =>
+        resolveStudioUserFromCentralClaims(
+          { centralUserId: HC_A, email: "new@example.com" },
+          deps,
+        ),
+      (err: unknown) => err instanceof StudioSsoError && err.code === "RETRY_LATER",
+    );
+    assert.equal(users.length, 1);
+    assert.equal(users[0]!.centralUserId, HC_A);
+  });
 });

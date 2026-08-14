@@ -12,17 +12,42 @@ import {
   type StudioWelcomePreferences,
 } from "@/lib/identity/studio-welcome";
 
-const INTERESTS = ["social", "ads", "storytelling", "education", "brand"] as const;
+/** What do you mainly want to create? (product-purpose prefs only) */
+const INTERESTS = ["social", "ads", "education", "brand", "storytelling", "other"] as const;
 
 /**
- * SP.2B.1 — First Studio visit wizard (product prefs only).
+ * Map welcome "how to start" → guided Studio entry (SP.1 / Experience Pack path).
+ * Prefer /maak and /studio over legacy Editor.
+ */
+export function resolveWelcomeNextPath(
+  defaultWorkspace: StudioWelcomePreferences["defaultWorkspace"],
+  fallbackReturnTo: string,
+): string {
+  const safeFallback = validateStudioReturnTo(fallbackReturnTo);
+  if (safeFallback !== "/" && safeFallback !== "/welcome") {
+    return safeFallback;
+  }
+  switch (defaultWorkspace) {
+    case "editor":
+      return "/maak";
+    case "studio":
+      return "/studio";
+    case "motion":
+    default:
+      return "/studio";
+  }
+}
+
+/**
+ * SP.2B.1 / SP.2B.8 — First Studio visit wizard (product prefs only).
  * Never asks for name / email / password / Google (IdP already owns those).
+ * Session (studio_session) must already exist before this route.
  */
 export default function StudioWelcomeClient() {
   const t = useActiveTranslator();
   const router = useRouter();
   const search = useSearchParams();
-  const nextPath = validateStudioReturnTo(search.get("next"));
+  const returnTo = validateStudioReturnTo(search.get("next"));
 
   const [preferredLanguage, setPreferredLanguage] =
     useState<StudioWelcomePreferences["preferredLanguage"]>("nl");
@@ -36,9 +61,9 @@ export default function StudioWelcomeClient() {
   useEffect(() => {
     const existing = readStudioWelcomePreferences();
     if (existing) {
-      router.replace(nextPath);
+      router.replace(returnTo === "/" ? "/studio" : returnTo);
     }
-  }, [nextPath, router]);
+  }, [returnTo, router]);
 
   function toggleInterest(id: string) {
     setCreativeInterests((prev) =>
@@ -46,9 +71,14 @@ export default function StudioWelcomeClient() {
     );
   }
 
+  function complete(prefs: StudioWelcomePreferences) {
+    writeStudioWelcomePreferences(prefs);
+    router.replace(resolveWelcomeNextPath(prefs.defaultWorkspace, returnTo));
+  }
+
   function onSubmit(event: FormEvent) {
     event.preventDefault();
-    writeStudioWelcomePreferences({
+    complete({
       completedAt: new Date().toISOString(),
       preferredLanguage,
       creatorOrBusiness,
@@ -56,7 +86,17 @@ export default function StudioWelcomeClient() {
       defaultWorkspace,
       company: company.trim() || undefined,
     });
-    router.replace(nextPath);
+  }
+
+  function onSkip() {
+    complete({
+      completedAt: new Date().toISOString(),
+      preferredLanguage,
+      creatorOrBusiness,
+      creativeInterests: [],
+      defaultWorkspace: "motion",
+      company: undefined,
+    });
   }
 
   return (
@@ -122,22 +162,31 @@ export default function StudioWelcomeClient() {
               </div>
             </fieldset>
 
-            <label className="block text-sm">
-              <span className="mb-1 block text-zinc-700">{t("auth.welcome.workspace")}</span>
-              <select
-                className="w-full rounded-md border border-zinc-300 px-3 py-2"
-                value={defaultWorkspace}
-                onChange={(e) =>
-                  setDefaultWorkspace(
-                    e.target.value as StudioWelcomePreferences["defaultWorkspace"],
-                  )
-                }
-              >
-                <option value="studio">{t("auth.welcome.workspace.studio")}</option>
-                <option value="editor">{t("auth.welcome.workspace.editor")}</option>
-                <option value="motion">{t("auth.welcome.workspace.motion")}</option>
-              </select>
-            </label>
+            <fieldset>
+              <legend className="mb-1 text-sm text-zinc-700">{t("auth.welcome.workspace")}</legend>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ["studio", "auth.welcome.workspace.studio"],
+                    ["editor", "auth.welcome.workspace.editor"],
+                    ["motion", "auth.welcome.workspace.motion"],
+                  ] as const
+                ).map(([value, labelKey]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setDefaultWorkspace(value)}
+                    className={`rounded-md border px-3 py-1.5 text-sm ${
+                      defaultWorkspace === value
+                        ? "border-emerald-700 bg-emerald-50 text-emerald-900"
+                        : "border-zinc-300 text-zinc-700"
+                    }`}
+                  >
+                    {t(labelKey)}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
 
             <label className="block text-sm">
               <span className="mb-1 block text-zinc-700">{t("auth.welcome.company")}</span>
@@ -155,6 +204,13 @@ export default function StudioWelcomeClient() {
               className="w-full rounded-md bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800"
             >
               {t("auth.welcome.continue")}
+            </button>
+            <button
+              type="button"
+              onClick={onSkip}
+              className="w-full rounded-md border border-zinc-300 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50"
+            >
+              {t("auth.welcome.skip")}
             </button>
           </form>
         </AppCard>
