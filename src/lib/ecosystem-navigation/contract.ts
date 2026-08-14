@@ -12,9 +12,8 @@ export const ECOSYSTEM_PANEL_HEADING = "Meer van HomeCheff";
 export const ECOSYSTEM_PANEL_SUPPORT =
   "Ontdek wat je nog meer kunt doen met HomeCheff.";
 
-/** Canonical square mark on the identity owner (cache-busted). */
-export const ECOSYSTEM_BRAND_MARK_URL =
-  "https://homecheff.eu/icon-192.png?v=hc8";
+/** Canonical square mark — local synced copy of HC Production icon-192 (SP.2C). */
+export const ECOSYSTEM_BRAND_MARK_URL = "/brand/homecheff-mark.png";
 
 export type EcosystemProduct = {
   id: EcosystemProductId;
