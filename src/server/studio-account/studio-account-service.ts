@@ -13,3 +13,13 @@ export async function loadStudioAccountOverview(
 
   return { account, wallet, recentLedger };
 }
+
+/** Shell/wallet bootstrap — skips ledger read (not needed for credit chips / conversion). */
+export async function loadStudioAccountSummary(
+  userId: string,
+  email: string
+): Promise<StudioAccountOverview> {
+  const account = await ensureStudioAccount(userId, email);
+  const wallet = await ensureStudioWallet(userId);
+  return { account, wallet, recentLedger: [] };
+}

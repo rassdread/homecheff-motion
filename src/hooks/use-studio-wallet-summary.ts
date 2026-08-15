@@ -1,6 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import {
+  fetchStudioAccountJson,
+  invalidateStudioAccountCache,
+} from "@/lib/studio-account-client";
 import type { StudioAccountOverview } from "@/types/studio-account";
 
 export type StudioWalletSummary = {
@@ -24,11 +28,10 @@ export function useStudioWalletSummary(enabled = true): StudioWalletSummary {
     }
     setLoading(true);
     try {
-      const res = await fetch("/api/me/studio-account", { credentials: "include", cache: "no-store" });
-      if (!res.ok) {
+      const data = await fetchStudioAccountJson({ view: "summary" });
+      if (!data) {
         return;
       }
-      const data = (await res.json()) as StudioAccountOverview & { ok?: boolean };
       setOverview({
         account: data.account,
         wallet: data.wallet,
@@ -50,6 +53,11 @@ export function useStudioWalletSummary(enabled = true): StudioWalletSummary {
     });
   }, [enabled, refresh]);
 
+  const forceRefresh = useCallback(async () => {
+    invalidateStudioAccountCache();
+    await refresh();
+  }, [refresh]);
+
   return {
     availableCredits: overview?.wallet.availableBalance ?? 0,
     balance: overview?.wallet.balance ?? 0,
@@ -57,6 +65,6 @@ export function useStudioWalletSummary(enabled = true): StudioWalletSummary {
     billingStatus: overview?.account.billingStatus ?? "none",
     loading,
     resolved,
-    refresh,
+    refresh: forceRefresh,
   };
 }

@@ -25,6 +25,7 @@ import {
 } from "@/lib/assistant-orchestrator";
 import type { AssistantContextSnapshot } from "@/lib/assistant-context-layer";
 import { queryLibraryConsistency } from "@/lib/library-consistency-client";
+import { fetchStudioAccountJson } from "@/lib/studio-account-client";
 import type { AssistantSessionMemory } from "@/lib/assistant-session-memory";
 import { rememberAssistantWizard } from "@/lib/assistant-session-memory";
 import type { AssistantRecommendation } from "@/types/assistant-recommendation";
@@ -173,15 +174,8 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
     let cancelled = false;
     queueMicrotask(() => {
       void (async () => {
-        const res = await fetch("/api/me/studio-account", { credentials: "include" });
-        if (!res.ok || cancelled) {
-          return;
-        }
-        const data = (await res.json()) as {
-          wallet?: { availableBalance?: number };
-          account?: { studioPlan?: string };
-        };
-        if (cancelled) {
+        const data = await fetchStudioAccountJson({ view: "summary" });
+        if (!data || cancelled) {
           return;
         }
         setBillingContext({
@@ -306,6 +300,18 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
     queueMicrotask(() => {
       void (async () => {
         setLoadingContext(true);
+        // Defer heavy assistant library bootstrap so shell/home paint first.
+        // Home sections use the same bootstrap cache (limit coalescing).
+        await new Promise<void>((resolve) => {
+          if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+            window.requestIdleCallback(() => resolve(), { timeout: 1500 });
+          } else {
+            setTimeout(() => resolve(), 100);
+          }
+        });
+        if (cancelled) {
+          return;
+        }
         const response = await queryLibraryConsistency({ limit: 500 });
         if (cancelled) {
           return;

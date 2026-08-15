@@ -17,6 +17,10 @@ import {
   formatCreditSourceLabel,
   formatLedgerActionLabel,
 } from "@/lib/billing-display-labels";
+import {
+  fetchStudioAccountJson,
+  invalidateStudioAccountCache,
+} from "@/lib/studio-account-client";
 import type { StudioAccountOverview, StudioBillingStatus } from "@/types/studio-account";
 
 type Tab = "wallet" | "usage" | "credits" | "subscription" | "transactions";
@@ -77,9 +81,9 @@ export function StudioUnifiedBillingDashboard({ initial, planDiscountPercent }: 
   const packCheckout = useStudioCheckout("/account/billing");
 
   const refresh = useCallback(async () => {
-    const res = await fetch("/api/me/studio-account", { credentials: "include" });
-    if (!res.ok) return;
-    const data = (await res.json()) as StudioAccountOverview & { ok: boolean };
+    invalidateStudioAccountCache();
+    const data = await fetchStudioAccountJson({ force: true, view: "full" });
+    if (!data) return;
     setOverview({
       account: data.account,
       wallet: data.wallet,
