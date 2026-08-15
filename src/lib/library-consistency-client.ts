@@ -55,6 +55,7 @@ export async function registerCompletedGenerationInLibraryClient(
     if (!res.ok || !data.ok || !data.record) {
       return { ok: false, error: data.error ?? `Register failed (${res.status})` };
     }
+    invalidateLibraryConsistencyQueryCache();
     notifyStudioLibraryRefresh();
     return { ok: true, record: data.record };
   } catch (error) {
@@ -101,8 +102,51 @@ export type LibraryConsistencyQueryResponse = {
   error?: string;
 };
 
-export async function queryLibraryConsistency(
-  input: LibraryConsistencyQueryInput = {}
+const QUERY_CACHE_MS = 5000;
+const queryInflight = new Map<string, Promise<LibraryConsistencyQueryResponse>>();
+const queryCache = new Map<string, { at: number; data: LibraryConsistencyQueryResponse }>();
+
+/** Unfiltered list bootstrap — home (≤8) + assistant (≤500) share one network trip. */
+const BOOTSTRAP_LIMIT = 500;
+let bootstrapInflight: Promise<LibraryConsistencyQueryResponse> | null = null;
+let bootstrapCache: { at: number; data: LibraryConsistencyQueryResponse } | null = null;
+
+export function invalidateLibraryConsistencyQueryCache(): void {
+  queryInflight.clear();
+  queryCache.clear();
+  bootstrapInflight = null;
+  bootstrapCache = null;
+}
+
+function isBootstrapCompatible(input: LibraryConsistencyQueryInput): boolean {
+  return (
+    !input.tab &&
+    !input.textSearch &&
+    input.motionReady === undefined &&
+    !input.characterType &&
+    !input.fusionArchetype &&
+    !input.sourceModule &&
+    !input.workflow &&
+    !input.projectId
+  );
+}
+
+function queryKey(input: LibraryConsistencyQueryInput): string {
+  return JSON.stringify({
+    tab: input.tab ?? null,
+    textSearch: input.textSearch ?? null,
+    motionReady: input.motionReady ?? null,
+    characterType: input.characterType ?? null,
+    fusionArchetype: input.fusionArchetype ?? null,
+    sourceModule: input.sourceModule ?? null,
+    workflow: input.workflow ?? null,
+    projectId: input.projectId ?? null,
+    limit: input.limit ?? 500,
+  });
+}
+
+async function postLibraryQuery(
+  input: LibraryConsistencyQueryInput
 ): Promise<LibraryConsistencyQueryResponse> {
   try {
     const res = await fetch("/api/studio/library-consistency/query", {
@@ -121,5 +165,73 @@ export async function queryLibraryConsistency(
       ok: false,
       error: error instanceof Error ? error.message : "Library query failed.",
     };
+  }
+}
+
+async function fetchLibraryBootstrap(): Promise<LibraryConsistencyQueryResponse> {
+  const now = Date.now();
+  if (bootstrapCache && now - bootstrapCache.at < QUERY_CACHE_MS) {
+    return bootstrapCache.data;
+  }
+  if (bootstrapInflight) {
+    return bootstrapInflight;
+  }
+  bootstrapInflight = (async () => {
+    const data = await postLibraryQuery({ limit: BOOTSTRAP_LIMIT });
+    if (data.ok) {
+      bootstrapCache = { at: Date.now(), data };
+    }
+    return data;
+  })();
+  try {
+    return await bootstrapInflight;
+  } finally {
+    bootstrapInflight = null;
+  }
+}
+
+function sliceBootstrapResults(
+  data: LibraryConsistencyQueryResponse,
+  limit: number
+): LibraryConsistencyQueryResponse {
+  if (!data.ok || !data.results || data.results.length <= limit) {
+    return data;
+  }
+  return { ...data, results: data.results.slice(0, limit) };
+}
+
+export async function queryLibraryConsistency(
+  input: LibraryConsistencyQueryInput = {}
+): Promise<LibraryConsistencyQueryResponse> {
+  const limit = Math.min(input.limit ?? 500, 500);
+
+  // Home (limit 8) + assistant (limit 500) share one unfiltered bootstrap fetch.
+  if (isBootstrapCompatible(input)) {
+    const boot = await fetchLibraryBootstrap();
+    return sliceBootstrapResults(boot, limit);
+  }
+
+  const key = queryKey({ ...input, limit });
+  const now = Date.now();
+  const cached = queryCache.get(key);
+  if (cached && now - cached.at < QUERY_CACHE_MS) {
+    return cached.data;
+  }
+  const existing = queryInflight.get(key);
+  if (existing) {
+    return existing;
+  }
+  const promise = (async () => {
+    const data = await postLibraryQuery({ ...input, limit });
+    if (data.ok) {
+      queryCache.set(key, { at: Date.now(), data });
+    }
+    return data;
+  })();
+  queryInflight.set(key, promise);
+  try {
+    return await promise;
+  } finally {
+    queryInflight.delete(key);
   }
 }
