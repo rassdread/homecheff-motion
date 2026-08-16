@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
@@ -8,7 +9,6 @@ import { StudioWorkspaceProductionPlanPanel } from "@/components/studio/studio-w
 import { StudioDirectorProposalFlow } from "@/components/studio/studio-director-proposal-flow";
 import { StudioWorkspaceProductionBanner } from "@/components/studio/studio-workspace-production-panels";
 import { useStoryboardMotionProjects } from "@/hooks/use-studio-workspace-motion";
-import { StudioDirectorPanelV2 } from "@/components/studio/director-v2/studio-director-panel-v2";
 import { StudioWorkspaceSceneSidebar } from "@/components/studio/studio-workspace-scene-sidebar";
 import { StudioWorkspaceAssetsDrawer } from "@/components/studio/studio-workspace-assets-drawer";
 import { StudioWorkspaceSceneAssetsPanel } from "@/components/studio/studio-workspace-scene-assets-panel";
@@ -80,6 +80,20 @@ import {
 } from "@/lib/studio-workspace-place";
 import type { TranslationKey } from "@/i18n";
 
+/** SP.2D-G: defer heavy Director V2 until workspace shell/storyboard are ready. */
+const StudioDirectorPanelV2 = dynamic(
+  () =>
+    import("@/components/studio/director-v2/studio-director-panel-v2").then(
+      (m) => m.StudioDirectorPanelV2
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-[180px] rounded-2xl border border-zinc-200 bg-zinc-50" aria-hidden />
+    ),
+  }
+);
+
 type Props = {
   storyboardId: string;
 };
@@ -97,6 +111,8 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
   const [worlds, setWorlds] = useState<StudioWorldProfileListItem[]>([]);
   const [projectMemory, setProjectMemory] = useState<StudioProjectMemorySnapshot | null>(null);
   const [loading, setLoading] = useState(true);
+  /** SP.2D-G: libraries/memory hydrate after shell/editable; soft failures allowed. */
+  const [entitiesHydrating, setEntitiesHydrating] = useState(false);
   const [loadFailure, setLoadFailure] = useState<StudioWorkspaceLoadFailure | null>(null);
   const [error, setError] = useState("");
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null);
@@ -120,30 +136,31 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setEntitiesHydrating(false);
     setError("");
     setLoadFailure(null);
+    setLocations([]);
+    setCharacters([]);
+    setProps([]);
+    setWorlds([]);
+    setProjectMemory(null);
 
-    // Reuse AppShell session cache when warm; avoid forced duplicate /api/auth/session.
-    const sessionPayload = await fetchAuthSessionJson();
-    if (!sessionPayload.user) {
-      setLoadFailure({
-        kind: "auth",
-        message: t("studio.workspace.error.authBody"),
-      });
-      setStoryboard(null);
-      setLoading(false);
-      return;
+    // Prefer AppShell/hook session; only hit network if unresolved/missing.
+    if (!session.user) {
+      const sessionPayload = await fetchAuthSessionJson();
+      if (!sessionPayload.user) {
+        setLoadFailure({
+          kind: "auth",
+          message: t("studio.workspace.error.authBody"),
+        });
+        setStoryboard(null);
+        setLoading(false);
+        return;
+      }
     }
 
-    const [sbRes, locRes, charRes, propRes, worldRes, memoryRes] = await Promise.all([
-      fetchStudioStoryboard(storyboardId),
-      fetchStudioLocations(),
-      fetchStudioCharacters(),
-      fetchStudioProps(),
-      fetchStudioWorlds(),
-      fetchStudioProjectMemory(),
-    ]);
-
+    // SP.2D-G: storyboard alone gates chrome + editable. Entity libraries are secondary.
+    const sbRes = await fetchStudioStoryboard(storyboardId);
     const failure = resolveStudioWorkspaceLoadFailure(
       sbRes,
       t("studio.storyboards.error.loadFailed")
@@ -174,13 +191,28 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
       setActiveTool(savedPlace.tool);
     }
     setSceneDirty(false);
-    if (locRes.ok) setLocations(locRes.data.locations);
-    if (charRes.ok) setCharacters(charRes.data.characters);
-    if (propRes.ok) setProps(propRes.data.props);
-    if (worldRes.ok) setWorlds(worldRes.data.worlds);
-    setProjectMemory(memoryRes.ok ? memoryRes.data.memory : emptyProjectMemorySnapshot());
     setLoading(false);
-  }, [storyboardId, t]);
+
+    setEntitiesHydrating(true);
+    void (async () => {
+      try {
+        const [locRes, charRes, propRes, worldRes, memoryRes] = await Promise.all([
+          fetchStudioLocations(),
+          fetchStudioCharacters(),
+          fetchStudioProps(),
+          fetchStudioWorlds(),
+          fetchStudioProjectMemory(),
+        ]);
+        if (locRes.ok) setLocations(locRes.data.locations);
+        if (charRes.ok) setCharacters(charRes.data.characters);
+        if (propRes.ok) setProps(propRes.data.props);
+        if (worldRes.ok) setWorlds(worldRes.data.worlds);
+        setProjectMemory(memoryRes.ok ? memoryRes.data.memory : emptyProjectMemorySnapshot());
+      } finally {
+        setEntitiesHydrating(false);
+      }
+    })();
+  }, [storyboardId, t, session.user]);
 
   const refreshAssetLibraries = useCallback(async () => {
     const [locRes, charRes, propRes, worldRes, memoryRes] = await Promise.all([
@@ -461,6 +493,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
     assetTab ??
     (activeTool === "story" ? "scenes" : "characters");
 
+  const memorySnapshot = projectMemory ?? emptyProjectMemorySnapshot();
   const [advancedFeatures] = useStudioAdvancedFeatures();
 
   return (
@@ -473,6 +506,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
         data-studio-orientation={layoutPlan.orientation}
         data-studio-permanent-robot={permanentRobot ? "true" : "false"}
         data-testid="studio-adaptive-workspace"
+        data-entities-hydrating={entitiesHydrating ? "true" : "false"}
       >
         {layoutPlan.showSideToolRail && storyboard && !loadFailure && !isPreviewMode ?
           <StudioToolStrip
@@ -642,7 +676,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                     locations={locations}
                     props={props}
                     worlds={worlds}
-                    projectMemory={projectMemory}
+                    projectMemory={memorySnapshot}
                     styleProfile={styleProfile}
                     directorProfile={directorProfile}
                     onSwitchTool={handleToolChange}
@@ -655,7 +689,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                       locations={locations}
                       props={props}
                       worlds={worlds}
-                      memory={projectMemory}
+                      memory={memorySnapshot}
                       canModify={canModify}
                       onApplied={() => void load()}
                       onSwitchTool={handleToolChange}
@@ -666,7 +700,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                       locations={locations}
                       props={props}
                       worlds={worlds}
-                      projectMemory={projectMemory}
+                      projectMemory={memorySnapshot}
                       canModify={canModify}
                       onApplied={() => void load()}
                     />
@@ -715,7 +749,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                     storyLanguage={storyboard.voiceLanguage ?? "en"}
                     storyVoiceProfile={storyboard.voiceProfile}
                     storyboard={storyboard}
-                    memory={projectMemory}
+                    memory={memorySnapshot}
                     isAdmin={session.user?.role === "admin"}
                     onSceneUpdated={handleSceneAssetUpdated}
                     onAssetsChanged={() => void refreshAssetLibraries()}
@@ -737,7 +771,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                     locations={locations}
                     props={props}
                     worlds={worlds}
-                    projectMemory={projectMemory}
+                    projectMemory={memorySnapshot}
                     styleProfile={styleProfile}
                     directorProfile={directorProfile}
                     canModify={canModify}
@@ -826,7 +860,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                 handleToolChange(tool);
                 setMobileInsightsOpen(false);
               }}
-              projectMemory={projectMemory}
+              projectMemory={memorySnapshot}
             />
           </>
         : null}
