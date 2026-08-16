@@ -39,7 +39,8 @@ export const ECOSYSTEM_PRODUCTS: readonly EcosystemProduct[] = [
     compactName: "Studio",
     benefit: "Maak content met creatieve AI.",
     detail: "Van idee tot beeld, video, stem en verhaal.",
-    href: "https://studio.homecheff.eu",
+    // SP.2D-C5 — deep-link ecosystem silent (parity with Growth; skip bare `/` hop).
+    href: "https://studio.homecheff.eu/auth/sso/silent?mode=ecosystem&returnTo=%2F",
   },
   {
     id: "growth",

@@ -1,5 +1,5 @@
 /**
- * SP.2B — GET /auth/sso/start
+ * SP.2B / SP.2D-C5 — GET /auth/sso/start
  * PKCE + state → HomeCheff SSO issuer (product=studio).
  *
  * intent=login (default): open Studio SSO / email-hint presentation.
@@ -10,24 +10,21 @@
  *   select_account — explicit login / Google / email (default for Studio buttons)
  *   claim — account linking (always confirm)
  *   silent — returning SSO only when explicitly requested
+ *
+ * SP.2D-C5: PKCE/pending mint shared via begin-homecheff-sso (silent collapses here).
  */
 
 import { NextResponse } from "next/server";
 import { isCentralSsoLive } from "@/lib/identity/flags";
 import { validateStudioReturnTo } from "@/lib/identity/return-path";
+import {
+  beginHomeCheffSsoRedirect,
+  mintStudioHomeCheffSsoBegin,
+} from "@/lib/identity/sso/begin-homecheff-sso";
 import { StudioSsoError } from "@/lib/identity/sso/errors";
-import {
-  homecheffIdentityOrigin,
-  studioSsoRedirectUri,
-} from "@/lib/identity/sso/exchange-client";
+import { homecheffIdentityOrigin } from "@/lib/identity/sso/exchange-client";
 import { logStudioSsoEvent } from "@/lib/identity/sso/observability";
-import { codeChallengeS256, generateCodeVerifier, generateState } from "@/lib/identity/sso/pkce";
-import {
-  applySsoPendingCookie,
-  buildSsoPending,
-  encodeSsoPending,
-  type SsoPendingIntent,
-} from "@/lib/identity/sso/state";
+import { applySsoPendingCookie, type SsoPendingIntent } from "@/lib/identity/sso/state";
 import { clearSkipSilentSsoCookie } from "@/lib/identity/sso/silent-guard";
 import { getAuthenticatedUser } from "@/server/auth/session";
 
@@ -77,6 +74,7 @@ export async function GET(req: Request) {
     const intentRaw = (url.searchParams.get("intent") ?? "login").trim().toLowerCase();
     const intent: SsoPendingIntent = intentRaw === "claim" ? "claim" : "login";
     const interaction = resolveInteraction(intent, url.searchParams.get("interaction"));
+    const mode = (url.searchParams.get("mode") ?? "").trim().toLowerCase();
 
     let claimStudioUserId: string | undefined;
     if (intent === "claim") {
@@ -87,28 +85,7 @@ export async function GET(req: Request) {
       claimStudioUserId = sessionUser.id;
     }
 
-    const state = generateState();
-    const codeVerifier = generateCodeVerifier();
-    const codeChallenge = codeChallengeS256(codeVerifier);
-    const redirectUri = studioSsoRedirectUri();
-
-    const pending = buildSsoPending({
-      state,
-      codeVerifier,
-      returnTo,
-      intent,
-      claimStudioUserId,
-    });
-    const encoded = encodeSsoPending(pending);
-
-    const start = new URL(`${homecheffIdentityOrigin()}/auth/sso/start`);
-    start.searchParams.set("product", "studio");
-    start.searchParams.set("redirect_uri", redirectUri);
-    start.searchParams.set("state", state);
-    start.searchParams.set("code_challenge", codeChallenge);
-    start.searchParams.set("code_challenge_method", "S256");
-    start.searchParams.set("interaction", interaction);
-    if (emailHint) start.searchParams.set("login_hint", emailHint);
+    const clearSkipSilent = interaction !== "silent" || mode === "ecosystem";
 
     logStudioSsoEvent("sso_interaction_started", {
       intent,
@@ -117,28 +94,42 @@ export async function GET(req: Request) {
     });
 
     // Prefill HC login when Studio collected an email (hint only — not identity proof).
-    let destination = start.toString();
     if (intent === "login" && emailHint) {
+      const minted = mintStudioHomeCheffSsoBegin({
+        returnTo,
+        interaction,
+        intent,
+        claimStudioUserId,
+        clearSkipSilent,
+        loginHint: emailHint,
+      });
+      const authorize = new URL(minted.hcAuthorizeUrl);
       const login = new URL(`${homecheffIdentityOrigin()}/login`);
       login.searchParams.set("email", emailHint);
-      login.searchParams.set("callbackUrl", `${start.pathname}${start.search}`);
+      login.searchParams.set("callbackUrl", `${authorize.pathname}${authorize.search}`);
       login.searchParams.set("ssoInteraction", interaction);
       if (interaction !== "silent") {
         login.searchParams.set("prompt", "select_account");
       }
-      destination = login.toString();
       logStudioSsoEvent("email_login_selected", { hasEmailHint: true });
-    } else if (intentRaw === "google") {
+      const res = NextResponse.redirect(login.toString(), 302);
+      applySsoPendingCookie(res, minted.encodedPending);
+      if (clearSkipSilent) clearSkipSilentSsoCookie(res);
+      return res;
+    }
+
+    if (intentRaw === "google") {
       logStudioSsoEvent("google_account_selected", { phase: "start" });
     }
 
-    const res = NextResponse.redirect(destination, 302);
-    applySsoPendingCookie(res, encoded);
-    // Explicit login/switch/claim clears post-logout skip so the new auth can complete.
-    if (interaction !== "silent") {
-      clearSkipSilentSsoCookie(res);
-    }
-    return res;
+    return beginHomeCheffSsoRedirect({
+      returnTo,
+      interaction,
+      intent,
+      claimStudioUserId,
+      clearSkipSilent,
+      loginHint: emailHint,
+    });
   } catch (err) {
     const code = err instanceof StudioSsoError ? err.code : "CONFIG_ERROR";
     return errorRedirect(code);
