@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useActiveTranslator } from "@/i18n/client";
 import { readHcProjectWorkflowStatus } from "@/lib/hc-project-lifecycle";
-import { queryLibraryConsistency } from "@/lib/library-consistency-client";
+import { fetchRecentLibraryAdditions } from "@/lib/library-consistency-client";
 import {
   getRecentProjectsClientSnapshot,
   getRecentProjectsServerSnapshot,
@@ -28,10 +28,9 @@ export function UniverseHomeSections() {
       return;
     }
     void (async () => {
-      const response = await queryLibraryConsistency({ limit: 8 });
-      if (response.ok && response.results) {
-        setLibraryRecords(response.results);
-      }
+      // SP.2D-F: recent slice only — do not trigger fat library-consistency query bootstrap.
+      const records = await fetchRecentLibraryAdditions(8);
+      setLibraryRecords(records);
     })();
   }, [isAuthenticated]);
 

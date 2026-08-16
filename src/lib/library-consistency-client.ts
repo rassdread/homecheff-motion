@@ -106,7 +106,7 @@ const QUERY_CACHE_MS = 5000;
 const queryInflight = new Map<string, Promise<LibraryConsistencyQueryResponse>>();
 const queryCache = new Map<string, { at: number; data: LibraryConsistencyQueryResponse }>();
 
-/** Unfiltered list bootstrap — home (≤8) + assistant (≤500) share one network trip. */
+/** Unfiltered list bootstrap — browse/hub still coalesce concurrent unfiltered queries. */
 const BOOTSTRAP_LIMIT = 500;
 let bootstrapInflight: Promise<LibraryConsistencyQueryResponse> | null = null;
 let bootstrapCache: { at: number; data: LibraryConsistencyQueryResponse } | null = null;
@@ -205,7 +205,8 @@ export async function queryLibraryConsistency(
 ): Promise<LibraryConsistencyQueryResponse> {
   const limit = Math.min(input.limit ?? 500, 500);
 
-  // Home (limit 8) + assistant (limit 500) share one unfiltered bootstrap fetch.
+  // Browse/hub unfiltered queries share one bootstrap fetch (SP.2D-C1).
+  // Home/assistant use /recent instead (SP.2D-F) and do not enter this path.
   if (isBootstrapCompatible(input)) {
     const boot = await fetchLibraryBootstrap();
     return sliceBootstrapResults(boot, limit);

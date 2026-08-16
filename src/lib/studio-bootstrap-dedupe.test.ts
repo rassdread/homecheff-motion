@@ -74,7 +74,7 @@ describe("SP.2D-C1 library-consistency bootstrap coalescing", () => {
     mock.restoreAll();
   });
 
-  it("coalesces home limit=8 and assistant limit=500 into one POST", async () => {
+  it("coalesces concurrent unfiltered browse queries into one POST", async () => {
     let calls = 0;
     const bodies: unknown[] = [];
     mock.method(globalThis, "fetch", async (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -93,16 +93,16 @@ describe("SP.2D-C1 library-consistency bootstrap coalescing", () => {
       );
     });
 
-    const [home, assistant] = await Promise.all([
+    const [a, b] = await Promise.all([
       queryLibraryConsistency({ limit: 8 }),
       queryLibraryConsistency({ limit: 500 }),
     ]);
 
     assert.equal(calls, 1);
     assert.deepEqual(bodies[0], { limit: 500 });
-    assert.equal(home.ok, true);
-    assert.equal(home.results?.length, 8);
-    assert.equal(assistant.ok, true);
-    assert.equal(assistant.results?.length, 20);
+    assert.equal(a.ok, true);
+    assert.equal(a.results?.length, 8);
+    assert.equal(b.ok, true);
+    assert.equal(b.results?.length, 20);
   });
 });
