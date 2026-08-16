@@ -1,7 +1,11 @@
 /**
- * SP.2B.5 / SP.2B.7 — GET /auth/sso/silent
+ * SP.2B.5 / SP.2B.7 / SP.2B.10 / SP.2D-C5 — GET /auth/sso/silent
  * One-shot automatic silent SSO.
+ *
  * mode=public: on failure stay on public returnTo (never force /login).
+ * mode=ecosystem: Ontdek switcher entry — clears logout/attempt suppression.
+ *
+ * SP.2D-C5: silent mints PKCE/pending and 302s directly to HC (no Studio start hop).
  */
 
 import { NextResponse } from "next/server";
@@ -10,10 +14,12 @@ import {
   isPublicStudioSurface,
   validateStudioReturnTo,
 } from "@/lib/identity/return-path";
+import { beginHomeCheffSsoRedirect } from "@/lib/identity/sso/begin-homecheff-sso";
 import { logStudioSsoEvent } from "@/lib/identity/sso/observability";
 import {
   applySilentSsoAttemptCookie,
   canAttemptSilentSso,
+  clearSilentSsoAttemptCookie,
 } from "@/lib/identity/sso/silent-guard";
 import { getAuthenticatedUser } from "@/server/auth/session";
 
@@ -43,12 +49,39 @@ function failRedirect(
   );
 }
 
+function redirectSilentToHomeCheff(opts: {
+  returnTo: string;
+  ecosystemMode: boolean;
+  publicMode: boolean;
+}): NextResponse {
+  const res = beginHomeCheffSsoRedirect({
+    returnTo: opts.returnTo,
+    interaction: "silent",
+    intent: "login",
+    clearSkipSilent: opts.ecosystemMode,
+  });
+  if (opts.ecosystemMode) {
+    clearSilentSsoAttemptCookie(res);
+  }
+  applySilentSsoAttemptCookie(res);
+  logStudioSsoEvent("silent_sso_attempt", {
+    phase: opts.ecosystemMode
+      ? "ecosystem_entry"
+      : opts.publicMode
+        ? "public_hydrate"
+        : "silent_entry",
+  });
+  return res;
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const returnTo = validateStudioReturnTo(
     url.searchParams.get("returnTo") ?? url.searchParams.get("next"),
   );
-  const publicMode = url.searchParams.get("mode") === "public";
+  const modeRaw = (url.searchParams.get("mode") ?? "").trim().toLowerCase();
+  const publicMode = modeRaw === "public";
+  const ecosystemMode = modeRaw === "ecosystem";
   const origin = appOrigin(req);
 
   const user = await getAuthenticatedUser();
@@ -58,7 +91,15 @@ export async function GET(req: Request) {
   }
 
   if (!isCentralSsoLive()) {
-    return failRedirect(req, returnTo, publicMode);
+    return failRedirect(req, returnTo, publicMode || ecosystemMode);
+  }
+
+  if (ecosystemMode) {
+    return redirectSilentToHomeCheff({
+      returnTo,
+      ecosystemMode: true,
+      publicMode: false,
+    });
   }
 
   const cookieHeader = req.headers.get("cookie");
@@ -69,18 +110,9 @@ export async function GET(req: Request) {
     return failRedirect(req, returnTo, publicMode);
   }
 
-  logStudioSsoEvent("silent_sso_attempt", {
-    phase: publicMode ? "public_hydrate" : "silent_entry",
+  return redirectSilentToHomeCheff({
+    returnTo,
+    ecosystemMode: false,
+    publicMode,
   });
-  const start = new URL("/auth/sso/start", origin);
-  start.searchParams.set("returnTo", returnTo);
-  start.searchParams.set("interaction", "silent");
-  start.searchParams.set("intent", "login");
-  if (publicMode) {
-    start.searchParams.set("mode", "public");
-  }
-
-  const res = NextResponse.redirect(start.toString(), 302);
-  applySilentSsoAttemptCookie(res);
-  return res;
 }
