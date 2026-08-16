@@ -6,12 +6,69 @@ import { prisma } from "@/lib/prisma";
 import { DERIVATION_TIME_SAVED_MINUTES } from "@/lib/studio-asset-style-dna";
 import { readAssetLibraryPreferencesManifest } from "@/server/studio/studio-asset-library-preferences-blob";
 import { COST_ACTION } from "@/server/provider-cost/cost-event-types";
+import type { AssetLibraryTab } from "@/lib/studio-asset-library-filters";
 import type {
   UserStudioActivityItem,
   UserStudioDashboardReport,
   UserStudioInsightsReport,
 } from "@/types/studio-profitability";
+import type { StudioAssetLibraryCounts } from "@/types/studio-asset-library-counts";
 import { loadUserStudioAssetRegistry } from "@/server/studio/load-user-studio-asset-registry";
+
+function emptyStudioAssetLibraryCounts(): StudioAssetLibraryCounts {
+  const tabs: AssetLibraryTab[] = [
+    "all",
+    "favorites",
+    "recent",
+    "character",
+    "prop",
+    "location",
+    "world",
+    "reference_image",
+    "generated",
+    "derived",
+    "voice",
+    "music",
+    "sound",
+    "brand_asset",
+  ];
+  const byTab = {} as Record<AssetLibraryTab, number>;
+  for (const tab of tabs) {
+    byTab[tab] = 0;
+  }
+  return {
+    all: 0,
+    userOwned: 0,
+    systemOwned: 0,
+    generatedOnly: 0,
+    derivedOnly: 0,
+    acceptedReferences: 0,
+    drafts: 0,
+    savedEntities: { characters: 0, props: 0, locations: 0, worlds: 0, total: 0 },
+    byTab,
+  };
+}
+
+function emptyInsightsShell(now: Date): UserStudioInsightsReport {
+  return {
+    generatedAt: now.toISOString(),
+    periodLabel: "this_month",
+    projectsCreated: 0,
+    sceneImagesGenerated: 0,
+    assetReferencesGenerated: 0,
+    voicePreviews: 0,
+    voiceClones: 0,
+    motionRenders: 0,
+    languageExports: 0,
+    textRerenders: 0,
+    translations: 0,
+    assetsDerived: 0,
+    estimatedTimeSavedMinutes: 0,
+    estimatedProviderActions: 0,
+    withinLimits: true,
+    limitHintKey: null,
+  };
+}
 
 function metaFeature(metadataJson: unknown): string | null {
   if (!metadataJson || typeof metadataJson !== "object" || Array.isArray(metadataJson)) {
@@ -120,6 +177,139 @@ export async function buildUserStudioInsights(userId: string): Promise<UserStudi
     estimatedProviderActions,
     withinLimits: true,
     limitHintKey: null,
+  };
+}
+
+/**
+ * SP.2D-F: first-paint Studio home — continue/recent + entity counts only.
+ * Skips month insights scan and full asset-registry assembly.
+ */
+export async function buildUserStudioHomeShell(userId: string): Promise<UserStudioDashboardReport> {
+  const now = new Date();
+  const [
+    projects,
+    storyboards,
+    characters,
+    props,
+    locations,
+    worlds,
+    recentStoryboards,
+    continueStoryboards,
+    continueCharacters,
+    continueProps,
+    continueLocations,
+    continueWorlds,
+  ] = await Promise.all([
+    prisma.animationProject.count({ where: { ownerId: userId } }),
+    prisma.studioStoryboard.count({ where: { ownerId: userId } }),
+    prisma.studioCharacter.count({ where: { ownerId: userId } }),
+    prisma.studioProp.count({ where: { ownerId: userId } }),
+    prisma.studioLocation.count({ where: { ownerId: userId } }),
+    prisma.studioWorldProfile.count({ where: { ownerId: userId } }),
+    prisma.studioStoryboard.findMany({
+      where: { ownerId: userId },
+      select: { id: true, title: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+    prisma.studioStoryboard.findMany({
+      where: { ownerId: userId },
+      select: { id: true, title: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+      take: 6,
+    }),
+    prisma.studioCharacter.findMany({
+      where: { ownerId: userId },
+      select: { id: true, name: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+      take: 4,
+    }),
+    prisma.studioProp.findMany({
+      where: { ownerId: userId },
+      select: { id: true, name: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+      take: 4,
+    }),
+    prisma.studioLocation.findMany({
+      where: { ownerId: userId },
+      select: { id: true, name: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+      take: 4,
+    }),
+    prisma.studioWorldProfile.findMany({
+      where: { ownerId: userId },
+      select: { id: true, name: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+      take: 4,
+    }),
+  ]);
+
+  const recentStoryboardItems = recentStoryboards.map((row) => ({
+    id: row.id,
+    kind: "storyboard" as const,
+    title: row.title?.trim() || "Storyboard",
+    href: `/studio?storyboardId=${encodeURIComponent(row.id)}`,
+    at: row.createdAt.toISOString(),
+  }));
+
+  const continueItems = [
+    ...continueStoryboards.map((row) => ({
+      id: row.id,
+      kind: "storyboard" as const,
+      title: row.title?.trim() || "Storyboard",
+      href: `/studio?storyboardId=${encodeURIComponent(row.id)}`,
+      updatedAt: row.updatedAt.toISOString(),
+    })),
+    ...continueCharacters.map((row) => ({
+      id: row.id,
+      kind: "character" as const,
+      title: row.name?.trim() || "Character",
+      href: `/studio/characters/${row.id}`,
+      updatedAt: row.updatedAt.toISOString(),
+    })),
+    ...continueProps.map((row) => ({
+      id: row.id,
+      kind: "prop" as const,
+      title: row.name?.trim() || "Prop",
+      href: `/studio/props/${row.id}`,
+      updatedAt: row.updatedAt.toISOString(),
+    })),
+    ...continueLocations.map((row) => ({
+      id: row.id,
+      kind: "location" as const,
+      title: row.name?.trim() || "Location",
+      href: `/studio/locations/${row.id}`,
+      updatedAt: row.updatedAt.toISOString(),
+    })),
+    ...continueWorlds.map((row) => ({
+      id: row.id,
+      kind: "world" as const,
+      title: row.name?.trim() || "World",
+      href: `/studio/worlds/${row.id}`,
+      updatedAt: row.updatedAt.toISOString(),
+    })),
+  ]
+    .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+    .slice(0, 8);
+
+  return {
+    ...emptyInsightsShell(now),
+    assetCounts: {
+      projects,
+      storyboards,
+      characters,
+      props,
+      locations,
+      worlds,
+    },
+    libraryCounts: emptyStudioAssetLibraryCounts(),
+    librarySummary: {
+      favoritesCount: 0,
+      voiceFavoritesCount: 0,
+    },
+    recentActivity: [],
+    recentStoryboards: recentStoryboardItems,
+    continueWorking: continueItems,
   };
 }
 

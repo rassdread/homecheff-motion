@@ -1,9 +1,9 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ConversionSurface } from "@/components/billing/conversion-surface";
-import { StudioProductionOrchestratorPanel } from "@/components/studio/studio-production-orchestrator-panel";
 import type { HomeCheffProjectPackage } from "@/types/homecheff-project-package";
 import type { StudioVideoIntent } from "@/types/studio-video-production";
 import { OnboardingChecklist } from "@/components/onboarding/onboarding-checklist";
@@ -13,6 +13,19 @@ import { brand } from "@/lib/brand";
 import { growthSidebarLayoutClasses } from "@/lib/growth-sidebar-layout";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import type { UserStudioDashboardReport } from "@/types/studio-profitability";
+
+const StudioProductionOrchestratorPanel = dynamic(
+  () =>
+    import("@/components/studio/studio-production-orchestrator-panel").then(
+      (m) => m.StudioProductionOrchestratorPanel
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-[120px] rounded-2xl border border-white/10 bg-white/5" aria-hidden />
+    ),
+  }
+);
 
 const QUICK_LINKS = [
   { href: "/studio/storyboards/new", labelKey: "studio.shell.newStory", emoji: "✨" },
@@ -74,6 +87,7 @@ export function StudioHomeDashboard({
   initialAutoProduce = false,
 }: Props) {
   const t = useActiveTranslator();
+  const [shell, setShell] = useState<UserStudioDashboardReport | null>(null);
   const [report, setReport] = useState<UserStudioDashboardReport | null>(null);
   const [error, setError] = useState("");
 
@@ -81,28 +95,37 @@ export function StudioHomeDashboard({
     let cancelled = false;
     void (async () => {
       queueMicrotask(() => setError(""));
-      const res = await fetch("/api/me/studio-insights?view=dashboard", { cache: "no-store" });
+      // Tier 1: shell (continue + counts) — no registry / month insights.
+      const shellRes = await fetch("/api/me/studio-insights?view=shell", { cache: "no-store" });
       if (cancelled) {
         return;
       }
-      if (!res.ok) {
+      if (!shellRes.ok) {
         queueMicrotask(() => setError(t("studio.home.error.loadFailed")));
         return;
       }
-      const data = (await res.json()) as { report: UserStudioDashboardReport };
-      queueMicrotask(() => setReport(data.report));
+      const shellData = (await shellRes.json()) as { report: UserStudioDashboardReport };
+      queueMicrotask(() => setShell(shellData.report));
+
+      // Tier 2: full dashboard (usage, libraryCounts, activity) — after shell usable.
+      const fullRes = await fetch("/api/me/studio-insights?view=dashboard", { cache: "no-store" });
+      if (cancelled || !fullRes.ok) {
+        return;
+      }
+      const fullData = (await fullRes.json()) as { report: UserStudioDashboardReport };
+      queueMicrotask(() => setReport(fullData.report));
     })();
     return () => {
       cancelled = true;
     };
   }, [t]);
 
+  const view = report ?? shell;
+
   const content = (
     <section className={embedded ? "mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8" : "mx-auto w-full max-w-4xl flex-1 px-4 py-8 sm:px-6"}>
       {error ?
         <p className="text-sm text-red-700">{error}</p>
-      : !report ?
-        <p className="text-sm text-white/70">{t("studio.home.loading")}</p>
       : (
         <div className="space-y-8">
           <header>
@@ -144,153 +167,174 @@ export function StudioHomeDashboard({
             </div>
           </div>
 
-          {report.continueWorking.length > 0 ?
-            <div>
-              <h3 className="text-sm font-semibold text-zinc-900">{t("studio.home.continueWorking")}</h3>
-              <ul className="mt-3 divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white">
-                {report.continueWorking.map((item) => (
-                  <li key={`${item.kind}-${item.id}`}>
-                    <Link
-                      href={item.href}
-                      className="flex min-h-[48px] flex-col justify-center gap-0.5 px-4 py-3 hover:bg-zinc-50 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <span className="text-sm font-medium text-zinc-900">
-                        {t(`studio.home.continueKind.${item.kind}` as never)} — {item.title}
-                      </span>
-                      <span className="text-xs text-zinc-500">
-                        {new Date(item.updatedAt).toLocaleString()}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          : null}
+          {!view ?
+            <p className="text-sm text-white/70">{t("studio.home.loading")}</p>
+          : (
+            <>
+              {view.continueWorking.length > 0 ?
+                <div>
+                  <h3 className="text-sm font-semibold text-zinc-900">{t("studio.home.continueWorking")}</h3>
+                  <ul className="mt-3 divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white">
+                    {view.continueWorking.map((item) => (
+                      <li key={`${item.kind}-${item.id}`}>
+                        <Link
+                          href={item.href}
+                          className="flex min-h-[48px] flex-col justify-center gap-0.5 px-4 py-3 hover:bg-zinc-50 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <span className="text-sm font-medium text-zinc-900">
+                            {t(`studio.home.continueKind.${item.kind}` as never)} — {item.title}
+                          </span>
+                          <span className="text-xs text-zinc-500">
+                            {new Date(item.updatedAt).toLocaleString()}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              : null}
 
-          {report.recentStoryboards.length > 0 ?
-            <div>
-              <h3 className="text-sm font-semibold text-zinc-900">{t("studio.home.recentStoryboards")}</h3>
-              <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                {report.recentStoryboards.map((item) => (
-                  <li key={item.id}>
-                    <Link
-                      href={item.href}
-                      className="flex min-h-[48px] flex-col justify-center rounded-2xl border border-zinc-200 bg-white px-4 py-3 hover:border-[#0067B1]/30"
-                    >
-                      <span className="text-sm font-semibold text-zinc-900">{item.title}</span>
-                      <span className="text-xs text-zinc-500">
-                        {new Date(item.at).toLocaleDateString()}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          : null}
+              {view.recentStoryboards.length > 0 ?
+                <div>
+                  <h3 className="text-sm font-semibold text-zinc-900">{t("studio.home.recentStoryboards")}</h3>
+                  <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {view.recentStoryboards.map((item) => (
+                      <li key={item.id}>
+                        <Link
+                          href={item.href}
+                          className="flex min-h-[48px] flex-col justify-center rounded-2xl border border-zinc-200 bg-white px-4 py-3 hover:border-[#0067B1]/30"
+                        >
+                          <span className="text-sm font-semibold text-zinc-900">{item.title}</span>
+                          <span className="text-xs text-zinc-500">
+                            {new Date(item.at).toLocaleDateString()}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              : null}
 
-          <div>
-            <h3 className="text-sm font-semibold text-zinc-900">{t("studio.home.usageThisMonth")}</h3>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <UsageStat label={t("studio.myStudio.stat.projects")} value={report.projectsCreated} />
-              <UsageStat label={t("studio.myStudio.stat.sceneImages")} value={report.sceneImagesGenerated} />
-              <UsageStat label={t("studio.myStudio.stat.assetReferences")} value={report.assetReferencesGenerated} />
-              <UsageStat label={t("studio.myStudio.stat.voicePreviews")} value={report.voicePreviews} />
-              <UsageStat label={t("studio.myStudio.stat.voiceClones")} value={report.voiceClones} />
-              <UsageStat label={t("studio.myStudio.stat.motionRenders")} value={report.motionRenders} />
-              <UsageStat label={t("studio.myStudio.stat.exports")} value={report.languageExports} />
-              <UsageStat label={t("studio.myStudio.stat.translations")} value={report.translations} />
-              <UsageStat label={t("studio.myStudio.stat.assetsDerived")} value={report.assetsDerived} />
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-semibold text-zinc-900">{t("studio.home.libraryTitle")}</h3>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              <AssetCountLink
-                label={t("studio.myStudio.library.allAssets")}
-                count={report.libraryCounts.all}
-                href="/studio/assets"
-              />
-              <AssetCountLink
-                label={t("studio.myStudio.library.favorites")}
-                count={report.libraryCounts.byTab.favorites}
-                href="/studio/assets/browse?filter=favorites"
-              />
-              <AssetCountLink
-                label={t("studio.myStudio.library.generated")}
-                count={report.libraryCounts.byTab.generated}
-                href="/studio/assets/library/generated"
-              />
-              <AssetCountLink
-                label={t("studio.myStudio.library.storyboards")}
-                count={report.assetCounts.storyboards}
-                href="/studio/storyboards"
-              />
-              <AssetCountLink
-                label={t("studio.myStudio.library.characters")}
-                count={report.assetCounts.characters}
-                href="/studio/characters"
-              />
-              <AssetCountLink
-                label={t("studio.myStudio.library.props")}
-                count={report.assetCounts.props}
-                href="/studio/props"
-              />
-              <AssetCountLink
-                label={t("studio.myStudio.library.locations")}
-                count={report.assetCounts.locations}
-                href="/studio/locations"
-              />
-              <AssetCountLink
-                label={t("studio.myStudio.library.worlds")}
-                count={report.assetCounts.worlds}
-                href="/studio/worlds"
-              />
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-semibold text-zinc-900">{t("studio.home.recentActivity")}</h3>
-            {report.recentActivity.length === 0 ?
-              <p className="mt-3 text-sm text-zinc-500">{t("studio.myStudio.noActivity")}</p>
-            : (
-              <ul className="mt-3 divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white">
-                {report.recentActivity.map((item) => (
-                  <li key={item.id} className="flex min-h-[48px] items-center justify-between gap-3 px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-zinc-900">
-                        {t(`studio.myStudio.activity.${item.kind}` as never)} — {item.title}
-                      </p>
-                      <p className="text-xs text-zinc-500">{new Date(item.at).toLocaleString()}</p>
-                    </div>
-                    {item.href ?
-                      <Link
-                        href={item.href}
-                        className="shrink-0 min-h-[44px] inline-flex items-center text-xs font-semibold text-[#0067B1] hover:underline"
-                      >
-                        {t("studio.myStudio.open")}
-                      </Link>
+              {view ?
+                <div>
+                  <h3 className="text-sm font-semibold text-zinc-900">{t("studio.home.libraryTitle")}</h3>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {report ?
+                      <>
+                        <AssetCountLink
+                          label={t("studio.myStudio.library.allAssets")}
+                          count={report.libraryCounts.all}
+                          href="/studio/assets"
+                        />
+                        <AssetCountLink
+                          label={t("studio.myStudio.library.favorites")}
+                          count={report.libraryCounts.byTab.favorites}
+                          href="/studio/assets/browse?filter=favorites"
+                        />
+                        <AssetCountLink
+                          label={t("studio.myStudio.library.generated")}
+                          count={report.libraryCounts.byTab.generated}
+                          href="/studio/assets/library/generated"
+                        />
+                      </>
                     : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+                    <AssetCountLink
+                      label={t("studio.myStudio.library.storyboards")}
+                      count={view.assetCounts.storyboards}
+                      href="/studio/storyboards"
+                    />
+                    <AssetCountLink
+                      label={t("studio.myStudio.library.characters")}
+                      count={view.assetCounts.characters}
+                      href="/studio/characters"
+                    />
+                    <AssetCountLink
+                      label={t("studio.myStudio.library.props")}
+                      count={view.assetCounts.props}
+                      href="/studio/props"
+                    />
+                    <AssetCountLink
+                      label={t("studio.myStudio.library.locations")}
+                      count={view.assetCounts.locations}
+                      href="/studio/locations"
+                    />
+                    <AssetCountLink
+                      label={t("studio.myStudio.library.worlds")}
+                      count={view.assetCounts.worlds}
+                      href="/studio/worlds"
+                    />
+                  </div>
+                </div>
+              : null}
 
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/studio/storyboards"
-              className="inline-flex min-h-[44px] items-center rounded-full border border-zinc-200 bg-white px-5 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
-            >
-              {t("studio.home.allStoryboards")}
-            </Link>
-            <Link
-              href="/studio/account"
-              className="inline-flex min-h-[44px] items-center rounded-full border border-zinc-200 bg-white px-5 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
-            >
-              {t("studio.account.nav")}
-            </Link>
-          </div>
+              {report ?
+                <>
+                  <div>
+                    <h3 className="text-sm font-semibold text-zinc-900">{t("studio.home.usageThisMonth")}</h3>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      <UsageStat label={t("studio.myStudio.stat.projects")} value={report.projectsCreated} />
+                      <UsageStat label={t("studio.myStudio.stat.sceneImages")} value={report.sceneImagesGenerated} />
+                      <UsageStat
+                        label={t("studio.myStudio.stat.assetReferences")}
+                        value={report.assetReferencesGenerated}
+                      />
+                      <UsageStat label={t("studio.myStudio.stat.voicePreviews")} value={report.voicePreviews} />
+                      <UsageStat label={t("studio.myStudio.stat.voiceClones")} value={report.voiceClones} />
+                      <UsageStat label={t("studio.myStudio.stat.motionRenders")} value={report.motionRenders} />
+                      <UsageStat label={t("studio.myStudio.stat.exports")} value={report.languageExports} />
+                      <UsageStat label={t("studio.myStudio.stat.translations")} value={report.translations} />
+                      <UsageStat label={t("studio.myStudio.stat.assetsDerived")} value={report.assetsDerived} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-semibold text-zinc-900">{t("studio.home.recentActivity")}</h3>
+                    {report.recentActivity.length === 0 ?
+                      <p className="mt-3 text-sm text-zinc-500">{t("studio.myStudio.noActivity")}</p>
+                    : (
+                      <ul className="mt-3 divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white">
+                        {report.recentActivity.map((item) => (
+                          <li key={item.id} className="flex min-h-[48px] items-center justify-between gap-3 px-4 py-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-zinc-900">
+                                {t(`studio.myStudio.activity.${item.kind}` as never)} — {item.title}
+                              </p>
+                              <p className="text-xs text-zinc-500">{new Date(item.at).toLocaleString()}</p>
+                            </div>
+                            {item.href ?
+                              <Link
+                                href={item.href}
+                                className="shrink-0 min-h-[44px] inline-flex items-center text-xs font-semibold text-[#0067B1] hover:underline"
+                              >
+                                {t("studio.myStudio.open")}
+                              </Link>
+                            : null}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </>
+              : view ?
+                <p className="text-sm text-white/55">{t("studio.home.loading")}</p>
+              : null}
+
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  href="/studio/storyboards"
+                  className="inline-flex min-h-[44px] items-center rounded-full border border-zinc-200 bg-white px-5 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
+                >
+                  {t("studio.home.allStoryboards")}
+                </Link>
+                <Link
+                  href="/studio/account"
+                  className="inline-flex min-h-[44px] items-center rounded-full border border-zinc-200 bg-white px-5 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
+                >
+                  {t("studio.account.nav")}
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       )}
     </section>

@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   }
 
   const url = new URL(request.url);
-  const limit = Math.min(40, Math.max(1, Number(url.searchParams.get("limit") ?? 12)));
+  const limit = Math.min(80, Math.max(1, Number(url.searchParams.get("limit") ?? 12)));
 
   const records = await listLibraryConsistencyRecords(user.id, limit);
   return NextResponse.json({ ok: true, records });

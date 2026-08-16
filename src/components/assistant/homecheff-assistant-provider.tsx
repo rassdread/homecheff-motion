@@ -24,7 +24,7 @@ import {
   type AssistantProposal,
 } from "@/lib/assistant-orchestrator";
 import type { AssistantContextSnapshot } from "@/lib/assistant-context-layer";
-import { queryLibraryConsistency } from "@/lib/library-consistency-client";
+import { fetchRecentLibraryAdditions } from "@/lib/library-consistency-client";
 import { fetchStudioAccountJson } from "@/lib/studio-account-client";
 import type { AssistantSessionMemory } from "@/lib/assistant-session-memory";
 import { rememberAssistantWizard } from "@/lib/assistant-session-memory";
@@ -300,23 +300,21 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
     queueMicrotask(() => {
       void (async () => {
         setLoadingContext(true);
-        // Defer heavy assistant library bootstrap so shell/home paint first.
-        // Home sections use the same bootstrap cache (limit coalescing).
+        // SP.2D-F: defer + recent slice — avoid blocking home on 500-row query bootstrap.
         await new Promise<void>((resolve) => {
           if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-            window.requestIdleCallback(() => resolve(), { timeout: 1500 });
+            window.requestIdleCallback(() => resolve(), { timeout: 2500 });
           } else {
-            setTimeout(() => resolve(), 100);
+            setTimeout(() => resolve(), 400);
           }
         });
         if (cancelled) {
           return;
         }
-        const response = await queryLibraryConsistency({ limit: 500 });
+        const records = await fetchRecentLibraryAdditions(40);
         if (cancelled) {
           return;
         }
-        const records = response.ok ? (response.results ?? []) : [];
         setLibraryRecords(records);
         refreshSnapshot(records);
         setLoadingContext(false);

@@ -123,7 +123,8 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
     setError("");
     setLoadFailure(null);
 
-    const sessionPayload = await fetchAuthSessionJson({ force: true });
+    // Reuse AppShell session cache when warm; avoid forced duplicate /api/auth/session.
+    const sessionPayload = await fetchAuthSessionJson();
     if (!sessionPayload.user) {
       setLoadFailure({
         kind: "auth",
