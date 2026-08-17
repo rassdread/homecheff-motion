@@ -110,18 +110,28 @@ describe("PX.4A.1 encode plan + isolation", () => {
     }
   });
 
-  it("does not land on Studio Home or PX.3 chooser", () => {
-    assert.doesNotMatch(read(join(ROOT, "src/app/page.tsx")), /photo-video/);
+  it("promotes free creator on Home funnel without loading the composer", () => {
+    const dashboard = read(join(ROOT, "src/components/studio/studio-home-dashboard.tsx"));
+    assert.match(dashboard, /StudioPx4aFreeCreatorBanner/);
+    assert.doesNotMatch(dashboard, /photo-video-composer|photo-video-music-panel/);
     assert.doesNotMatch(read(join(ROOT, "src/components/studio/studio-px3-intent-chooser.tsx")), /photo-video/);
-    assert.doesNotMatch(read(join(ROOT, "src/components/studio/studio-experience-pack-funnel.tsx")), /photo-video/);
     assert.doesNotMatch(read(join(ROOT, "src/lib/studio-px3-home.ts")), /photo-video/);
+    const funnel = read(join(ROOT, "src/components/studio/studio-experience-pack-funnel.tsx"));
+    assert.match(funnel, /StudioPx4aFreeCreatorBanner/);
+    assert.doesNotMatch(funnel, /photo-video-composer|photo-video-music-panel/);
+    const banner = read(join(ROOT, "src/components/studio/studio-px4a-free-creator-banner.tsx"));
+    assert.match(banner, /\/studio\/photo-video/);
+    assert.doesNotMatch(banner, /photo-video-composer/);
   });
 
   it("lazy-loads the composer from its own route", () => {
     const page = read(join(ROOT, "src/app/studio/photo-video/page.tsx"));
-    assert.match(page, /next\/dynamic/);
-    assert.match(page, /ssr:\s*false/);
-    assert.match(page, /photo-video-composer/);
+    const client = read(join(ROOT, "src/app/studio/photo-video/photo-video-page-client.tsx"));
+    assert.match(page, /maybeSilentHydratePublicStudio/);
+    assert.match(page, /PhotoVideoPageClient/);
+    assert.match(client, /next\/dynamic/);
+    assert.match(client, /ssr:\s*false/);
+    assert.match(client, /photo-video-composer/);
   });
 
   it("lazy-loads own-music tooling only from the composer, not Studio Home", () => {

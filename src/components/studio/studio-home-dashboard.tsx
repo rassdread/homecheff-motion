@@ -8,6 +8,7 @@ import type { HomeCheffProjectPackage } from "@/types/homecheff-project-package"
 import type { StudioVideoIntent } from "@/types/studio-video-production";
 import { OnboardingChecklist } from "@/components/onboarding/onboarding-checklist";
 import { StudioShellHeader } from "@/components/studio/studio-shell-header";
+import { StudioPx4aFreeCreatorBanner } from "@/components/studio/studio-px4a-free-creator-banner";
 import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
 import { growthSidebarLayoutClasses } from "@/lib/growth-sidebar-layout";
@@ -133,6 +134,8 @@ export function StudioHomeDashboard({
             <h2 className="mt-1 text-2xl font-bold text-white sm:text-3xl">{t("studio.home.title")}</h2>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/70">{t("studio.home.subtitle")}</p>
           </header>
+
+          <StudioPx4aFreeCreatorBanner />
 
           <div className="flex flex-col gap-3 sm:flex-row" data-testid="px3-studio-home-create">
             <Link

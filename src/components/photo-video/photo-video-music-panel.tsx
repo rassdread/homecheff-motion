@@ -31,7 +31,7 @@ export function PhotoVideoMusicPanel({
   clockRef: MutableRefObject<number>;
   playing: boolean;
   locale: "nl" | "en";
-  onOwnMusic: (audio: PhotoVideoOwnMusic, previousObjectUrl?: string) => void;
+  onOwnMusic: (audio: PhotoVideoOwnMusic, previousObjectUrl?: string, sourceBlob?: Blob) => void;
   onStart: (startSeconds: number) => void;
   onVolume: (volume: number) => void;
   onPlayingChange: (playing: boolean) => void;
@@ -139,7 +139,8 @@ export function PhotoVideoMusicPanel({
           fileName: file.name,
           peaks: decoded.peaks,
         },
-        previous
+        previous,
+        file
       );
     } catch (err) {
       const code = err instanceof Error && err.message === "duration" ? "duration" : "decode";

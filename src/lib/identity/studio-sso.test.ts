@@ -91,6 +91,7 @@ describe("SP.2B returnTo", () => {
   it("marks public surfaces for silent hydrate (SP.2B.7)", () => {
     assert.equal(isPublicStudioSurface("/"), true);
     assert.equal(isPublicStudioSurface("/pricing"), true);
+    assert.equal(isPublicStudioSurface("/studio/photo-video"), true);
     assert.equal(isPublicStudioSurface("/editor"), false);
     assert.equal(isPublicStudioSurface("/account"), false);
   });

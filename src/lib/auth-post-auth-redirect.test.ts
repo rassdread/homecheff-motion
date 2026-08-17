@@ -17,6 +17,8 @@ describe("auth post-auth redirect", () => {
       "/studio/storyboards/new",
       "/animate/instant",
       "/studio?storyboardId=abc",
+      "/studio/photo-video",
+      "/studio/photo-video?resume=1",
     ]) {
       assert.equal(isAllowedPostAuthPath(path), true, path);
     }
@@ -35,5 +37,6 @@ describe("auth post-auth redirect", () => {
     assert.equal(resolvePostAuthRedirect("/evil"), "/");
     assert.equal(resolvePostAuthRedirect("/maak"), "/");
     assert.equal(resolvePostAuthRedirect("/animate/instant"), "/animate/instant");
+    assert.equal(resolvePostAuthRedirect("/studio/photo-video?resume=1"), "/studio/photo-video?resume=1");
   });
 });

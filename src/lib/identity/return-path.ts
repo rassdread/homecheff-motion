@@ -94,6 +94,17 @@ export function validateStudioReturnTo(raw: string | null | undefined): string {
     }
   }
 
+  if (pathname === "/studio/photo-video" && search.startsWith("?")) {
+    try {
+      const params = new URLSearchParams(search.slice(1));
+      if (params.get("resume") === "1") {
+        return "/studio/photo-video?resume=1";
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+
   return pathname;
 }
 
@@ -102,6 +113,13 @@ export function validateStudioReturnTo(raw: string | null | undefined): string {
  * Used so login_required does not bounce anonymous visitors to /login.
  */
 export function isPublicStudioSurface(path: string): boolean {
-  const p = validateStudioReturnTo(path);
-  return p === "/" || p === "/pricing" || p.startsWith("/pricing/");
+  const validated = validateStudioReturnTo(path);
+  const p = validated.split("?")[0] ?? validated;
+  return (
+    p === "/" ||
+    p === "/pricing" ||
+    p.startsWith("/pricing/") ||
+    p === "/studio/photo-video" ||
+    p.startsWith("/studio/photo-video/")
+  );
 }
