@@ -77,14 +77,16 @@ export function buildLegacyPrimaryNavItems(): PrimaryNavItem[] {
   ];
 }
 
-/** Five-product suite navigation — opt-in via NEXT_PUBLIC_HOMECHEFF_PRODUCT_SUITE_NAV */
-export function buildSuitePrimaryNavItems(): PrimaryNavItem[] {
-  const libraryMatch = (pathname: string) =>
+function libraryMatch(pathname: string): boolean {
+  return (
     isLibraryAliasPath(pathname) ||
     pathname === "/studio/assets" ||
-    pathname.startsWith("/studio/assets/");
+    pathname.startsWith("/studio/assets/")
+  );
+}
 
-  const motionMatch = (pathname: string) =>
+function motionMatch(pathname: string): boolean {
+  return (
     pathname === "/motion" ||
     pathname.startsWith("/motion/") ||
     (isStudioProductionModeEnabled()
@@ -92,22 +94,47 @@ export function buildSuitePrimaryNavItems(): PrimaryNavItem[] {
       : pathname === "/animate/instant" ||
         pathname.startsWith("/animate/instant/") ||
         pathname === "/animate" ||
-        pathname.startsWith("/animate/"));
+        pathname.startsWith("/animate/"))
+  );
+}
 
-  const publishMatch = (pathname: string) =>
+function publishMatch(pathname: string): boolean {
+  return (
     pathname === "/publish" ||
     pathname.startsWith("/publish/") ||
     pathname === "/presentation" ||
     pathname.startsWith("/presentation/") ||
     pathname === "/videos" ||
-    pathname.startsWith("/videos/");
+    pathname.startsWith("/videos/")
+  );
+}
 
+/** PX.3 global chrome — destinations, not the five-product pipeline. */
+export function buildSuiteGlobalNavItems(): PrimaryNavItem[] {
   return [
     {
       href: "/",
       labelKey: "suite.nav.home",
       match: (pathname) => pathname === "/" || pathname === "/maak" || pathname.startsWith("/maak/"),
     },
+    {
+      href: "/projects",
+      labelKey: "suite.nav.projects",
+      match: (pathname) => pathname === "/projects" || pathname.startsWith("/projects/"),
+      authOnly: true,
+    },
+    {
+      href: resolveProductHref("assets"),
+      labelKey: "suite.nav.library",
+      match: libraryMatch,
+      productId: "assets",
+    },
+  ];
+}
+
+/** PX.3 expert access — same hrefs as PX.2, not shown as equal Home tabs. */
+export function buildSuiteToolNavItems(): PrimaryNavItem[] {
+  return [
     {
       href: resolveProductHref("editor"),
       labelKey: "suite.nav.editor",
@@ -132,21 +159,7 @@ export function buildSuitePrimaryNavItems(): PrimaryNavItem[] {
       href: resolveProductHref("presentation"),
       labelKey: "suite.nav.publish",
       match: publishMatch,
-      authOnly: true,
       productId: "presentation",
-    },
-    {
-      href: "/projects",
-      labelKey: "suite.nav.projects",
-      match: (pathname) => pathname === "/projects" || pathname.startsWith("/projects/"),
-      authOnly: true,
-    },
-    {
-      href: resolveProductHref("assets"),
-      labelKey: "suite.nav.library",
-      match: libraryMatch,
-      authOnly: true,
-      productId: "assets",
     },
     {
       href: "/pricing",
@@ -156,6 +169,11 @@ export function buildSuitePrimaryNavItems(): PrimaryNavItem[] {
   ];
 }
 
+/** @deprecated PX.3 chrome uses buildSuiteGlobalNavItems. Kept as alias for existing tests. */
+export function buildSuitePrimaryNavItems(): PrimaryNavItem[] {
+  return buildSuiteGlobalNavItems();
+}
+
 export function resolvePrimaryNavItems(suiteNavEnabled: boolean): PrimaryNavItem[] {
-  return suiteNavEnabled ? buildSuitePrimaryNavItems() : buildLegacyPrimaryNavItems();
+  return suiteNavEnabled ? buildSuiteGlobalNavItems() : buildLegacyPrimaryNavItems();
 }

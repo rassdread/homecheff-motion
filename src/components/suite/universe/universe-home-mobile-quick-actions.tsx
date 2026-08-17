@@ -23,9 +23,8 @@ type QuickLink = {
 };
 
 const QUICK_LINKS: QuickLink[] = [
-  { href: "/editor", labelKey: "suite.nav.editor" },
-  { href: "/studio", labelKey: "suite.nav.studio" },
-  { href: "/animate/instant", labelKey: "suite.nav.motion" },
+  { href: "/projects", labelKey: "suite.nav.projects", authOnly: true },
+  { href: "/library", labelKey: "suite.nav.library" },
   { href: "/account/billing", labelKey: "account.nav.billing", authOnly: true },
   { href: "/help", labelKey: "help.home.label" },
 ];

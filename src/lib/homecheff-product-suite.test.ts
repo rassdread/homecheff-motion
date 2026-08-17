@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   buildLegacyPrimaryNavItems,
+  buildSuiteGlobalNavItems,
   buildSuitePrimaryNavItems,
+  buildSuiteToolNavItems,
   resolvePrimaryNavItems,
 } from "@/lib/homecheff-primary-nav-config";
 import { isHomeCheffProductSuiteNavEnabled } from "@/lib/homecheff-product-suite-flag";
@@ -129,13 +131,14 @@ describe("homecheff-product-suite", () => {
   });
 
   it("suite nav shows Publish and Library, not Presentation or Assets", () => {
-    const suite = buildSuitePrimaryNavItems();
-    assert.ok(suite.some((i) => i.labelKey === "suite.nav.publish"));
-    assert.ok(suite.some((i) => i.labelKey === "suite.nav.library"));
-    assert.equal(suite.some((i) => i.labelKey === "suite.nav.presentation"), false);
-    assert.equal(suite.some((i) => i.labelKey === "suite.nav.assets"), false);
-    assert.equal(suite.some((i) => i.labelKey === "nav.usage"), false);
-    assert.equal(suite.filter((i) => i.productId).length, 5);
+    const tools = buildSuiteToolNavItems();
+    const global = buildSuiteGlobalNavItems();
+    assert.ok(tools.some((i) => i.labelKey === "suite.nav.publish"));
+    assert.ok(global.some((i) => i.labelKey === "suite.nav.library"));
+    assert.equal(tools.some((i) => i.labelKey === "suite.nav.presentation"), false);
+    assert.equal([...global, ...tools].some((i) => i.labelKey === "suite.nav.assets"), false);
+    assert.equal([...global, ...tools].some((i) => i.labelKey === "nav.usage"), false);
+    assert.equal([...global, ...tools].filter((i) => i.productId).length, 5);
   });
 
   it("resolvePrimaryNavItems switches on flag", () => {

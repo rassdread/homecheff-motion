@@ -24,9 +24,15 @@ export function UniverseHomeGettingStarted({ isAuthenticated }: Props) {
         <Link href={resolveUniverseStartProjectHref(isAuthenticated)} className={studioVisual.btnGradientPrimary}>
           {t("universe.home.gettingStarted.startProject" as never)}
         </Link>
-        <Link href="/editor" className={studioVisual.btnOutline}>
-          {t("universe.home.gettingStarted.openEditor" as never)}
-        </Link>
+        {isAuthenticated ? (
+          <Link href="/studio" className={studioVisual.btnOutline}>
+            {t("px3.cta.continue")}
+          </Link>
+        ) : (
+          <Link href="/editor" className={studioVisual.btnOutline}>
+            {t("universe.home.gettingStarted.openEditor" as never)}
+          </Link>
+        )}
         <Link href="/library" className={studioVisual.btnOutline}>
           {t("universe.home.gettingStarted.openLibrary" as never)}
         </Link>

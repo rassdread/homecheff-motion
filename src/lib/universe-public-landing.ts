@@ -103,11 +103,11 @@ export function resolveUniversePrimaryCtaKey(isAuthenticated: boolean): Translat
 }
 
 export function resolveUniverseSecondaryCtaHref(isAuthenticated: boolean): string {
-  return isAuthenticated ? "/library" : UNIVERSE_WHY_STUDIO_PATH;
+  return isAuthenticated ? "/studio" : UNIVERSE_WHY_STUDIO_PATH;
 }
 
 export function resolveUniverseSecondaryCtaKey(isAuthenticated: boolean): TranslationKey {
-  return isAuthenticated ? "universe.quick.openLibrary" : "universe.hero.cta.howItWorks";
+  return isAuthenticated ? "px3.cta.continue" : "universe.hero.cta.howItWorks";
 }
 
 /**

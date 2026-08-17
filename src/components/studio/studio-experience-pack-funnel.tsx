@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { StudioGuidedQuestions } from "@/components/studio/studio-guided-questions";
 import { StudioDirectorAdaptivePresentation } from "@/components/studio/director-presentation/studio-director-adaptive-presentation";
 import { toDirectorPackNodes } from "@/components/studio/director-presentation/studio-director-pack-views";
+import { StudioPx3IntentChooser } from "@/components/studio/studio-px3-intent-chooser";
 import { useActiveTranslator } from "@/i18n/client";
 import {
   acceptCoachOnExperience,
@@ -84,14 +85,21 @@ export function StudioExperiencePackFunnel() {
   if (!experienceParam && !entryFan && !photoIntent && !preset && !flow) {
     const packs = toDirectorPackNodes(P0_EXPERIENCE_PACKS);
     return (
-      <div className="mx-auto w-full max-w-5xl space-y-4 px-4 py-10">
-        <StudioDirectorAdaptivePresentation
-          packs={packs}
-          productMode="QUICK"
-          linkMode
-          title={t("studio.experience.chooser.title")}
-          subtitle={t("studio.experience.chooser.subtitle")}
-        />
+      <div className="mx-auto w-full max-w-5xl space-y-10 px-4 py-10">
+        <StudioPx3IntentChooser />
+        <section className="space-y-3" data-testid="px3-pack-chooser">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+            {t("px3.chooser.packsTitle")}
+          </h2>
+          <p className="text-sm text-zinc-600">{t("px3.chooser.packsLead")}</p>
+          <StudioDirectorAdaptivePresentation
+            packs={packs}
+            productMode="QUICK"
+            linkMode
+            title={t("px3.chooser.packsTitle")}
+            subtitle={t("studio.experience.chooser.subtitle")}
+          />
+        </section>
       </div>
     );
   }

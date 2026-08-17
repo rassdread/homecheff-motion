@@ -10,7 +10,7 @@ import {
   px2Cta,
   px2Term,
 } from "@/lib/studio-px2-terminology";
-import { buildSuitePrimaryNavItems } from "@/lib/homecheff-primary-nav-config";
+import { buildSuiteGlobalNavItems, buildSuiteToolNavItems } from "@/lib/homecheff-primary-nav-config";
 import {
   STUDIO_PRODUCT_LANDING_CONFIG,
 } from "@/lib/studio-product-landing-config";
@@ -45,13 +45,13 @@ describe("PX.2 terminology contract", () => {
     assert.equal(nl["nav.motion"], px2Term("animation").nl);
   });
 
-  it("keeps suite nav destinations unchanged", () => {
-    const suite = buildSuitePrimaryNavItems();
-    assert.equal(suite.find((item) => item.productId === "editor")?.href, "/editor");
-    assert.equal(suite.find((item) => item.labelKey === "suite.nav.studio")?.href, "/studio");
-    assert.equal(suite.find((item) => item.productId === "motion")?.href, "/motion");
-    assert.equal(suite.find((item) => item.productId === "presentation")?.href, "/publish");
-    assert.equal(suite.find((item) => item.productId === "assets")?.href, "/library");
+  it("keeps suite product destinations unchanged in Meer tools", () => {
+    const tools = buildSuiteToolNavItems();
+    assert.equal(tools.find((item) => item.productId === "editor")?.href, "/editor");
+    assert.equal(tools.find((item) => item.labelKey === "suite.nav.studio")?.href, "/studio");
+    assert.equal(tools.find((item) => item.productId === "motion")?.href, "/motion");
+    assert.equal(tools.find((item) => item.productId === "presentation")?.href, "/publish");
+    assert.equal(buildSuiteGlobalNavItems().find((item) => item.productId === "assets")?.href, "/library");
   });
 
   it("maps planet chrome to outcome words, not EDITOR/MOTION", () => {

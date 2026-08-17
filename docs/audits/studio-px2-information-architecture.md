@@ -1,6 +1,10 @@
 # PX.2 — Information architecture & terminology
 
-Status: implemented. Input: `docs/audits/studio-px1-product-experience-audit.md`.
+Status: **COMPLETE / PASS** (2026-08-17). Input: `docs/audits/studio-px1-product-experience-audit.md`.  
+Close-out: `docs/audits/studio-px2-final-report.md`.  
+PR #31 · feature `bab75c4f` · merge `d815d600` · Production `dpl_GeDdyi1xFoURfMNvMaxRR2XjQx4K`.
+
+**PX.3:** see `docs/audits/studio-px3-current-state.md` (implementation on `feat/px3-simple-studio-home`).
 
 ## Scope
 
