@@ -134,8 +134,8 @@ function buildContextHeader(
     return { nl: asset, en: asset };
   }
   return {
-    nl: "Studio Copilot",
-    en: "Studio Copilot",
+    nl: "Hulp",
+    en: "Help",
   };
 }
 

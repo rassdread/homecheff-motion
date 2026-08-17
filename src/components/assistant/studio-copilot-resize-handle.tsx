@@ -43,7 +43,7 @@ export function StudioCopilotResizeHandle({ onResize }: Props) {
     <div
       role="separator"
       aria-orientation="vertical"
-      aria-label="Resize Studio Copilot panel"
+      aria-label="Hulp paneel groter of kleiner maken"
       className="absolute left-0 top-0 z-10 hidden h-full w-1.5 cursor-col-resize bg-transparent hover:bg-[#0067B1]/20 lg:block"
       data-testid="studio-copilot-resize-handle"
       onPointerDown={onPointerDown}

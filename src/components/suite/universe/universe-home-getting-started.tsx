@@ -2,11 +2,7 @@
 
 import Link from "next/link";
 import { useActiveTranslator } from "@/i18n/client";
-import {
-  resolveUniversePrimaryCtaHref,
-  resolveUniverseSecondaryCtaHref,
-  resolveUniverseStartProjectHref,
-} from "@/lib/universe-public-landing";
+import { resolveUniverseStartProjectHref } from "@/lib/universe-public-landing";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 
 type Props = {
@@ -28,10 +24,10 @@ export function UniverseHomeGettingStarted({ isAuthenticated }: Props) {
         <Link href={resolveUniverseStartProjectHref(isAuthenticated)} className={studioVisual.btnGradientPrimary}>
           {t("universe.home.gettingStarted.startProject" as never)}
         </Link>
-        <Link href={resolveUniversePrimaryCtaHref(isAuthenticated)} className={studioVisual.btnOutline}>
+        <Link href="/editor" className={studioVisual.btnOutline}>
           {t("universe.home.gettingStarted.openEditor" as never)}
         </Link>
-        <Link href={resolveUniverseSecondaryCtaHref(isAuthenticated)} className={studioVisual.btnOutline}>
+        <Link href="/library" className={studioVisual.btnOutline}>
           {t("universe.home.gettingStarted.openLibrary" as never)}
         </Link>
       </div>

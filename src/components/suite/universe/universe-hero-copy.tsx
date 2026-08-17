@@ -7,6 +7,7 @@ import { resolveUniverseWelcomeName } from "@/lib/universe-home-config";
 import {
   UNIVERSE_HERO_PIPELINE_KEYS,
   resolveUniversePrimaryCtaHref,
+  resolveUniversePrimaryCtaKey,
   resolveUniverseSecondaryCtaHref,
   resolveUniverseStartProjectHref,
 } from "@/lib/universe-public-landing";
@@ -71,7 +72,7 @@ export function UniverseHeroCopy({ isAuthenticated, email, reducedMotion = false
               prefetch={false}
               className="inline-flex min-h-11 items-center rounded-full bg-gradient-to-r from-[#006D52] to-[#0067B1] px-5 py-2.5 text-sm font-semibold text-white shadow-lg hover:opacity-95"
             >
-              {t("universe.public.continueCreating" as never)}
+              {t(resolveUniversePrimaryCtaKey(true))}
             </Link>
             <Link
               href={resolveUniverseSecondaryCtaHref(true)}
@@ -88,7 +89,7 @@ export function UniverseHeroCopy({ isAuthenticated, email, reducedMotion = false
               prefetch={false}
               className="inline-flex min-h-11 items-center rounded-full bg-gradient-to-r from-[#006D52] to-[#0067B1] px-5 py-2.5 text-sm font-semibold text-white shadow-lg hover:opacity-95"
             >
-              {t("universe.hero.cta.startProject" as never)}
+              {t(resolveUniversePrimaryCtaKey(false))}
             </Link>
             <Link
               href="/pricing"

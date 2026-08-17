@@ -43,7 +43,7 @@ describe("Expanded product landings", () => {
     const config = studioProductLandingConfig("editor");
     assert.ok((config.categoryKeys?.length ?? 0) >= 8);
     assert.ok((config.valuePropKeys?.length ?? 0) >= 4);
-    assert.equal(config.primaryCtaKey, "marketing.cta.startCreating");
+    assert.equal(config.primaryCtaKey, "landing.editor.primaryCta");
   });
 
   it("motion landing includes duration options", () => {

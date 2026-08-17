@@ -29,7 +29,7 @@ const NL_LEAK_WORDS_IN_EN = [
   "Vertalen",
   "Exporteren",
   "Wat wil je",
-  "Nieuw videoverhaal",
+  "Nieuw verhaal",
 ];
 
 const EN_LEAK_WORDS_IN_NL = [
@@ -89,16 +89,16 @@ describe("Studio V2 i18n consistency", () => {
   });
 
   it("uses canonical NL terminology for primary Studio actions", () => {
-    assert.equal(nl["studio.start.newStory"], "Nieuw videoverhaal");
-    assert.equal(nl["studio.start.myStories"], "Mijn videoverhalen");
+    assert.equal(nl["studio.start.newStory"], "Nieuw verhaal");
+    assert.equal(nl["studio.start.myStories"], "Mijn verhalen");
     assert.equal(nl["studio.start.photosToVideo"], "Foto's naar video");
     assert.equal(nl["studio.shell.defaultTitle"], "Verhaaleditor");
     assert.equal(nl["maak.title"], "Wat wil je maken?");
   });
 
   it("uses canonical EN terminology for primary Studio actions", () => {
-    assert.equal(en["studio.start.newStory"], "New video story");
-    assert.equal(en["studio.start.myStories"], "My video stories");
+    assert.equal(en["studio.start.newStory"], "New story");
+    assert.equal(en["studio.start.myStories"], "My stories");
     assert.equal(en["studio.start.photosToVideo"], "Photos to video");
     assert.equal(en["studio.shell.defaultTitle"], "Story editor");
     assert.equal(en["maak.title"], "What do you want to make?");

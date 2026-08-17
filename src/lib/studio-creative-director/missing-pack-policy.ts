@@ -54,13 +54,13 @@ export function missingPackUserMessage(
   const disposition = getMissingPackDisposition(experienceId) ?? "HIDDEN";
   switch (disposition) {
     case "COMING_SOON":
-      return "This experience is coming soon. It is not available to generate yet.";
+      return "Dit kunnen we nog niet maken. Kies iets anders of kom later terug.";
     case "EXPERIMENTAL":
-      return "This experience is experimental and not available in Quick Mode.";
+      return "Dit is een experimentele optie en nog niet beschikbaar in de eenvoudige modus.";
     case "PRODUCT_DESIGN_REQUIRED":
-      return "This experience needs deliberate product design before release.";
+      return "Deze optie is nog niet klaar voor gebruik.";
     case "HIDDEN":
     default:
-      return "This experience is not available.";
+      return "Deze optie is nu niet beschikbaar.";
   }
 }

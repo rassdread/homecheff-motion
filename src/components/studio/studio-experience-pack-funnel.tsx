@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { StudioGuidedQuestions } from "@/components/studio/studio-guided-questions";
 import { StudioDirectorAdaptivePresentation } from "@/components/studio/director-presentation/studio-director-adaptive-presentation";
 import { toDirectorPackNodes } from "@/components/studio/director-presentation/studio-director-pack-views";
+import { useActiveTranslator } from "@/i18n/client";
 import {
   acceptCoachOnExperience,
   applyGuidedAnswer,
@@ -33,6 +34,7 @@ function parseMode(raw: string | null): StudioProductMode {
 }
 
 export function StudioExperiencePackFunnel() {
+  const t = useActiveTranslator();
   const router = useRouter();
   const searchParams = useSearchParams();
   const experienceParam = searchParams.get("experience");
@@ -87,8 +89,8 @@ export function StudioExperiencePackFunnel() {
           packs={packs}
           productMode="QUICK"
           linkMode
-          title="Choose an experience"
-          subtitle="Simple guided flows. Studio handles continuity, prompts, and generation behind the scenes. Presentation adapts to your workspace — same Experience Packs everywhere."
+          title={t("studio.experience.chooser.title")}
+          subtitle={t("studio.experience.chooser.subtitle")}
         />
       </div>
     );
@@ -97,15 +99,15 @@ export function StudioExperiencePackFunnel() {
   if (opened.blocked || !opened.orchestration || !experienceId) {
     return (
       <div className="mx-auto max-w-lg px-4 py-12">
-        <h1 className="text-xl font-bold text-zinc-900">Experience unavailable</h1>
+        <h1 className="text-xl font-bold text-zinc-900">{t("studio.experience.unavailable.title")}</h1>
         <p className="mt-2 text-sm text-zinc-600">
           {opened.blockReason ??
             (experienceParam && isStudioProductExperienceId(experienceParam)
               ? missingPackUserMessage(experienceParam)
-              : "Could not open this experience.")}
+              : t("studio.experience.unavailable.generic"))}
         </p>
         <Link href="/studio/experience" className="mt-6 inline-block text-sm font-semibold text-[#006D52]">
-          Browse experiences
+          {t("studio.experience.unavailable.browse")}
         </Link>
       </div>
     );

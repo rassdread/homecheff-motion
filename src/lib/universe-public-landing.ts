@@ -98,9 +98,8 @@ export function resolveUniversePrimaryCtaHref(isAuthenticated: boolean): string 
 }
 
 export function resolveUniversePrimaryCtaKey(isAuthenticated: boolean): TranslationKey {
-  return isAuthenticated
-    ? "universe.public.continueCreating"
-    : "universe.hero.cta.startWithIdea";
+  void isAuthenticated;
+  return "universe.hero.cta.startWithIdea";
 }
 
 export function resolveUniverseSecondaryCtaHref(isAuthenticated: boolean): string {
@@ -147,8 +146,16 @@ export function resolveSuiteNavHref(
   return loginHref(href);
 }
 
+const PLANET_OUTCOME_LABELS: Record<UniversePlanetId, string> = {
+  editor: "BEELDEN",
+  studio: "VERHALEN",
+  motion: "ANIMATIE",
+  publish: "AFRONDEN",
+  library: "BIBLIOTHEEK",
+};
+
 export function resolveUniversePlanetLabel(planetId: UniversePlanetId): string {
-  return planetId.toUpperCase();
+  return PLANET_OUTCOME_LABELS[planetId];
 }
 
 export function resolveUniversePlanetShortKey(planetId: UniversePlanetId): TranslationKey {

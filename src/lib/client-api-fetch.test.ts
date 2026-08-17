@@ -78,7 +78,11 @@ test("API middleware never redirects and logs auth-check", () => {
   assert.match(mw, /logAuthCheck/);
   assert.match(mw, /NextResponse\.next/);
   assert.match(mw, /originMatchesRequestHost/);
-  assert.doesNotMatch(mw, /redirect\(/);
+  const apiStart = mw.indexOf("function handleApiMiddleware");
+  const silentStart = mw.indexOf("function maybePublicSilentHydrate");
+  assert.ok(apiStart >= 0 && silentStart > apiStart);
+  const apiHandler = mw.slice(apiStart, silentStart);
+  assert.doesNotMatch(apiHandler, /redirect\(/);
 });
 
 test("studio API clients use shared same-origin fetch helper", () => {

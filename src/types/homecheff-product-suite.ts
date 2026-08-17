@@ -1,6 +1,6 @@
 /**
  * HomeCheff AI Suite — five-product platform architecture (Phase 5).
- * User-facing names: Editor, Studio, Motion, Publish, Library.
+ * User-facing names: Beelden, Verhalen, Animatie, Video afronden, Bibliotheek.
  * Internal ids `presentation` and `assets` remain stable for code compatibility.
  */
 
