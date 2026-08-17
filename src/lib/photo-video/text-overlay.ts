@@ -7,9 +7,14 @@ export type PhotoVideoAlign = (typeof PHOTO_VIDEO_ALIGNS)[number];
 export const PHOTO_VIDEO_BACKGROUNDS = ["none", "dark", "light"] as const;
 export type PhotoVideoTextBackground = (typeof PHOTO_VIDEO_BACKGROUNDS)[number];
 
-/** Web-safe / already-loaded stacks. No extra font package. */
+/**
+ * Web-safe / already-loaded stacks. No extra font package.
+ * Canvas 2D does not resolve CSS variables. If `var(...)` is passed to
+ * `ctx.font`, Chromium rejects the whole shorthand and keeps 10px sans-serif
+ * (preview text looks like dots). Resolve with `canvasFontShorthand` first.
+ */
 export const PHOTO_VIDEO_FONT_STACK: Record<PhotoVideoFontId, string> = {
-  modern: 'var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif',
+  modern: "var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif",
   strong: "Arial Black, Arial, ui-sans-serif, sans-serif",
   elegant: "Georgia, 'Times New Roman', Times, serif",
   playful: "Trebuchet MS, ui-rounded, sans-serif",
@@ -87,6 +92,24 @@ export function fontSizePx(size: number, canvasMinEdge: number): number {
   const clamped = Math.max(PHOTO_VIDEO_TEXT_SIZE_MIN, Math.min(PHOTO_VIDEO_TEXT_SIZE_MAX, size));
   const t = (clamped - PHOTO_VIDEO_TEXT_SIZE_MIN) / (PHOTO_VIDEO_TEXT_SIZE_MAX - PHOTO_VIDEO_TEXT_SIZE_MIN);
   return Math.round(canvasMinEdge * (0.035 + t * 0.09));
+}
+
+function readDocumentCssVar(name: string): string {
+  if (typeof document === "undefined") return "";
+  return getComputedStyle(document.documentElement).getPropertyValue(name);
+}
+
+/** Canvas-safe `ctx.font` value. Substitutes CSS variables; never emits `var(`. */
+export function canvasFontShorthand(
+  font: PhotoVideoFontId,
+  fontPx: number,
+  readCssVar: (name: string) => string = readDocumentCssVar
+): string {
+  const family = PHOTO_VIDEO_FONT_STACK[font].replace(/var\((--[^)]+)\)/g, (_m, name: string) => {
+    const value = readCssVar(name).trim();
+    return value || "ui-sans-serif";
+  });
+  return `${PHOTO_VIDEO_FONT_WEIGHT[font]} ${fontPx}px ${family}`;
 }
 
 export type OverlayBox = {

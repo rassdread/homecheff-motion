@@ -10,8 +10,7 @@ import { sampleLocalMotion } from "@/lib/photo-video/motion";
 import { styleRecipe } from "@/lib/photo-video/styles";
 import { motionKindForClip, playheadAt } from "@/lib/photo-video/timeline";
 import {
-  PHOTO_VIDEO_FONT_STACK,
-  PHOTO_VIDEO_FONT_WEIGHT,
+  canvasFontShorthand,
   clientPointToNormalized,
   fontSizePx,
   hitTestLayouts,
@@ -86,7 +85,7 @@ function drawOverlay(
   const minEdge = Math.min(canvasW, canvasH);
   const fontPx = fontSizePx(overlay.size, minEdge);
   ctx.save();
-  ctx.font = `${PHOTO_VIDEO_FONT_WEIGHT[overlay.font]} ${fontPx}px ${PHOTO_VIDEO_FONT_STACK[overlay.font]}`;
+  ctx.font = canvasFontShorthand(overlay.font, fontPx);
   ctx.textAlign = overlay.align;
   ctx.textBaseline = "middle";
   const source = overlay.text.trim() ? overlay.text : placeholder;
