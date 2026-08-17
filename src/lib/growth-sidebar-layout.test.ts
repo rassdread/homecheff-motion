@@ -41,6 +41,7 @@ describe("homecheff assistant routes", () => {
     for (const route of routes) {
       assert.equal(isHomeCheffAssistantRoute(route), true, route);
     }
+    assert.equal(isHomeCheffAssistantRoute("/studio/photo-video/from-item"), false);
   });
 
   it("normalizes trailing slashes except root", () => {

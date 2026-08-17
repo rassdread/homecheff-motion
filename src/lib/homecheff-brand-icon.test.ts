@@ -97,8 +97,8 @@ describe("homecheff brand icon", () => {
   });
 
   it("app shell uses HomeCheffBrandMark", () => {
-    const shell = join(ROOT, "src/components/layout/app-shell.tsx");
-    const source = readFileSync(shell, "utf8");
+    const chrome = join(ROOT, "src/components/layout/app-shell-chrome.tsx");
+    const source = readFileSync(chrome, "utf8");
     assert.match(source, /HomeCheffBrandMark/);
     assert.doesNotMatch(source, /accentGradient.*logoMark/s);
   });

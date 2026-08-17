@@ -31,7 +31,8 @@ describe("mobile cross-browser polish", () => {
 
   it("app shell uses compact user bar and safe header on mobile", () => {
     const shell = readFileSync(join(ROOT, "src/components/layout/app-shell.tsx"), "utf8");
-    assert.match(shell, /AppShellUserBar compact/);
+    const chrome = readFileSync(join(ROOT, "src/components/layout/app-shell-chrome.tsx"), "utf8");
+    assert.match(chrome, /AppShellUserBar compact/);
     assert.match(shell, /overflow-x-clip/);
     const tokens = readFileSync(join(ROOT, "src/lib/studio-visual-tokens.ts"), "utf8");
     assert.match(tokens, /studio-header-safe/);

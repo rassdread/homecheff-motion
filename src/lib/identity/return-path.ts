@@ -119,7 +119,6 @@ export function isPublicStudioSurface(path: string): boolean {
     p === "/" ||
     p === "/pricing" ||
     p.startsWith("/pricing/") ||
-    p === "/studio/photo-video" ||
-    p.startsWith("/studio/photo-video/")
+    p === "/studio/photo-video"
   );
 }

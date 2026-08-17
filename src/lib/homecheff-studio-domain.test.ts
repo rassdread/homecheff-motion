@@ -77,9 +77,9 @@ describe("HomeCheff Studio domain migration", () => {
   });
 
   it("app shell uses HomeCheffBrandMark not gradient placeholder", () => {
-    const shell = readFileSync(join(ROOT, "src/components/layout/app-shell.tsx"), "utf8");
-    assert.match(shell, /HomeCheffBrandMark/);
-    assert.doesNotMatch(shell, /accentGradient/);
+    const chrome = readFileSync(join(ROOT, "src/components/layout/app-shell-chrome.tsx"), "utf8");
+    assert.match(chrome, /HomeCheffBrandMark/);
+    assert.doesNotMatch(chrome, /accentGradient/);
   });
 
   it("suite nav keeps Verbruik out of primary nav", () => {

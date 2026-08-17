@@ -50,12 +50,15 @@ export type PhotoVideoDraftCompositionMeta = {
   endCardSeconds: number;
 };
 
+export type PhotoVideoDraftContext = "studio" | "homecheff-item";
+
 export type PhotoVideoDraftMeta = {
   version: number;
   updatedAt: number;
   expiresAt: number;
   ownerUserId: string | null;
   saved: boolean;
+  context?: PhotoVideoDraftContext;
   composition: PhotoVideoDraftCompositionMeta;
 };
 
@@ -63,9 +66,17 @@ function isBrowser(): boolean {
   return typeof window !== "undefined";
 }
 
-function openDraftDb(): Promise<IDBDatabase> {
+export function photoVideoDraftMetaKey(context: PhotoVideoDraftContext = "studio"): string {
+  return context === "homecheff-item" ? `${PHOTO_VIDEO_DRAFT_META_KEY}:item` : PHOTO_VIDEO_DRAFT_META_KEY;
+}
+
+export function photoVideoDraftDbName(context: PhotoVideoDraftContext = "studio"): string {
+  return context === "homecheff-item" ? `${PHOTO_VIDEO_DRAFT_DB}-item` : PHOTO_VIDEO_DRAFT_DB;
+}
+
+function openDraftDb(context: PhotoVideoDraftContext = "studio"): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = window.indexedDB.open(PHOTO_VIDEO_DRAFT_DB, 1);
+    const request = window.indexedDB.open(photoVideoDraftDbName(context), 1);
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(PHOTO_VIDEO_DRAFT_STORE)) {
@@ -77,10 +88,10 @@ function openDraftDb(): Promise<IDBDatabase> {
   });
 }
 
-async function idbPut(key: string, value: Blob): Promise<boolean> {
+async function idbPut(key: string, value: Blob, context: PhotoVideoDraftContext = "studio"): Promise<boolean> {
   if (!isBrowser() || !window.indexedDB) return false;
   try {
-    const db = await openDraftDb();
+    const db = await openDraftDb(context);
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(PHOTO_VIDEO_DRAFT_STORE, "readwrite");
       tx.oncomplete = () => {
@@ -96,10 +107,10 @@ async function idbPut(key: string, value: Blob): Promise<boolean> {
   }
 }
 
-async function idbGet(key: string): Promise<Blob | null> {
+async function idbGet(key: string, context: PhotoVideoDraftContext = "studio"): Promise<Blob | null> {
   if (!isBrowser() || !window.indexedDB) return null;
   try {
-    const db = await openDraftDb();
+    const db = await openDraftDb(context);
     const value = await new Promise<Blob | null>((resolve, reject) => {
       const tx = db.transaction(PHOTO_VIDEO_DRAFT_STORE, "readonly");
       const req = tx.objectStore(PHOTO_VIDEO_DRAFT_STORE).get(key);
@@ -113,10 +124,10 @@ async function idbGet(key: string): Promise<Blob | null> {
   }
 }
 
-async function idbClear(): Promise<void> {
+async function idbClear(context: PhotoVideoDraftContext = "studio"): Promise<void> {
   if (!isBrowser() || !window.indexedDB) return;
   try {
-    const db = await openDraftDb();
+    const db = await openDraftDb(context);
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(PHOTO_VIDEO_DRAFT_STORE, "readwrite");
       tx.oncomplete = () => {
@@ -131,10 +142,12 @@ async function idbClear(): Promise<void> {
   }
 }
 
-export function readPhotoVideoDraftMeta(): PhotoVideoDraftMeta | null {
+export function readPhotoVideoDraftMeta(
+  context: PhotoVideoDraftContext = "studio"
+): PhotoVideoDraftMeta | null {
   if (!isBrowser()) return null;
   try {
-    const raw = window.localStorage.getItem(PHOTO_VIDEO_DRAFT_META_KEY);
+    const raw = window.localStorage.getItem(photoVideoDraftMetaKey(context));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PhotoVideoDraftMeta;
     if (!parsed || parsed.version !== PHOTO_VIDEO_DRAFT_VERSION) return null;
@@ -159,20 +172,23 @@ export function canRestorePhotoVideoDraftForUser(
   return meta.ownerUserId === userId;
 }
 
-export function writePhotoVideoDraftMeta(meta: PhotoVideoDraftMeta): boolean {
+export function writePhotoVideoDraftMeta(
+  meta: PhotoVideoDraftMeta,
+  context: PhotoVideoDraftContext = meta.context ?? "studio"
+): boolean {
   if (!isBrowser()) return false;
   try {
-    window.localStorage.setItem(PHOTO_VIDEO_DRAFT_META_KEY, JSON.stringify(meta));
+    window.localStorage.setItem(photoVideoDraftMetaKey(context), JSON.stringify(meta));
     return true;
   } catch {
     return false;
   }
 }
 
-export function clearPhotoVideoDraftMeta(): void {
+export function clearPhotoVideoDraftMeta(context: PhotoVideoDraftContext = "studio"): void {
   if (!isBrowser()) return;
   try {
-    window.localStorage.removeItem(PHOTO_VIDEO_DRAFT_META_KEY);
+    window.localStorage.removeItem(photoVideoDraftMetaKey(context));
   } catch {
     /* ignore */
   }
@@ -215,6 +231,7 @@ export type CommitDraftInput = {
   audioBlob?: Blob | null;
   ownerUserId?: string | null;
   saved?: boolean;
+  context?: PhotoVideoDraftContext;
 };
 
 export type CommitDraftResult =
@@ -232,15 +249,16 @@ export async function commitPhotoVideoDraft(input: CommitDraftInput): Promise<Co
   if (input.audioBlob) total += input.audioBlob.size;
   if (total > PHOTO_VIDEO_DRAFT_MAX_TOTAL_BYTES) return { ok: false, reason: "quota" };
 
-  await idbClear();
+  const context = input.context ?? "studio";
+  await idbClear(context);
   for (const photo of input.composition.photos) {
     const blob = input.photoBlobs[photo.id];
     if (!blob) continue;
-    const ok = await idbPut(`photo:${photo.id}`, blob);
+    const ok = await idbPut(`photo:${photo.id}`, blob, context);
     if (!ok) return { ok: false, reason: "storage" };
   }
   if (input.composition.audio.kind === "ownMusic" && input.audioBlob) {
-    const ok = await idbPut("audio", input.audioBlob);
+    const ok = await idbPut("audio", input.audioBlob, context);
     if (!ok) return { ok: false, reason: "storage" };
   }
 
@@ -251,15 +269,16 @@ export async function commitPhotoVideoDraft(input: CommitDraftInput): Promise<Co
     expiresAt: now + PHOTO_VIDEO_DRAFT_TTL_MS,
     ownerUserId: input.ownerUserId ?? null,
     saved: Boolean(input.saved),
+    context,
     composition: toDraftCompositionMeta(input.composition),
   };
-  if (!writePhotoVideoDraftMeta(meta)) return { ok: false, reason: "storage" };
+  if (!writePhotoVideoDraftMeta(meta, context)) return { ok: false, reason: "storage" };
   return { ok: true, meta };
 }
 
-export async function clearPhotoVideoDraft(): Promise<void> {
-  clearPhotoVideoDraftMeta();
-  await idbClear();
+export async function clearPhotoVideoDraft(context: PhotoVideoDraftContext = "studio"): Promise<void> {
+  clearPhotoVideoDraftMeta(context);
+  await idbClear(context);
 }
 
 export type RestoredPhotoVideoDraft = {
@@ -268,11 +287,13 @@ export type RestoredPhotoVideoDraft = {
   objectUrls: string[];
 };
 
-export async function restorePhotoVideoDraft(): Promise<RestoredPhotoVideoDraft | null> {
-  const meta = readPhotoVideoDraftMeta();
+export async function restorePhotoVideoDraft(
+  context: PhotoVideoDraftContext = "studio"
+): Promise<RestoredPhotoVideoDraft | null> {
+  const meta = readPhotoVideoDraftMeta(context);
   if (!meta) return null;
   if (isPhotoVideoDraftExpired(meta)) {
-    await clearPhotoVideoDraft();
+    await clearPhotoVideoDraft(context);
     return null;
   }
 
@@ -281,9 +302,9 @@ export async function restorePhotoVideoDraft(): Promise<RestoredPhotoVideoDraft 
   for (const photo of meta.composition.photos) {
     let previewUrl = photo.listingUrl ?? "";
     if (photo.source === "LOCAL_UPLOAD" || !photo.listingUrl) {
-      const blob = await idbGet(`photo:${photo.id}`);
+      const blob = await idbGet(`photo:${photo.id}`, context);
       if (!blob) {
-        await clearPhotoVideoDraft();
+        await clearPhotoVideoDraft(context);
         return null;
       }
       previewUrl = URL.createObjectURL(blob);
@@ -302,10 +323,10 @@ export async function restorePhotoVideoDraft(): Promise<RestoredPhotoVideoDraft 
 
   let audio: PhotoVideoAudio = { kind: "none" };
   if (meta.composition.audio.kind === "ownMusic") {
-    const blob = await idbGet("audio");
+    const blob = await idbGet("audio", context);
     if (!blob) {
       for (const url of objectUrls) revokePhotoVideoObjectUrl(url);
-      await clearPhotoVideoDraft();
+      await clearPhotoVideoDraft(context);
       return null;
     }
     const objectUrl = URL.createObjectURL(blob);
@@ -336,15 +357,16 @@ export async function restorePhotoVideoDraft(): Promise<RestoredPhotoVideoDraft 
 
 /** Reload Blob handles after restore so later commits still persist media. */
 export async function loadPhotoVideoDraftBlobs(
-  composition: PhotoVideoComposition
+  composition: PhotoVideoComposition,
+  context: PhotoVideoDraftContext = "studio"
 ): Promise<{ photoBlobs: Map<string, Blob>; audioBlob: Blob | null }> {
   const photoBlobs = new Map<string, Blob>();
   for (const photo of composition.photos) {
-    const blob = await idbGet(`photo:${photo.id}`);
+    const blob = await idbGet(`photo:${photo.id}`, context);
     if (blob) photoBlobs.set(photo.id, blob);
   }
   const audioBlob =
-    composition.audio.kind === "ownMusic" ? await idbGet("audio") : null;
+    composition.audio.kind === "ownMusic" ? await idbGet("audio", context) : null;
   return { photoBlobs, audioBlob };
 }
 

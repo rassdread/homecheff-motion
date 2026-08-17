@@ -92,6 +92,7 @@ describe("SP.2B returnTo", () => {
     assert.equal(isPublicStudioSurface("/"), true);
     assert.equal(isPublicStudioSurface("/pricing"), true);
     assert.equal(isPublicStudioSurface("/studio/photo-video"), true);
+    assert.equal(isPublicStudioSurface("/studio/photo-video/from-item"), false);
     assert.equal(isPublicStudioSurface("/editor"), false);
     assert.equal(isPublicStudioSurface("/account"), false);
   });

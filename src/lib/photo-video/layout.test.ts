@@ -30,6 +30,7 @@ describe("PX.4A.1 layout", () => {
     const zones = safeZones({ width: 405, height: 720 });
     assert.ok(zones.watermark.x > 405 / 2);
     assert.ok(zones.watermark.y > 720 / 2);
+    assert.ok(zones.watermark.width > zones.watermark.size);
     assert.ok(zones.title.y < zones.watermark.y);
   });
 });

@@ -28,6 +28,8 @@ function SortableThumb({
   onRemove,
   canMoveLeft,
   canMoveRight,
+  itemJourney,
+  onToggleIncluded,
 }: {
   photo: PhotoVideoPhoto;
   index: number;
@@ -37,6 +39,8 @@ function SortableThumb({
   onRemove: (id: string) => void;
   canMoveLeft: boolean;
   canMoveRight: boolean;
+  itemJourney?: boolean;
+  onToggleIncluded?: (id: string) => void;
 }) {
   const t = useActiveTranslator();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -68,6 +72,11 @@ function SortableThumb({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={photo.previewUrl} alt="" className="h-full w-full object-cover" />
         </button>
+        {itemJourney && photo.source === "LOCAL_UPLOAD" ? (
+          <span className="absolute bottom-0.5 left-0.5 right-0.5 truncate rounded bg-black/55 px-1 py-0.5 text-[9px] font-medium text-white">
+            {t("px4a.photo.videoOnly")}
+          </span>
+        ) : null}
         <button
           type="button"
           className="absolute left-0.5 top-0.5 flex h-11 w-11 items-center justify-center rounded-lg bg-black/45 text-sm font-bold text-white"
@@ -98,13 +107,24 @@ function SortableThumb({
           →
         </button>
       </div>
-      <button
-        type="button"
-        className="min-h-11 rounded-lg text-xs font-medium text-zinc-600 underline"
-        onClick={() => onRemove(photo.id)}
-      >
-        {t("px4a.photo.remove")}
-      </button>
+      {itemJourney && photo.source === "HOME_CHEFF_LISTING" && onToggleIncluded ? (
+        <button
+          type="button"
+          className="min-h-11 rounded-lg border border-zinc-200 text-xs font-medium text-zinc-800"
+          aria-pressed={photo.included}
+          onClick={() => onToggleIncluded(photo.id)}
+        >
+          {photo.included ? t("px4a.photo.selected") : t("px4a.photo.use")}
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="min-h-11 rounded-lg text-xs font-medium text-zinc-600 underline"
+          onClick={() => onRemove(photo.id)}
+        >
+          {t("px4a.photo.remove")}
+        </button>
+      )}
     </li>
   );
 }
@@ -116,6 +136,8 @@ export function PhotoVideoPhotoStrip({
   onReorder,
   onMove,
   onRemove,
+  itemJourney = false,
+  onToggleIncluded,
 }: {
   photos: PhotoVideoPhoto[];
   selectedPhotoId: string | null;
@@ -123,6 +145,8 @@ export function PhotoVideoPhotoStrip({
   onReorder: (from: number, to: number) => void;
   onMove: (id: string, delta: -1 | 1) => void;
   onRemove: (id: string) => void;
+  itemJourney?: boolean;
+  onToggleIncluded?: (id: string) => void;
 }) {
   const t = useActiveTranslator();
   const sensors = useSensors(
@@ -157,6 +181,8 @@ export function PhotoVideoPhotoStrip({
               onSelect={onSelect}
               onMove={onMove}
               onRemove={onRemove}
+              itemJourney={itemJourney}
+              onToggleIncluded={onToggleIncluded}
               canMoveLeft={index > 0}
               canMoveRight={index < photos.length - 1}
             />

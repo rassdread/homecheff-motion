@@ -51,26 +51,28 @@ export function coverFitRect(input: {
 export type SafeZones = {
   title: { x: number; y: number; width: number; height: number };
   extra: { x: number; y: number; width: number; height: number };
-  watermark: { x: number; y: number; size: number };
+  watermark: { x: number; y: number; size: number; width: number };
 };
 
 export function safeZones(canvas: CanvasSize): SafeZones {
   const pad = Math.round(Math.min(canvas.width, canvas.height) * 0.06);
   const titleH = Math.round(canvas.height * 0.14);
   const extraH = Math.round(canvas.height * 0.1);
-  const mark = Math.round(Math.min(canvas.width, canvas.height) * 0.12);
+  const mark = Math.round(Math.min(canvas.width, canvas.height) * 0.09);
+  const lockupW = Math.round(mark * 3.35);
   return {
     title: { x: pad, y: pad, width: canvas.width - pad * 2 - mark * 0.2, height: titleH },
     extra: {
       x: pad,
       y: pad + titleH + Math.round(pad * 0.25),
-      width: canvas.width - pad * 2 - mark,
+      width: canvas.width - pad * 2 - lockupW,
       height: extraH,
     },
     watermark: {
-      x: canvas.width - pad - mark,
+      x: canvas.width - pad - lockupW,
       y: canvas.height - pad - mark,
       size: mark,
+      width: lockupW,
     },
   };
 }

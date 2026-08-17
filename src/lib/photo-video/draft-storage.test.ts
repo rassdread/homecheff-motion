@@ -5,6 +5,8 @@ import {
   canRestorePhotoVideoDraftForUser,
   isPhotoVideoDraftExpired,
   photoVideoDraftReturnTo,
+  photoVideoDraftDbName,
+  photoVideoDraftMetaKey,
   toDraftCompositionMeta,
 } from "@/lib/photo-video/draft-storage";
 import {
@@ -79,6 +81,9 @@ describe("PX.4A.3 photo-video draft + funnel", () => {
     assert.equal(validateStudioReturnTo("/studio/photo-video?resume=1"), "/studio/photo-video?resume=1");
     assert.equal(isPublicStudioSurface("/studio/photo-video"), true);
     assert.equal(isPublicStudioSurface("/studio/photo-video?resume=1"), true);
+    assert.equal(photoVideoDraftMetaKey("studio"), "hc-px4a-draft:v1");
+    assert.equal(photoVideoDraftMetaKey("homecheff-item"), "hc-px4a-draft:v1:item");
+    assert.notEqual(photoVideoDraftDbName("studio"), photoVideoDraftDbName("homecheff-item"));
   });
 
   it("isolates saved drafts across account switch", () => {

@@ -12,10 +12,12 @@ describe("HomeCheff Studio rebrand", () => {
   it("app shell and metadata use HomeCheff Studio product name", () => {
     assert.equal(brand.studioProductName, "HomeCheff Studio");
     const shell = readFileSync("src/components/layout/app-shell.tsx", "utf8");
+    const chrome = readFileSync("src/components/layout/app-shell-chrome.tsx", "utf8");
     const layout = readFileSync("src/app/layout.tsx", "utf8");
-    assert.match(shell, /brand\.studioProductName/);
-    assert.match(shell, /HomeCheffBrandMark/);
-    assert.match(shell, /studioVisual\.header/);
+    assert.match(shell, /AppShellChrome/);
+    assert.match(chrome, /brand\.studioProductName/);
+    assert.match(chrome, /HomeCheffBrandMark/);
+    assert.match(chrome, /studioVisual\.header/);
     assert.match(layout, /ROOT_SITE_METADATA/);
   });
 
