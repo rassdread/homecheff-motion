@@ -7,6 +7,7 @@ import { StudioGuidedQuestions } from "@/components/studio/studio-guided-questio
 import { StudioDirectorAdaptivePresentation } from "@/components/studio/director-presentation/studio-director-adaptive-presentation";
 import { toDirectorPackNodes } from "@/components/studio/director-presentation/studio-director-pack-views";
 import { StudioPx3IntentChooser } from "@/components/studio/studio-px3-intent-chooser";
+import { StudioPx4aFreeCreatorBanner } from "@/components/studio/studio-px4a-free-creator-banner";
 import { useActiveTranslator } from "@/i18n/client";
 import {
   acceptCoachOnExperience,
@@ -86,6 +87,7 @@ export function StudioExperiencePackFunnel() {
     const packs = toDirectorPackNodes(P0_EXPERIENCE_PACKS);
     return (
       <div className="mx-auto w-full max-w-5xl space-y-10 px-4 py-10">
+        <StudioPx4aFreeCreatorBanner />
         <StudioPx3IntentChooser />
         <section className="space-y-3" data-testid="px3-pack-chooser">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">

@@ -91,6 +91,7 @@ describe("PX.3 simple Studio Home", () => {
     const dashboard = readFileSync("src/components/studio/studio-home-dashboard.tsx", "utf8");
     assert.match(dashboard, /data-testid="px3-studio-home-create"/);
     assert.match(dashboard, /href="\/studio\/experience"/);
+    assert.match(dashboard, /StudioPx4aFreeCreatorBanner/);
     const funnel = readFileSync("src/components/studio/studio-experience-pack-funnel.tsx", "utf8");
     assert.match(funnel, /StudioPx3IntentChooser/);
     assert.match(funnel, /data-testid="px3-pack-chooser"/);

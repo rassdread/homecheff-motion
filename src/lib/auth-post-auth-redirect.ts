@@ -7,6 +7,7 @@ const ALLOWED_EXACT = new Set([
   "/studio/projects",
   "/studio/storyboards",
   "/studio/storyboards/new",
+  "/studio/photo-video",
   "/animate/instant",
   "/admin",
   "/mijn-verbruik",
