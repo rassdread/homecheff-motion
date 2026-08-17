@@ -1,26 +1,40 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { PhotoVideoPhotoStrip } from "@/components/photo-video/photo-video-photo-strip";
 import { PhotoVideoPreviewCanvas } from "@/components/photo-video/photo-video-preview-canvas";
+import { PhotoVideoTextControls } from "@/components/photo-video/photo-video-text-controls";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
 import {
   addPhotos,
+  addTextForPhoto,
   canAddPhoto,
   compositionDuration,
   createLocalPhoto,
   createPhotoVideoComposition,
   isCompositionPreviewReady,
   movePhoto,
+  moveTextOverlay,
+  overlaysForPhoto,
   removePhoto,
+  removeTextOverlay,
   reorderPhotos,
-  setExtraText,
+  setAudio,
+  setMusicStart,
+  setMusicVolume,
+  setOverlayAlign,
+  setOverlayBackground,
+  setOverlayColor,
+  setOverlayFont,
+  setOverlaySize,
   setPace,
   setRatio,
   setStyle,
-  setTitle,
+  updateTextOverlay,
   type PhotoVideoComposition,
 } from "@/lib/photo-video/composition";
+import { seekTimeForPhoto } from "@/lib/photo-video/clock";
 import {
   PHOTO_VIDEO_MAX_LOCAL_IMAGE_BYTES,
   PHOTO_VIDEO_MAX_PHOTOS,
@@ -36,10 +50,17 @@ import {
 } from "@/lib/photo-video/constants";
 import { formatPhotoVideoDuration } from "@/lib/photo-video/duration";
 import { revokePhotoVideoObjectUrl } from "@/lib/photo-video/object-url";
+import { nudgeOverlay } from "@/lib/photo-video/text-overlay";
+import type { PhotoVideoOwnMusic } from "@/lib/photo-video/audio";
 import type { TranslationKey } from "@/i18n";
 
-function newPhotoId(): string {
-  return `pv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+const PhotoVideoMusicPanel = dynamic(
+  () => import("@/components/photo-video/photo-video-music-panel").then((mod) => mod.PhotoVideoMusicPanel),
+  { ssr: false }
+);
+
+function newId(prefix: string): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 async function previewFromFile(file: File): Promise<{ url: string; width: number; height: number }> {
@@ -138,17 +159,44 @@ export function PhotoVideoComposer() {
   const [composition, setComposition] = useState<PhotoVideoComposition>(() => createPhotoVideoComposition());
   const [playing, setPlaying] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
+  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
+  const [pickingMusic, setPickingMusic] = useState(false);
   const previewUrlsRef = useRef<string[]>([]);
+  const clockRef = useRef(0);
+  const audioUrlRef = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    audioUrlRef.current = composition.audio.kind === "ownMusic" ? composition.audio.objectUrl : undefined;
+  }, [composition.audio]);
 
   useEffect(() => {
     const urls = previewUrlsRef.current;
     return () => {
       for (const url of urls) revokePhotoVideoObjectUrl(url);
+      revokePhotoVideoObjectUrl(audioUrlRef.current);
     };
   }, []);
 
   const duration = compositionDuration(composition);
   const ready = isCompositionPreviewReady(composition);
+  const selectedOverlay = composition.overlays.find((overlay) => overlay.id === selectedOverlayId) ?? null;
+  const selectedPhotoIndex = Math.max(
+    0,
+    composition.photos.findIndex((photo) => photo.id === selectedPhotoId)
+  );
+  const showMusic = pickingMusic || composition.audio.kind === "ownMusic";
+
+  const selectPhoto = useCallback(
+    (photoId: string) => {
+      setSelectedPhotoId(photoId);
+      clockRef.current = seekTimeForPhoto(composition, photoId);
+      setPlaying(false);
+      const first = overlaysForPhoto(composition, photoId)[0];
+      setSelectedOverlayId(first?.id ?? null);
+    },
+    [composition]
+  );
 
   const onFiles = useCallback(
     async (list: FileList | null) => {
@@ -172,7 +220,7 @@ export function PhotoVideoComposer() {
         try {
           const preview = await previewFromFile(file);
           const photo = createLocalPhoto({
-            id: newPhotoId(),
+            id: newId("pv"),
             previewUrl: preview.url,
             naturalWidth: preview.width,
             naturalHeight: preview.height,
@@ -190,7 +238,14 @@ export function PhotoVideoComposer() {
           setError(t("px4a.error.notImage"));
         }
       }
-      if (additions.length) setComposition(current);
+      if (additions.length) {
+        setComposition(current);
+        const last = additions[additions.length - 1];
+        if (last) {
+          setSelectedPhotoId(last.id);
+          setSelectedOverlayId(null);
+        }
+      }
     },
     [composition, t]
   );
@@ -206,7 +261,25 @@ export function PhotoVideoComposer() {
       </header>
 
       <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white p-3 sm:p-4">
-        <PhotoVideoPreviewCanvas composition={composition} playing={playing && ready} />
+        <PhotoVideoPreviewCanvas
+          composition={composition}
+          playing={playing && ready}
+          clockRef={clockRef}
+          selectedOverlayId={selectedOverlayId}
+          placeholderText={t("px4a.text.placeholder")}
+          onSelectOverlay={(id) => {
+            setSelectedOverlayId(id);
+            if (id) {
+              const overlay = composition.overlays.find((item) => item.id === id);
+              if (overlay) {
+                setSelectedPhotoId(overlay.photoId);
+                clockRef.current = seekTimeForPhoto(composition, overlay.photoId);
+                setPlaying(false);
+              }
+            }
+          }}
+          onMoveOverlay={(id, x, y) => setComposition((current) => moveTextOverlay(current, id, x, y))}
+        />
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm font-medium text-zinc-800" data-testid="px4a-duration">
             {t("px4a.duration", { duration: durationLabel })}
@@ -249,6 +322,8 @@ export function PhotoVideoComposer() {
         />
         <PhotoVideoPhotoStrip
           photos={composition.photos}
+          selectedPhotoId={selectedPhotoId}
+          onSelect={selectPhoto}
           onReorder={(from, to) => setComposition((current) => reorderPhotos(current, from, to))}
           onMove={(id, delta) => setComposition((current) => movePhoto(current, id, delta))}
           onRemove={(id) =>
@@ -258,6 +333,11 @@ export function PhotoVideoComposer() {
               if (photo && next.photos.length < current.photos.length) {
                 revokePhotoVideoObjectUrl(photo.previewUrl);
                 previewUrlsRef.current = previewUrlsRef.current.filter((url) => url !== photo.previewUrl);
+              }
+              if (selectedPhotoId === id) {
+                const fallback = next.photos[0]?.id ?? null;
+                setSelectedPhotoId(fallback);
+                setSelectedOverlayId(fallback ? overlaysForPhoto(next, fallback)[0]?.id ?? null : null);
               }
               return next;
             })
@@ -307,29 +387,99 @@ export function PhotoVideoComposer() {
         }))}
       />
 
-      <section className="space-y-3">
-        <h2 className="text-base font-semibold text-zinc-900">{t("px4a.text.legend")}</h2>
-        <label className="block space-y-1">
-          <span className="text-sm font-medium text-zinc-800">{t("px4a.text.title")}</span>
-          <input
-            data-testid="px4a-title"
-            className="min-h-11 w-full rounded-xl border border-zinc-200 px-3"
-            value={composition.title}
-            maxLength={80}
-            onChange={(event) => setComposition((current) => setTitle(current, event.target.value))}
+      <PhotoVideoTextControls
+        composition={composition}
+        selectedPhotoId={selectedPhotoId}
+        selectedPhotoIndex={selectedPhotoIndex}
+        selectedOverlay={selectedOverlay}
+        onAdd={() => {
+          if (!selectedPhotoId) {
+            setError(t("px4a.text.needPhoto"));
+            return;
+          }
+          const id = newId("tx");
+          setComposition((current) => addTextForPhoto(current, { id, photoId: selectedPhotoId }));
+          setSelectedOverlayId(id);
+          clockRef.current = seekTimeForPhoto(composition, selectedPhotoId);
+          setPlaying(false);
+        }}
+        onSelectOverlay={(id) => {
+          setSelectedOverlayId(id);
+          setPlaying(false);
+        }}
+        onChangeText={(text) => {
+          if (!selectedOverlayId) return;
+          setComposition((current) => updateTextOverlay(current, selectedOverlayId, { text }));
+        }}
+        onDelete={() => {
+          if (!selectedOverlayId) return;
+          setComposition((current) => removeTextOverlay(current, selectedOverlayId));
+          setSelectedOverlayId(null);
+        }}
+        onFont={(font) => selectedOverlayId && setComposition((current) => setOverlayFont(current, selectedOverlayId, font))}
+        onColor={(color) => selectedOverlayId && setComposition((current) => setOverlayColor(current, selectedOverlayId, color))}
+        onSize={(size) => selectedOverlayId && setComposition((current) => setOverlaySize(current, selectedOverlayId, size))}
+        onAlign={(align) => selectedOverlayId && setComposition((current) => setOverlayAlign(current, selectedOverlayId, align))}
+        onBackground={(background) =>
+          selectedOverlayId && setComposition((current) => setOverlayBackground(current, selectedOverlayId, background))
+        }
+        onNudge={(dx, dy) => {
+          if (!selectedOverlay) return;
+          const next = nudgeOverlay(selectedOverlay, dx, dy);
+          setComposition((current) => moveTextOverlay(current, selectedOverlay.id, next.x, next.y));
+        }}
+      />
+
+      <fieldset className="space-y-2" data-testid="px4a-audio">
+        <legend className="text-sm font-semibold text-zinc-900">{t("px4a.audio.legend")}</legend>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            data-testid="px4a-audio-none"
+            aria-pressed={composition.audio.kind === "none" && !pickingMusic}
+            className={`min-h-11 rounded-full border px-4 text-sm font-medium ${
+              composition.audio.kind === "none" && !pickingMusic
+                ? "border-[#006D52] bg-[#006D52] text-white"
+                : "border-zinc-200 bg-white text-zinc-800"
+            }`}
+            onClick={() => {
+              setPickingMusic(false);
+              setComposition((current) => {
+                if (current.audio.kind === "ownMusic") revokePhotoVideoObjectUrl(current.audio.objectUrl);
+                return setAudio(current, { kind: "none" });
+              });
+            }}
+          >
+            {t("px4a.audio.none")}
+          </button>
+          <button
+            type="button"
+            data-testid="px4a-audio-own"
+            aria-pressed={showMusic}
+            className={`min-h-11 rounded-full border px-4 text-sm font-medium ${
+              showMusic ? "border-[#006D52] bg-[#006D52] text-white" : "border-zinc-200 bg-white text-zinc-800"
+            }`}
+            onClick={() => setPickingMusic(true)}
+          >
+            {t("px4a.audio.own")}
+          </button>
+        </div>
+        {showMusic ? (
+          <PhotoVideoMusicPanel
+            composition={composition}
+            clockRef={clockRef}
+            playing={playing && ready}
+            locale={locale}
+            onOwnMusic={(next: PhotoVideoOwnMusic, previousObjectUrl?: string) => {
+              if (previousObjectUrl) revokePhotoVideoObjectUrl(previousObjectUrl);
+              setComposition((current) => setAudio(current, next));
+            }}
+            onStart={(startSeconds) => setComposition((current) => setMusicStart(current, startSeconds))}
+            onVolume={(volume) => setComposition((current) => setMusicVolume(current, volume))}
+            onPlayingChange={setPlaying}
           />
-        </label>
-        <label className="block space-y-1">
-          <span className="text-sm font-medium text-zinc-800">{t("px4a.text.extra")}</span>
-          <input
-            data-testid="px4a-extra"
-            className="min-h-11 w-full rounded-xl border border-zinc-200 px-3"
-            value={composition.extraText}
-            maxLength={120}
-            onChange={(event) => setComposition((current) => setExtraText(current, event.target.value))}
-          />
-        </label>
-      </section>
+        ) : null}
+      </fieldset>
 
       <p className="text-xs text-zinc-500">{t("px4a.watermark.note")}</p>
       <p className="sr-only" data-testid="px4a-max-seconds">

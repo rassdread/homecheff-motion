@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   addPhotos,
+  addTextForPhoto,
   canAddPhoto,
   compositionDuration,
   createListingPhoto,
@@ -11,15 +12,25 @@ import {
   includePhoto,
   isCompositionPreviewReady,
   movePhoto,
+  moveTextOverlay,
+  overlaysForPhoto,
   removePhoto,
+  removeTextOverlay,
   reorderPhotos,
-  setExtraText,
+  setAudio,
+  setOverlayAlign,
+  setOverlayBackground,
+  setOverlayColor,
+  setOverlayFont,
+  setOverlaySize,
   setPace,
   setRatio,
   setStyle,
-  setTitle,
+  updateTextOverlay,
 } from "@/lib/photo-video/composition";
 import { PHOTO_VIDEO_MAX_PHOTOS } from "@/lib/photo-video/constants";
+import { PHOTO_VIDEO_DEFAULT_VOLUME } from "@/lib/photo-video/audio";
+import { PHOTO_VIDEO_MAX_OVERLAYS_PER_PHOTO } from "@/lib/photo-video/text-overlay";
 
 function nPhotos(count: number) {
   return Array.from({ length: count }, (_, i) =>
@@ -40,6 +51,7 @@ describe("PX.4A.1 composition model", () => {
     assert.equal(c.style, "auto");
     assert.equal(c.ratio, "9:16");
     assert.equal(c.audio.kind, "none");
+    assert.deepEqual(c.overlays, []);
     assert.equal(isCompositionPreviewReady(c), false);
   });
 
@@ -111,22 +123,77 @@ describe("PX.4A.1 composition model", () => {
     }
   });
 
-  it("stores simple text", () => {
-    let c = createPhotoVideoComposition();
-    c = setTitle(c, "Tomaat");
-    c = setExtraText(c, "Vers van de teler");
-    assert.equal(c.title, "Tomaat");
-    assert.equal(c.extraText, "Vers van de teler");
+  it("stores multiple per-photo text overlays with style and delete", () => {
+    let c = addPhotos(createPhotoVideoComposition(), nPhotos(3));
+    c = addTextForPhoto(c, { id: "t0", photoId: "p0", text: "Vers gemaakt" });
+    c = addTextForPhoto(c, { id: "t1", photoId: "p1", text: "Vandaag verkrijgbaar" });
+    c = addTextForPhoto(c, { id: "t2", photoId: "p2", text: "Bestel lokaal" });
+    assert.equal(c.overlays.length, 3);
+    assert.equal(overlaysForPhoto(c, "p0")[0]?.text, "Vers gemaakt");
+    assert.equal(overlaysForPhoto(c, "p1")[0]?.photoId, "p1");
+    c = updateTextOverlay(c, "t0", { text: "Vers" });
+    c = setOverlayFont(c, "t0", "strong");
+    c = setOverlayColor(c, "t0", "#006D52");
+    c = setOverlaySize(c, "t0", 7);
+    c = setOverlayAlign(c, "t0", "left");
+    c = setOverlayBackground(c, "t0", "light");
+    const edited = c.overlays.find((overlay) => overlay.id === "t0");
+    assert.equal(edited?.text, "Vers");
+    assert.equal(edited?.font, "strong");
+    assert.equal(edited?.color, "#006D52");
+    assert.equal(edited?.size, 7);
+    assert.equal(edited?.align, "left");
+    assert.equal(edited?.background, "light");
+    c = removeTextOverlay(c, "t1");
+    assert.equal(c.overlays.some((overlay) => overlay.id === "t1"), false);
+    assert.equal(c.overlays.length, 2);
   });
 
-  it("keeps an audio none slot for 4A.2", () => {
-    const c = createPhotoVideoComposition({
-      audio: { kind: "ownMusic", startSeconds: 4, durationSeconds: 12 },
+  it("keeps normalized positions when the ratio changes and drops overlays with the photo", () => {
+    let c = addPhotos(createPhotoVideoComposition(), nPhotos(2));
+    c = addTextForPhoto(c, { id: "t0", photoId: "p0", text: "Hallo" });
+    c = moveTextOverlay(c, "t0", 0.4, 0.3);
+    const before = c.overlays[0];
+    c = setRatio(c, "16:9");
+    assert.equal(c.overlays[0]?.x, before?.x);
+    assert.equal(c.overlays[0]?.y, before?.y);
+    c = removePhoto(c, "p0");
+    assert.equal(c.overlays.some((overlay) => overlay.photoId === "p0"), false);
+  });
+
+  it("caps overlays per photo", () => {
+    let c = addPhotos(createPhotoVideoComposition(), nPhotos(2));
+    for (let i = 0; i < PHOTO_VIDEO_MAX_OVERLAYS_PER_PHOTO + 2; i += 1) {
+      c = addTextForPhoto(c, { id: `t${i}`, photoId: "p0", text: `L${i}` });
+    }
+    assert.equal(overlaysForPhoto(c, "p0").length, PHOTO_VIDEO_MAX_OVERLAYS_PER_PHOTO);
+  });
+
+  it("keeps no-music first-class and clamps own-music to the video window", () => {
+    const none = createPhotoVideoComposition();
+    assert.equal(none.audio.kind, "none");
+    let c = addPhotos(createPhotoVideoComposition(), nPhotos(12));
+    assert.equal(compositionDuration(c).totalSeconds, 19.6);
+    c = setAudio(c, {
+      kind: "ownMusic",
+      startSeconds: 40,
+      durationSeconds: 1,
+      trackDurationSeconds: 30,
+      volume: PHOTO_VIDEO_DEFAULT_VOLUME,
     });
     assert.equal(c.audio.kind, "ownMusic");
     if (c.audio.kind === "ownMusic") {
-      assert.equal(c.audio.startSeconds, 4);
-      assert.equal(c.audio.durationSeconds, 12);
+      assert.equal(c.audio.startSeconds, 30 - 19.6);
+      assert.equal(c.audio.durationSeconds, 19.6);
     }
+    c = setPace(c, "rustig");
+    const longer = compositionDuration(c).totalSeconds;
+    assert.ok(longer > 19.6);
+    if (c.audio.kind === "ownMusic") {
+      assert.equal(c.audio.durationSeconds, longer);
+      assert.equal(c.audio.startSeconds, 30 - longer);
+    }
+    c = setAudio(c, { kind: "none" });
+    assert.equal(c.audio.kind, "none");
   });
 });
