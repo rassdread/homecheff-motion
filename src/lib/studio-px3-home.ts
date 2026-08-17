@@ -2,7 +2,8 @@
  * PX.3 — Simple Studio Home / intent-first creation entry.
  *
  * Routing layer only. Existing engines, routes, PX.2 labels, SSO, credits,
- * and advanced tools stay. HomeCheff listing import is PX.4 — not here.
+ * and advanced tools stay. HomeCheff listing context enters via PX.4
+ * `/studio/from/homecheff/{type}/{id}` and still uses this chooser.
  */
 
 import type { TranslationKey } from "@/i18n";

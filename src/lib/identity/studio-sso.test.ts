@@ -70,6 +70,13 @@ describe("SP.2B Studio SSO flags", () => {
 describe("SP.2B returnTo", () => {
   it("allows studio paths and rejects open redirects", () => {
     assert.equal(validateStudioReturnTo("/studio"), "/studio");
+    assert.equal(
+      validateStudioReturnTo(
+        "/studio/from/homecheff/product/22222222-2222-4222-8222-222222222222?title=nope",
+      ),
+      "/studio/from/homecheff/product/22222222-2222-4222-8222-222222222222",
+    );
+    assert.equal(isPublicStudioSurface("/studio/from/homecheff/product/22222222-2222-4222-8222-222222222222"), false);
     assert.equal(validateStudioReturnTo("/editor"), "/editor");
     assert.equal(validateStudioReturnTo("https://evil.example/"), "/");
     assert.equal(validateStudioReturnTo("//evil"), "/");

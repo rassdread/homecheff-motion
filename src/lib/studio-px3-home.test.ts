@@ -112,7 +112,7 @@ describe("PX.3 simple Studio Home", () => {
     assert.match(nav, /data-testid="px3-nav-tools"/);
   });
 
-  it("preserves deep-link routes and does not invent listing import", () => {
+  it("preserves deep-link routes and keeps listing context on the PX.4 path", () => {
     for (const route of PX3_PRESERVED_ROUTES) {
       assert.ok(route.startsWith("/"));
     }
@@ -121,7 +121,9 @@ describe("PX.3 simple Studio Home", () => {
     assert.ok(PX3_PRESERVED_ROUTES.includes("/editor"));
     assert.ok(PX3_PRESERVED_ROUTES.includes("/publish"));
     const contract = readFileSync("src/lib/studio-px3-home.ts", "utf8");
-    assert.match(contract, /listing import is PX\.4/);
+    assert.match(contract, /\/studio\/from\/homecheff/);
+    const chooser = readFileSync("src/components/studio/studio-px3-intent-chooser.tsx", "utf8");
+    assert.match(chooser, /href=\{intent\.href\}/);
   });
 
   it("does not change SSO middleware or credit routes", () => {
