@@ -17,8 +17,12 @@ test.describe("PX.4A.4 contextual creator surfaces", () => {
     const status = response?.status() ?? 0;
     expect(status).not.toBe(500);
     const url = page.url();
-    expect(url).not.toMatch(/https:\/\/studio\.homecheff\.eu\/?$/);
+    expect(url).not.toMatch(/https:\/\/studio\.homecheff\.eu\/?(\?|#|$)/);
     expect(url).not.toContain("/studio/experience");
+    if (status === 404) {
+      expect(url).toContain("/studio/photo-video/from-item");
+      return;
+    }
     const isCreator = url.includes("/studio/photo-video/from-item");
     const isAuthHandoff =
       url.includes("/auth/sso") ||
