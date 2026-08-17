@@ -143,6 +143,22 @@ describe("PX.4A.1 encode plan + isolation", () => {
     assert.doesNotMatch(home, /photo-video-music-panel|decodeAudioData/);
   });
 
+  it("lazy-loads the HomeCheff item creator and hides Studio chrome", () => {
+    const fromItem = read(join(ROOT, "src/app/studio/photo-video/from-item/from-item-client.tsx"));
+    const composer = read(join(ROOT, "src/components/photo-video/photo-video-composer.tsx"));
+    const chrome = read(join(ROOT, "src/components/layout/app-shell-chrome.tsx"));
+    const preview = read(join(ROOT, "src/components/photo-video/photo-video-preview-canvas.tsx"));
+    assert.match(fromItem, /next\/dynamic/);
+    assert.match(fromItem, /ssr:\s*false/);
+    assert.match(fromItem, /mode=\"homecheff-item\"/);
+    assert.match(composer, /skipAuthGate/);
+    assert.match(composer, /PHOTO_VIDEO_ITEM_DEFAULT_RATIO/);
+    assert.doesNotMatch(composer, /koop credits|upgrade nu/);
+    assert.match(chrome, /isPx4aItemCreatorPath/);
+    assert.match(chrome, /px4a-item-shell/);
+    assert.match(preview, /HomeCheff Studio/);
+  });
+
   it("does not sell credits inside the free composer", () => {
     for (const file of [...filesIn(PV), ...filesIn(COMP)]) {
       const source = read(file).toLowerCase();

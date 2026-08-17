@@ -26,6 +26,8 @@ export type PhotoVideoPhotoSource = (typeof PHOTO_VIDEO_PHOTO_SOURCES)[number];
 export const PHOTO_VIDEO_DEFAULT_PACE: PhotoVideoPace = "normaal";
 export const PHOTO_VIDEO_DEFAULT_STYLE: PhotoVideoStyle = "auto";
 export const PHOTO_VIDEO_DEFAULT_RATIO: PhotoVideoRatio = "9:16";
+/** HomeCheff listing surfaces are landscape-first (feed/detail aspect-video). */
+export const PHOTO_VIDEO_ITEM_DEFAULT_RATIO: PhotoVideoRatio = "16:9";
 export const PHOTO_VIDEO_DEFAULT_END_CARD_SECONDS = 0;
 
 export const PHOTO_VIDEO_PACE_HOLD_SECONDS: Record<PhotoVideoPace, number> = {

@@ -17,9 +17,9 @@ describe("studio visual system", () => {
   });
 
   it("app shell uses dark glass header", () => {
-    const shell = readFileSync("src/components/layout/app-shell.tsx", "utf8");
-    assert.match(shell, /studioVisual\.header/);
-    assert.doesNotMatch(shell, /border-emerald-100 bg-white/);
+    const chrome = readFileSync("src/components/layout/app-shell-chrome.tsx", "utf8");
+    assert.match(chrome, /studioVisual\.header/);
+    assert.doesNotMatch(chrome, /border-emerald-100 bg-white/);
   });
 
   it("primary nav uses gradient active state", () => {

@@ -14,8 +14,11 @@ import {
   addTextForPhoto,
   canAddPhoto,
   compositionDuration,
+  createListingPhoto,
   createLocalPhoto,
   createPhotoVideoComposition,
+  excludePhoto,
+  includePhoto,
   isCompositionPreviewReady,
   movePhoto,
   moveTextOverlay,
@@ -47,6 +50,7 @@ import {
   PHOTO_VIDEO_PREVIEW_MAX_EDGE,
   PHOTO_VIDEO_RATIOS,
   PHOTO_VIDEO_STYLES,
+  PHOTO_VIDEO_ITEM_DEFAULT_RATIO,
   type PhotoVideoPace,
   type PhotoVideoRatio,
   type PhotoVideoStyle,
@@ -58,7 +62,10 @@ import {
   loadPhotoVideoDraftBlobs,
   readPhotoVideoDraftMeta,
   restorePhotoVideoDraft,
+  type PhotoVideoDraftContext,
 } from "@/lib/photo-video/draft-storage";
+import { featureGatedPhotoVideoExport } from "@/lib/photo-video/export-handoff";
+import { withItemReturnResult } from "@/lib/photo-video/item-handoff";
 import { trackPhotoVideoFunnelEvent } from "@/lib/photo-video/funnel-analytics";
 import { formatPhotoVideoDuration } from "@/lib/photo-video/duration";
 import { revokePhotoVideoObjectUrl } from "@/lib/photo-video/object-url";
@@ -103,6 +110,27 @@ async function previewFromFile(file: File): Promise<{ url: string; width: number
   });
   return { url: URL.createObjectURL(blob), width, height, blob };
 }
+
+function probeListingImageSize(url: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () =>
+      resolve({
+        width: image.naturalWidth || 1080,
+        height: image.naturalHeight || 1080,
+      });
+    image.onerror = () => resolve({ width: 1080, height: 1080 });
+    image.src = url;
+  });
+}
+
+export type PhotoVideoComposerProps = {
+  mode?: "studio" | "homecheff-item";
+  listingPhotoUrls?: string[];
+  returnHref?: string;
+  skipAuthGate?: boolean;
+  defaultRatio?: PhotoVideoRatio;
+};
 
 const RATIO_LABEL: Record<PhotoVideoRatio, TranslationKey> = {
   "9:16": "px4a.ratio.vertical",
@@ -170,13 +198,24 @@ function ChipGroup<T extends string>({
   );
 }
 
-export function PhotoVideoComposer() {
+export function PhotoVideoComposer({
+  mode = "studio",
+  listingPhotoUrls = [],
+  returnHref,
+  skipAuthGate = false,
+  defaultRatio,
+}: PhotoVideoComposerProps = {}) {
   const t = useActiveTranslator();
   const [locale] = useLocale();
   const searchParams = useSearchParams();
   const auth = useAuthSession();
   const fileInputId = useId();
-  const [composition, setComposition] = useState<PhotoVideoComposition>(() => createPhotoVideoComposition());
+  const itemJourney = mode === "homecheff-item";
+  const draftContext: PhotoVideoDraftContext = itemJourney ? "homecheff-item" : "studio";
+  const initialRatio = defaultRatio ?? (itemJourney ? PHOTO_VIDEO_ITEM_DEFAULT_RATIO : undefined);
+  const [composition, setComposition] = useState<PhotoVideoComposition>(() =>
+    createPhotoVideoComposition(initialRatio ? { ratio: initialRatio } : undefined)
+  );
   const [playing, setPlaying] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
@@ -196,7 +235,9 @@ export function PhotoVideoComposer() {
   const hydratedRef = useRef(false);
   const firstPhotoTracked = useRef(false);
 
-  compositionRef.current = composition;
+  useEffect(() => {
+    compositionRef.current = composition;
+  }, [composition]);
 
   useEffect(() => {
     audioUrlRef.current = composition.audio.kind === "ownMusic" ? composition.audio.objectUrl : undefined;
@@ -211,55 +252,80 @@ export function PhotoVideoComposer() {
   }, []);
 
   useEffect(() => {
-    trackPhotoVideoFunnelEvent("photo_video_opened");
-  }, []);
+    trackPhotoVideoFunnelEvent(itemJourney ? "photo_video_item_opened" : "photo_video_opened");
+  }, [itemJourney]);
 
-  const applyRestored = useCallback((restored: Awaited<ReturnType<typeof restorePhotoVideoDraft>>) => {
-    if (!restored) return false;
-    for (const url of previewUrlsRef.current) revokePhotoVideoObjectUrl(url);
-    revokePhotoVideoObjectUrl(audioUrlRef.current);
-    previewUrlsRef.current = restored.objectUrls.slice();
-    setComposition(restored.composition);
-    setSelectedPhotoId(restored.composition.photos[0]?.id ?? null);
-    setSelectedOverlayId(restored.composition.overlays[0]?.id ?? null);
-    setPickingMusic(restored.composition.audio.kind === "ownMusic");
-    setResumeOffer(false);
-    trackPhotoVideoFunnelEvent("photo_video_draft_restored");
-    void loadPhotoVideoDraftBlobs(restored.composition).then((blobs) => {
-      photoBlobsRef.current = blobs.photoBlobs;
-      audioBlobRef.current = blobs.audioBlob;
-    });
-    return true;
-  }, []);
+  const applyRestored = useCallback(
+    (restored: Awaited<ReturnType<typeof restorePhotoVideoDraft>>) => {
+      if (!restored) return false;
+      for (const url of previewUrlsRef.current) revokePhotoVideoObjectUrl(url);
+      revokePhotoVideoObjectUrl(audioUrlRef.current);
+      previewUrlsRef.current = restored.objectUrls.slice();
+      setComposition(restored.composition);
+      setSelectedPhotoId(restored.composition.photos[0]?.id ?? null);
+      setSelectedOverlayId(restored.composition.overlays[0]?.id ?? null);
+      setPickingMusic(restored.composition.audio.kind === "ownMusic");
+      setResumeOffer(false);
+      trackPhotoVideoFunnelEvent("photo_video_draft_restored");
+      void loadPhotoVideoDraftBlobs(restored.composition, draftContext).then((blobs) => {
+        photoBlobsRef.current = blobs.photoBlobs;
+        audioBlobRef.current = blobs.audioBlob;
+      });
+      return true;
+    },
+    [draftContext]
+  );
 
   useEffect(() => {
     if (hydratedRef.current) return;
     hydratedRef.current = true;
-    const shouldResume = searchParams.get("resume") === "1";
+    const shouldResume = !itemJourney && searchParams.get("resume") === "1";
     void (async () => {
-      const meta = readPhotoVideoDraftMeta();
-      if (!meta) return;
-      if (shouldResume) {
-        const restored = await restorePhotoVideoDraft();
-        if (applyRestored(restored)) {
-          setRestoreNotice(true);
-          trackPhotoVideoFunnelEvent("photo_video_auth_completed");
+      const meta = readPhotoVideoDraftMeta(draftContext);
+      if (meta) {
+        if (shouldResume) {
+          const restored = await restorePhotoVideoDraft(draftContext);
+          if (applyRestored(restored)) {
+            setRestoreNotice(true);
+            trackPhotoVideoFunnelEvent("photo_video_auth_completed");
+          }
+          return;
         }
+        setResumeOffer(true);
         return;
       }
-      setResumeOffer(true);
+      if (!itemJourney || listingPhotoUrls.length === 0) return;
+      const photos = [];
+      for (const url of listingPhotoUrls) {
+        const size = await probeListingImageSize(url);
+        photos.push(
+          createListingPhoto({
+            id: newId("pv"),
+            listingUrl: url,
+            previewUrl: url,
+            naturalWidth: size.width,
+            naturalHeight: size.height,
+          })
+        );
+      }
+      if (!photos.length) return;
+      const next = addPhotos(createPhotoVideoComposition({ ratio: initialRatio ?? PHOTO_VIDEO_ITEM_DEFAULT_RATIO }), photos);
+      setComposition(next);
+      setSelectedPhotoId(next.photos[0]?.id ?? null);
+      firstPhotoTracked.current = true;
     })();
-  }, [applyRestored, searchParams]);
+  }, [applyRestored, draftContext, initialRatio, itemJourney, listingPhotoUrls, searchParams]);
 
   useEffect(() => {
     if (!auth.resolved) return;
-    const meta = readPhotoVideoDraftMeta();
+    const meta = readPhotoVideoDraftMeta(draftContext);
     if (!meta) return;
     if (!canRestorePhotoVideoDraftForUser(meta, auth.user?.id ?? null)) {
-      void clearPhotoVideoDraft();
-      setResumeOffer(false);
+      void clearPhotoVideoDraft(draftContext).then(() => {
+        setResumeOffer(false);
+      });
     }
-  }, [auth]);
+  }, [auth, draftContext]);
 
   useEffect(() => {
     if (!composition.photos.length && composition.audio.kind === "none" && !composition.overlays.length) {
@@ -271,12 +337,13 @@ export function PhotoVideoComposer() {
         photoBlobs: blobsToRecord(photoBlobsRef.current),
         audioBlob: audioBlobRef.current,
         ownerUserId: auth.resolved ? auth.user?.id ?? null : null,
+        context: draftContext,
       }).catch(() => {
         /* quota / private mode — keep editing */
       });
     }, 700);
     return () => window.clearTimeout(timer);
-  }, [composition, auth]);
+  }, [composition, auth, draftContext]);
 
   const duration = compositionDuration(composition);
   const ready = isCompositionPreviewReady(composition);
@@ -364,10 +431,11 @@ export function PhotoVideoComposer() {
         audioBlob: audioBlobRef.current,
         ownerUserId: auth.user?.id ?? null,
         saved: opts?.saved,
+        context: draftContext,
       });
       if (!result.ok) throw new Error(result.reason);
     },
-    [auth.user?.id]
+    [auth.user?.id, draftContext]
   );
 
   const onSave = useCallback(async () => {
@@ -376,7 +444,7 @@ export function PhotoVideoComposer() {
     setSaving(true);
     try {
       await persistDraft();
-      if (!authenticated) {
+      if (!authenticated && !skipAuthGate) {
         trackPhotoVideoFunnelEvent("photo_video_auth_gate_shown");
         setGateOpen(true);
         return;
@@ -389,7 +457,22 @@ export function PhotoVideoComposer() {
     } finally {
       setSaving(false);
     }
-  }, [authenticated, persistDraft, t]);
+  }, [authenticated, persistDraft, skipAuthGate, t]);
+
+  const returnToItem = useCallback(
+    async (result: "ready" | "cancel") => {
+      if (!returnHref) return;
+      await persistDraft().catch(() => undefined);
+      trackPhotoVideoFunnelEvent("photo_video_item_returned");
+      window.location.assign(withItemReturnResult(returnHref, result));
+    },
+    [persistDraft, returnHref]
+  );
+
+  const onFinishItem = useCallback(async () => {
+    featureGatedPhotoVideoExport(compositionRef.current);
+    await returnToItem("ready");
+  }, [returnToItem]);
 
   const onReset = useCallback(async () => {
     if (!window.confirm(t("px4a.draft.resetConfirm"))) return;
@@ -398,8 +481,8 @@ export function PhotoVideoComposer() {
     previewUrlsRef.current = [];
     photoBlobsRef.current.clear();
     audioBlobRef.current = null;
-    await clearPhotoVideoDraft();
-    setComposition(createPhotoVideoComposition());
+    await clearPhotoVideoDraft(draftContext);
+    setComposition(createPhotoVideoComposition(initialRatio ? { ratio: initialRatio } : undefined));
     setSelectedPhotoId(null);
     setSelectedOverlayId(null);
     setPickingMusic(false);
@@ -408,7 +491,7 @@ export function PhotoVideoComposer() {
     setSavedNotice(false);
     setError(null);
     firstPhotoTracked.current = false;
-  }, [t]);
+  }, [draftContext, initialRatio, t]);
 
   const durationLabel = formatPhotoVideoDuration(duration.totalSeconds, locale);
   const remainingLabel = formatPhotoVideoDuration(Math.max(0, duration.remainingSeconds), locale);
@@ -416,12 +499,29 @@ export function PhotoVideoComposer() {
   return (
     <div className="space-y-8" data-testid="px4a-composer">
       <header className="space-y-2">
+        {itemJourney && returnHref ? (
+          <a
+            href={withItemReturnResult(returnHref, "cancel")}
+            data-testid="px4a-item-back"
+            className="inline-flex min-h-11 items-center text-sm font-semibold text-[#006D52]"
+            onClick={(event) => {
+              event.preventDefault();
+              void returnToItem("cancel");
+            }}
+          >
+            ← {t("px4a.item.back")}
+          </a>
+        ) : null}
         <p className="text-xs font-semibold uppercase tracking-wide text-[#006D52]" data-testid="px4a-free-label">
-          {t("px4a.free.badge")}
+          {itemJourney ? t("px4a.item.brand") : t("px4a.free.badge")}
         </p>
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">{t("px4a.title")}</h1>
-        <p className="max-w-xl text-sm leading-relaxed text-zinc-600">{t("px4a.lead")}</p>
-        <p className="text-sm text-zinc-600">{t("px4a.free.hint")}</p>
+        <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
+          {itemJourney ? t("px4a.item.title") : t("px4a.title")}
+        </h1>
+        <p className="max-w-xl text-sm leading-relaxed text-zinc-600">
+          {itemJourney ? t("px4a.item.lead") : t("px4a.lead")}
+        </p>
+        {itemJourney ? null : <p className="text-sm text-zinc-600">{t("px4a.free.hint")}</p>}
       </header>
 
       {restoreNotice ? (
@@ -456,7 +556,7 @@ export function PhotoVideoComposer() {
               data-testid="px4a-resume-continue"
               className="min-h-11 rounded-full bg-[#006D52] px-4 text-sm font-semibold text-white"
               onClick={() => {
-                void restorePhotoVideoDraft().then((restored) => {
+                void restorePhotoVideoDraft(draftContext).then((restored) => {
                   if (applyRestored(restored)) setRestoreNotice(true);
                   else setResumeOffer(false);
                 });
@@ -469,7 +569,29 @@ export function PhotoVideoComposer() {
               data-testid="px4a-resume-fresh"
               className="min-h-11 rounded-full border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-800"
               onClick={() => {
-                void clearPhotoVideoDraft().then(() => setResumeOffer(false));
+                void clearPhotoVideoDraft(draftContext).then(async () => {
+                  setResumeOffer(false);
+                  if (!itemJourney || listingPhotoUrls.length === 0) return;
+                  const photos = [];
+                  for (const url of listingPhotoUrls) {
+                    const size = await probeListingImageSize(url);
+                    photos.push(
+                      createListingPhoto({
+                        id: newId("pv"),
+                        listingUrl: url,
+                        previewUrl: url,
+                        naturalWidth: size.width,
+                        naturalHeight: size.height,
+                      })
+                    );
+                  }
+                  const next = addPhotos(
+                    createPhotoVideoComposition({ ratio: initialRatio ?? PHOTO_VIDEO_ITEM_DEFAULT_RATIO }),
+                    photos
+                  );
+                  setComposition(next);
+                  setSelectedPhotoId(next.photos[0]?.id ?? null);
+                });
               }}
             >
               {t("px4a.draft.resumeFresh")}
@@ -521,15 +643,39 @@ export function PhotoVideoComposer() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          data-testid="px4a-save"
-          disabled={!ready || saving}
-          className="min-h-11 rounded-full bg-[#006D52] px-5 text-sm font-semibold text-white disabled:opacity-50"
-          onClick={() => void onSave()}
-        >
-          {saving ? t("px4a.draft.saving") : t("px4a.draft.save")}
-        </button>
+        {itemJourney ? (
+          <>
+            <button
+              type="button"
+              data-testid="px4a-item-finish"
+              disabled={!ready}
+              className="min-h-11 rounded-full bg-[#006D52] px-5 text-sm font-semibold text-white disabled:opacity-50"
+              onClick={() => void onFinishItem()}
+            >
+              {t("px4a.item.finish")}
+            </button>
+            {returnHref ? (
+              <button
+                type="button"
+                data-testid="px4a-item-cancel"
+                className="min-h-11 rounded-full border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-800"
+                onClick={() => void returnToItem("cancel")}
+              >
+                {t("px4a.item.back")}
+              </button>
+            ) : null}
+          </>
+        ) : (
+          <button
+            type="button"
+            data-testid="px4a-save"
+            disabled={!ready || saving}
+            className="min-h-11 rounded-full bg-[#006D52] px-5 text-sm font-semibold text-white disabled:opacity-50"
+            onClick={() => void onSave()}
+          >
+            {saving ? t("px4a.draft.saving") : t("px4a.draft.save")}
+          </button>
+        )}
         <button
           type="button"
           data-testid="px4a-reset"
@@ -539,15 +685,26 @@ export function PhotoVideoComposer() {
           {t("px4a.draft.reset")}
         </button>
       </div>
+      {itemJourney ? (
+        <p className="text-sm text-zinc-600" data-testid="px4a-item-finish-hint">
+          {t("px4a.item.finishHint")} {t("px4a.item.finishPending")}
+        </p>
+      ) : null}
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-zinc-900">{t("px4a.photos.title")}</h2>
-        <p className="text-sm text-zinc-600">{t("px4a.photos.hint", { min: PHOTO_VIDEO_MIN_PHOTOS, max: PHOTO_VIDEO_MAX_PHOTOS })}</p>
+        <h2 className="text-base font-semibold text-zinc-900">
+          {itemJourney ? t("px4a.item.photos") : t("px4a.photos.title")}
+        </h2>
+        <p className="text-sm text-zinc-600">
+          {itemJourney
+            ? t("px4a.item.photosHint")
+            : t("px4a.photos.hint", { min: PHOTO_VIDEO_MIN_PHOTOS, max: PHOTO_VIDEO_MAX_PHOTOS })}
+        </p>
         <label
           htmlFor={fileInputId}
           className="inline-flex min-h-11 cursor-pointer items-center rounded-full bg-[#006D52] px-5 text-sm font-semibold text-white"
         >
-          {t("px4a.photos.add")}
+          {itemJourney ? t("px4a.item.addExtra") : t("px4a.photos.add")}
         </label>
         <input
           id={fileInputId}
@@ -564,16 +721,26 @@ export function PhotoVideoComposer() {
         <PhotoVideoPhotoStrip
           photos={composition.photos}
           selectedPhotoId={selectedPhotoId}
+          itemJourney={itemJourney}
           onSelect={selectPhoto}
           onReorder={(from, to) => setComposition((current) => reorderPhotos(current, from, to))}
           onMove={(id, delta) => setComposition((current) => movePhoto(current, id, delta))}
+          onToggleIncluded={(id) =>
+            setComposition((current) => {
+              const photo = current.photos.find((item) => item.id === id);
+              if (!photo) return current;
+              return photo.included ? excludePhoto(current, id) : includePhoto(current, id);
+            })
+          }
           onRemove={(id) =>
             setComposition((current) => {
               const photo = current.photos.find((item) => item.id === id);
               const next = removePhoto(current, id);
               if (photo && next.photos.length < current.photos.length) {
-                revokePhotoVideoObjectUrl(photo.previewUrl);
-                previewUrlsRef.current = previewUrlsRef.current.filter((url) => url !== photo.previewUrl);
+                if (photo.source === "LOCAL_UPLOAD") {
+                  revokePhotoVideoObjectUrl(photo.previewUrl);
+                  previewUrlsRef.current = previewUrlsRef.current.filter((url) => url !== photo.previewUrl);
+                }
                 photoBlobsRef.current.delete(id);
               }
               if (selectedPhotoId === id) {
@@ -732,7 +899,7 @@ export function PhotoVideoComposer() {
         {PHOTO_VIDEO_MAX_SECONDS}
       </p>
 
-      {gateOpen ? <PhotoVideoAuthGate open={gateOpen} onClose={() => setGateOpen(false)} /> : null}
+      {gateOpen && !skipAuthGate ? <PhotoVideoAuthGate open={gateOpen} onClose={() => setGateOpen(false)} /> : null}
     </div>
   );
 }

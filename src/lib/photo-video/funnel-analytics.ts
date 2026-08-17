@@ -14,7 +14,9 @@ export type PhotoVideoFunnelEventType =
   | "photo_video_signup_started"
   | "photo_video_auth_completed"
   | "photo_video_draft_restored"
-  | "photo_video_saved";
+  | "photo_video_saved"
+  | "photo_video_item_opened"
+  | "photo_video_item_returned";
 
 export type PhotoVideoFunnelEvent = {
   at: string;

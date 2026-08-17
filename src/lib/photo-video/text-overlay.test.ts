@@ -32,7 +32,7 @@ describe("PX.4A.2 text overlays", () => {
     assert.equal(clampOverlayPosition(0, 0).x >= 0.08, true);
     assert.equal(clampOverlayPosition(0, 0).y >= 0.08, true);
     const corner = clampOverlayPosition(0.99, 0.99);
-    assert.equal(corner.x <= 0.72, true);
+    assert.equal(corner.x <= 0.58, true);
     assert.equal(overlayCollidesWatermark(corner.x, corner.y), false);
   });
 

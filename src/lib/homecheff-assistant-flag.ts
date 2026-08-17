@@ -41,6 +41,10 @@ export function normalizeAssistantRoutePathname(pathname: string): string {
 export function isHomeCheffAssistantRoute(pathname: string): boolean {
   const path = normalizeAssistantRoutePathname(pathname);
 
+  if (path === "/studio/photo-video/from-item" || path.startsWith("/studio/photo-video/from-item/")) {
+    return false;
+  }
+
   if ((HOMECHEFF_ASSISTANT_EXACT_ROUTES as readonly string[]).includes(path)) {
     return true;
   }

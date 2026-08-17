@@ -104,8 +104,8 @@ export function clampOverlayPosition(x: number, y: number): { x: number; y: numb
   const pad = 0.08;
   const nx = Math.max(pad, Math.min(1 - pad, x));
   const ny = Math.max(pad, Math.min(1 - pad, y));
-  if (nx > 0.72 && ny > 0.78) {
-    return { x: 0.72, y: ny };
+  if (nx > 0.58 && ny > 0.78) {
+    return { x: 0.58, y: ny };
   }
   return { x: nx, y: ny };
 }
@@ -152,5 +152,5 @@ export function hitTestLayouts(
 }
 
 export function overlayCollidesWatermark(x: number, y: number): boolean {
-  return x > 0.72 && y > 0.78;
+  return x > 0.58 && y > 0.78;
 }

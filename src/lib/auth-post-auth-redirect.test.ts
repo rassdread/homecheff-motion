@@ -19,6 +19,7 @@ describe("auth post-auth redirect", () => {
       "/studio?storyboardId=abc",
       "/studio/photo-video",
       "/studio/photo-video?resume=1",
+      "/studio/photo-video/from-item",
     ]) {
       assert.equal(isAllowedPostAuthPath(path), true, path);
     }

@@ -133,20 +133,28 @@ function drawOverlay(
 function drawWatermark(
   ctx: CanvasRenderingContext2D,
   mark: HTMLImageElement,
-  zone: { x: number; y: number; size: number }
+  zone: { x: number; y: number; size: number; width: number }
 ) {
   ctx.save();
-  const r = Math.max(8, zone.size * 0.18);
+  const r = Math.max(8, zone.size * 0.22);
   ctx.beginPath();
   if (typeof ctx.roundRect === "function") {
-    ctx.roundRect(zone.x, zone.y, zone.size, zone.size, r);
+    ctx.roundRect(zone.x, zone.y, zone.width, zone.size, r);
   } else {
-    ctx.rect(zone.x, zone.y, zone.size, zone.size);
+    ctx.rect(zone.x, zone.y, zone.width, zone.size);
   }
-  ctx.fillStyle = "rgba(4, 20, 40, 0.42)";
+  ctx.fillStyle = "rgba(4, 20, 40, 0.48)";
   ctx.fill();
-  const inset = zone.size * 0.12;
-  ctx.drawImage(mark, zone.x + inset, zone.y + inset, zone.size - inset * 2, zone.size - inset * 2);
+  const inset = zone.size * 0.14;
+  const globe = zone.size - inset * 2;
+  ctx.drawImage(mark, zone.x + inset, zone.y + inset, globe, globe);
+  const textX = zone.x + inset + globe + zone.size * 0.12;
+  const textY = zone.y + zone.size * 0.62;
+  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  ctx.font = `600 ${Math.max(9, zone.size * 0.28)}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText("HomeCheff Studio", textX, textY, zone.width - globe - inset * 3);
   ctx.restore();
 }
 
