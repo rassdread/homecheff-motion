@@ -134,6 +134,40 @@ export function StudioHomeDashboard({
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/70">{t("studio.home.subtitle")}</p>
           </header>
 
+          <div className="flex flex-col gap-3 sm:flex-row" data-testid="px3-studio-home-create">
+            <Link
+              href="/studio/experience"
+              className={`${studioVisual.btnGradientPrimary} min-h-[44px] w-full sm:w-auto`}
+            >
+              {t("studio.experience.chooser.title")}
+            </Link>
+          </div>
+
+          {view && view.continueWorking.length > 0 ?
+            <div data-testid="px3-studio-home-continue">
+              <h3 className="text-sm font-semibold text-white/90">{t("studio.home.continueWorking")}</h3>
+              <ul className="mt-3 divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white">
+                {view.continueWorking.map((item) => (
+                  <li key={`${item.kind}-${item.id}`}>
+                    <Link
+                      href={item.href}
+                      className="flex min-h-[48px] flex-col justify-center gap-0.5 px-4 py-3 hover:bg-zinc-50 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <span className="text-sm font-medium text-zinc-900">
+                        {t(`studio.home.continueKind.${item.kind}` as never)} — {item.title}
+                      </span>
+                      <span className="text-xs text-zinc-500">
+                        {new Date(item.updatedAt).toLocaleString()}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          : !view ?
+            <p className="text-sm text-white/70">{t("studio.home.loading")}</p>
+          : null}
+
           <StudioProductionOrchestratorPanel
             hcProject={hcProject}
             onProjectChange={onProjectChange}
@@ -151,8 +185,10 @@ export function StudioHomeDashboard({
             source="studio_dashboard"
           />
 
-          <div>
-            <h3 className="text-sm font-semibold text-white/90">{t("studio.home.quickActions")}</h3>
+          <details className="rounded-2xl border border-white/12 bg-white/5 px-4 py-3">
+            <summary className="min-h-[44px] cursor-pointer list-none text-sm font-semibold text-white/90">
+              {t("px3.home.moreOptions")}
+            </summary>
             <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {QUICK_LINKS.map((link) => (
                 <Link
@@ -165,38 +201,13 @@ export function StudioHomeDashboard({
                 </Link>
               ))}
             </div>
-          </div>
+          </details>
 
-          {!view ?
-            <p className="text-sm text-white/70">{t("studio.home.loading")}</p>
-          : (
+          {view ?
             <>
-              {view.continueWorking.length > 0 ?
-                <div>
-                  <h3 className="text-sm font-semibold text-zinc-900">{t("studio.home.continueWorking")}</h3>
-                  <ul className="mt-3 divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white">
-                    {view.continueWorking.map((item) => (
-                      <li key={`${item.kind}-${item.id}`}>
-                        <Link
-                          href={item.href}
-                          className="flex min-h-[48px] flex-col justify-center gap-0.5 px-4 py-3 hover:bg-zinc-50 sm:flex-row sm:items-center sm:justify-between"
-                        >
-                          <span className="text-sm font-medium text-zinc-900">
-                            {t(`studio.home.continueKind.${item.kind}` as never)} — {item.title}
-                          </span>
-                          <span className="text-xs text-zinc-500">
-                            {new Date(item.updatedAt).toLocaleString()}
-                          </span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              : null}
-
               {view.recentStoryboards.length > 0 ?
                 <div>
-                  <h3 className="text-sm font-semibold text-zinc-900">{t("studio.home.recentStoryboards")}</h3>
+                  <h3 className="text-sm font-semibold text-white/90">{t("studio.home.recentStoryboards")}</h3>
                   <ul className="mt-3 grid gap-2 sm:grid-cols-2">
                     {view.recentStoryboards.map((item) => (
                       <li key={item.id}>
@@ -215,62 +226,60 @@ export function StudioHomeDashboard({
                 </div>
               : null}
 
-              {view ?
-                <div>
-                  <h3 className="text-sm font-semibold text-zinc-900">{t("studio.home.libraryTitle")}</h3>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    {report ?
-                      <>
-                        <AssetCountLink
-                          label={t("studio.myStudio.library.allAssets")}
-                          count={report.libraryCounts.all}
-                          href="/studio/assets"
-                        />
-                        <AssetCountLink
-                          label={t("studio.myStudio.library.favorites")}
-                          count={report.libraryCounts.byTab.favorites}
-                          href="/studio/assets/browse?filter=favorites"
-                        />
-                        <AssetCountLink
-                          label={t("studio.myStudio.library.generated")}
-                          count={report.libraryCounts.byTab.generated}
-                          href="/studio/assets/library/generated"
-                        />
-                      </>
-                    : null}
-                    <AssetCountLink
-                      label={t("studio.myStudio.library.storyboards")}
-                      count={view.assetCounts.storyboards}
-                      href="/studio/storyboards"
-                    />
-                    <AssetCountLink
-                      label={t("studio.myStudio.library.characters")}
-                      count={view.assetCounts.characters}
-                      href="/studio/characters"
-                    />
-                    <AssetCountLink
-                      label={t("studio.myStudio.library.props")}
-                      count={view.assetCounts.props}
-                      href="/studio/props"
-                    />
-                    <AssetCountLink
-                      label={t("studio.myStudio.library.locations")}
-                      count={view.assetCounts.locations}
-                      href="/studio/locations"
-                    />
-                    <AssetCountLink
-                      label={t("studio.myStudio.library.worlds")}
-                      count={view.assetCounts.worlds}
-                      href="/studio/worlds"
-                    />
-                  </div>
+              <div>
+                <h3 className="text-sm font-semibold text-white/90">{t("studio.home.libraryTitle")}</h3>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {report ?
+                    <>
+                      <AssetCountLink
+                        label={t("studio.myStudio.library.allAssets")}
+                        count={report.libraryCounts.all}
+                        href="/studio/assets"
+                      />
+                      <AssetCountLink
+                        label={t("studio.myStudio.library.favorites")}
+                        count={report.libraryCounts.byTab.favorites}
+                        href="/studio/assets/browse?filter=favorites"
+                      />
+                      <AssetCountLink
+                        label={t("studio.myStudio.library.generated")}
+                        count={report.libraryCounts.byTab.generated}
+                        href="/studio/assets/library/generated"
+                      />
+                    </>
+                  : null}
+                  <AssetCountLink
+                    label={t("studio.myStudio.library.storyboards")}
+                    count={view.assetCounts.storyboards}
+                    href="/studio/storyboards"
+                  />
+                  <AssetCountLink
+                    label={t("studio.myStudio.library.characters")}
+                    count={view.assetCounts.characters}
+                    href="/studio/characters"
+                  />
+                  <AssetCountLink
+                    label={t("studio.myStudio.library.props")}
+                    count={view.assetCounts.props}
+                    href="/studio/props"
+                  />
+                  <AssetCountLink
+                    label={t("studio.myStudio.library.locations")}
+                    count={view.assetCounts.locations}
+                    href="/studio/locations"
+                  />
+                  <AssetCountLink
+                    label={t("studio.myStudio.library.worlds")}
+                    count={view.assetCounts.worlds}
+                    href="/studio/worlds"
+                  />
                 </div>
-              : null}
+              </div>
 
               {report ?
                 <>
                   <div>
-                    <h3 className="text-sm font-semibold text-zinc-900">{t("studio.home.usageThisMonth")}</h3>
+                    <h3 className="text-sm font-semibold text-white/90">{t("studio.home.usageThisMonth")}</h3>
                     <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       <UsageStat label={t("studio.myStudio.stat.projects")} value={report.projectsCreated} />
                       <UsageStat label={t("studio.myStudio.stat.sceneImages")} value={report.sceneImagesGenerated} />
@@ -288,9 +297,9 @@ export function StudioHomeDashboard({
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-semibold text-zinc-900">{t("studio.home.recentActivity")}</h3>
+                    <h3 className="text-sm font-semibold text-white/90">{t("studio.home.recentActivity")}</h3>
                     {report.recentActivity.length === 0 ?
-                      <p className="mt-3 text-sm text-zinc-500">{t("studio.myStudio.noActivity")}</p>
+                      <p className="mt-3 text-sm text-white/55">{t("studio.myStudio.noActivity")}</p>
                     : (
                       <ul className="mt-3 divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white">
                         {report.recentActivity.map((item) => (
@@ -315,9 +324,9 @@ export function StudioHomeDashboard({
                     )}
                   </div>
                 </>
-              : view ?
+              : (
                 <p className="text-sm text-white/55">{t("studio.home.loading")}</p>
-              : null}
+              )}
 
               <div className="flex flex-wrap gap-3">
                 <Link
@@ -334,7 +343,7 @@ export function StudioHomeDashboard({
                 </Link>
               </div>
             </>
-          )}
+          : null}
         </div>
       )}
     </section>

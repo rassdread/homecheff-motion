@@ -9,6 +9,7 @@ import {
   resolveUniversePrimaryCtaHref,
   resolveUniversePrimaryCtaKey,
   resolveUniverseSecondaryCtaHref,
+  resolveUniverseSecondaryCtaKey,
   resolveUniverseStartProjectHref,
 } from "@/lib/universe-public-landing";
 
@@ -79,7 +80,7 @@ export function UniverseHeroCopy({ isAuthenticated, email, reducedMotion = false
               prefetch={false}
               className="inline-flex min-h-11 items-center rounded-full border border-white/25 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/15"
             >
-              {t("universe.quick.openLibrary" as never)}
+              {t(resolveUniverseSecondaryCtaKey(true))}
             </Link>
           </>
         ) : (

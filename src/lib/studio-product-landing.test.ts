@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { buildSuitePrimaryNavItems } from "@/lib/homecheff-primary-nav-config";
+import { buildSuiteToolNavItems } from "@/lib/homecheff-primary-nav-config";
 import {
   editorLandingHasDeepLink,
   studioLandingHasDeepLink,
@@ -24,10 +24,9 @@ describe("Studio product landing layer", () => {
   });
 
   it("nav tabs route to landing pages", () => {
-    const suite = buildSuitePrimaryNavItems();
+    const suite = buildSuiteToolNavItems();
     assert.equal(suite.find((item) => item.productId === "editor")?.href, "/editor");
     assert.equal(suite.find((item) => item.productId === "motion")?.href, "/motion");
-    assert.equal(suite.find((item) => item.productId === "assets")?.href, "/library");
     assert.equal(suite.some((item) => item.href === "/usage"), false);
     assert.equal(suite.some((item) => item.labelKey === "nav.usage"), false);
   });

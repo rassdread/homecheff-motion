@@ -25,7 +25,7 @@ describe("universe homepage growth sidebar layout", () => {
     );
     assert.match(heroSource, /data-testid="universe-hero-ctas"/);
     assert.match(heroSource, /resolveUniversePrimaryCtaKey/);
-    assert.match(heroSource, /universe\.quick\.openLibrary/);
+    assert.match(heroSource, /resolveUniverseSecondaryCtaKey/);
     assert.doesNotMatch(heroSource, /UniverseQuickActions/);
     assert.doesNotMatch(heroSource, /universe\.hero\.oneProject/);
     assert.doesNotMatch(heroSource, /universe\.productionLine\.title/);
