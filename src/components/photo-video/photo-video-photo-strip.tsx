@@ -22,6 +22,8 @@ import { useActiveTranslator } from "@/i18n/client";
 function SortableThumb({
   photo,
   index,
+  selected,
+  onSelect,
   onMove,
   onRemove,
   canMoveLeft,
@@ -29,6 +31,8 @@ function SortableThumb({
 }: {
   photo: PhotoVideoPhoto;
   index: number;
+  selected: boolean;
+  onSelect: (id: string) => void;
   onMove: (id: string, delta: -1 | 1) => void;
   onRemove: (id: string) => void;
   canMoveLeft: boolean;
@@ -51,16 +55,29 @@ function SortableThumb({
       className="flex w-[5.5rem] shrink-0 flex-col gap-1"
       data-testid={`px4a-photo-${index}`}
     >
-      <button
-        type="button"
-        className="relative h-24 w-[5.5rem] overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100"
-        aria-label={t("px4a.photo.dragHandle", { n: index + 1 })}
-        {...attributes}
-        {...listeners}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={photo.previewUrl} alt="" className="h-full w-full object-cover" />
-      </button>
+      <div className="relative">
+        <button
+          type="button"
+          aria-pressed={selected}
+          aria-label={t("px4a.photo.select", { n: index + 1 })}
+          onClick={() => onSelect(photo.id)}
+          className={`relative h-24 w-[5.5rem] overflow-hidden rounded-xl border bg-zinc-100 ${
+            selected ? "border-[#006D52] ring-2 ring-[#006D52]" : "border-zinc-200"
+          }`}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={photo.previewUrl} alt="" className="h-full w-full object-cover" />
+        </button>
+        <button
+          type="button"
+          className="absolute left-0.5 top-0.5 flex h-11 w-11 items-center justify-center rounded-lg bg-black/45 text-sm font-bold text-white"
+          aria-label={t("px4a.photo.dragHandle", { n: index + 1 })}
+          {...attributes}
+          {...listeners}
+        >
+          ⋮⋮
+        </button>
+      </div>
       <div className="flex justify-between gap-1">
         <button
           type="button"
@@ -94,11 +111,15 @@ function SortableThumb({
 
 export function PhotoVideoPhotoStrip({
   photos,
+  selectedPhotoId,
+  onSelect,
   onReorder,
   onMove,
   onRemove,
 }: {
   photos: PhotoVideoPhoto[];
+  selectedPhotoId: string | null;
+  onSelect: (id: string) => void;
   onReorder: (from: number, to: number) => void;
   onMove: (id: string, delta: -1 | 1) => void;
   onRemove: (id: string) => void;
@@ -132,6 +153,8 @@ export function PhotoVideoPhotoStrip({
               key={photo.id}
               photo={photo}
               index={index}
+              selected={photo.id === selectedPhotoId}
+              onSelect={onSelect}
               onMove={onMove}
               onRemove={onRemove}
               canMoveLeft={index > 0}

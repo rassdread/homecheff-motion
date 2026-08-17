@@ -123,4 +123,21 @@ describe("PX.4A.1 encode plan + isolation", () => {
     assert.match(page, /ssr:\s*false/);
     assert.match(page, /photo-video-composer/);
   });
+
+  it("lazy-loads own-music tooling only from the composer, not Studio Home", () => {
+    const composer = read(join(ROOT, "src/components/photo-video/photo-video-composer.tsx"));
+    const home = read(join(ROOT, "src/app/page.tsx"));
+    assert.match(composer, /next\/dynamic/);
+    assert.match(composer, /photo-video-music-panel/);
+    assert.doesNotMatch(composer, /decodeAudioData|AudioContext/);
+    assert.doesNotMatch(home, /photo-video-music-panel|decodeAudioData/);
+  });
+
+  it("does not sell credits inside the free composer", () => {
+    for (const file of [...filesIn(PV), ...filesIn(COMP)]) {
+      const source = read(file).toLowerCase();
+      assert.equal(source.includes("koop credits"), false, file);
+      assert.equal(source.includes("upgrade nu"), false, file);
+    }
+  });
 });
