@@ -3,9 +3,11 @@ import { describe, it } from "node:test";
 import {
   PHOTO_VIDEO_DEFAULT_TEXT_SIZE,
   PHOTO_VIDEO_FONTS,
+  PHOTO_VIDEO_FONT_WEIGHT,
   PHOTO_VIDEO_TEXT_COLORS,
   PHOTO_VIDEO_TEXT_SIZE_MAX,
   PHOTO_VIDEO_TEXT_SIZE_MIN,
+  canvasFontShorthand,
   clampOverlayPosition,
   clientPointToNormalized,
   createTextOverlay,
@@ -101,5 +103,33 @@ describe("PX.4A.2 text overlays", () => {
     const largeExport = fontSizePx(PHOTO_VIDEO_TEXT_SIZE_MAX, 1080);
     assert.ok(large > small);
     assert.ok(largeExport > large);
+  });
+
+  it("builds a canvas font shorthand without CSS variables so size is not dropped", () => {
+    const geist = canvasFontShorthand("modern", 48, (name) =>
+      name === "--font-geist-sans" ? '"Geist", "Geist Fallback"' : ""
+    );
+    assert.equal(geist.includes("var("), false);
+    assert.equal(geist.startsWith("700 48px "), true);
+    assert.match(geist, /Geist/);
+    const missing = canvasFontShorthand("modern", 48, () => "");
+    assert.equal(missing.includes("var("), false);
+    assert.match(missing, /ui-sans-serif/);
+    const strong = canvasFontShorthand("strong", 48, () => {
+      throw new Error("strong must not read CSS variables");
+    });
+    assert.equal(strong.includes("var("), false);
+    assert.equal(strong.startsWith("900 48px "), true);
+  });
+
+  it("resolves all six named fonts to a concrete canvas shorthand", () => {
+    const geist = '"Geist", "Geist Fallback"';
+    for (const font of PHOTO_VIDEO_FONTS) {
+      const shorthand = canvasFontShorthand(font, 48, (name) =>
+        name === "--font-geist-sans" ? geist : ""
+      );
+      assert.equal(shorthand.includes("var("), false, `${font} still contains var(`);
+      assert.equal(shorthand.startsWith(`${PHOTO_VIDEO_FONT_WEIGHT[font]} 48px `), true, font);
+    }
   });
 });
