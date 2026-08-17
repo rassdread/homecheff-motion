@@ -55,8 +55,8 @@ describe("universe v3 public landing", () => {
   });
 
   it("planet labels are uppercase without hover", () => {
-    assert.equal(resolveUniversePlanetLabel("editor"), "EDITOR");
-    assert.equal(resolveUniversePlanetLabel("motion"), "MOTION");
+    assert.equal(resolveUniversePlanetLabel("editor"), "BEELDEN");
+    assert.equal(resolveUniversePlanetLabel("motion"), "ANIMATIE");
   });
 
   it("SP.3: suite nav product links stay on public landings when signed out", () => {
@@ -70,6 +70,7 @@ describe("universe v3 public landing", () => {
     assert.equal(resolveUniversePrimaryCtaHref(false), UNIVERSE_GUIDED_CREATION_PATH);
     assert.equal(resolveUniversePrimaryCtaHref(true), UNIVERSE_GUIDED_CREATION_PATH);
     assert.equal(resolveUniversePrimaryCtaKey(false), "universe.hero.cta.startWithIdea");
+    assert.equal(resolveUniversePrimaryCtaKey(true), "universe.hero.cta.startWithIdea");
     assert.equal(resolveUniverseSecondaryCtaHref(false), UNIVERSE_WHY_STUDIO_PATH);
     assert.equal(resolveUniverseSecondaryCtaKey(false), "universe.hero.cta.howItWorks");
   });

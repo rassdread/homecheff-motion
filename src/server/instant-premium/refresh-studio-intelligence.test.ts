@@ -33,7 +33,11 @@ describe("refreshStudioIntelligenceForAnimationProject", () => {
     }
   });
 
-  it("returns no source when project missing studio storyboard", async () => {
+  it("returns no source when project missing studio storyboard", async (t) => {
+    if (!process.env.DATABASE_URL?.trim()) {
+      t.skip("requires DATABASE_URL");
+      return;
+    }
     const result = await refreshStudioIntelligenceForAnimationProject({
       projectId: "definitely-missing-project-id",
       userId: "user-1",

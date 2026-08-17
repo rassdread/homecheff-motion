@@ -168,7 +168,7 @@ describe("homecheff-suite-route-aliases", () => {
 
 describe("homecheff-suite-i18n-labels", () => {
   it("EN labels show Finish Video and Library", () => {
-    assert.equal(en["suite.nav.publish"], "Finish Video");
+    assert.equal(en["suite.nav.publish"], "Finish video");
     assert.equal(en["suite.nav.motion"], "Animation");
     assert.equal(en["suite.nav.library"], "Library");
     assert.equal(en["studio.assetsHub.title"], "Library");

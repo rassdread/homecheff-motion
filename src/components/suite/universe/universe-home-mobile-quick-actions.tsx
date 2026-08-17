@@ -5,6 +5,7 @@ import { useActiveTranslator } from "@/i18n/client";
 import { trackBillingConversionEvent } from "@/lib/billing-conversion-analytics";
 import {
   resolveUniversePrimaryCtaHref,
+  resolveUniversePrimaryCtaKey,
   resolveUniverseSecondaryCtaHref,
   resolveUniverseSecondaryCtaKey,
 } from "@/lib/universe-public-landing";
@@ -49,9 +50,7 @@ export function UniverseHomeMobileQuickActions({ isAuthenticated }: Props) {
             })
           }
         >
-          {isAuthenticated
-            ? t("universe.public.continueCreating" as never)
-            : t("nav.getStarted")}
+          {t(resolveUniversePrimaryCtaKey(isAuthenticated))}
         </Link>
         <Link
           href={resolveUniverseSecondaryCtaHref(isAuthenticated)}

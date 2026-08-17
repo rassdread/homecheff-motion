@@ -48,7 +48,7 @@ const FORBIDDEN_NL_IN_EN = [
   "Ondertitels",
   "Vertalen",
   "Mijn videoverhalen",
-  "Nieuw videoverhaal",
+  "Nieuw verhaal",
   "Wat wil je maken",
   "Verhaaldoel",
   "Projectanalyse",
@@ -89,7 +89,7 @@ describe("Studio deep i18n", () => {
   });
 
   it("uses canonical NL director labels", () => {
-    assert.equal(nl["studio.directorV2.shell.title"], "AI-regisseur");
+    assert.equal(nl["studio.directorV2.shell.title"], "Suggesties");
     assert.equal(nl["studio.directorV2.inspector.title"], "Projectanalyse");
     assert.equal(nl["studio.directorV2.director.storyPurpose"], "Verhaaldoel");
     assert.equal(nl["studio.directorV2.director.suggestDirection"], "Regie voorstellen");
@@ -97,7 +97,7 @@ describe("Studio deep i18n", () => {
   });
 
   it("uses canonical EN director labels", () => {
-    assert.equal(en["studio.directorV2.shell.title"], "AI director");
+    assert.equal(en["studio.directorV2.shell.title"], "Suggestions");
     assert.equal(en["studio.directorV2.inspector.title"], "Project analysis");
     assert.equal(en["studio.directorV2.director.storyPurpose"], "Story purpose");
     assert.equal(en["studio.directorV2.director.suggestDirection"], "Suggest direction");

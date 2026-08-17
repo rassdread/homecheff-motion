@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { loginHref } from "@/lib/auth-login-href";
 import { UNIVERSE_PLANETS } from "@/lib/universe-home-config";
 import { worldMapAssetConfigured } from "@/lib/universe-globe-earth";
 import { ECOSYSTEM_HUBS } from "@/lib/universe-globe-ecosystem";
@@ -40,7 +39,8 @@ describe("universe v5 clean planet interaction", () => {
 
   it("auth-aware planet routing", () => {
     const editor = UNIVERSE_PLANETS.find((p) => p.id === "editor")!;
-    assert.equal(resolveUniversePlanetHref(editor.href, false), loginHref("/editor"));
+    // SP.3: signed-out planet clicks open public product pages (auth at creation).
+    assert.equal(resolveUniversePlanetHref(editor.href, false), "/editor");
     assert.equal(resolveUniversePlanetHref(editor.href, true), "/editor");
   });
 
