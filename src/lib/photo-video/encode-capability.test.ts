@@ -153,6 +153,9 @@ describe("PX.4A.1 encode plan + isolation", () => {
     assert.match(fromItem, /mode=\"homecheff-item\"/);
     assert.match(composer, /skipAuthGate/);
     assert.match(composer, /PHOTO_VIDEO_ITEM_DEFAULT_RATIO/);
+    assert.match(composer, /px4a-item-back/);
+    assert.match(composer, /px4a-item-finish-hint/);
+    assert.doesNotMatch(composer, /Video toegevoegd|Download MP4|Download klaar/i);
     assert.doesNotMatch(composer, /koop credits|upgrade nu/);
     assert.match(chrome, /isPx4aItemCreatorPath/);
     assert.match(chrome, /px4a-item-shell/);
