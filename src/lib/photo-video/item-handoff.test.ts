@@ -8,6 +8,7 @@ import {
   isHttpsListingUrl,
   isItemHandoffTokenSizeOk,
   isPx4aItemCreatorPath,
+  isPx4aStandaloneCreatorPath,
   itemReturnHref,
   normalizeItemPhotoUrls,
   normalizeItemReturnPath,
@@ -51,6 +52,9 @@ describe("PX.4A.4 item handoff", () => {
     assert.equal(verifyItemHandoffToken(token, ["other"], 1_000_000), null);
     assert.equal(verifyItemHandoffToken(token, ["test-secret"], 1_000_000 + 8 * 60 * 60), null);
     assert.equal(isPx4aItemCreatorPath(PX4A_ITEM_CREATOR_PATH), true);
+    assert.equal(isPx4aStandaloneCreatorPath("/studio/photo-video"), true);
+    assert.equal(isPx4aStandaloneCreatorPath("/studio/photo-video?resume=1"), true);
+    assert.equal(isPx4aStandaloneCreatorPath(PX4A_ITEM_CREATOR_PATH), false);
     assert.equal(canonicalItemHandoffBody(payload!).includes("http://"), false);
   });
 

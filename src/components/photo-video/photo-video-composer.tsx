@@ -177,6 +177,7 @@ const STYLE_LABEL: Record<PhotoVideoStyle, TranslationKey> = {
 
 function ChipGroup<T extends string>({
   legend,
+  description,
   value,
   options,
   onChange,
@@ -184,6 +185,7 @@ function ChipGroup<T extends string>({
   labelFor,
 }: {
   legend: string;
+  description?: string;
   value: T;
   options: readonly { id: T; label: string; hint?: string }[];
   onChange: (id: T) => void;
@@ -193,6 +195,7 @@ function ChipGroup<T extends string>({
   return (
     <fieldset className="space-y-2" data-testid={testId}>
       <legend className="text-sm font-semibold text-zinc-900">{legend}</legend>
+      {description ? <p className="text-sm text-zinc-600">{description}</p> : null}
       <div className="flex flex-wrap gap-2">
         {options.map((option) => {
           const selected = option.id === value;
@@ -1031,26 +1034,15 @@ export function PhotoVideoComposer({
         </p>
       ) : null}
 
-      <section className="space-y-6" data-testid="px4a-global-video" aria-labelledby="px4a-global-heading">
+      <section className="space-y-4" data-testid="px4a-global-video" aria-labelledby="px4a-global-heading">
       <div className="space-y-1">
         <h2 id="px4a-global-heading" className="text-base font-semibold text-zinc-900">
           {t("px4a.global.legend")}
         </h2>
         <p className="text-sm text-zinc-600">{t("px4a.global.lead")}</p>
       </div>
-      <ChipGroup
-        legend={t("px4a.ratio.legend")}
-        testId="px4a-ratio"
-        value={composition.ratio}
-        onChange={(id) => setComposition((current) => setRatio(current, id))}
-        labelFor={(id) => t(RATIO_LABEL[id])}
-        options={PHOTO_VIDEO_RATIOS.map((id) => ({
-          id,
-          label: t(RATIO_LABEL[id]),
-          hint: t(RATIO_HINT[id]),
-        }))}
-      />
-
+      <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+      <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-3 sm:p-4">
       <ChipGroup
         legend={t("px4a.videoDuration.legend")}
         testId="px4a-video-duration"
@@ -1068,11 +1060,11 @@ export function PhotoVideoComposer({
           id === "auto" ? t("px4a.videoDuration.auto") : t("px4a.videoDuration.sec", { seconds: id })
         }
         options={[
+          { id: "auto", label: t("px4a.videoDuration.auto") },
           ...durationPresets.map((seconds) => ({
             id: String(seconds),
             label: t("px4a.videoDuration.sec", { seconds }),
           })),
-          { id: "auto", label: t("px4a.videoDuration.auto") },
         ]}
       />
       {itemJourney ? (
@@ -1080,33 +1072,39 @@ export function PhotoVideoComposer({
           {t("px4a.videoDuration.homecheffMax")}
         </p>
       ) : null}
-
+      {composition.durationMode === "auto" ? (
+        <ChipGroup
+          legend={t("px4a.pace.legend")}
+          description={t("px4a.pace.autoHint")}
+          testId="px4a-pace"
+          value={composition.pace}
+          onChange={(id) => setComposition((current) => setPace(current, id, draftContext))}
+          labelFor={(id) => t(PACE_LABEL[id])}
+          options={PHOTO_VIDEO_PACES.map((id) => ({
+            id,
+            label: t(PACE_LABEL[id]),
+          }))}
+        />
+      ) : null}
+      </div>
+      <div className="rounded-2xl border border-zinc-200 bg-white p-3 sm:p-4">
       <ChipGroup
-        legend={t("px4a.movement.global")}
-        testId="px4a-movement"
-        value={composition.movementMode}
-        onChange={(id) => setComposition((current) => setMovementMode(current, id))}
-        labelFor={(id) => t(MOVEMENT_LABEL[id])}
-        options={(["auto", "none"] as const).map((id) => ({
+        legend={t("px4a.ratio.legend")}
+        testId="px4a-ratio"
+        value={composition.ratio}
+        onChange={(id) => setComposition((current) => setRatio(current, id))}
+        labelFor={(id) => t(RATIO_LABEL[id])}
+        options={PHOTO_VIDEO_RATIOS.map((id) => ({
           id,
-          label: t(MOVEMENT_LABEL[id]),
+          label: t(RATIO_LABEL[id]),
+          hint: t(RATIO_HINT[id]),
         }))}
       />
-
-      <ChipGroup
-        legend={t("px4a.pace.legend")}
-        testId="px4a-pace"
-        value={composition.pace}
-        onChange={(id) => setComposition((current) => setPace(current, id, draftContext))}
-        labelFor={(id) => t(PACE_LABEL[id])}
-        options={PHOTO_VIDEO_PACES.map((id) => ({
-          id,
-          label: t(PACE_LABEL[id]),
-        }))}
-      />
-
+      </div>
+      <div className="rounded-2xl border border-zinc-200 bg-white p-3 sm:p-4">
       <ChipGroup
         legend={t("px4a.style.legend")}
+        description={t("px4a.style.hint")}
         testId="px4a-style"
         value={composition.style}
         onChange={(id) => setComposition((current) => setStyle(current, id, draftContext))}
@@ -1116,10 +1114,24 @@ export function PhotoVideoComposer({
           label: t(STYLE_LABEL[id]),
         }))}
       />
+      </div>
+      <div className="rounded-2xl border border-zinc-200 bg-white p-3 sm:p-4">
+      <ChipGroup
+        legend={t("px4a.movement.global")}
+        description={t("px4a.movement.globalHint")}
+        testId="px4a-movement"
+        value={composition.movementMode}
+        onChange={(id) => setComposition((current) => setMovementMode(current, id))}
+        labelFor={(id) => t(MOVEMENT_LABEL[id])}
+        options={(["auto", "none"] as const).map((id) => ({
+          id,
+          label: t(MOVEMENT_LABEL[id]),
+        }))}
+      />
+      </div>
+      </div>
 
-      </section>
-
-      <fieldset className="space-y-2" data-testid="px4a-audio">
+      <fieldset className="space-y-2 rounded-2xl border border-zinc-200 bg-white p-3 sm:p-4" data-testid="px4a-audio">
         <legend className="text-sm font-semibold text-zinc-900">{t("px4a.audio.legend")}</legend>
         <div className="flex flex-wrap gap-2">
           <button
@@ -1174,6 +1186,30 @@ export function PhotoVideoComposer({
           />
         ) : null}
       </fieldset>
+
+      {composition.durationMode !== "auto" ? (
+        <details className="rounded-2xl border border-zinc-200 bg-white p-3 sm:p-4" data-testid="px4a-global-more">
+          <summary className="min-h-11 cursor-pointer list-outside text-sm font-semibold text-zinc-900">
+            {t("px4a.global.more")}
+          </summary>
+          <div className="mt-3">
+            <ChipGroup
+              legend={t("px4a.pace.legend")}
+              description={t("px4a.pace.hint")}
+              testId="px4a-pace"
+              value={composition.pace}
+              onChange={(id) => setComposition((current) => setPace(current, id, draftContext))}
+              labelFor={(id) => t(PACE_LABEL[id])}
+              options={PHOTO_VIDEO_PACES.map((id) => ({
+                id,
+                label: t(PACE_LABEL[id]),
+              }))}
+            />
+          </div>
+        </details>
+      ) : null}
+
+      </section>
 
       <p className="text-xs text-zinc-500">{t("px4a.watermark.note")}</p>
       <p className="sr-only" data-testid="px4a-max-seconds">

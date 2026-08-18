@@ -12,12 +12,13 @@ import { BillingConversionShell } from "@/components/billing/billing-conversion-
 import { GlobalCreditIndicator } from "@/components/billing/global-credit-indicator";
 import { LanguageSwitch } from "@/components/layout/language-switch";
 import { brand } from "@/lib/brand";
-import { isPx4aItemCreatorPath } from "@/lib/photo-video/item-handoff";
+import { isPx4aItemCreatorPath, isPx4aStandaloneCreatorPath } from "@/lib/photo-video/item-handoff";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 
 export function AppShellChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "";
   const itemJourney = isPx4aItemCreatorPath(pathname);
+  const standaloneCreator = isPx4aStandaloneCreatorPath(pathname);
 
   if (itemJourney) {
     return (
@@ -56,7 +57,7 @@ export function AppShellChrome({ children }: { children: ReactNode }) {
           <div className="ml-auto flex min-w-0 shrink-0 items-center gap-1 sm:gap-2">
             <OntdekHomeCheffShellControl />
             <LanguageSwitch />
-            <GlobalCreditIndicator />
+            {standaloneCreator ? null : <GlobalCreditIndicator />}
             <div className="hidden lg:block">
               <AppShellUserBar />
             </div>
@@ -67,7 +68,7 @@ export function AppShellChrome({ children }: { children: ReactNode }) {
           </div>
         </nav>
       </header>
-      <BillingConversionShell />
+      {standaloneCreator ? null : <BillingConversionShell />}
       <div className="flex min-w-0 w-full flex-col overflow-visible">
         <HomeCheffAssistantMount>{children}</HomeCheffAssistantMount>
       </div>

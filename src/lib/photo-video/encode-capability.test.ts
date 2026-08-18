@@ -166,6 +166,7 @@ describe("PX.4A.1 encode plan + isolation", () => {
     assert.doesNotMatch(composer, /from [\"']mediabunny[\"']/);
     assert.doesNotMatch(composer, /koop credits|upgrade nu/);
     assert.match(chrome, /isPx4aItemCreatorPath/);
+    assert.match(chrome, /isPx4aStandaloneCreatorPath/);
     assert.match(chrome, /px4a-item-shell/);
     assert.match(preview, /drawPhotoVideoFrame/);
     assert.match(render, /HomeCheff Studio/);
