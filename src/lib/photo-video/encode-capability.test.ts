@@ -159,6 +159,9 @@ describe("PX.4A.1 encode plan + isolation", () => {
     assert.match(composer, /px4a-item-back/);
     assert.match(composer, /px4a-item-finish-hint/);
     assert.match(composer, /px4a-export-download/);
+    assert.match(composer, /PhotoVideoPhotoInspector/);
+    const strip = read(join(ROOT, "src/components/photo-video/photo-video-photo-strip.tsx"));
+    assert.match(strip, /px4a-add-photo-tile/);
     assert.match(composer, /export-local/);
     assert.doesNotMatch(composer, /from [\"']mediabunny[\"']/);
     assert.doesNotMatch(composer, /koop credits|upgrade nu/);

@@ -71,6 +71,7 @@ export function PhotoVideoTextControls({
   onAlign,
   onBackground,
   onNudge,
+  embedded = false,
 }: {
   composition: PhotoVideoComposition;
   selectedPhotoId: string | null;
@@ -86,6 +87,7 @@ export function PhotoVideoTextControls({
   onAlign: (align: PhotoVideoAlign) => void;
   onBackground: (background: PhotoVideoTextBackground) => void;
   onNudge: (dx: number, dy: number) => void;
+  embedded?: boolean;
 }) {
   const t = useActiveTranslator();
   const photoOverlays = selectedPhotoId ? overlaysForPhoto(composition, selectedPhotoId) : [];
@@ -93,9 +95,15 @@ export function PhotoVideoTextControls({
 
   return (
     <section className="space-y-3" data-testid="px4a-text">
-      <h2 className="text-base font-semibold text-zinc-900">{t("px4a.text.legend")}</h2>
+      {embedded ? (
+        <h3 className="text-sm font-semibold text-zinc-900">{t("px4a.text.legend")}</h3>
+      ) : (
+        <h2 className="text-base font-semibold text-zinc-900">{t("px4a.text.legend")}</h2>
+      )}
       {selectedPhotoId ? (
-        <p className="text-sm text-zinc-600">{t("px4a.text.forPhoto", { n: selectedPhotoIndex + 1 })}</p>
+        embedded ? null : (
+          <p className="text-sm text-zinc-600">{t("px4a.text.forPhoto", { n: selectedPhotoIndex + 1 })}</p>
+        )
       ) : (
         <p className="text-sm text-zinc-600">{t("px4a.text.needPhoto")}</p>
       )}
@@ -127,13 +135,21 @@ export function PhotoVideoTextControls({
       {selectedOverlay ? (
         <div className="space-y-4">
           <label className="block space-y-1">
-            <span className="sr-only">{t("px4a.text.placeholder")}</span>
+            <span className="text-sm font-medium text-zinc-800">{t("px4a.text.inputLabel")}</span>
             <input
               data-testid="px4a-text-input"
-              className="min-h-11 w-full rounded-xl border border-zinc-200 px-3"
-              value={selectedOverlay.text}
+              type="text"
+              name="px4a-overlay-text"
+              inputMode="text"
+              autoComplete="off"
+              autoCapitalize="sentences"
+              autoCorrect="on"
+              spellCheck
+              enterKeyHint="done"
               maxLength={80}
+              value={selectedOverlay.text}
               placeholder={t("px4a.text.placeholder")}
+              className="min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base text-zinc-900"
               onChange={(event) => onChangeText(event.target.value)}
             />
           </label>

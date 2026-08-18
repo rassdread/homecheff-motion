@@ -59,6 +59,7 @@ test.describe("PX.4A.4 public compositor certification", () => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(8);
     await expect(page.getByTestId("px4a-file-input")).toBeAttached();
+    await expect(page.getByTestId("px4a-add-photo-tile")).toBeVisible();
     await context.close();
   });
 
@@ -110,5 +111,45 @@ test.describe("PX.4A.4 public compositor certification", () => {
       });
       expect(metrics.white, label).toBeGreaterThan(80);
     }
+  });
+
+  test("selected-photo inspector isolates text per photo", async ({ page }) => {
+    await page.goto("/studio/photo-video", { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("px4a-composer")).toBeVisible({ timeout: 20_000 });
+    const resume = page.getByTestId("px4a-resume-fresh");
+    if (await resume.count()) await resume.click();
+    const png = Buffer.from(
+      await page.evaluate(() => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("no 2d");
+        ctx.fillStyle = "#336699";
+        ctx.fillRect(0, 0, 64, 64);
+        return canvas.toDataURL("image/png").slice("data:image/png;base64,".length);
+      }),
+      "base64"
+    );
+    await page.getByTestId("px4a-file-input").setInputFiles([
+      { name: "a.png", mimeType: "image/png", buffer: png },
+      { name: "b.png", mimeType: "image/png", buffer: png },
+    ]);
+    await expect(page.getByTestId("px4a-photo-0")).toBeVisible({ timeout: 15_000 });
+    await page.getByTestId("px4a-photo-0").locator("button[aria-pressed]").first().click();
+    await expect(page.getByTestId("px4a-photo-inspector")).toContainText(/Foto 1 aanpassen|Edit photo 1/);
+    await page.getByTestId("px4a-add-text").click();
+    await page.getByTestId("px4a-text-input").fill("ALPHA");
+    await page.getByTestId("px4a-photo-1").locator("button[aria-pressed]").first().click();
+    await expect(page.getByTestId("px4a-photo-inspector")).toContainText(/Foto 2 aanpassen|Edit photo 2/);
+    await page.getByTestId("px4a-add-text").click();
+    await page.getByTestId("px4a-text-input").fill("BETA");
+    await page.getByTestId("px4a-photo-0").locator("button[aria-pressed]").first().click();
+    await expect(page.getByTestId("px4a-text-input")).toHaveValue("ALPHA");
+    await page.getByTestId("px4a-photo-1").locator("button[aria-pressed]").first().click();
+    await expect(page.getByTestId("px4a-text-input")).toHaveValue("BETA");
+    await expect(page.getByTestId("px4a-text-input")).toHaveAttribute("type", "text");
+    await expect(page.getByTestId("px4a-add-photo-tile")).toBeVisible();
+    await expect(page.getByTestId("px4a-movement-photo")).toBeVisible();
   });
 });
