@@ -263,4 +263,11 @@ describe("PX.4A.5 export matrix", () => {
     assert.equal(verifyExportAttachToken(token, ["other"], 1_000_000), null);
     assert.equal(parseExportAttachPayload({ ...payload, videoUrl: "https://evil.example/x.mp4" }), null);
   });
+
+  it("export-handoff HMAC binds HomeCheff centralUserId, not Studio user.id", () => {
+    const route = readFileSync(join(process.cwd(), "src/app/api/photo-video/export-handoff/route.ts"), "utf8");
+    assert.match(route, /select:\s*\{\s*centralUserId:\s*true/);
+    assert.match(route, /createExportAttachPayload\(\{\s*centralUserId,/);
+    assert.equal(/centralUserId:\s*user\.id/.test(route), false);
+  });
 });
