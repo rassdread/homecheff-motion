@@ -146,10 +146,12 @@ export function PhotoVideoTextControls({
               autoCorrect="on"
               spellCheck
               enterKeyHint="done"
+              data-1p-ignore
+              data-lpignore="true"
               maxLength={80}
               value={selectedOverlay.text}
               placeholder={t("px4a.text.placeholder")}
-              className="min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base text-zinc-900"
+              className="min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base text-zinc-900 [-webkit-text-security:none]"
               onChange={(event) => onChangeText(event.target.value)}
             />
           </label>

@@ -53,8 +53,8 @@ describe("PX.4A.6.1 selected-photo inspector layout", () => {
     assert.match(text, /autoCorrect="on"/);
     assert.match(text, /inputMode="text"/);
     assert.doesNotMatch(text, /type="password"/);
-    assert.doesNotMatch(text, /text-security/);
     assert.doesNotMatch(text, /autoComplete="new-password"/);
+    assert.doesNotMatch(text, /text-security:\s*(disc|circle|square)/);
   });
 
   it("does not touch encoder, upload, or HMAC routes", () => {

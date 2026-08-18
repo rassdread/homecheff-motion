@@ -21,6 +21,7 @@ export function PhotoVideoPreviewCanvas({
   selectedOverlayId,
   placeholderText,
   context = "studio",
+  compact = false,
   onSelectOverlay,
   onMoveOverlay,
 }: {
@@ -30,6 +31,7 @@ export function PhotoVideoPreviewCanvas({
   selectedOverlayId: string | null;
   placeholderText: string;
   context?: PhotoVideoContext;
+  compact?: boolean;
   onSelectOverlay: (id: string | null) => void;
   onMoveOverlay: (id: string, x: number, y: number) => void;
 }) {
@@ -189,7 +191,9 @@ export function PhotoVideoPreviewCanvas({
       width={size.width}
       height={size.height}
       data-testid="px4a-preview-canvas"
-      className="mx-auto h-auto max-h-[min(70vh,640px)] w-auto max-w-full touch-none rounded-2xl bg-[#041428] shadow-lg"
+      className={`mx-auto h-auto w-auto max-w-full touch-none rounded-2xl bg-[#041428] shadow-lg ${
+        compact ? "max-h-[min(26vh,200px)] lg:max-h-[min(70vh,640px)]" : "max-h-[min(42vh,320px)] lg:max-h-[min(70vh,640px)]"
+      }`}
       style={{ aspectRatio: `${size.width} / ${size.height}`, touchAction: "none" }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

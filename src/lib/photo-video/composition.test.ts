@@ -238,4 +238,18 @@ describe("PX.4A.1 composition model", () => {
     assert.equal(overlaysForPhoto(c, "p1")[0]?.text, "BETA");
     assert.equal(overlaysForPhoto(c, "p0")[0]?.text, "ALPHA2");
   });
+
+  it("keeps overlay and motion photoIds when photos are reordered", () => {
+    let c = addPhotos(createPhotoVideoComposition(), nPhotos(3));
+    c = addTextForPhoto(c, { id: "t1", photoId: "p1", text: "BETA" });
+    c = setPhotoMotionKind(c, "p1", "zoom-in");
+    c = reorderPhotos(c, 1, 0);
+    assert.deepEqual(c.photos.map((p) => p.id), ["p1", "p0", "p2"]);
+    assert.equal(overlaysForPhoto(c, "p1")[0]?.text, "BETA");
+    assert.equal(c.photos.find((p) => p.id === "p1")?.motionKind, "zoom-in");
+    c = movePhoto(c, "p1", 1);
+    assert.equal(c.photos[1]?.id, "p1");
+    assert.equal(overlaysForPhoto(c, "p1")[0]?.photoId, "p1");
+    assert.equal(c.photos.find((p) => p.id === "p1")?.motionKind, "zoom-in");
+  });
 });
