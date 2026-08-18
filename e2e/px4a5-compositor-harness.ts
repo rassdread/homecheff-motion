@@ -6,7 +6,7 @@ import {
   setAudio,
   setDurationSeconds,
   setMovementMode,
-  setStyle,
+  setTransitionKind,
   updateTextOverlay,
 } from "@/lib/photo-video/composition";
 import { encodePhotoVideoLocal } from "@/lib/photo-video/export-local";
@@ -136,7 +136,7 @@ async function inspectFile(file: File): Promise<{
   }
 }
 
-export async function runPx4a5CompositorExport(mode: "music" | "none"): Promise<Px4a5CompositorResult> {
+export async function runPx4a5CompositorExport(mode: "music" | "none" | "signature"): Promise<Px4a5CompositorResult> {
   const started = performance.now();
   const colors = [
     { fill: "#c81e1e", label: "A" },
@@ -152,12 +152,17 @@ export async function runPx4a5CompositorExport(mode: "music" | "none"): Promise<
       naturalHeight: 1280,
     })
   );
+  const durationSeconds = mode === "signature" ? 15 : 10;
   let composition = setDurationSeconds(
     setMovementMode(
-      setStyle(addPhotos(createPhotoVideoComposition(undefined, "homecheff-item"), photos, "homecheff-item"), "smooth"),
+      setTransitionKind(
+        addPhotos(createPhotoVideoComposition(undefined, "homecheff-item"), photos, "homecheff-item"),
+        mode === "signature" ? "hc_shards" : "fade",
+        "homecheff-item"
+      ),
       "auto"
     ),
-    10,
+    durationSeconds,
     "homecheff-item"
   );
   composition = addTextForPhoto(composition, { id: "t0", photoId: "p0", text: "Vers vandaag" });

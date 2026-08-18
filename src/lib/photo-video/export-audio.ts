@@ -1,5 +1,11 @@
 import { audioTrackTimeAt, type PhotoVideoAudio } from "@/lib/photo-video/audio";
 
+/**
+ * Future catalog audio: `{ kind: "catalog", trackId, startSeconds, durationSeconds, trackDurationSeconds, volume }`
+ * would reuse ownMusicExportWindow once PhotoVideoAudio includes that variant.
+ * PX.4A.6.4 does not ship catalog tracks.
+ */
+
 export type OwnMusicExportWindow = {
   startSeconds: number;
   durationSeconds: number;

@@ -34,7 +34,7 @@ describe("PX.4A.6.3 whole-video settings", () => {
     const global = composer.indexOf('data-testid="px4a-global-video"');
     const duration = composer.indexOf('testId="px4a-video-duration"');
     const ratio = composer.indexOf('testId="px4a-ratio"');
-    const style = composer.indexOf('testId="px4a-style"');
+    const style = composer.indexOf("<PhotoVideoTransitionPicker");
     const movement = composer.indexOf('testId="px4a-movement"');
     const audio = composer.indexOf('data-testid="px4a-audio"');
     assert.ok(inspectorUse > 0 && actions > inspectorUse);
@@ -59,16 +59,16 @@ describe("PX.4A.6.3 whole-video settings", () => {
     assert.match(composer, /px4a.videoDuration.homecheffMax/);
   });
 
-  it("maps format and overgang UI to existing stored values", () => {
+  it("maps format UI to stored ratios and Overgang to transitionKind", () => {
     assert.deepEqual([...PHOTO_VIDEO_RATIOS], ["9:16", "1:1", "16:9"]);
     assert.deepEqual([...PHOTO_VIDEO_STYLES], ["auto", "smooth", "calm", "energetic"]);
     assert.match(nl, /"px4a.ratio.verticalHint": "9:16"/);
     assert.match(nl, /"px4a.ratio.squareHint": "1:1"/);
     assert.match(nl, /"px4a.ratio.landscapeHint": "16:9"/);
     assert.match(nl, /"px4a.style.legend": "Overgang"/);
-    assert.match(composer, /setStyle\(current, id, draftContext\)/);
-    assert.match(composer, /value=\{composition\.style\}/);
-    assert.doesNotMatch(composer, /transitionKind|new Transition/);
+    assert.match(composer, /setTransitionKind\(current, kind, draftContext\)/);
+    assert.match(composer, /<PhotoVideoTransitionPicker/);
+    assert.doesNotMatch(composer, /setStyle\(current, id, draftContext\)/);
   });
 
   it("keeps selected-photo movement separate from the video default", () => {
@@ -86,12 +86,14 @@ describe("PX.4A.6.3 whole-video settings", () => {
     assert.match(music, /px4a.audio.window/);
   });
 
-  it("restores stored style, pace, and movement without a draft migration", () => {
+  it("restores stored style, pace, movement, and transitionKind without a draft version bump", () => {
     assert.match(draft, /style:/);
     assert.match(draft, /pace:/);
     assert.match(draft, /movementMode/);
     assert.match(draft, /durationSeconds/);
+    assert.match(draft, /transitionKind/);
     assert.match(draft, /migrateComposition/);
+    assert.match(draft, /PHOTO_VIDEO_DRAFT_VERSION = 2/);
     assert.doesNotMatch(draft, /px4a-global-more/);
   });
 

@@ -1,7 +1,13 @@
 import type { PhotoVideoComposition, PhotoVideoPhoto } from "@/lib/photo-video/composition";
 import { compositionDuration, includedPhotos } from "@/lib/photo-video/composition";
 import { motionKindForPhoto } from "@/lib/photo-video/movement";
-import { styleRecipe, type PhotoVideoTransitionKind } from "@/lib/photo-video/styles";
+import {
+  boundaryTransitionKind,
+  isPhotoVideoResolvedTransition,
+  overlapSecondsForTransition,
+  resolveTransitionKind,
+  type PhotoVideoResolvedTransition,
+} from "@/lib/photo-video/transition-kind";
 
 export type PhotoVideoClip = {
   photo: PhotoVideoPhoto;
@@ -17,7 +23,7 @@ export type PhotoVideoPlayhead = {
   from: PhotoVideoClip | null;
   to: PhotoVideoClip | null;
   mix: number;
-  transition: PhotoVideoTransitionKind;
+  transition: PhotoVideoResolvedTransition;
   fromProgress: number;
   toProgress: number;
 };
@@ -28,7 +34,7 @@ export function buildPhotoVideoClips(
 ): PhotoVideoClip[] {
   const photos = includedPhotos(composition);
   const hold = compositionDuration(composition, context).holdSeconds;
-  const overlap = styleRecipe(composition.style).overlapSeconds;
+  const overlap = overlapSecondsForTransition(resolveTransitionKind(composition.transitionKind, composition.style));
   const clips: PhotoVideoClip[] = [];
   let cursor = 0;
   for (const [index, photo] of photos.entries()) {
@@ -47,7 +53,7 @@ export function playheadAt(
 ): PhotoVideoPlayhead {
   const clips = buildPhotoVideoClips(composition, context);
   const totalSeconds = compositionDuration(composition, context).totalSeconds;
-  const transition = styleRecipe(composition.style).transition;
+  const stored = resolveTransitionKind(composition.transitionKind, composition.style);
   if (clips.length === 0 || totalSeconds <= 0) {
     return {
       timeSeconds: 0,
@@ -55,7 +61,7 @@ export function playheadAt(
       from: null,
       to: null,
       mix: 0,
-      transition,
+      transition: stored === "auto" ? "fade" : stored,
       fromProgress: 0,
       toProgress: 0,
     };
@@ -84,6 +90,10 @@ export function playheadAt(
       from = clip;
     }
   }
+  const override = composition.boundaryTransitions?.[from.index];
+  const transition = isPhotoVideoResolvedTransition(override)
+    ? override
+    : boundaryTransitionKind(composition.transitionKind, composition.style, from.index);
   if (transition === "cut") {
     mix = 0;
     to = null;

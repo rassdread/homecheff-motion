@@ -8,6 +8,7 @@ import { PhotoVideoPhotoStrip } from "@/components/photo-video/photo-video-photo
 import { PhotoVideoPreviewCanvas } from "@/components/photo-video/photo-video-preview-canvas";
 import { PhotoVideoExportProgress } from "@/components/photo-video/photo-video-export-progress";
 import { PhotoVideoPhotoInspector } from "@/components/photo-video/photo-video-photo-inspector";
+import { PhotoVideoTransitionPicker } from "@/components/photo-video/photo-video-transition-picker";
 import {
   PhotoVideoEditToolbar,
   type PhotoVideoEditPanel,
@@ -46,11 +47,11 @@ import {
   setPace,
   setPhotoMotionKind,
   setRatio,
-  setStyle,
+  setTransitionKind,
   updateTextOverlay,
   type PhotoVideoComposition,
 } from "@/lib/photo-video/composition";
-import { seekTimeForPhoto } from "@/lib/photo-video/clock";
+import { firstTransitionSeekTime, seekTimeForPhoto } from "@/lib/photo-video/clock";
 import {
   PHOTO_VIDEO_MAX_LOCAL_IMAGE_BYTES,
   PHOTO_VIDEO_MAX_PHOTOS,
@@ -58,7 +59,6 @@ import {
   PHOTO_VIDEO_PACES,
   PHOTO_VIDEO_PREVIEW_MAX_EDGE,
   PHOTO_VIDEO_RATIOS,
-  PHOTO_VIDEO_STYLES,
   PHOTO_VIDEO_ITEM_DEFAULT_RATIO,
   photoVideoDurationPresets,
   photoVideoMaxSeconds,
@@ -168,13 +168,6 @@ const MOVEMENT_LABEL: Record<PhotoVideoMovementMode, TranslationKey> = {
   auto: "px4a.movement.auto",
   none: "px4a.movement.none",
 };
-const STYLE_LABEL: Record<PhotoVideoStyle, TranslationKey> = {
-  auto: "px4a.style.auto",
-  smooth: "px4a.style.smooth",
-  calm: "px4a.style.calm",
-  energetic: "px4a.style.energetic",
-};
-
 function ChipGroup<T extends string>({
   legend,
   description,
@@ -251,6 +244,7 @@ export function PhotoVideoComposer({
   const previewDockRef = useRef<HTMLDivElement>(null);
   const previewSentinelRef = useRef<HTMLDivElement>(null);
   const [pickingMusic, setPickingMusic] = useState(false);
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportStage, setExportStage] = useState<PhotoVideoExportStage>("prepare");
   const exportingRef = useRef(false);
@@ -1101,18 +1095,24 @@ export function PhotoVideoComposer({
         }))}
       />
       </div>
+      </div>
       <div className="rounded-2xl border border-zinc-200 bg-white p-3 sm:p-4">
-      <ChipGroup
-        legend={t("px4a.style.legend")}
-        description={t("px4a.style.hint")}
-        testId="px4a-style"
-        value={composition.style}
-        onChange={(id) => setComposition((current) => setStyle(current, id, draftContext))}
-        labelFor={(id) => t(STYLE_LABEL[id])}
-        options={PHOTO_VIDEO_STYLES.map((id) => ({
-          id,
-          label: t(STYLE_LABEL[id]),
-        }))}
+      <PhotoVideoTransitionPicker
+        value={composition.transitionKind}
+        previewDisabled={!ready}
+        t={t}
+        onChange={(kind) => {
+          setComposition((current) => {
+            const next = setTransitionKind(current, kind, draftContext);
+            clockRef.current = firstTransitionSeekTime(next, draftContext);
+            return next;
+          });
+        }}
+        onPreview={() => {
+          clockRef.current = firstTransitionSeekTime(composition, draftContext);
+          if (!playing) trackPhotoVideoFunnelEvent("photo_video_preview_started");
+          setPlaying(true);
+        }}
       />
       </div>
       <div className="rounded-2xl border border-zinc-200 bg-white p-3 sm:p-4">
@@ -1129,7 +1129,6 @@ export function PhotoVideoComposer({
         }))}
       />
       </div>
-      </div>
 
       <fieldset className="space-y-2 rounded-2xl border border-zinc-200 bg-white p-3 sm:p-4" data-testid="px4a-audio">
         <legend className="text-sm font-semibold text-zinc-900">{t("px4a.audio.legend")}</legend>
@@ -1137,14 +1136,15 @@ export function PhotoVideoComposer({
           <button
             type="button"
             data-testid="px4a-audio-none"
-            aria-pressed={composition.audio.kind === "none" && !pickingMusic}
+            aria-pressed={composition.audio.kind === "none" && !pickingMusic && !catalogOpen}
             className={`min-h-11 rounded-full border px-4 text-sm font-medium ${
-              composition.audio.kind === "none" && !pickingMusic
+              composition.audio.kind === "none" && !pickingMusic && !catalogOpen
                 ? "border-[#006D52] bg-[#006D52] text-white"
                 : "border-zinc-200 bg-white text-zinc-800"
             }`}
             onClick={() => {
               setPickingMusic(false);
+              setCatalogOpen(false);
               audioBlobRef.current = null;
               setComposition((current) => {
                 if (current.audio.kind === "ownMusic") revokePhotoVideoObjectUrl(current.audio.objectUrl);
@@ -1161,11 +1161,33 @@ export function PhotoVideoComposer({
             className={`min-h-11 rounded-full border px-4 text-sm font-medium ${
               showMusic ? "border-[#006D52] bg-[#006D52] text-white" : "border-zinc-200 bg-white text-zinc-800"
             }`}
-            onClick={() => setPickingMusic(true)}
+            onClick={() => {
+              setCatalogOpen(false);
+              setPickingMusic(true);
+            }}
           >
             {t("px4a.audio.own")}
           </button>
+          <button
+            type="button"
+            data-testid="px4a-audio-catalog"
+            aria-pressed={catalogOpen}
+            className={`min-h-11 rounded-full border px-4 text-sm font-medium ${
+              catalogOpen ? "border-[#006D52] bg-[#006D52] text-white" : "border-zinc-200 bg-white text-zinc-800"
+            }`}
+            onClick={() => {
+              setPickingMusic(false);
+              setCatalogOpen(true);
+            }}
+          >
+            {t("px4a.audio.catalog")}
+          </button>
         </div>
+        {catalogOpen ? (
+          <p className="text-sm text-zinc-600" data-testid="px4a-audio-catalog-empty">
+            {t("px4a.audio.catalogEmpty")}
+          </p>
+        ) : null}
         {showMusic ? (
           <PhotoVideoMusicPanel
             composition={composition}
