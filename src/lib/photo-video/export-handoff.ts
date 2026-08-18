@@ -1,24 +1,24 @@
 /**
- * PX.4A.4 / PX.4A.5 seam — HomeCheff listing video attach contract.
- * 4A.4 defines the types. 4A.5 owns certified MP4 production.
- *
- * HomeCheff VideoUploader already accepts { url, thumbnail, duration }.
- * Once 4A.5 yields a File, reuse the existing upload pipeline unchanged.
+ * PX.4A.5 — HomeCheff listing video attach contract.
+ * Local export yields a File; binary never travels in query/SSO/HMAC/cookies.
+ * HMAC carries only an HTTPS blob URL after authenticated upload.
  */
 
 import type { PhotoVideoContext } from "@/lib/photo-video/constants";
+import { HOMECHEFF_VIDEO_MAX_BYTES } from "@/lib/photo-video/encode-capability";
 import { photoVideoMaxSeconds } from "@/lib/photo-video/constants";
 import type { PhotoVideoComposition } from "@/lib/photo-video/composition";
 import { compositionDuration } from "@/lib/photo-video/composition";
 
-export const PHOTO_VIDEO_EXPORT_MAX_BYTES = 50 * 1024 * 1024;
+export const PHOTO_VIDEO_EXPORT_MAX_BYTES = HOMECHEFF_VIDEO_MAX_BYTES;
 export const PHOTO_VIDEO_EXPORT_ACCEPT = ["video/mp4", "video/quicktime", "video/x-m4v"] as const;
+/** Temporary Studio Blob lifetime for the HMAC handoff URL. Not the listing copy. */
+export const PHOTO_VIDEO_EXPORT_BLOB_TTL_SEC = 20 * 60;
 
-export type PhotoVideoExportStatus = "not_certified" | "ready" | "failed";
+export type PhotoVideoExportStatus = "ready" | "failed";
 
 export type PhotoVideoExportRequest = {
   composition: PhotoVideoComposition;
-  /** Canonical total duration for the future encoder. */
   durationSeconds: number;
   target: {
     maxSeconds: number;
@@ -29,21 +29,11 @@ export type PhotoVideoExportRequest = {
   };
 };
 
-export type PhotoVideoExportResult =
-  | {
-      ok: true;
-      status: "ready";
-      mimeType: "video/mp4";
-      durationSeconds: number;
-      byteLength: number;
-      /** Present only after PX.4A.5 certification. */
-      file?: File;
-    }
-  | {
-      ok: false;
-      status: "not_certified" | "failed";
-      reason: "safari_mux_uncertified" | "duration" | "encode" | "unsupported";
-    };
+export type ListingVideoRef = {
+  url: string;
+  thumbnail?: string | null;
+  duration?: number | null;
+};
 
 export function photoVideoExportRequestFrom(
   composition: PhotoVideoComposition,
@@ -71,13 +61,20 @@ export function canAttemptPhotoVideoExport(
   return !duration.exceedsMax && duration.totalSeconds > 0;
 }
 
-/** 4A.4: never claim a Production-ready File. 4A.5 replaces this. */
-export function featureGatedPhotoVideoExport(
-  composition: PhotoVideoComposition,
-  context: PhotoVideoContext = "homecheff-item"
-): PhotoVideoExportResult {
-  if (!canAttemptPhotoVideoExport(composition, context)) {
-    return { ok: false, status: "failed", reason: "duration" };
-  }
-  return { ok: false, status: "not_certified", reason: "safari_mux_uncertified" };
+/**
+ * Transactional one-video replace: old video stays until the generated file
+ * is validated and the HomeCheff handoff succeeds.
+ */
+export function nextListingVideoAfterExport(input: {
+  existing: ListingVideoRef | null;
+  cancelled: boolean;
+  exportOk: boolean;
+  generated: ListingVideoRef | null;
+}): ListingVideoRef | null {
+  if (input.cancelled || !input.exportOk || !input.generated?.url) return input.existing;
+  return input.generated;
+}
+
+export function exportBusyGuard(busy: boolean): "ok" | "busy" {
+  return busy ? "busy" : "ok";
 }

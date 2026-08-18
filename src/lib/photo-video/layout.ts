@@ -3,14 +3,19 @@ import { PHOTO_VIDEO_PREVIEW_MAX_EDGE } from "@/lib/photo-video/constants";
 
 export type CanvasSize = { width: number; height: number };
 
+function evenPx(value: number): number {
+  return Math.max(2, value - (value % 2));
+}
+
 export function canvasSizeForRatio(ratio: PhotoVideoRatio, maxEdge = PHOTO_VIDEO_PREVIEW_MAX_EDGE): CanvasSize {
   if (ratio === "9:16") {
-    return { width: Math.round((maxEdge * 9) / 16), height: maxEdge };
+    return { width: evenPx(Math.round((maxEdge * 9) / 16)), height: evenPx(maxEdge) };
   }
   if (ratio === "16:9") {
-    return { width: maxEdge, height: Math.round((maxEdge * 9) / 16) };
+    return { width: evenPx(maxEdge), height: evenPx(Math.round((maxEdge * 9) / 16)) };
   }
-  return { width: maxEdge, height: maxEdge };
+  const edge = evenPx(maxEdge);
+  return { width: edge, height: edge };
 }
 
 /**

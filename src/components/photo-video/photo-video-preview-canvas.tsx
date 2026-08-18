@@ -3,174 +3,16 @@
 import { useEffect, useRef, type MutableRefObject, type PointerEvent as ReactPointerEvent } from "react";
 import type { PhotoVideoComposition } from "@/lib/photo-video/composition";
 import { compositionDuration, includedPhotos, isCompositionPreviewReady } from "@/lib/photo-video/composition";
-import { wrapCompositionTime, activePhotoIdAt } from "@/lib/photo-video/clock";
-import { PHOTO_VIDEO_WATERMARK_SRC } from "@/lib/photo-video/constants";
-import { canvasSizeForRatio, coverFitRect, safeZones } from "@/lib/photo-video/layout";
-import { sampleLocalMotion } from "@/lib/photo-video/motion";
-import { styleRecipe } from "@/lib/photo-video/styles";
-import { motionKindForClip, playheadAt } from "@/lib/photo-video/timeline";
+import { wrapCompositionTime } from "@/lib/photo-video/clock";
+import { PHOTO_VIDEO_WATERMARK_SRC, type PhotoVideoContext } from "@/lib/photo-video/constants";
+import { canvasSizeForRatio } from "@/lib/photo-video/layout";
+import { clientPointToNormalized, hitTestLayouts } from "@/lib/photo-video/text-overlay";
 import {
-  canvasFontShorthand,
-  clientPointToNormalized,
-  fontSizePx,
-  hitTestLayouts,
-  overlayVisibleForPhoto,
-  type OverlayBox,
-  type PhotoVideoTextOverlay,
-} from "@/lib/photo-video/text-overlay";
-
-type ImageCache = Map<string, HTMLImageElement>;
-type OverlayLayout = { id: string } & OverlayBox;
-
-function drawCoverImage(
-  ctx: CanvasRenderingContext2D,
-  image: HTMLImageElement,
-  canvasW: number,
-  canvasH: number,
-  zoom: number,
-  panX: number,
-  panY: number,
-  alpha: number
-) {
-  const rect = coverFitRect({
-    imageWidth: image.naturalWidth || image.width,
-    imageHeight: image.naturalHeight || image.height,
-    canvasWidth: canvasW,
-    canvasHeight: canvasH,
-    zoom,
-    panX,
-    panY,
-  });
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.drawImage(image, rect.sx, rect.sy, rect.sw, rect.sh, rect.dx, rect.dy, rect.dw, rect.dh);
-  ctx.restore();
-}
-
-function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return [];
-  const lines: string[] = [];
-  let current = words[0]!;
-  for (const word of words.slice(1)) {
-    const trial = `${current} ${word}`;
-    if (ctx.measureText(trial).width <= maxWidth) current = trial;
-    else {
-      lines.push(current);
-      current = word;
-    }
-  }
-  lines.push(current);
-  return lines.slice(0, 3);
-}
-
-function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  const radius = Math.min(r, w / 2, h / 2);
-  ctx.beginPath();
-  if (typeof ctx.roundRect === "function") {
-    ctx.roundRect(x, y, w, h, radius);
-    return;
-  }
-  ctx.rect(x, y, w, h);
-}
-
-function drawOverlay(
-  ctx: CanvasRenderingContext2D,
-  overlay: PhotoVideoTextOverlay,
-  canvasW: number,
-  canvasH: number,
-  selected: boolean,
-  placeholder: string
-): OverlayLayout {
-  const minEdge = Math.min(canvasW, canvasH);
-  const fontPx = fontSizePx(overlay.size, minEdge);
-  ctx.save();
-  ctx.font = canvasFontShorthand(overlay.font, fontPx);
-  ctx.textAlign = overlay.align;
-  ctx.textBaseline = "middle";
-  const source = overlay.text.trim() ? overlay.text : placeholder;
-  const lines = wrapText(ctx, source, canvasW * 0.78);
-  const display = lines.length ? lines : [placeholder];
-  const lineH = fontPx * 1.2;
-  const textW = Math.max(...display.map((line) => ctx.measureText(line).width), fontPx * 1.2);
-  const textH = display.length * lineH;
-  const padX = overlay.background === "none" ? fontPx * 0.12 : fontPx * 0.38;
-  const padY = overlay.background === "none" ? fontPx * 0.08 : fontPx * 0.22;
-  const boxW = textW + padX * 2;
-  const boxH = textH + padY * 2;
-  const cx = overlay.x * canvasW;
-  const cy = overlay.y * canvasH;
-  let left = cx - boxW / 2;
-  if (overlay.align === "left") left = cx - padX;
-  if (overlay.align === "right") left = cx - boxW + padX;
-  const top = cy - boxH / 2;
-
-  if (overlay.background !== "none") {
-    ctx.fillStyle = overlay.background === "dark" ? "rgba(4, 20, 40, 0.55)" : "rgba(255, 255, 255, 0.78)";
-    roundRectPath(ctx, left, top, boxW, boxH, fontPx * 0.28);
-    ctx.fill();
-  }
-
-  ctx.shadowColor = overlay.color === "#FFFFFF" || overlay.background === "light" ? "rgba(0,0,0,0.55)" : "rgba(0,0,0,0.25)";
-  ctx.shadowBlur = 6;
-  ctx.fillStyle = overlay.text.trim() ? overlay.color : "rgba(255,255,255,0.7)";
-  display.forEach((line, i) => {
-    const ly = top + padY + lineH * i + lineH / 2;
-    ctx.fillText(line, cx, ly, canvasW * 0.78);
-  });
-  ctx.shadowBlur = 0;
-  if (selected) {
-    ctx.strokeStyle = "#006D52";
-    ctx.lineWidth = Math.max(2, minEdge * 0.006);
-    roundRectPath(ctx, left - 3, top - 3, boxW + 6, boxH + 6, fontPx * 0.3);
-    ctx.stroke();
-  }
-  ctx.restore();
-  return { id: overlay.id, x: left - 4, y: top - 4, width: boxW + 8, height: boxH + 8 };
-}
-
-function drawWatermark(
-  ctx: CanvasRenderingContext2D,
-  mark: HTMLImageElement,
-  zone: { x: number; y: number; size: number; width: number }
-) {
-  ctx.save();
-  const r = Math.max(8, zone.size * 0.22);
-  ctx.beginPath();
-  if (typeof ctx.roundRect === "function") {
-    ctx.roundRect(zone.x, zone.y, zone.width, zone.size, r);
-  } else {
-    ctx.rect(zone.x, zone.y, zone.width, zone.size);
-  }
-  ctx.fillStyle = "rgba(4, 20, 40, 0.48)";
-  ctx.fill();
-  const inset = zone.size * 0.14;
-  const globe = zone.size - inset * 2;
-  ctx.drawImage(mark, zone.x + inset, zone.y + inset, globe, globe);
-  const textX = zone.x + inset + globe + zone.size * 0.12;
-  const textY = zone.y + zone.size * 0.62;
-  ctx.fillStyle = "rgba(255,255,255,0.92)";
-  ctx.font = `600 ${Math.max(9, zone.size * 0.28)}px ui-sans-serif, system-ui, sans-serif`;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "middle";
-  ctx.fillText("HomeCheff Studio", textX, textY, zone.width - globe - inset * 3);
-  ctx.restore();
-}
-
-function loadImage(src: string, cache: ImageCache): Promise<HTMLImageElement> {
-  const hit = cache.get(src);
-  if (hit?.complete && hit.naturalWidth > 0) return Promise.resolve(hit);
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.decoding = "async";
-    img.onload = () => {
-      cache.set(src, img);
-      resolve(img);
-    };
-    img.onerror = () => reject(new Error("image load failed"));
-    img.src = src;
-  });
-}
+  drawPhotoVideoFrame,
+  loadPhotoVideoImage,
+  type OverlayLayout,
+  type PhotoVideoImageCache,
+} from "@/lib/photo-video/render-frame";
 
 export function PhotoVideoPreviewCanvas({
   composition,
@@ -178,6 +20,7 @@ export function PhotoVideoPreviewCanvas({
   clockRef,
   selectedOverlayId,
   placeholderText,
+  context = "studio",
   onSelectOverlay,
   onMoveOverlay,
 }: {
@@ -186,11 +29,12 @@ export function PhotoVideoPreviewCanvas({
   clockRef: MutableRefObject<number>;
   selectedOverlayId: string | null;
   placeholderText: string;
+  context?: PhotoVideoContext;
   onSelectOverlay: (id: string | null) => void;
   onMoveOverlay: (id: string, x: number, y: number) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const cacheRef = useRef<ImageCache>(new Map());
+  const cacheRef = useRef<PhotoVideoImageCache>(new Map());
   const watermarkRef = useRef<HTMLImageElement | null>(null);
   const compositionRef = useRef(composition);
   const playingRef = useRef(playing);
@@ -207,6 +51,7 @@ export function PhotoVideoPreviewCanvas({
   const moveRef = useRef(onMoveOverlay);
   const selectRef = useRef(onSelectOverlay);
   const placeholderRef = useRef(placeholderText);
+  const contextRef = useRef(context);
   const size = canvasSizeForRatio(composition.ratio);
 
   useEffect(() => {
@@ -216,7 +61,8 @@ export function PhotoVideoPreviewCanvas({
     moveRef.current = onMoveOverlay;
     selectRef.current = onSelectOverlay;
     placeholderRef.current = placeholderText;
-  }, [composition, playing, selectedOverlayId, onMoveOverlay, onSelectOverlay, placeholderText]);
+    contextRef.current = context;
+  }, [composition, playing, selectedOverlayId, onMoveOverlay, onSelectOverlay, placeholderText, context]);
 
   useEffect(() => {
     clockRef.current = 0;
@@ -225,12 +71,12 @@ export function PhotoVideoPreviewCanvas({
   useEffect(() => {
     const cache = cacheRef.current;
     const urls = includedPhotos(composition).map((photo) => photo.previewUrl);
-    void Promise.all(urls.map((url) => loadImage(url, cache).catch(() => null)));
+    void Promise.all(urls.map((url) => loadPhotoVideoImage(url, cache).catch(() => null)));
   }, [composition]);
 
   useEffect(() => {
     let cancelled = false;
-    void loadImage(PHOTO_VIDEO_WATERMARK_SRC, cacheRef.current)
+    void loadPhotoVideoImage(PHOTO_VIDEO_WATERMARK_SRC, cacheRef.current)
       .then((img) => {
         if (!cancelled) watermarkRef.current = img;
       })
@@ -248,8 +94,9 @@ export function PhotoVideoPreviewCanvas({
     let raf = 0;
     const paint = (ts: number) => {
       const current = compositionRef.current;
-      const total = compositionDuration(current).totalSeconds;
-      if (playingRef.current && isCompositionPreviewReady(current)) {
+      const draftContext = contextRef.current;
+      const total = compositionDuration(current, draftContext).totalSeconds;
+      if (playingRef.current && isCompositionPreviewReady(current, draftContext)) {
         const last = lastTsRef.current;
         if (last != null) {
           clockRef.current += (ts - last) / 1000;
@@ -257,51 +104,17 @@ export function PhotoVideoPreviewCanvas({
       }
       lastTsRef.current = ts;
       clockRef.current = wrapCompositionTime(clockRef.current, total);
-      const w = canvas.width;
-      const h = canvas.height;
-      ctx.fillStyle = "#041428";
-      ctx.fillRect(0, 0, w, h);
-      const layouts: OverlayLayout[] = [];
-      if (!isCompositionPreviewReady(current)) {
-        ctx.fillStyle = "rgba(255,255,255,0.35)";
-        ctx.fillRect(0, 0, w, h);
-      } else {
-        const head = playheadAt(current, clockRef.current);
-        const recipe = styleRecipe(current.style);
-        const paintClip = (
-          clip: NonNullable<typeof head.from>,
-          progress: number,
-          alpha: number
-        ) => {
-          const image = cacheRef.current.get(clip.photo.previewUrl);
-          if (!image) return;
-          const motion = sampleLocalMotion(
-            motionKindForClip(current, clip),
-            progress,
-            recipe.motionStrength
-          );
-          drawCoverImage(ctx, image, w, h, motion.zoom, motion.panX, motion.panY, alpha);
-        };
-        if (head.from) paintClip(head.from, head.fromProgress, 1);
-        if (head.to && head.mix > 0) paintClip(head.to, head.toProgress, head.mix);
-        const activePhotoId = activePhotoIdAt(current, clockRef.current);
-        for (const overlay of current.overlays) {
-          if (!overlayVisibleForPhoto(overlay, activePhotoId)) continue;
-          layouts.push(
-            drawOverlay(
-              ctx,
-              overlay,
-              w,
-              h,
-              overlay.id === selectedRef.current,
-              placeholderRef.current
-            )
-          );
-        }
-        const zones = safeZones({ width: w, height: h });
-        if (watermarkRef.current) drawWatermark(ctx, watermarkRef.current, zones.watermark);
-      }
-      layoutsRef.current = layouts;
+      layoutsRef.current = drawPhotoVideoFrame({
+        ctx,
+        composition: current,
+        context: draftContext,
+        timeSeconds: clockRef.current,
+        images: cacheRef.current,
+        watermark: watermarkRef.current,
+        selectedOverlayId: selectedRef.current,
+        placeholderText: placeholderRef.current,
+        drawSelection: true,
+      });
       raf = window.requestAnimationFrame(paint);
     };
     raf = window.requestAnimationFrame(paint);

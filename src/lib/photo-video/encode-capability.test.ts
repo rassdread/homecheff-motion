@@ -141,6 +141,8 @@ describe("PX.4A.1 encode plan + isolation", () => {
     assert.match(composer, /photo-video-music-panel/);
     assert.doesNotMatch(composer, /decodeAudioData|AudioContext/);
     assert.doesNotMatch(home, /photo-video-music-panel|decodeAudioData/);
+    const dashboard = read(join(ROOT, "src/components/studio/studio-home-dashboard.tsx"));
+    assert.doesNotMatch(dashboard, /export-local|mediabunny/);
   });
 
   it("lazy-loads the HomeCheff item creator and hides Studio chrome", () => {
@@ -148,6 +150,7 @@ describe("PX.4A.1 encode plan + isolation", () => {
     const composer = read(join(ROOT, "src/components/photo-video/photo-video-composer.tsx"));
     const chrome = read(join(ROOT, "src/components/layout/app-shell-chrome.tsx"));
     const preview = read(join(ROOT, "src/components/photo-video/photo-video-preview-canvas.tsx"));
+    const render = read(join(ROOT, "src/lib/photo-video/render-frame.ts"));
     assert.match(fromItem, /next\/dynamic/);
     assert.match(fromItem, /ssr:\s*false/);
     assert.match(fromItem, /mode=\"homecheff-item\"/);
@@ -155,11 +158,14 @@ describe("PX.4A.1 encode plan + isolation", () => {
     assert.match(composer, /PHOTO_VIDEO_ITEM_DEFAULT_RATIO/);
     assert.match(composer, /px4a-item-back/);
     assert.match(composer, /px4a-item-finish-hint/);
-    assert.doesNotMatch(composer, /Video toegevoegd|Download MP4|Download klaar/i);
+    assert.match(composer, /px4a-export-download/);
+    assert.match(composer, /export-local/);
+    assert.doesNotMatch(composer, /from [\"']mediabunny[\"']/);
     assert.doesNotMatch(composer, /koop credits|upgrade nu/);
     assert.match(chrome, /isPx4aItemCreatorPath/);
     assert.match(chrome, /px4a-item-shell/);
-    assert.match(preview, /HomeCheff Studio/);
+    assert.match(preview, /drawPhotoVideoFrame/);
+    assert.match(render, /HomeCheff Studio/);
   });
 
   it("does not sell credits inside the free composer", () => {

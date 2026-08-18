@@ -51,3 +51,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# PX.4A human Production certification (local Chrome profile + live evidence)
+.px4a4-chrome-profile/
+.px4a5-chrome-profile/
+docs/audits/px4a4-human-cert/
+e2e/.generated/
