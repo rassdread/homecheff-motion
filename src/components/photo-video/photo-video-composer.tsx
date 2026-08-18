@@ -7,7 +7,7 @@ import { PhotoVideoAuthGate } from "@/components/photo-video/photo-video-auth-ga
 import { PhotoVideoPhotoStrip } from "@/components/photo-video/photo-video-photo-strip";
 import { PhotoVideoPreviewCanvas } from "@/components/photo-video/photo-video-preview-canvas";
 import { PhotoVideoExportProgress } from "@/components/photo-video/photo-video-export-progress";
-import { PhotoVideoTextControls } from "@/components/photo-video/photo-video-text-controls";
+import { PhotoVideoPhotoInspector } from "@/components/photo-video/photo-video-photo-inspector";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
 import {
@@ -81,7 +81,6 @@ import type { PhotoVideoExportStage } from "@/lib/photo-video/export-settings";
 import type { PhotoVideoExportFailReason } from "@/lib/photo-video/export-validate";
 import { withItemReturnResult } from "@/lib/photo-video/item-handoff";
 import { trackPhotoVideoFunnelEvent } from "@/lib/photo-video/funnel-analytics";
-import { PHOTO_VIDEO_USER_MOTION_KINDS, type PhotoVideoUserMotionKind } from "@/lib/photo-video/styles";
 import { revokePhotoVideoObjectUrl } from "@/lib/photo-video/object-url";
 import { nudgeOverlay } from "@/lib/photo-video/text-overlay";
 import type { PhotoVideoOwnMusic } from "@/lib/photo-video/audio";
@@ -165,16 +164,6 @@ const MOVEMENT_LABEL: Record<PhotoVideoMovementMode, TranslationKey> = {
   auto: "px4a.movement.auto",
   none: "px4a.movement.none",
 };
-const PHOTO_MOTION_LABEL: Record<PhotoVideoUserMotionKind, TranslationKey> = {
-  auto: "px4a.movement.auto",
-  none: "px4a.movement.none",
-  "zoom-in": "px4a.movement.zoomIn",
-  "zoom-out": "px4a.movement.zoomOut",
-  "pan-left": "px4a.movement.panLeft",
-  "pan-right": "px4a.movement.panRight",
-  "pan-up": "px4a.movement.panUp",
-  "pan-down": "px4a.movement.panDown",
-};
 const STYLE_LABEL: Record<PhotoVideoStyle, TranslationKey> = {
   auto: "px4a.style.auto",
   smooth: "px4a.style.smooth",
@@ -254,7 +243,6 @@ export function PhotoVideoComposer({
   const [exportStage, setExportStage] = useState<PhotoVideoExportStage>("prepare");
   const exportingRef = useRef(false);
   const exportAbortRef = useRef<AbortController | null>(null);
-  const [showAdvancedMovement, setShowAdvancedMovement] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
   const [resumeOffer, setResumeOffer] = useState(false);
   const [restoreNotice, setRestoreNotice] = useState(false);
@@ -455,10 +443,12 @@ export function PhotoVideoComposer({
         if (last) {
           setSelectedPhotoId(last.id);
           setSelectedOverlayId(null);
+          clockRef.current = seekTimeForPhoto(current, last.id, draftContext);
+          setPlaying(false);
         }
       }
     },
-    [composition, t, draftContext, setError, setComposition, setSelectedOverlayId]
+    [composition, t, draftContext, setError, setComposition, setSelectedOverlayId, setPlaying]
   );
 
   const persistDraft = useCallback(
@@ -743,6 +733,7 @@ export function PhotoVideoComposer({
         </div>
       ) : null}
 
+      <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
       <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white p-3 sm:p-4">
         <PhotoVideoPreviewCanvas
           composition={composition}
@@ -795,6 +786,125 @@ export function PhotoVideoComposer({
           </button>
         </div>
         {!ready ? <p className="mt-2 text-sm text-zinc-600">{t("px4a.preview.needPhotos")}</p> : null}
+      </div>
+
+      <div className="min-w-0 space-y-4">
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold text-zinc-900">
+          {itemJourney ? t("px4a.item.photos") : t("px4a.photos.title")}
+        </h2>
+        <p className="text-sm text-zinc-600">
+          {itemJourney
+            ? t("px4a.item.photosHint")
+            : t("px4a.photos.hint", { min: PHOTO_VIDEO_MIN_PHOTOS, max: PHOTO_VIDEO_MAX_PHOTOS })}
+        </p>
+        {itemJourney ? <p className="text-sm text-zinc-600">{t("px4a.item.addExtra")}</p> : null}
+        <input
+          id={fileInputId}
+          data-testid="px4a-file-input"
+          type="file"
+          accept="image/*"
+          multiple
+          aria-label={`+ ${t("px4a.photos.addTile")}`}
+          disabled={!canAddPhoto(composition, 1)}
+          className="sr-only"
+          onChange={(event) => {
+            void onFiles(event.target.files);
+            event.target.value = "";
+          }}
+        />
+        <PhotoVideoPhotoStrip
+          photos={composition.photos}
+          selectedPhotoId={selectedPhotoId}
+          itemJourney={itemJourney}
+          fileInputId={fileInputId}
+          canAdd={canAddPhoto(composition, 1)}
+          onSelect={selectPhoto}
+          onReorder={(from, to) => setComposition((current) => reorderPhotos(current, from, to))}
+          onMove={(id, delta) => setComposition((current) => movePhoto(current, id, delta))}
+          onToggleIncluded={(id) =>
+            setComposition((current) => {
+              const photo = current.photos.find((item) => item.id === id);
+              if (!photo) return current;
+              return photo.included ? excludePhoto(current, id) : includePhoto(current, id, draftContext);
+            })
+          }
+          onRemove={(id) =>
+            setComposition((current) => {
+              const photo = current.photos.find((item) => item.id === id);
+              const next = removePhoto(current, id);
+              if (photo && next.photos.length < current.photos.length) {
+                if (photo.source === "LOCAL_UPLOAD") {
+                  revokePhotoVideoObjectUrl(photo.previewUrl);
+                  previewUrlsRef.current = previewUrlsRef.current.filter((url) => url !== photo.previewUrl);
+                }
+                photoBlobsRef.current.delete(id);
+              }
+              if (selectedPhotoId === id) {
+                const fallback = next.photos[0]?.id ?? null;
+                setSelectedPhotoId(fallback);
+                setSelectedOverlayId(fallback ? overlaysForPhoto(next, fallback)[0]?.id ?? null : null);
+              }
+              return next;
+            })
+          }
+        />
+        {error ? (
+          <p className="text-sm text-red-700" data-testid="px4a-export-error" role="status">
+            {error}
+          </p>
+        ) : null}
+      </section>
+
+      <PhotoVideoPhotoInspector
+        composition={composition}
+        selectedPhotoId={selectedPhotoId}
+        selectedPhotoIndex={selectedPhotoIndex}
+        selectedOverlay={selectedOverlay}
+        selectedPhotoMotion={selectedPhotoMotion}
+        onAddText={() => {
+          if (!selectedPhotoId) {
+            setError(t("px4a.text.needPhoto"));
+            return;
+          }
+          const id = newId("tx");
+          setComposition((current) => addTextForPhoto(current, { id, photoId: selectedPhotoId }));
+          setSelectedOverlayId(id);
+          clockRef.current = seekTimeForPhoto(composition, selectedPhotoId, draftContext);
+          setPlaying(false);
+          trackPhotoVideoFunnelEvent("photo_video_text_added");
+        }}
+        onSelectOverlay={(id) => {
+          setSelectedOverlayId(id);
+          setPlaying(false);
+        }}
+        onChangeText={(text) => {
+          if (!selectedOverlayId) return;
+          setComposition((current) => updateTextOverlay(current, selectedOverlayId, { text }));
+        }}
+        onDelete={() => {
+          if (!selectedOverlayId) return;
+          setComposition((current) => removeTextOverlay(current, selectedOverlayId));
+          setSelectedOverlayId(null);
+        }}
+        onFont={(font) => selectedOverlayId && setComposition((current) => setOverlayFont(current, selectedOverlayId, font))}
+        onColor={(color) => selectedOverlayId && setComposition((current) => setOverlayColor(current, selectedOverlayId, color))}
+        onSize={(size) => selectedOverlayId && setComposition((current) => setOverlaySize(current, selectedOverlayId, size))}
+        onAlign={(align) => selectedOverlayId && setComposition((current) => setOverlayAlign(current, selectedOverlayId, align))}
+        onBackground={(background) =>
+          selectedOverlayId && setComposition((current) => setOverlayBackground(current, selectedOverlayId, background))
+        }
+        onNudge={(dx, dy) => {
+          if (!selectedOverlay) return;
+          const next = nudgeOverlay(selectedOverlay, dx, dy);
+          setComposition((current) => moveTextOverlay(current, selectedOverlay.id, next.x, next.y));
+        }}
+        onMotion={(id) => {
+          if (!selectedPhotoId) return;
+          setComposition((current) => setPhotoMotionKind(current, selectedPhotoId, id === "auto" ? null : id));
+        }}
+      />
+      </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -860,74 +970,6 @@ export function PhotoVideoComposer({
         </p>
       ) : null}
 
-      <section className="space-y-3">
-        <h2 className="text-base font-semibold text-zinc-900">
-          {itemJourney ? t("px4a.item.photos") : t("px4a.photos.title")}
-        </h2>
-        <p className="text-sm text-zinc-600">
-          {itemJourney
-            ? t("px4a.item.photosHint")
-            : t("px4a.photos.hint", { min: PHOTO_VIDEO_MIN_PHOTOS, max: PHOTO_VIDEO_MAX_PHOTOS })}
-        </p>
-        <label
-          htmlFor={fileInputId}
-          className="inline-flex min-h-11 cursor-pointer items-center rounded-full bg-[#006D52] px-5 text-sm font-semibold text-white"
-        >
-          {itemJourney ? t("px4a.item.addExtra") : t("px4a.photos.add")}
-        </label>
-        <input
-          id={fileInputId}
-          data-testid="px4a-file-input"
-          type="file"
-          accept="image/*"
-          multiple
-          className="sr-only"
-          onChange={(event) => {
-            void onFiles(event.target.files);
-            event.target.value = "";
-          }}
-        />
-        <PhotoVideoPhotoStrip
-          photos={composition.photos}
-          selectedPhotoId={selectedPhotoId}
-          itemJourney={itemJourney}
-          onSelect={selectPhoto}
-          onReorder={(from, to) => setComposition((current) => reorderPhotos(current, from, to))}
-          onMove={(id, delta) => setComposition((current) => movePhoto(current, id, delta))}
-          onToggleIncluded={(id) =>
-            setComposition((current) => {
-              const photo = current.photos.find((item) => item.id === id);
-              if (!photo) return current;
-              return photo.included ? excludePhoto(current, id) : includePhoto(current, id, draftContext);
-            })
-          }
-          onRemove={(id) =>
-            setComposition((current) => {
-              const photo = current.photos.find((item) => item.id === id);
-              const next = removePhoto(current, id);
-              if (photo && next.photos.length < current.photos.length) {
-                if (photo.source === "LOCAL_UPLOAD") {
-                  revokePhotoVideoObjectUrl(photo.previewUrl);
-                  previewUrlsRef.current = previewUrlsRef.current.filter((url) => url !== photo.previewUrl);
-                }
-                photoBlobsRef.current.delete(id);
-              }
-              if (selectedPhotoId === id) {
-                const fallback = next.photos[0]?.id ?? null;
-                setSelectedPhotoId(fallback);
-                setSelectedOverlayId(fallback ? overlaysForPhoto(next, fallback)[0]?.id ?? null : null);
-              }
-              return next;
-            })
-          }
-        />
-        {error ? (
-          <p className="text-sm text-red-700" data-testid="px4a-export-error" role="status">
-            {error}
-          </p>
-        ) : null}
-      </section>
-
       <ChipGroup
         legend={t("px4a.ratio.legend")}
         testId="px4a-ratio"
@@ -972,7 +1014,7 @@ export function PhotoVideoComposer({
       ) : null}
 
       <ChipGroup
-        legend={t("px4a.movement.legend")}
+        legend={t("px4a.movement.global")}
         testId="px4a-movement"
         value={composition.movementMode}
         onChange={(id) => setComposition((current) => setMovementMode(current, id))}
@@ -982,35 +1024,6 @@ export function PhotoVideoComposer({
           label: t(MOVEMENT_LABEL[id]),
         }))}
       />
-
-      <div className="space-y-2">
-        <button
-          type="button"
-          data-testid="px4a-movement-advanced-toggle"
-          className="min-h-11 text-sm font-semibold text-[#006D52]"
-          aria-expanded={showAdvancedMovement}
-          onClick={() => setShowAdvancedMovement((value) => !value)}
-        >
-          {t("px4a.movement.more")}
-        </button>
-        {showAdvancedMovement && selectedPhotoId ? (
-          <ChipGroup
-            legend={t("px4a.movement.forPhoto", { n: selectedPhotoIndex + 1 })}
-            testId="px4a-movement-photo"
-            value={selectedPhotoMotion}
-            onChange={(id) =>
-              setComposition((current) =>
-                setPhotoMotionKind(current, selectedPhotoId, id === "auto" ? null : id)
-              )
-            }
-            labelFor={(id) => t(PHOTO_MOTION_LABEL[id])}
-            options={PHOTO_VIDEO_USER_MOTION_KINDS.map((id) => ({
-              id,
-              label: t(PHOTO_MOTION_LABEL[id]),
-            }))}
-          />
-        ) : null}
-      </div>
 
       <ChipGroup
         legend={t("px4a.pace.legend")}
@@ -1034,50 +1047,6 @@ export function PhotoVideoComposer({
           id,
           label: t(STYLE_LABEL[id]),
         }))}
-      />
-
-      <PhotoVideoTextControls
-        composition={composition}
-        selectedPhotoId={selectedPhotoId}
-        selectedPhotoIndex={selectedPhotoIndex}
-        selectedOverlay={selectedOverlay}
-        onAdd={() => {
-          if (!selectedPhotoId) {
-            setError(t("px4a.text.needPhoto"));
-            return;
-          }
-          const id = newId("tx");
-          setComposition((current) => addTextForPhoto(current, { id, photoId: selectedPhotoId }));
-          setSelectedOverlayId(id);
-                  clockRef.current = seekTimeForPhoto(composition, selectedPhotoId, draftContext);
-          setPlaying(false);
-          trackPhotoVideoFunnelEvent("photo_video_text_added");
-        }}
-        onSelectOverlay={(id) => {
-          setSelectedOverlayId(id);
-          setPlaying(false);
-        }}
-        onChangeText={(text) => {
-          if (!selectedOverlayId) return;
-          setComposition((current) => updateTextOverlay(current, selectedOverlayId, { text }));
-        }}
-        onDelete={() => {
-          if (!selectedOverlayId) return;
-          setComposition((current) => removeTextOverlay(current, selectedOverlayId));
-          setSelectedOverlayId(null);
-        }}
-        onFont={(font) => selectedOverlayId && setComposition((current) => setOverlayFont(current, selectedOverlayId, font))}
-        onColor={(color) => selectedOverlayId && setComposition((current) => setOverlayColor(current, selectedOverlayId, color))}
-        onSize={(size) => selectedOverlayId && setComposition((current) => setOverlaySize(current, selectedOverlayId, size))}
-        onAlign={(align) => selectedOverlayId && setComposition((current) => setOverlayAlign(current, selectedOverlayId, align))}
-        onBackground={(background) =>
-          selectedOverlayId && setComposition((current) => setOverlayBackground(current, selectedOverlayId, background))
-        }
-        onNudge={(dx, dy) => {
-          if (!selectedOverlay) return;
-          const next = nudgeOverlay(selectedOverlay, dx, dy);
-          setComposition((current) => moveTextOverlay(current, selectedOverlay.id, next.x, next.y));
-        }}
       />
 
       <fieldset className="space-y-2" data-testid="px4a-audio">

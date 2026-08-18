@@ -63,6 +63,7 @@ function SortableThumb({
         <button
           type="button"
           aria-pressed={selected}
+          aria-current={selected ? "true" : undefined}
           aria-label={t("px4a.photo.select", { n: index + 1 })}
           onClick={() => onSelect(photo.id)}
           className={`relative h-24 w-[5.5rem] overflow-hidden rounded-xl border bg-zinc-100 ${
@@ -129,6 +130,38 @@ function SortableThumb({
   );
 }
 
+function AddPhotoTile({
+  fileInputId,
+  disabled,
+}: {
+  fileInputId: string;
+  disabled: boolean;
+}) {
+  const t = useActiveTranslator();
+  const label = `+ ${t("px4a.photos.addTile")}`;
+  return (
+    <li className="flex w-[5.5rem] shrink-0 flex-col gap-1" data-testid="px4a-add-photo-tile">
+      <button
+        type="button"
+        disabled={disabled}
+        aria-label={label}
+        className={`flex h-24 min-h-11 w-[5.5rem] flex-col items-center justify-center rounded-xl border border-dashed border-[#006D52] bg-[#006D52]/8 px-1 text-center text-xs font-semibold leading-tight text-[#006D52] ${
+          disabled ? "cursor-not-allowed opacity-40" : ""
+        }`}
+        onClick={() => {
+          const input = document.getElementById(fileInputId);
+          if (input instanceof HTMLInputElement) input.click();
+        }}
+      >
+        <span aria-hidden="true" className="text-lg leading-none">
+          +
+        </span>
+        <span>{t("px4a.photos.addTile")}</span>
+      </button>
+    </li>
+  );
+}
+
 export function PhotoVideoPhotoStrip({
   photos,
   selectedPhotoId,
@@ -138,6 +171,8 @@ export function PhotoVideoPhotoStrip({
   onRemove,
   itemJourney = false,
   onToggleIncluded,
+  fileInputId,
+  canAdd = false,
 }: {
   photos: PhotoVideoPhoto[];
   selectedPhotoId: string | null;
@@ -147,6 +182,8 @@ export function PhotoVideoPhotoStrip({
   onRemove: (id: string) => void;
   itemJourney?: boolean;
   onToggleIncluded?: (id: string) => void;
+  fileInputId: string;
+  canAdd?: boolean;
 }) {
   const t = useActiveTranslator();
   const sensors = useSensors(
@@ -165,7 +202,14 @@ export function PhotoVideoPhotoStrip({
   };
 
   if (photos.length === 0) {
-    return <p className="text-sm text-zinc-600">{t("px4a.photos.empty")}</p>;
+    return (
+      <div className="space-y-2">
+        <p className="text-sm text-zinc-600">{t("px4a.photos.empty")}</p>
+        <ul className="flex gap-3 overflow-x-auto pb-2" data-testid="px4a-photo-strip">
+          <AddPhotoTile fileInputId={fileInputId} disabled={!canAdd} />
+        </ul>
+      </div>
+    );
   }
 
   return (
@@ -187,6 +231,7 @@ export function PhotoVideoPhotoStrip({
               canMoveRight={index < photos.length - 1}
             />
           ))}
+          <AddPhotoTile fileInputId={fileInputId} disabled={!canAdd} />
         </ul>
       </SortableContext>
     </DndContext>

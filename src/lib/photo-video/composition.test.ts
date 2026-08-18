@@ -103,6 +103,7 @@ describe("PX.4A.1 composition model", () => {
     const local = nPhotos(2);
     let c = addPhotos(createPhotoVideoComposition(), [listing, ...local]);
     assert.equal(c.photos[0]?.source, "HOME_CHEFF_LISTING");
+    assert.equal(c.photos[1]?.source, "LOCAL_UPLOAD");
     c = excludePhoto(c, "l1");
     assert.equal(c.photos[0]?.included, false);
     assert.equal(c.photos[0]?.listingUrl, "https://example.com/a.jpg");
@@ -219,5 +220,22 @@ describe("PX.4A.1 composition model", () => {
     assert.equal(c.movementMode, "none");
     c = setPhotoMotionKind(c, "p0", "zoom-in");
     assert.equal(c.photos[0]?.motionKind, "zoom-in");
+  });
+
+  it("keeps overlay text and motion on the edited photo only", () => {
+    let c = addPhotos(createPhotoVideoComposition(), nPhotos(3));
+    c = addTextForPhoto(c, { id: "t0", photoId: "p0", text: "ALPHA" });
+    c = addTextForPhoto(c, { id: "t1", photoId: "p1", text: "BETA" });
+    c = setPhotoMotionKind(c, "p1", "pan-left");
+    c = setPhotoMotionKind(c, "p2", "zoom-out");
+    assert.equal(overlaysForPhoto(c, "p0")[0]?.text, "ALPHA");
+    assert.equal(overlaysForPhoto(c, "p1")[0]?.text, "BETA");
+    assert.equal(overlaysForPhoto(c, "p2").length, 0);
+    assert.equal(c.photos[0]?.motionKind ?? "auto", "auto");
+    assert.equal(c.photos[1]?.motionKind, "pan-left");
+    assert.equal(c.photos[2]?.motionKind, "zoom-out");
+    c = updateTextOverlay(c, "t0", { text: "ALPHA2" });
+    assert.equal(overlaysForPhoto(c, "p1")[0]?.text, "BETA");
+    assert.equal(overlaysForPhoto(c, "p0")[0]?.text, "ALPHA2");
   });
 });
