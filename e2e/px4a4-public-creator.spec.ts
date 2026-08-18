@@ -60,6 +60,32 @@ test.describe("PX.4A.4 public compositor certification", () => {
     expect(overflow).toBeLessThanOrEqual(8);
     await expect(page.getByTestId("px4a-file-input")).toBeAttached();
     await expect(page.getByTestId("px4a-add-photo-tile")).toBeVisible();
+    await expect(page.getByTestId("px4a-edit-toolbar")).toBeVisible();
+    await expect(page.getByTestId("px4a-global-video")).toBeVisible();
+    await context.close();
+  });
+
+  test("mobile 375px public creator stays usable", async ({ browser }) => {
+    const context = await browser.newContext({
+      viewport: { width: 375, height: 667 },
+    });
+    const page = await context.newPage();
+    await page.goto("/studio/photo-video", { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("px4a-composer")).toBeVisible({ timeout: 20_000 });
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(8);
+    await expect(page.getByTestId("px4a-preview-dock")).toBeVisible();
+    await expect(page.getByTestId("px4a-edit-toolbar")).toBeVisible();
+    await page.getByTestId("px4a-actions").scrollIntoViewIfNeeded();
+    const covered = await page.evaluate(() => {
+      const dock = document.querySelector("[data-testid='px4a-preview-dock']");
+      const actions = document.querySelector("[data-testid='px4a-actions']");
+      if (!dock || !actions) return true;
+      const a = dock.getBoundingClientRect();
+      const b = actions.getBoundingClientRect();
+      return b.top < a.bottom - 4 && b.bottom > a.top + 4 && b.left < a.right && b.right > a.left;
+    });
+    expect(covered).toBeFalsy();
     await context.close();
   });
 

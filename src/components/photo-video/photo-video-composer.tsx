@@ -1,13 +1,17 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PhotoVideoAuthGate } from "@/components/photo-video/photo-video-auth-gate";
 import { PhotoVideoPhotoStrip } from "@/components/photo-video/photo-video-photo-strip";
 import { PhotoVideoPreviewCanvas } from "@/components/photo-video/photo-video-preview-canvas";
 import { PhotoVideoExportProgress } from "@/components/photo-video/photo-video-export-progress";
 import { PhotoVideoPhotoInspector } from "@/components/photo-video/photo-video-photo-inspector";
+import {
+  PhotoVideoEditToolbar,
+  type PhotoVideoEditPanel,
+} from "@/components/photo-video/photo-video-edit-toolbar";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
 import {
@@ -238,6 +242,11 @@ export function PhotoVideoComposer({
   const [error, setError] = useState<string | null>(null);
   const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
+  const [editPanel, setEditPanel] = useState<PhotoVideoEditPanel>("text");
+  const [previewCompact, setPreviewCompact] = useState(false);
+  const editZoneRef = useRef<HTMLDivElement>(null);
+  const previewDockRef = useRef<HTMLDivElement>(null);
+  const previewSentinelRef = useRef<HTMLDivElement>(null);
   const [pickingMusic, setPickingMusic] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportStage, setExportStage] = useState<PhotoVideoExportStage>("prepare");
@@ -627,8 +636,32 @@ export function PhotoVideoComposer({
       ? composition.photos.find((photo) => photo.id === selectedPhotoId)?.motionKind ?? "auto"
       : "auto";
 
+  useLayoutEffect(() => {
+    const dock = previewDockRef.current;
+    const zone = editZoneRef.current;
+    if (!dock || !zone) return;
+    const sync = () => {
+      zone.style.setProperty("--px4a-preview-h", `${dock.offsetHeight}px`);
+    };
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(dock);
+    return () => ro.disconnect();
+  }, [previewCompact, composition.ratio]);
+
+  useEffect(() => {
+    const sentinel = previewSentinelRef.current;
+    if (!sentinel) return;
+    const io = new IntersectionObserver(
+      ([entry]) => setPreviewCompact(!entry?.isIntersecting),
+      { threshold: 0, rootMargin: "-8px 0px 0px 0px" }
+    );
+    io.observe(sentinel);
+    return () => io.disconnect();
+  }, []);
+
   return (
-    <div className="space-y-8" data-testid="px4a-composer">
+    <div className="space-y-8 pb-[max(1.25rem,env(safe-area-inset-bottom))]" data-testid="px4a-composer">
       <header className="space-y-2">
         {itemJourney && returnHref ? (
           <a
@@ -733,7 +766,18 @@ export function PhotoVideoComposer({
         </div>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+      <div ref={previewSentinelRef} className="h-px w-full" data-testid="px4a-preview-sentinel" aria-hidden="true" />
+      <div
+        ref={editZoneRef}
+        className="grid gap-4 lg:grid-cols-2 lg:items-start"
+        data-testid="px4a-edit-zone"
+      >
+      <div
+        ref={previewDockRef}
+        className="max-lg:sticky max-lg:top-[max(0.25rem,env(safe-area-inset-top))] max-lg:z-30 max-lg:bg-white/95 max-lg:backdrop-blur-sm lg:col-start-1 lg:row-start-1 lg:row-span-2"
+        data-testid="px4a-preview-dock"
+        data-compact={previewCompact ? "true" : "false"}
+      >
       <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white p-3 sm:p-4">
         <PhotoVideoPreviewCanvas
           composition={composition}
@@ -742,6 +786,7 @@ export function PhotoVideoComposer({
           selectedOverlayId={selectedOverlayId}
           placeholderText={t("px4a.text.placeholder")}
           context={draftContext}
+          compact={previewCompact}
           onSelectOverlay={(id) => {
             setSelectedOverlayId(id);
             if (id) {
@@ -765,7 +810,7 @@ export function PhotoVideoComposer({
                   })
                 : t("px4a.duration", { duration: durationLabel })}
             </p>
-            {includedCount >= PHOTO_VIDEO_MIN_PHOTOS ? (
+            {includedCount >= PHOTO_VIDEO_MIN_PHOTOS && !previewCompact ? (
               <p className="text-sm text-zinc-600" data-testid="px4a-duration-average">
                 {t("px4a.videoDuration.average", {
                   average: formatAveragePerPhoto(duration.averageSecondsPerPhoto, locale),
@@ -787,18 +832,25 @@ export function PhotoVideoComposer({
         </div>
         {!ready ? <p className="mt-2 text-sm text-zinc-600">{t("px4a.preview.needPhotos")}</p> : null}
       </div>
+      </div>
 
-      <div className="min-w-0 space-y-4">
+      <div
+        className="min-w-0 space-y-3 max-lg:sticky max-lg:z-20 max-lg:bg-white/95 max-lg:backdrop-blur-sm max-lg:pb-2 lg:static lg:col-start-2 lg:row-start-1"
+        data-testid="px4a-strip-dock"
+        style={{
+          top: "max(0.25rem, calc(env(safe-area-inset-top, 0px) + var(--px4a-preview-h, 0px)))",
+        }}
+      >
       <section className="space-y-3">
         <h2 className="text-base font-semibold text-zinc-900">
           {itemJourney ? t("px4a.item.photos") : t("px4a.photos.title")}
         </h2>
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm text-zinc-600 max-lg:hidden">
           {itemJourney
             ? t("px4a.item.photosHint")
             : t("px4a.photos.hint", { min: PHOTO_VIDEO_MIN_PHOTOS, max: PHOTO_VIDEO_MAX_PHOTOS })}
         </p>
-        {itemJourney ? <p className="text-sm text-zinc-600">{t("px4a.item.addExtra")}</p> : null}
+        {itemJourney ? <p className="text-sm text-zinc-600 max-lg:hidden">{t("px4a.item.addExtra")}</p> : null}
         <input
           id={fileInputId}
           data-testid="px4a-file-input"
@@ -849,19 +901,24 @@ export function PhotoVideoComposer({
             })
           }
         />
+        <PhotoVideoEditToolbar panel={editPanel} onPanel={setEditPanel} />
         {error ? (
           <p className="text-sm text-red-700" data-testid="px4a-export-error" role="status">
             {error}
           </p>
         ) : null}
       </section>
+      </div>
 
+      <div className="min-w-0 lg:col-start-2 lg:row-start-2">
       <PhotoVideoPhotoInspector
         composition={composition}
         selectedPhotoId={selectedPhotoId}
         selectedPhotoIndex={selectedPhotoIndex}
+        photoCount={composition.photos.length}
         selectedOverlay={selectedOverlay}
         selectedPhotoMotion={selectedPhotoMotion}
+        panel={editPanel}
         onAddText={() => {
           if (!selectedPhotoId) {
             setError(t("px4a.text.needPhoto"));
@@ -903,11 +960,15 @@ export function PhotoVideoComposer({
           if (!selectedPhotoId) return;
           setComposition((current) => setPhotoMotionKind(current, selectedPhotoId, id === "auto" ? null : id));
         }}
+        onMoveSelected={(delta) => {
+          if (!selectedPhotoId) return;
+          setComposition((current) => movePhoto(current, selectedPhotoId, delta));
+        }}
       />
       </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2" data-testid="px4a-actions">
         {itemJourney ? (
           <>
             <button
@@ -970,6 +1031,13 @@ export function PhotoVideoComposer({
         </p>
       ) : null}
 
+      <section className="space-y-6" data-testid="px4a-global-video" aria-labelledby="px4a-global-heading">
+      <div className="space-y-1">
+        <h2 id="px4a-global-heading" className="text-base font-semibold text-zinc-900">
+          {t("px4a.global.legend")}
+        </h2>
+        <p className="text-sm text-zinc-600">{t("px4a.global.lead")}</p>
+      </div>
       <ChipGroup
         legend={t("px4a.ratio.legend")}
         testId="px4a-ratio"
@@ -1048,6 +1116,8 @@ export function PhotoVideoComposer({
           label: t(STYLE_LABEL[id]),
         }))}
       />
+
+      </section>
 
       <fieldset className="space-y-2" data-testid="px4a-audio">
         <legend className="text-sm font-semibold text-zinc-900">{t("px4a.audio.legend")}</legend>
