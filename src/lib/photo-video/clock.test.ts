@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { addPhotos, createLocalPhoto, createPhotoVideoComposition } from "@/lib/photo-video/composition";
-import { activePhotoIdAt, seekTimeForPhoto, wrapCompositionTime } from "@/lib/photo-video/clock";
+import { firstTransitionSeekTime, activePhotoIdAt, seekTimeForPhoto, wrapCompositionTime } from "@/lib/photo-video/clock";
 
 function photos(count: number) {
   return Array.from({ length: count }, (_, i) =>
@@ -26,5 +26,7 @@ describe("PX.4A.2 composition clock", () => {
     assert.equal(activePhotoIdAt(c, 0), "p0");
     assert.equal(seekTimeForPhoto(c, "p1") > 0, true);
     assert.equal(activePhotoIdAt(c, seekTimeForPhoto(c, "p2")), "p2");
+    assert.ok(firstTransitionSeekTime(c) < seekTimeForPhoto(c, "p1") || firstTransitionSeekTime(c) === 0);
+    assert.ok(firstTransitionSeekTime(c) <= seekTimeForPhoto(c, "p1"));
   });
 });

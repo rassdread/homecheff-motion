@@ -25,6 +25,17 @@ export function seekTimeForPhoto(
   return clip?.startSeconds ?? 0;
 }
 
+/** Seek ~0.5s before the first overlap using the existing preview clock. */
+export function firstTransitionSeekTime(
+  composition: PhotoVideoComposition,
+  context: "studio" | "homecheff-item" = "studio"
+): number {
+  const clips = buildPhotoVideoClips(composition, context);
+  const next = clips[1];
+  if (!next) return 0;
+  return Math.max(0, next.startSeconds - 0.5);
+}
+
 export function compositionClockDuration(
   composition: PhotoVideoComposition,
   context: "studio" | "homecheff-item" = "studio"

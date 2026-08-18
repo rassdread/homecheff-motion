@@ -1,6 +1,6 @@
 import type { PhotoVideoStyle } from "@/lib/photo-video/constants";
 
-export type PhotoVideoTransitionKind = "crossfade" | "cut" | "slide";
+export type { PhotoVideoTransitionKind } from "@/lib/photo-video/transition-kind";
 
 /** Local canvas motion kinds — no provider/AI. */
 export type PhotoVideoMotionKind =
@@ -28,7 +28,6 @@ export type PhotoVideoUserMotionKind = (typeof PHOTO_VIDEO_USER_MOTION_KINDS)[nu
 
 export type PhotoVideoStyleRecipe = {
   overlapSeconds: number;
-  transition: PhotoVideoTransitionKind;
   motionCycle: readonly PhotoVideoMotionKind[];
   motionStrength: number;
 };
@@ -36,25 +35,21 @@ export type PhotoVideoStyleRecipe = {
 const RECIPES: Record<PhotoVideoStyle, PhotoVideoStyleRecipe> = {
   auto: {
     overlapSeconds: 0.4,
-    transition: "crossfade",
     motionCycle: ["zoom-in", "pan-right", "zoom-out", "pan-left"],
     motionStrength: 0.08,
   },
   smooth: {
     overlapSeconds: 0.4,
-    transition: "crossfade",
     motionCycle: ["zoom-in", "zoom-in"],
     motionStrength: 0.06,
   },
   calm: {
     overlapSeconds: 0.5,
-    transition: "crossfade",
     motionCycle: ["zoom-out", "zoom-out"],
     motionStrength: 0.05,
   },
   energetic: {
     overlapSeconds: 0.2,
-    transition: "cut",
     motionCycle: ["zoom-in", "pan-right"],
     motionStrength: 0.12,
   },

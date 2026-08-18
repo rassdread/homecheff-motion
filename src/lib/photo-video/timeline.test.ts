@@ -6,10 +6,10 @@ import {
   createPhotoVideoComposition,
   migrateComposition,
   setDurationSeconds,
+  setTransitionKind,
 } from "@/lib/photo-video/composition";
 import { sampleLocalMotion } from "@/lib/photo-video/motion";
 import { motionKindForPhoto } from "@/lib/photo-video/movement";
-import { styleRecipe } from "@/lib/photo-video/styles";
 import { buildPhotoVideoClips, playheadAt } from "@/lib/photo-video/timeline";
 
 describe("PX.4A.4B timeline + local motion", () => {
@@ -31,20 +31,23 @@ describe("PX.4A.4B timeline + local motion", () => {
     assert.ok(head.from);
     assert.ok(head.to);
     assert.ok(head.mix > 0);
-    assert.equal(head.transition, "crossfade");
+    assert.equal(head.transition, "fade");
   });
 
-  it("energetic style uses a cut (no mix)", () => {
-    const c = addPhotos(
-      { ...createPhotoVideoComposition(), style: "energetic" },
-      [0, 1].map((i) =>
-        createLocalPhoto({ id: `p${i}`, previewUrl: `x${i}`, naturalWidth: 10, naturalHeight: 10 })
-      )
+  it("cut transition uses no mix", () => {
+    const c = setTransitionKind(
+      addPhotos(
+        createPhotoVideoComposition(),
+        [0, 1].map((i) =>
+          createLocalPhoto({ id: `p${i}`, previewUrl: `x${i}`, naturalWidth: 10, naturalHeight: 10 })
+        )
+      ),
+      "cut"
     );
-    assert.equal(styleRecipe("energetic").transition, "cut");
     const head = playheadAt(c, 0.5);
     assert.equal(head.mix, 0);
     assert.equal(head.to, null);
+    assert.equal(head.transition, "cut");
   });
 
   it("motion is deterministic and supports directional pans", () => {

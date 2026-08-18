@@ -13,6 +13,7 @@ import type { PhotoVideoAudio } from "@/lib/photo-video/audio";
 import type { PhotoVideoTextOverlay } from "@/lib/photo-video/text-overlay";
 import type { PhotoVideoDurationMode, PhotoVideoMovementMode } from "@/lib/photo-video/constants";
 import type { PhotoVideoUserMotionKind } from "@/lib/photo-video/styles";
+import type { PhotoVideoResolvedTransition, PhotoVideoTransitionKind } from "@/lib/photo-video/transition-kind";
 import { revokePhotoVideoObjectUrl } from "@/lib/photo-video/object-url";
 
 export const PHOTO_VIDEO_DRAFT_META_KEY = "hc-px4a-draft:v1";
@@ -50,6 +51,8 @@ export type PhotoVideoDraftCompositionMeta = {
   ratio: PhotoVideoComposition["ratio"];
   pace: PhotoVideoComposition["pace"];
   style: PhotoVideoComposition["style"];
+  transitionKind?: PhotoVideoTransitionKind;
+  boundaryTransitions?: PhotoVideoResolvedTransition[];
   overlays: PhotoVideoTextOverlay[];
   audio: PhotoVideoDraftAudioMeta;
   endCardSeconds: number;
@@ -230,6 +233,8 @@ export function toDraftCompositionMeta(composition: PhotoVideoComposition): Phot
     ratio: composition.ratio,
     pace: composition.pace,
     style: composition.style,
+    transitionKind: composition.transitionKind,
+    boundaryTransitions: composition.boundaryTransitions,
     overlays: composition.overlays,
     audio,
     endCardSeconds: composition.endCardSeconds,
@@ -365,6 +370,8 @@ export async function restorePhotoVideoDraft(
       ratio: meta.composition.ratio,
       pace: meta.composition.pace,
       style: meta.composition.style,
+      transitionKind: meta.composition.transitionKind,
+      boundaryTransitions: meta.composition.boundaryTransitions,
       overlays: meta.composition.overlays,
       audio,
       endCardSeconds: meta.composition.endCardSeconds,

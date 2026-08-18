@@ -4,12 +4,14 @@
  */
 
 import type { PhotoVideoComposition } from "@/lib/photo-video/composition";
-import { compositionDuration, isCompositionPreviewReady } from "@/lib/photo-video/composition";
+import { compositionDuration, isCompositionPreviewReady, overlaysForPhoto } from "@/lib/photo-video/composition";
 import { activePhotoIdAt } from "@/lib/photo-video/clock";
 import type { PhotoVideoContext } from "@/lib/photo-video/constants";
 import { coverFitRect, safeZones } from "@/lib/photo-video/layout";
 import { sampleLocalMotion } from "@/lib/photo-video/motion";
+import { renderTransitionFrame } from "@/lib/photo-video/render-transition";
 import { styleRecipe } from "@/lib/photo-video/styles";
+import { hashTransitionSeed } from "@/lib/photo-video/transition-kind";
 import { motionKindForClip, playheadAt } from "@/lib/photo-video/timeline";
 import {
   canvasFontShorthand,
@@ -21,6 +23,22 @@ import {
 
 export type PhotoVideoImageCache = Map<string, HTMLImageElement>;
 export type OverlayLayout = { id: string } & OverlayBox;
+
+let layerPair: { width: number; height: number; a: HTMLCanvasElement; b: HTMLCanvasElement } | null = null;
+
+function acquireLayers(width: number, height: number): { a: HTMLCanvasElement; b: HTMLCanvasElement } | null {
+  if (typeof document === "undefined") return null;
+  if (!layerPair || layerPair.width !== width || layerPair.height !== height) {
+    const a = document.createElement("canvas");
+    const b = document.createElement("canvas");
+    a.width = width;
+    a.height = height;
+    b.width = width;
+    b.height = height;
+    layerPair = { width, height, a, b };
+  }
+  return layerPair;
+}
 
 export function drawCoverImage(
   ctx: CanvasRenderingContext2D,
@@ -198,17 +216,57 @@ export function drawPhotoVideoFrame(input: {
   void compositionDuration(input.composition, context);
   const head = playheadAt(input.composition, input.timeSeconds, context);
   const recipe = styleRecipe(input.composition.style);
-  const paintClip = (clip: NonNullable<typeof head.from>, progress: number, alpha: number) => {
+  const transitioning = Boolean(head.from && head.to && head.mix > 0);
+  const paintClip = (
+    target: CanvasRenderingContext2D,
+    clip: NonNullable<typeof head.from>,
+    progress: number,
+    alpha: number,
+    withText: boolean
+  ) => {
     const image = input.images.get(clip.photo.previewUrl);
     if (!image) return;
     const motion = sampleLocalMotion(motionKindForClip(input.composition, clip), progress, recipe.motionStrength);
-    drawCoverImage(input.ctx, image, w, h, motion.zoom, motion.panX, motion.panY, alpha);
+    drawCoverImage(target, image, w, h, motion.zoom, motion.panX, motion.panY, alpha);
+    if (!withText) return;
+    for (const overlay of overlaysForPhoto(input.composition, clip.photo.id)) {
+      drawOverlay(target, overlay, w, h, false, input.placeholderText);
+    }
   };
-  if (head.from) paintClip(head.from, head.fromProgress, 1);
-  if (head.to && head.mix > 0) paintClip(head.to, head.toProgress, head.mix);
+
+  if (transitioning && head.from && head.to) {
+    const layers = acquireLayers(w, h);
+    const ctxA = layers?.a.getContext("2d") ?? null;
+    const ctxB = layers?.b.getContext("2d") ?? null;
+    if (layers && ctxA && ctxB) {
+      for (const layerCtx of [ctxA, ctxB]) {
+        layerCtx.fillStyle = "#041428";
+        layerCtx.fillRect(0, 0, w, h);
+      }
+      paintClip(ctxA, head.from, head.fromProgress, 1, true);
+      paintClip(ctxB, head.to, head.toProgress, 1, true);
+      renderTransitionFrame({
+        ctx: input.ctx,
+        outgoing: layers.a,
+        incoming: layers.b,
+        mix: head.mix,
+        kind: head.transition,
+        width: w,
+        height: h,
+        seed: hashTransitionSeed(head.from.photo.id, head.to.photo.id, String(head.from.index)),
+      });
+    } else {
+      paintClip(input.ctx, head.from, head.fromProgress, 1, true);
+      paintClip(input.ctx, head.to, head.toProgress, head.mix, true);
+    }
+  } else if (head.from) {
+    paintClip(input.ctx, head.from, head.fromProgress, 1, false);
+  }
+
   const activePhotoId = activePhotoIdAt(input.composition, input.timeSeconds, context);
   for (const overlay of input.composition.overlays) {
     if (!overlayVisibleForPhoto(overlay, activePhotoId)) continue;
+    if (transitioning) continue;
     layouts.push(
       drawOverlay(
         input.ctx,

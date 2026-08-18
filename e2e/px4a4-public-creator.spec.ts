@@ -13,7 +13,12 @@ test.describe("PX.4A.4 public compositor certification", () => {
     await expect(page.locator("text=Koop credits")).toHaveCount(0);
     await expect(page.getByTestId("px4a-item-back")).toHaveCount(0);
     await expect(page.getByTestId("px4a-style")).toContainText(/Overgang|Transition/);
+    await expect(page.getByTestId("px4a-transition-group-standard")).toContainText(/Knippen|Cut/);
+    await expect(page.getByTestId("px4a-transition-group-signature")).toContainText(/Scherven|Shards/);
+    await expect(page.getByTestId("px4a-transition-split")).toBeVisible();
+    await expect(page.locator("[data-testid='px4a-composer'] canvas")).toHaveCount(1);
     await expect(page.getByTestId("px4a-audio-none")).toBeVisible();
+    await expect(page.getByTestId("px4a-audio-catalog")).toBeVisible();
     await expect(page.getByTestId("px4a-global-more")).toBeVisible();
     await page.getByRole("button", { name: "Liggend" }).click();
     await expect(page.getByRole("button", { name: "Liggend" })).toHaveAttribute("aria-pressed", "true");
@@ -67,7 +72,11 @@ test.describe("PX.4A.4 public compositor certification", () => {
     await expect(page.getByTestId("px4a-global-video")).toBeVisible();
     await expect(page.getByText("Instellingen voor de hele video").first()).toBeVisible();
     await expect(page.getByTestId("px4a-style")).toContainText(/Overgang|Transition/);
+    await expect(page.getByTestId("px4a-transition-group-standard")).toBeVisible();
+    await expect(page.getByTestId("px4a-transition-group-signature")).toBeVisible();
+    await expect(page.locator("[data-testid='px4a-composer'] canvas")).toHaveCount(1);
     await expect(page.getByTestId("px4a-audio-none")).toBeVisible();
+    await expect(page.getByTestId("px4a-audio-catalog")).toBeVisible();
     await expect(page.getByTestId("px4a-global-more")).toBeVisible();
     await context.close();
   });

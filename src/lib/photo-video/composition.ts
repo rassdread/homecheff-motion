@@ -30,6 +30,14 @@ import {
 import { styleRecipe } from "@/lib/photo-video/styles";
 import type { PhotoVideoUserMotionKind } from "@/lib/photo-video/styles";
 import {
+  isPhotoVideoResolvedTransition,
+  overlapSecondsForTransition,
+  PHOTO_VIDEO_DEFAULT_TRANSITION,
+  resolveTransitionKind,
+  type PhotoVideoResolvedTransition,
+  type PhotoVideoTransitionKind,
+} from "@/lib/photo-video/transition-kind";
+import {
   clampOwnMusicToVideo,
   setOwnMusicStart,
   setOwnMusicVolume,
@@ -69,6 +77,7 @@ export type PhotoVideoComposition = {
   ratio: PhotoVideoRatio;
   pace: PhotoVideoPace;
   style: PhotoVideoStyle;
+  transitionKind: PhotoVideoTransitionKind;
   overlays: PhotoVideoTextOverlay[];
   audio: PhotoVideoAudio;
   endCardSeconds: number;
@@ -76,6 +85,8 @@ export type PhotoVideoComposition = {
   /** Total selected duration including end card. */
   durationSeconds: number;
   movementMode: PhotoVideoMovementMode;
+  /** Future per-boundary overrides; unused in the 6.4 UI. */
+  boundaryTransitions?: PhotoVideoResolvedTransition[];
 };
 
 export function createPhotoVideoComposition(
@@ -87,6 +98,7 @@ export function createPhotoVideoComposition(
     ratio: PHOTO_VIDEO_DEFAULT_RATIO,
     pace: PHOTO_VIDEO_DEFAULT_PACE,
     style: PHOTO_VIDEO_DEFAULT_STYLE,
+    transitionKind: PHOTO_VIDEO_DEFAULT_TRANSITION,
     overlays: [],
     endCardSeconds: PHOTO_VIDEO_DEFAULT_END_CARD_SECONDS,
     durationMode: PHOTO_VIDEO_DEFAULT_DURATION_MODE,
@@ -100,12 +112,27 @@ export function createPhotoVideoComposition(
 
 export type PhotoVideoCompositionDraft = Omit<
   PhotoVideoComposition,
-  "durationMode" | "durationSeconds" | "movementMode"
+  "durationMode" | "durationSeconds" | "movementMode" | "transitionKind" | "boundaryTransitions"
 > & {
   durationMode?: PhotoVideoDurationMode;
   durationSeconds?: number;
   movementMode?: PhotoVideoMovementMode;
+  transitionKind?: PhotoVideoTransitionKind;
+  boundaryTransitions?: PhotoVideoResolvedTransition[];
 };
+
+function sanitizeBoundaryTransitions(value: unknown): PhotoVideoResolvedTransition[] | undefined {
+  if (!Array.isArray(value) || value.length === 0) return undefined;
+  const next: PhotoVideoResolvedTransition[] = [];
+  let any = false;
+  for (let i = 0; i < value.length; i += 1) {
+    if (isPhotoVideoResolvedTransition(value[i])) {
+      next[i] = value[i];
+      any = true;
+    }
+  }
+  return any ? next : undefined;
+}
 
 /** Backfill duration/movement fields for pre-4A.4B drafts and in-memory restores. */
 export function migrateComposition(
@@ -117,6 +144,9 @@ export function migrateComposition(
     typeof composition.durationMode === "string" &&
     typeof composition.movementMode === "string";
 
+  const transitionKind = resolveTransitionKind(composition.transitionKind, composition.style);
+  const boundaryTransitions = sanitizeBoundaryTransitions(composition.boundaryTransitions);
+
   if (hasDuration) {
     return {
       ...composition,
@@ -124,6 +154,8 @@ export function migrateComposition(
       durationMode: composition.durationMode ?? PHOTO_VIDEO_DEFAULT_DURATION_MODE,
       durationSeconds: composition.durationSeconds ?? defaultPhotoVideoDurationSeconds(context),
       movementMode: composition.movementMode ?? PHOTO_VIDEO_DEFAULT_MOVEMENT_MODE,
+      transitionKind,
+      boundaryTransitions,
     };
   }
 
@@ -148,6 +180,8 @@ export function migrateComposition(
     durationSeconds: Math.min(nearest, maxSeconds),
     movementMode: PHOTO_VIDEO_DEFAULT_MOVEMENT_MODE,
     audio: composition.audio ?? { kind: "none" },
+    transitionKind,
+    boundaryTransitions,
   };
 }
 
@@ -159,14 +193,15 @@ export function compositionDurationInput(
   composition: PhotoVideoComposition,
   context: PhotoVideoContext = "studio"
 ) {
-  const recipe = styleRecipe(composition.style);
   return durationInputForContext(
     {
       photoCount: includedPhotos(composition).length,
       durationSeconds: composition.durationSeconds,
       durationMode: composition.durationMode,
       holdSeconds: holdSecondsForPace(composition.pace),
-      overlapSeconds: recipe.overlapSeconds,
+      overlapSeconds: overlapSecondsForTransition(
+        resolveTransitionKind(composition.transitionKind, composition.style)
+      ),
       endCardSeconds: composition.endCardSeconds,
     },
     context
@@ -211,7 +246,7 @@ function withDurationSync(
     const resolved = resolveAutoDurationSeconds({
       photoCount: includedPhotos(next).length,
       pace: next.pace,
-      overlapSeconds: styleRecipe(next.style).overlapSeconds,
+      overlapSeconds: overlapSecondsForTransition(resolveTransitionKind(next.transitionKind, next.style)),
       endCardSeconds: next.endCardSeconds,
       maxSeconds: photoVideoMaxSeconds(context),
     });
@@ -371,6 +406,31 @@ export function setPace(
 ): PhotoVideoComposition {
   const next = { ...composition, pace };
   return withDurationSync(next, context);
+}
+
+export function setTransitionKind(
+  composition: PhotoVideoComposition,
+  transitionKind: PhotoVideoTransitionKind,
+  context: PhotoVideoContext = "studio"
+): PhotoVideoComposition {
+  const next = { ...composition, transitionKind: resolveTransitionKind(transitionKind, composition.style) };
+  return withDurationSync(next, context);
+}
+
+/** Future seam: override one photo-to-photo boundary without changing total duration. */
+export function setBoundaryTransition(
+  composition: PhotoVideoComposition,
+  fromIndex: number,
+  kind: PhotoVideoResolvedTransition | null
+): PhotoVideoComposition {
+  const index = Math.max(0, Math.floor(fromIndex));
+  const next = [...(composition.boundaryTransitions ?? [])];
+  if (kind == null) {
+    delete next[index];
+  } else {
+    next[index] = kind;
+  }
+  return { ...composition, boundaryTransitions: next.length ? next : undefined };
 }
 
 export function setStyle(
