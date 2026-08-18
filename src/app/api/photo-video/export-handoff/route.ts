@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { requireActiveUser } from "@/server/auth/permissions";
 import {
   createExportAttachPayload,
@@ -17,6 +18,13 @@ export async function POST(request: Request) {
   const secret = secrets[0];
   if (!secret) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  const linked = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { centralUserId: true },
+  });
+  const centralUserId = linked?.centralUserId?.trim() ?? "";
+  if (!centralUserId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   let videoUrl = "";
   let durationSeconds = 0;
   let thumbnailUrl: string | null = null;
@@ -34,7 +42,7 @@ export async function POST(request: Request) {
   }
 
   const payload = createExportAttachPayload({
-    centralUserId: user.id,
+    centralUserId,
     videoUrl,
     durationSeconds,
     thumbnailUrl,
