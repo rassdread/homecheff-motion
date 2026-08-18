@@ -6,17 +6,28 @@ export function wrapCompositionTime(timeSeconds: number, totalSeconds: number): 
   return ((timeSeconds % totalSeconds) + totalSeconds) % totalSeconds;
 }
 
-export function activePhotoIdAt(composition: PhotoVideoComposition, timeSeconds: number): string | null {
-  const head = playheadAt(composition, timeSeconds);
+export function activePhotoIdAt(
+  composition: PhotoVideoComposition,
+  timeSeconds: number,
+  context: "studio" | "homecheff-item" = "studio"
+): string | null {
+  const head = playheadAt(composition, timeSeconds, context);
   if (head.to && head.timeSeconds >= head.to.startSeconds) return head.to.photo.id;
   return head.from?.photo.id ?? null;
 }
 
-export function seekTimeForPhoto(composition: PhotoVideoComposition, photoId: string): number {
-  const clip = buildPhotoVideoClips(composition).find((entry) => entry.photo.id === photoId);
+export function seekTimeForPhoto(
+  composition: PhotoVideoComposition,
+  photoId: string,
+  context: "studio" | "homecheff-item" = "studio"
+): number {
+  const clip = buildPhotoVideoClips(composition, context).find((entry) => entry.photo.id === photoId);
   return clip?.startSeconds ?? 0;
 }
 
-export function compositionClockDuration(composition: PhotoVideoComposition): number {
-  return compositionDuration(composition).totalSeconds;
+export function compositionClockDuration(
+  composition: PhotoVideoComposition,
+  context: "studio" | "homecheff-item" = "studio"
+): number {
+  return compositionDuration(composition, context).totalSeconds;
 }

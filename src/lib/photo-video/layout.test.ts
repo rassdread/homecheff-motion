@@ -8,6 +8,10 @@ describe("PX.4A.1 layout", () => {
     const s = canvasSizeForRatio("1:1", 720);
     const l = canvasSizeForRatio("16:9", 720);
     assert.equal(v.height, 720);
+    assert.equal(v.width % 2, 0);
+    assert.equal(v.height % 2, 0);
+    assert.equal(s.width % 2, 0);
+    assert.equal(l.height % 2, 0);
     assert.ok(v.width < v.height);
     assert.equal(s.width, s.height);
     assert.ok(l.width > l.height);

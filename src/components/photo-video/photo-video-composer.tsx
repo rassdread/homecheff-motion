@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { PhotoVideoAuthGate } from "@/components/photo-video/photo-video-auth-gate";
 import { PhotoVideoPhotoStrip } from "@/components/photo-video/photo-video-photo-strip";
 import { PhotoVideoPreviewCanvas } from "@/components/photo-video/photo-video-preview-canvas";
+import { PhotoVideoExportProgress } from "@/components/photo-video/photo-video-export-progress";
 import { PhotoVideoTextControls } from "@/components/photo-video/photo-video-text-controls";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
@@ -75,7 +76,9 @@ import {
   restorePhotoVideoDraft,
   type PhotoVideoDraftContext,
 } from "@/lib/photo-video/draft-storage";
-import { featureGatedPhotoVideoExport } from "@/lib/photo-video/export-handoff";
+import { exportBusyGuard } from "@/lib/photo-video/export-handoff";
+import type { PhotoVideoExportStage } from "@/lib/photo-video/export-settings";
+import type { PhotoVideoExportFailReason } from "@/lib/photo-video/export-validate";
 import { withItemReturnResult } from "@/lib/photo-video/item-handoff";
 import { trackPhotoVideoFunnelEvent } from "@/lib/photo-video/funnel-analytics";
 import { PHOTO_VIDEO_USER_MOTION_KINDS, type PhotoVideoUserMotionKind } from "@/lib/photo-video/styles";
@@ -247,6 +250,10 @@ export function PhotoVideoComposer({
   const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [pickingMusic, setPickingMusic] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportStage, setExportStage] = useState<PhotoVideoExportStage>("prepare");
+  const exportingRef = useRef(false);
+  const exportAbortRef = useRef<AbortController | null>(null);
   const [showAdvancedMovement, setShowAdvancedMovement] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
   const [resumeOffer, setResumeOffer] = useState(false);
@@ -389,12 +396,12 @@ export function PhotoVideoComposer({
   const selectPhoto = useCallback(
     (photoId: string) => {
       setSelectedPhotoId(photoId);
-      clockRef.current = seekTimeForPhoto(composition, photoId);
+      clockRef.current = seekTimeForPhoto(composition, photoId, draftContext);
       setPlaying(false);
       const first = overlaysForPhoto(composition, photoId)[0];
       setSelectedOverlayId(first?.id ?? null);
     },
-    [composition, setPlaying, setSelectedOverlayId]
+    [composition, draftContext, setPlaying, setSelectedOverlayId]
   );
 
   const onFiles = useCallback(
@@ -500,10 +507,107 @@ export function PhotoVideoComposer({
     [persistDraft, returnHref]
   );
 
+  const exportErrorKey = (reason: PhotoVideoExportFailReason): TranslationKey => {
+    if (reason === "unsupported") return "px4a.export.unsupported";
+    if (reason === "size") return "px4a.export.size";
+    if (reason === "duration") return "px4a.export.duration";
+    return "px4a.export.failed";
+  };
+
+  const runLocalExport = useCallback(async () => {
+    if (exportBusyGuard(exportingRef.current) === "busy") return { ok: false as const, reason: "busy" as const };
+    exportingRef.current = true;
+    setExporting(true);
+    setExportStage("prepare");
+    setError(null);
+    setPlaying(false);
+    await persistDraft().catch(() => undefined);
+    const abort = new AbortController();
+    exportAbortRef.current = abort;
+    let wake: WakeLockSentinel | null = null;
+    try {
+      wake = (await navigator.wakeLock?.request("screen")) ?? null;
+    } catch {
+      wake = null;
+    }
+    try {
+      const { encodePhotoVideoLocal } = await import("@/lib/photo-video/export-local");
+      let audioBlob = audioBlobRef.current;
+      const audio = compositionRef.current.audio;
+      if (!audioBlob && audio.kind === "ownMusic" && audio.objectUrl) {
+        audioBlob = await fetch(audio.objectUrl).then((res) => res.blob());
+      }
+      const encoded = await encodePhotoVideoLocal({
+        composition: compositionRef.current,
+        context: draftContext,
+        audioBlob,
+        placeholderText: t("px4a.text.placeholder"),
+        signal: abort.signal,
+        onStage: setExportStage,
+      });
+      if (!encoded.ok) {
+        exportingRef.current = false;
+        setExporting(false);
+      }
+      return encoded;
+    } catch {
+      exportingRef.current = false;
+      setExporting(false);
+      return { ok: false as const, reason: "encode" as const };
+    } finally {
+      await wake?.release().catch(() => undefined);
+      if (!exportingRef.current) exportAbortRef.current = null;
+    }
+  }, [draftContext, persistDraft, setError, setPlaying, t]);
+
   const onFinishItem = useCallback(async () => {
-    featureGatedPhotoVideoExport(compositionRef.current, draftContext);
-    await returnToItem("ready");
-  }, [returnToItem, draftContext]);
+    if (!ready || exportingRef.current) return;
+    const encoded = await runLocalExport();
+    if (!encoded.ok) {
+      if (encoded.reason !== "cancelled" && encoded.reason !== "busy") {
+        setError(t(exportErrorKey(encoded.reason)));
+      }
+      return;
+    }
+    setExporting(true);
+    setExportStage("attach");
+    exportingRef.current = true;
+    try {
+      const { handoffPhotoVideoFileToHomeCheff } = await import("@/lib/photo-video/export-attach-client");
+      await handoffPhotoVideoFileToHomeCheff({
+        file: encoded.file,
+        durationSeconds: encoded.durationSeconds,
+        signal: exportAbortRef.current?.signal,
+      });
+    } catch {
+      const cancelled = Boolean(exportAbortRef.current?.signal.aborted);
+      exportingRef.current = false;
+      setExporting(false);
+      exportAbortRef.current = null;
+      if (!cancelled) setError(t("px4a.export.failed"));
+    }
+  }, [ready, runLocalExport, t]);
+
+  const onDownloadStudio = useCallback(async () => {
+    if (!ready || exportingRef.current) return;
+    if (!authenticated && !skipAuthGate) {
+      await persistDraft().catch(() => undefined);
+      setGateOpen(true);
+      return;
+    }
+    const encoded = await runLocalExport();
+    if (!encoded.ok) {
+      if (encoded.reason !== "cancelled" && encoded.reason !== "busy") {
+        setError(t(exportErrorKey(encoded.reason)));
+      }
+      return;
+    }
+    const { downloadPhotoVideoFile } = await import("@/lib/photo-video/export-local");
+    downloadPhotoVideoFile(encoded.file);
+    exportingRef.current = false;
+    setExporting(false);
+    exportAbortRef.current = null;
+  }, [authenticated, persistDraft, ready, runLocalExport, skipAuthGate, t]);
 
   const onReset = useCallback(async () => {
     if (!window.confirm(t("px4a.draft.resetConfirm"))) return;
@@ -543,6 +647,7 @@ export function PhotoVideoComposer({
             className="inline-flex min-h-11 items-center text-sm font-semibold text-[#006D52]"
             onClick={(event) => {
               event.preventDefault();
+              exportAbortRef.current?.abort();
               void returnToItem("cancel");
             }}
           >
@@ -641,17 +746,18 @@ export function PhotoVideoComposer({
       <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white p-3 sm:p-4">
         <PhotoVideoPreviewCanvas
           composition={composition}
-          playing={playing && ready}
+          playing={playing && ready && !exporting}
           clockRef={clockRef}
           selectedOverlayId={selectedOverlayId}
           placeholderText={t("px4a.text.placeholder")}
+          context={draftContext}
           onSelectOverlay={(id) => {
             setSelectedOverlayId(id);
             if (id) {
               const overlay = composition.overlays.find((item) => item.id === id);
               if (overlay) {
                 setSelectedPhotoId(overlay.photoId);
-                clockRef.current = seekTimeForPhoto(composition, overlay.photoId);
+                clockRef.current = seekTimeForPhoto(composition, overlay.photoId, draftContext);
                 setPlaying(false);
               }
             }
@@ -697,7 +803,7 @@ export function PhotoVideoComposer({
             <button
               type="button"
               data-testid="px4a-item-finish"
-              disabled={!ready}
+              disabled={!ready || exporting}
               className="min-h-11 rounded-full bg-[#006D52] px-5 text-sm font-semibold text-white disabled:opacity-50"
               onClick={() => void onFinishItem()}
             >
@@ -708,22 +814,36 @@ export function PhotoVideoComposer({
                 type="button"
                 data-testid="px4a-item-cancel"
                 className="min-h-11 rounded-full border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-800"
-                onClick={() => void returnToItem("cancel")}
+                onClick={() => {
+                  exportAbortRef.current?.abort();
+                  void returnToItem("cancel");
+                }}
               >
                 {t("px4a.item.back")}
               </button>
             ) : null}
           </>
         ) : (
-          <button
-            type="button"
-            data-testid="px4a-save"
-            disabled={!ready || saving}
-            className="min-h-11 rounded-full bg-[#006D52] px-5 text-sm font-semibold text-white disabled:opacity-50"
-            onClick={() => void onSave()}
-          >
-            {saving ? t("px4a.draft.saving") : t("px4a.draft.save")}
-          </button>
+          <>
+            <button
+              type="button"
+              data-testid="px4a-save"
+              disabled={!ready || saving || exporting}
+              className="min-h-11 rounded-full bg-[#006D52] px-5 text-sm font-semibold text-white disabled:opacity-50"
+              onClick={() => void onSave()}
+            >
+              {saving ? t("px4a.draft.saving") : t("px4a.draft.save")}
+            </button>
+            <button
+              type="button"
+              data-testid="px4a-export-download"
+              disabled={!ready || exporting}
+              className="min-h-11 rounded-full border border-[#006D52] bg-white px-5 text-sm font-semibold text-[#006D52] disabled:opacity-50"
+              onClick={() => void onDownloadStudio()}
+            >
+              {exporting ? t("px4a.export.downloading") : t("px4a.export.download")}
+            </button>
+          </>
         )}
         <button
           type="button"
@@ -802,7 +922,7 @@ export function PhotoVideoComposer({
           }
         />
         {error ? (
-          <p className="text-sm text-red-700" role="status">
+          <p className="text-sm text-red-700" data-testid="px4a-export-error" role="status">
             {error}
           </p>
         ) : null}
@@ -929,7 +1049,7 @@ export function PhotoVideoComposer({
           const id = newId("tx");
           setComposition((current) => addTextForPhoto(current, { id, photoId: selectedPhotoId }));
           setSelectedOverlayId(id);
-          clockRef.current = seekTimeForPhoto(composition, selectedPhotoId);
+                  clockRef.current = seekTimeForPhoto(composition, selectedPhotoId, draftContext);
           setPlaying(false);
           trackPhotoVideoFunnelEvent("photo_video_text_added");
         }}
@@ -1022,6 +1142,29 @@ export function PhotoVideoComposer({
       </p>
 
       {gateOpen && !skipAuthGate ? <PhotoVideoAuthGate open={gateOpen} onClose={() => setGateOpen(false)} /> : null}
+      {exporting ? (
+        <PhotoVideoExportProgress
+          stage={exportStage}
+          includeMusic={composition.audio.kind === "ownMusic"}
+          includeAttach={itemJourney}
+          title={t("px4a.export.progress")}
+          stageLabel={(stage) =>
+            t(
+              stage === "prepare"
+                ? "px4a.export.stage.prepare"
+                : stage === "frames"
+                  ? "px4a.export.stage.frames"
+                  : stage === "music"
+                    ? "px4a.export.stage.music"
+                    : stage === "mux"
+                      ? "px4a.export.stage.mux"
+                      : "px4a.export.stage.attach"
+            )
+          }
+          cancelLabel={t("px4a.export.cancel")}
+          onCancel={() => exportAbortRef.current?.abort()}
+        />
+      ) : null}
     </div>
   );
 }

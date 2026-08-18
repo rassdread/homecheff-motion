@@ -19,7 +19,7 @@ import {
   signItemHandoffPayload,
   verifyItemHandoffToken,
 } from "@/lib/photo-video/item-handoff-crypto";
-import { featureGatedPhotoVideoExport } from "@/lib/photo-video/export-handoff";
+import { validatePhotoVideoExportComposition } from "@/lib/photo-video/export-validate";
 import { addPhotos, createLocalPhoto, createPhotoVideoComposition } from "@/lib/photo-video/composition";
 import { isPublicStudioSurface, validateStudioReturnTo } from "@/lib/identity/return-path";
 import { isAllowedPostAuthPath } from "@/lib/auth-post-auth-redirect";
@@ -85,16 +85,13 @@ describe("PX.4A.4 item handoff", () => {
     assert.equal(isItemHandoffTokenSizeOk("a".repeat(PX4A_ITEM_MAX_TOKEN_CHARS + 1)), false);
   });
 
-  it("feature-gates export until PX.4A.5", () => {
-    let composition = createPhotoVideoComposition();
+  it("allows composition export preflight when duration is valid", () => {
+    let composition = createPhotoVideoComposition(undefined, "homecheff-item");
     composition = addPhotos(composition, [
       createLocalPhoto({ id: "a", previewUrl: "blob:a", naturalWidth: 10, naturalHeight: 10 }),
       createLocalPhoto({ id: "b", previewUrl: "blob:b", naturalWidth: 10, naturalHeight: 10 }),
     ]);
-    const result = featureGatedPhotoVideoExport(composition);
-    assert.equal(result.ok, false);
-    if (!result.ok) {
-      assert.equal(result.status, "not_certified");
-    }
+    const result = validatePhotoVideoExportComposition(composition, "homecheff-item");
+    assert.equal(result.ok, true);
   });
 });

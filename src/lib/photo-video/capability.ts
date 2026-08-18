@@ -17,6 +17,7 @@ export const PHOTO_VIDEO_FREE_LOCAL_ACTIONS = [
   "no_music",
   "preview",
   "watermark",
+  "local_export",
 ] as const;
 
 /** Must not run on the free photo-video critical path. */

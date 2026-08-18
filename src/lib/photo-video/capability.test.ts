@@ -16,6 +16,7 @@ describe("PX.4A.2 free/credit boundary", () => {
       "no_music",
       "preview",
       "watermark",
+      "local_export",
     ] as const) {
       assert.equal(photoVideoActionClass(action), PHOTO_VIDEO_CAPABILITY.FREE_LOCAL);
     }
