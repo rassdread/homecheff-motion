@@ -1,7 +1,7 @@
 import type { PhotoVideoComposition, PhotoVideoPhoto } from "@/lib/photo-video/composition";
-import { includedPhotos, compositionDuration } from "@/lib/photo-video/composition";
-import { holdSecondsForPace } from "@/lib/photo-video/duration";
-import { motionKindForIndex, styleRecipe, type PhotoVideoTransitionKind } from "@/lib/photo-video/styles";
+import { compositionDuration, includedPhotos } from "@/lib/photo-video/composition";
+import { motionKindForPhoto } from "@/lib/photo-video/movement";
+import { styleRecipe, type PhotoVideoTransitionKind } from "@/lib/photo-video/styles";
 
 export type PhotoVideoClip = {
   photo: PhotoVideoPhoto;
@@ -22,9 +22,12 @@ export type PhotoVideoPlayhead = {
   toProgress: number;
 };
 
-export function buildPhotoVideoClips(composition: PhotoVideoComposition): PhotoVideoClip[] {
+export function buildPhotoVideoClips(
+  composition: PhotoVideoComposition,
+  context: "studio" | "homecheff-item" = "studio"
+): PhotoVideoClip[] {
   const photos = includedPhotos(composition);
-  const hold = holdSecondsForPace(composition.pace);
+  const hold = compositionDuration(composition, context).holdSeconds;
   const overlap = styleRecipe(composition.style).overlapSeconds;
   const clips: PhotoVideoClip[] = [];
   let cursor = 0;
@@ -37,9 +40,13 @@ export function buildPhotoVideoClips(composition: PhotoVideoComposition): PhotoV
   return clips;
 }
 
-export function playheadAt(composition: PhotoVideoComposition, timeSeconds: number): PhotoVideoPlayhead {
-  const clips = buildPhotoVideoClips(composition);
-  const totalSeconds = compositionDuration(composition).totalSeconds;
+export function playheadAt(
+  composition: PhotoVideoComposition,
+  timeSeconds: number,
+  context: "studio" | "homecheff-item" = "studio"
+): PhotoVideoPlayhead {
+  const clips = buildPhotoVideoClips(composition, context);
+  const totalSeconds = compositionDuration(composition, context).totalSeconds;
   const transition = styleRecipe(composition.style).transition;
   if (clips.length === 0 || totalSeconds <= 0) {
     return {
@@ -98,5 +105,5 @@ export function playheadAt(composition: PhotoVideoComposition, timeSeconds: numb
 }
 
 export function motionKindForClip(composition: PhotoVideoComposition, clip: PhotoVideoClip) {
-  return motionKindForIndex(composition.style, clip.index);
+  return motionKindForPhoto(composition, clip.photo, clip.index);
 }

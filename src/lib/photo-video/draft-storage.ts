@@ -8,8 +8,11 @@
  */
 
 import type { PhotoVideoComposition } from "@/lib/photo-video/composition";
+import { migrateComposition } from "@/lib/photo-video/composition";
 import type { PhotoVideoAudio } from "@/lib/photo-video/audio";
 import type { PhotoVideoTextOverlay } from "@/lib/photo-video/text-overlay";
+import type { PhotoVideoDurationMode, PhotoVideoMovementMode } from "@/lib/photo-video/constants";
+import type { PhotoVideoUserMotionKind } from "@/lib/photo-video/styles";
 import { revokePhotoVideoObjectUrl } from "@/lib/photo-video/object-url";
 
 export const PHOTO_VIDEO_DRAFT_META_KEY = "hc-px4a-draft:v1";
@@ -17,7 +20,8 @@ export const PHOTO_VIDEO_DRAFT_DB = "hc-px4a-draft-blobs";
 export const PHOTO_VIDEO_DRAFT_STORE = "media";
 export const PHOTO_VIDEO_DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const PHOTO_VIDEO_DRAFT_MAX_TOTAL_BYTES = 80 * 1024 * 1024;
-export const PHOTO_VIDEO_DRAFT_VERSION = 1;
+export const PHOTO_VIDEO_DRAFT_VERSION = 2;
+export const PHOTO_VIDEO_DRAFT_LEGACY_VERSION = 1;
 
 export type PhotoVideoDraftPhotoMeta = {
   id: string;
@@ -26,6 +30,7 @@ export type PhotoVideoDraftPhotoMeta = {
   naturalWidth: number;
   naturalHeight: number;
   listingUrl?: string;
+  motionKind?: PhotoVideoUserMotionKind | null;
 };
 
 export type PhotoVideoDraftAudioMeta =
@@ -48,6 +53,9 @@ export type PhotoVideoDraftCompositionMeta = {
   overlays: PhotoVideoTextOverlay[];
   audio: PhotoVideoDraftAudioMeta;
   endCardSeconds: number;
+  durationMode?: PhotoVideoDurationMode;
+  durationSeconds?: number;
+  movementMode?: PhotoVideoMovementMode;
 };
 
 export type PhotoVideoDraftContext = "studio" | "homecheff-item";
@@ -150,7 +158,9 @@ export function readPhotoVideoDraftMeta(
     const raw = window.localStorage.getItem(photoVideoDraftMetaKey(context));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PhotoVideoDraftMeta;
-    if (!parsed || parsed.version !== PHOTO_VIDEO_DRAFT_VERSION) return null;
+    if (!parsed || (parsed.version !== PHOTO_VIDEO_DRAFT_VERSION && parsed.version !== PHOTO_VIDEO_DRAFT_LEGACY_VERSION)) {
+      return null;
+    }
     if (!parsed.composition || !Array.isArray(parsed.composition.photos)) return null;
     return parsed;
   } catch {
@@ -215,6 +225,7 @@ export function toDraftCompositionMeta(composition: PhotoVideoComposition): Phot
       naturalWidth: photo.naturalWidth,
       naturalHeight: photo.naturalHeight,
       listingUrl: photo.listingUrl,
+      motionKind: photo.motionKind,
     })),
     ratio: composition.ratio,
     pace: composition.pace,
@@ -222,6 +233,9 @@ export function toDraftCompositionMeta(composition: PhotoVideoComposition): Phot
     overlays: composition.overlays,
     audio,
     endCardSeconds: composition.endCardSeconds,
+    durationMode: composition.durationMode,
+    durationSeconds: composition.durationSeconds,
+    movementMode: composition.movementMode,
   };
 }
 
@@ -318,6 +332,7 @@ export async function restorePhotoVideoDraft(
       naturalWidth: photo.naturalWidth,
       naturalHeight: photo.naturalHeight,
       listingUrl: photo.listingUrl,
+      motionKind: photo.motionKind,
     });
   }
 
@@ -343,15 +358,22 @@ export async function restorePhotoVideoDraft(
     };
   }
 
-  const composition: PhotoVideoComposition = {
-    photos,
-    ratio: meta.composition.ratio,
-    pace: meta.composition.pace,
-    style: meta.composition.style,
-    overlays: meta.composition.overlays,
-    audio,
-    endCardSeconds: meta.composition.endCardSeconds,
-  };
+  const draftContext = context ?? meta.context ?? "studio";
+  const composition = migrateComposition(
+    {
+      photos,
+      ratio: meta.composition.ratio,
+      pace: meta.composition.pace,
+      style: meta.composition.style,
+      overlays: meta.composition.overlays,
+      audio,
+      endCardSeconds: meta.composition.endCardSeconds,
+      durationMode: meta.composition.durationMode,
+      durationSeconds: meta.composition.durationSeconds,
+      movementMode: meta.composition.movementMode,
+    },
+    draftContext
+  );
   return { meta, composition, objectUrls };
 }
 

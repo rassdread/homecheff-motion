@@ -2,11 +2,12 @@ import { devices, expect, test } from "@playwright/test";
 import { PHOTO_VIDEO_FONTS, canvasFontShorthand } from "../src/lib/photo-video/text-overlay";
 
 test.describe("PX.4A.4 public compositor certification", () => {
-  test("desktop public creator keeps free watermark and duration, no credits", async ({ page }) => {
+  test("desktop public creator keeps free watermark and duration control, no credits", async ({ page }) => {
     await page.goto("/studio/photo-video", { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("px4a-composer")).toBeVisible({ timeout: 20_000 });
     await expect(page.getByTestId("px4a-duration")).toBeVisible();
-    await expect(page.getByTestId("px4a-remaining")).toBeVisible();
+    await expect(page.getByTestId("px4a-video-duration")).toBeVisible();
+    await expect(page.getByTestId("px4a-movement")).toBeVisible();
     await expect(page.getByTestId("px4a-free-label")).toBeVisible();
     await expect(page.getByText("Geen credits nodig").first()).toBeVisible();
     await expect(page.locator("text=Koop credits")).toHaveCount(0);

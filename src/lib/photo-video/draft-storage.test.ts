@@ -33,7 +33,7 @@ describe("PX.4A.3 photo-video draft + funnel", () => {
     c = setAudio(c, {
       kind: "ownMusic",
       startSeconds: 2,
-      durationSeconds: 3.6,
+      durationSeconds: 15,
       trackDurationSeconds: 40,
       volume: PHOTO_VIDEO_DEFAULT_VOLUME,
       objectUrl: "blob:audio",
@@ -50,6 +50,9 @@ describe("PX.4A.3 photo-video draft + funnel", () => {
       assert.equal(meta.audio.fileName, "secret.mp3");
     }
     assert.equal(meta.overlays[0]?.text, "Vers");
+    assert.equal(meta.durationMode, "fixed");
+    assert.equal(meta.durationSeconds, 15);
+    assert.equal(meta.movementMode, "auto");
   });
 
   it("expires drafts after the retention window", () => {

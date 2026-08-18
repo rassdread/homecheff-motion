@@ -1,10 +1,19 @@
 import {
+  PHOTO_VIDEO_DEFAULT_DURATION_MODE,
+  PHOTO_VIDEO_DEFAULT_DURATION_SECONDS,
   PHOTO_VIDEO_DEFAULT_END_CARD_SECONDS,
+  PHOTO_VIDEO_DEFAULT_MOVEMENT_MODE,
   PHOTO_VIDEO_DEFAULT_PACE,
   PHOTO_VIDEO_DEFAULT_RATIO,
   PHOTO_VIDEO_DEFAULT_STYLE,
   PHOTO_VIDEO_MAX_PHOTOS,
   PHOTO_VIDEO_MIN_PHOTOS,
+  defaultPhotoVideoDurationSeconds,
+  photoVideoDurationPresets,
+  photoVideoMaxSeconds,
+  type PhotoVideoContext,
+  type PhotoVideoDurationMode,
+  type PhotoVideoMovementMode,
   type PhotoVideoPace,
   type PhotoVideoPhotoSource,
   type PhotoVideoRatio,
@@ -12,10 +21,14 @@ import {
 } from "@/lib/photo-video/constants";
 import {
   calculatePhotoVideoDuration,
+  durationInputForContext,
   holdSecondsForPace,
+  legacyDurationFromPhotoCount,
+  resolveAutoDurationSeconds,
   type PhotoVideoDurationResult,
 } from "@/lib/photo-video/duration";
 import { styleRecipe } from "@/lib/photo-video/styles";
+import type { PhotoVideoUserMotionKind } from "@/lib/photo-video/styles";
 import {
   clampOwnMusicToVideo,
   setOwnMusicStart,
@@ -47,6 +60,8 @@ export type PhotoVideoPhoto = {
   naturalHeight: number;
   /** Listing HTTPS original; never mutated onto the listing in 4A.1. */
   listingUrl?: string;
+  /** Per-photo movement override; null clears override. */
+  motionKind?: PhotoVideoUserMotionKind | null;
 };
 
 export type PhotoVideoComposition = {
@@ -57,106 +72,222 @@ export type PhotoVideoComposition = {
   overlays: PhotoVideoTextOverlay[];
   audio: PhotoVideoAudio;
   endCardSeconds: number;
+  durationMode: PhotoVideoDurationMode;
+  /** Total selected duration including end card. */
+  durationSeconds: number;
+  movementMode: PhotoVideoMovementMode;
 };
 
 export function createPhotoVideoComposition(
-  partial?: Partial<PhotoVideoComposition>
+  partial?: Partial<PhotoVideoComposition>,
+  context: PhotoVideoContext = "studio"
 ): PhotoVideoComposition {
-  return {
+  const base: PhotoVideoComposition = {
     photos: [],
     ratio: PHOTO_VIDEO_DEFAULT_RATIO,
     pace: PHOTO_VIDEO_DEFAULT_PACE,
     style: PHOTO_VIDEO_DEFAULT_STYLE,
     overlays: [],
     endCardSeconds: PHOTO_VIDEO_DEFAULT_END_CARD_SECONDS,
+    durationMode: PHOTO_VIDEO_DEFAULT_DURATION_MODE,
+    durationSeconds: defaultPhotoVideoDurationSeconds(context),
+    movementMode: PHOTO_VIDEO_DEFAULT_MOVEMENT_MODE,
+    audio: { kind: "none" },
     ...partial,
-    audio: partial?.audio ?? { kind: "none" },
+  };
+  return migrateComposition(base, context);
+}
+
+export type PhotoVideoCompositionDraft = Omit<
+  PhotoVideoComposition,
+  "durationMode" | "durationSeconds" | "movementMode"
+> & {
+  durationMode?: PhotoVideoDurationMode;
+  durationSeconds?: number;
+  movementMode?: PhotoVideoMovementMode;
+};
+
+/** Backfill duration/movement fields for pre-4A.4B drafts and in-memory restores. */
+export function migrateComposition(
+  composition: PhotoVideoCompositionDraft,
+  context: PhotoVideoContext = "studio"
+): PhotoVideoComposition {
+  const hasDuration =
+    typeof composition.durationSeconds === "number" &&
+    typeof composition.durationMode === "string" &&
+    typeof composition.movementMode === "string";
+
+  if (hasDuration) {
+    return {
+      ...composition,
+      audio: composition.audio ?? { kind: "none" },
+      durationMode: composition.durationMode ?? PHOTO_VIDEO_DEFAULT_DURATION_MODE,
+      durationSeconds: composition.durationSeconds ?? defaultPhotoVideoDurationSeconds(context),
+      movementMode: composition.movementMode ?? PHOTO_VIDEO_DEFAULT_MOVEMENT_MODE,
+    };
+  }
+
+  const photoCount = includedPhotos(composition).length;
+  const recipe = styleRecipe(composition.style);
+  const legacyTotal = legacyDurationFromPhotoCount({
+    photoCount,
+    holdSeconds: holdSecondsForPace(composition.pace),
+    overlapSeconds: recipe.overlapSeconds,
+    endCardSeconds: composition.endCardSeconds ?? 0,
+  });
+  const presets = photoVideoDurationPresets(context);
+  const nearest = presets.reduce(
+    (best, value) => (Math.abs(value - legacyTotal) < Math.abs(best - legacyTotal) ? value : best),
+    presets[0] ?? PHOTO_VIDEO_DEFAULT_DURATION_SECONDS
+  );
+  const maxSeconds = photoVideoMaxSeconds(context);
+
+  return {
+    ...composition,
+    durationMode: "fixed",
+    durationSeconds: Math.min(nearest, maxSeconds),
+    movementMode: PHOTO_VIDEO_DEFAULT_MOVEMENT_MODE,
+    audio: composition.audio ?? { kind: "none" },
   };
 }
 
-export function includedPhotos(composition: PhotoVideoComposition): PhotoVideoPhoto[] {
+export function includedPhotos(composition: { photos: PhotoVideoPhoto[] }): PhotoVideoPhoto[] {
   return composition.photos.filter((photo) => photo.included);
 }
 
-export function compositionDurationInput(composition: PhotoVideoComposition) {
+export function compositionDurationInput(
+  composition: PhotoVideoComposition,
+  context: PhotoVideoContext = "studio"
+) {
   const recipe = styleRecipe(composition.style);
-  return {
-    photoCount: includedPhotos(composition).length,
-    holdSeconds: holdSecondsForPace(composition.pace),
-    overlapSeconds: recipe.overlapSeconds,
-    endCardSeconds: composition.endCardSeconds,
-  };
+  return durationInputForContext(
+    {
+      photoCount: includedPhotos(composition).length,
+      durationSeconds: composition.durationSeconds,
+      durationMode: composition.durationMode,
+      holdSeconds: holdSecondsForPace(composition.pace),
+      overlapSeconds: recipe.overlapSeconds,
+      endCardSeconds: composition.endCardSeconds,
+    },
+    context
+  );
 }
 
-export function compositionDuration(composition: PhotoVideoComposition): PhotoVideoDurationResult {
-  return calculatePhotoVideoDuration(compositionDurationInput(composition));
+export function compositionDuration(
+  composition: PhotoVideoComposition,
+  context: PhotoVideoContext = "studio"
+): PhotoVideoDurationResult {
+  return calculatePhotoVideoDuration(compositionDurationInput(composition, context));
 }
 
 export function canAddPhoto(composition: PhotoVideoComposition, sourceCount = 1): boolean {
-  const nextCount = includedPhotos(composition).length + sourceCount;
-  if (nextCount > PHOTO_VIDEO_MAX_PHOTOS) return false;
-  const input = compositionDurationInput(composition);
-  return !calculatePhotoVideoDuration({ ...input, photoCount: nextCount }).exceedsMax;
+  return includedPhotos(composition).length + sourceCount <= PHOTO_VIDEO_MAX_PHOTOS;
 }
 
-export function isCompositionPreviewReady(composition: PhotoVideoComposition): boolean {
+export function isCompositionPreviewReady(
+  composition: PhotoVideoComposition,
+  context: PhotoVideoContext = "studio"
+): boolean {
   const n = includedPhotos(composition).length;
-  return n >= PHOTO_VIDEO_MIN_PHOTOS && n <= PHOTO_VIDEO_MAX_PHOTOS && !compositionDuration(composition).exceedsMax;
+  const duration = compositionDuration(composition, context);
+  return (
+    n >= PHOTO_VIDEO_MIN_PHOTOS &&
+    n <= PHOTO_VIDEO_MAX_PHOTOS &&
+    !duration.exceedsMax &&
+    duration.totalSeconds > 0
+  );
 }
 
 export function canRemoveIncludedPhoto(composition: PhotoVideoComposition): boolean {
   return includedPhotos(composition).length > 0;
 }
 
+function withDurationSync(
+  composition: PhotoVideoComposition,
+  context: PhotoVideoContext = "studio"
+): PhotoVideoComposition {
+  let next = composition;
+  if (next.durationMode === "auto") {
+    const resolved = resolveAutoDurationSeconds({
+      photoCount: includedPhotos(next).length,
+      pace: next.pace,
+      overlapSeconds: styleRecipe(next.style).overlapSeconds,
+      endCardSeconds: next.endCardSeconds,
+      maxSeconds: photoVideoMaxSeconds(context),
+    });
+    next = { ...next, durationSeconds: resolved };
+  }
+  return syncAudioWindow(next, context);
+}
+
 export function addPhotos(
   composition: PhotoVideoComposition,
-  photos: PhotoVideoPhoto[]
+  photos: PhotoVideoPhoto[],
+  context: PhotoVideoContext = "studio"
 ): PhotoVideoComposition {
   const nextPhotos = composition.photos.slice();
   for (const photo of photos) {
     const trial: PhotoVideoComposition = { ...composition, photos: [...nextPhotos, photo] };
-    if (photo.included) {
-      if (includedPhotos(trial).length > PHOTO_VIDEO_MAX_PHOTOS) continue;
-      if (compositionDuration(trial).exceedsMax) continue;
-    }
+    if (photo.included && includedPhotos(trial).length > PHOTO_VIDEO_MAX_PHOTOS) continue;
     nextPhotos.push(photo);
   }
-  return syncAudioWindow({ ...composition, photos: nextPhotos });
+  return withDurationSync({ ...composition, photos: nextPhotos }, context);
 }
 
-export function excludePhoto(composition: PhotoVideoComposition, photoId: string): PhotoVideoComposition {
+export function excludePhoto(
+  composition: PhotoVideoComposition,
+  photoId: string,
+  context: PhotoVideoContext = "studio"
+): PhotoVideoComposition {
   const target = composition.photos.find((photo) => photo.id === photoId);
   if (!target?.included) return composition;
   if (!canRemoveIncludedPhoto(composition)) return composition;
-  return syncAudioWindow({
-    ...composition,
-    photos: composition.photos.map((photo) =>
-      photo.id === photoId ? { ...photo, included: false } : photo
-    ),
-  });
+  return withDurationSync(
+    {
+      ...composition,
+      photos: composition.photos.map((photo) =>
+        photo.id === photoId ? { ...photo, included: false } : photo
+      ),
+    },
+    context
+  );
 }
 
-export function includePhoto(composition: PhotoVideoComposition, photoId: string): PhotoVideoComposition {
+export function includePhoto(
+  composition: PhotoVideoComposition,
+  photoId: string,
+  context: PhotoVideoContext = "studio"
+): PhotoVideoComposition {
   const target = composition.photos.find((photo) => photo.id === photoId);
   if (!target || target.included) return composition;
   if (!canAddPhoto(composition, 1)) return composition;
-  return syncAudioWindow({
-    ...composition,
-    photos: composition.photos.map((photo) =>
-      photo.id === photoId ? { ...photo, included: true } : photo
-    ),
-  });
+  return withDurationSync(
+    {
+      ...composition,
+      photos: composition.photos.map((photo) =>
+        photo.id === photoId ? { ...photo, included: true } : photo
+      ),
+    },
+    context
+  );
 }
 
-export function removePhoto(composition: PhotoVideoComposition, photoId: string): PhotoVideoComposition {
+export function removePhoto(
+  composition: PhotoVideoComposition,
+  photoId: string,
+  context: PhotoVideoContext = "studio"
+): PhotoVideoComposition {
   const target = composition.photos.find((photo) => photo.id === photoId);
   if (!target) return composition;
   if (target.included && !canRemoveIncludedPhoto(composition)) return composition;
-  return syncAudioWindow({
-    ...composition,
-    photos: composition.photos.filter((photo) => photo.id !== photoId),
-    overlays: composition.overlays.filter((overlay) => overlay.photoId !== photoId),
-  });
+  return withDurationSync(
+    {
+      ...composition,
+      photos: composition.photos.filter((photo) => photo.id !== photoId),
+      overlays: composition.overlays.filter((overlay) => overlay.photoId !== photoId),
+    },
+    context
+  );
 }
 
 export function reorderPhotos(
@@ -182,24 +313,73 @@ export function movePhoto(composition: PhotoVideoComposition, photoId: string, d
   return reorderPhotos(composition, index, index + delta);
 }
 
-function syncAudioWindow(composition: PhotoVideoComposition): PhotoVideoComposition {
+function syncAudioWindow(
+  composition: PhotoVideoComposition,
+  context: PhotoVideoContext = "studio"
+): PhotoVideoComposition {
   if (composition.audio.kind !== "ownMusic") return composition;
   return {
     ...composition,
-    audio: clampOwnMusicToVideo(composition.audio, compositionDuration(composition).totalSeconds),
+    audio: clampOwnMusicToVideo(composition.audio, compositionDuration(composition, context).totalSeconds),
   };
 }
 
-export function setPace(composition: PhotoVideoComposition, pace: PhotoVideoPace): PhotoVideoComposition {
-  const next = { ...composition, pace };
-  if (compositionDuration(next).exceedsMax) return composition;
-  return syncAudioWindow(next);
+export function setDurationSeconds(
+  composition: PhotoVideoComposition,
+  seconds: number,
+  context: PhotoVideoContext = "studio"
+): PhotoVideoComposition {
+  return syncAudioWindow(
+    { ...composition, durationMode: "fixed", durationSeconds: Math.max(1, seconds) },
+    context
+  );
 }
 
-export function setStyle(composition: PhotoVideoComposition, style: PhotoVideoStyle): PhotoVideoComposition {
+export function setDurationMode(
+  composition: PhotoVideoComposition,
+  mode: PhotoVideoDurationMode,
+  context: PhotoVideoContext = "studio"
+): PhotoVideoComposition {
+  const next = { ...composition, durationMode: mode };
+  return withDurationSync(next, context);
+}
+
+export function setMovementMode(
+  composition: PhotoVideoComposition,
+  mode: PhotoVideoMovementMode
+): PhotoVideoComposition {
+  return { ...composition, movementMode: mode };
+}
+
+export function setPhotoMotionKind(
+  composition: PhotoVideoComposition,
+  photoId: string,
+  motion: PhotoVideoUserMotionKind | null
+): PhotoVideoComposition {
+  return {
+    ...composition,
+    photos: composition.photos.map((photo) =>
+      photo.id === photoId ? { ...photo, motionKind: motion } : photo
+    ),
+  };
+}
+
+export function setPace(
+  composition: PhotoVideoComposition,
+  pace: PhotoVideoPace,
+  context: PhotoVideoContext = "studio"
+): PhotoVideoComposition {
+  const next = { ...composition, pace };
+  return withDurationSync(next, context);
+}
+
+export function setStyle(
+  composition: PhotoVideoComposition,
+  style: PhotoVideoStyle,
+  context: PhotoVideoContext = "studio"
+): PhotoVideoComposition {
   const next = { ...composition, style };
-  if (compositionDuration(next).exceedsMax) return composition;
-  return syncAudioWindow(next);
+  return withDurationSync(next, context);
 }
 
 export function setRatio(composition: PhotoVideoComposition, ratio: PhotoVideoRatio): PhotoVideoComposition {
@@ -314,16 +494,25 @@ export function setOverlayBackground(
   return updateTextOverlay(composition, overlayId, { background });
 }
 
-export function setAudio(composition: PhotoVideoComposition, audio: PhotoVideoAudio): PhotoVideoComposition {
+export function setAudio(
+  composition: PhotoVideoComposition,
+  audio: PhotoVideoAudio,
+  context: PhotoVideoContext = "studio"
+): PhotoVideoComposition {
   if (audio.kind === "none") return { ...composition, audio };
-  return syncAudioWindow({ ...composition, audio });
+  return syncAudioWindow({ ...composition, audio }, context);
 }
 
-export function setMusicStart(composition: PhotoVideoComposition, startSeconds: number): PhotoVideoComposition {
+export function setMusicStart(
+  composition: PhotoVideoComposition,
+  startSeconds: number,
+  context: PhotoVideoContext = "studio"
+): PhotoVideoComposition {
   if (composition.audio.kind !== "ownMusic") return composition;
   return setAudio(
     composition,
-    setOwnMusicStart(composition.audio, startSeconds, compositionDuration(composition).totalSeconds)
+    setOwnMusicStart(composition.audio, startSeconds, compositionDuration(composition, context).totalSeconds),
+    context
   );
 }
 

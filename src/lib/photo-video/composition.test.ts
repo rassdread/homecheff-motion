@@ -23,6 +23,10 @@ import {
   setOverlayColor,
   setOverlayFont,
   setOverlaySize,
+  setPhotoMotionKind,
+  setDurationMode,
+  setDurationSeconds,
+  setMovementMode,
   setPace,
   setRatio,
   setStyle,
@@ -50,15 +54,18 @@ describe("PX.4A.1 composition model", () => {
     assert.equal(c.pace, "normaal");
     assert.equal(c.style, "auto");
     assert.equal(c.ratio, "9:16");
+    assert.equal(c.durationMode, "fixed");
+    assert.equal(c.durationSeconds, 15);
+    assert.equal(c.movementMode, "auto");
     assert.equal(c.audio.kind, "none");
     assert.deepEqual(c.overlays, []);
     assert.equal(isCompositionPreviewReady(c), false);
   });
 
-  it("2 photos become preview-ready", () => {
+  it("2 photos become preview-ready at the selected duration", () => {
     const c = addPhotos(createPhotoVideoComposition(), nPhotos(2));
     assert.equal(isCompositionPreviewReady(c), true);
-    assert.equal(compositionDuration(c).totalSeconds, 3.6);
+    assert.equal(compositionDuration(c).totalSeconds, 15);
   });
 
   it("caps at 12 photos", () => {
@@ -113,14 +120,22 @@ describe("PX.4A.1 composition model", () => {
     assert.equal(c.ratio, "9:16");
   });
 
-  it("Kort Normaal Rustig and styles stay under 30s at 12 photos", () => {
+  it("Kort Normaal Rustig and styles stay under 30s at 12 photos with fixed duration", () => {
     for (const pace of ["kort", "normaal", "rustig"] as const) {
       for (const style of ["auto", "smooth", "calm", "energetic"] as const) {
         const c = setStyle(setPace(addPhotos(createPhotoVideoComposition(), nPhotos(12)), pace), style);
         assert.equal(c.photos.length, PHOTO_VIDEO_MAX_PHOTOS);
         assert.equal(compositionDuration(c).exceedsMax, false, `${pace} ${style}`);
+        assert.equal(compositionDuration(c).totalSeconds, 15);
       }
     }
+  });
+
+  it("auto duration mode follows pace when photo count changes", () => {
+    let c = setDurationMode(addPhotos(createPhotoVideoComposition(), nPhotos(12)), "auto");
+    assert.equal(compositionDuration(c).totalSeconds, 19.6);
+    c = setPace(c, "rustig");
+    assert.ok(compositionDuration(c).totalSeconds > 19.6);
   });
 
   it("stores multiple per-photo text overlays with style and delete", () => {
@@ -173,7 +188,8 @@ describe("PX.4A.1 composition model", () => {
     const none = createPhotoVideoComposition();
     assert.equal(none.audio.kind, "none");
     let c = addPhotos(createPhotoVideoComposition(), nPhotos(12));
-    assert.equal(compositionDuration(c).totalSeconds, 19.6);
+    const videoSeconds = compositionDuration(c).totalSeconds;
+    assert.equal(videoSeconds, 15);
     c = setAudio(c, {
       kind: "ownMusic",
       startSeconds: 40,
@@ -183,17 +199,25 @@ describe("PX.4A.1 composition model", () => {
     });
     assert.equal(c.audio.kind, "ownMusic");
     if (c.audio.kind === "ownMusic") {
-      assert.equal(c.audio.startSeconds, 30 - 19.6);
-      assert.equal(c.audio.durationSeconds, 19.6);
+      assert.equal(c.audio.startSeconds, 30 - videoSeconds);
+      assert.equal(c.audio.durationSeconds, videoSeconds);
     }
-    c = setPace(c, "rustig");
+    c = setDurationSeconds(c, 30);
     const longer = compositionDuration(c).totalSeconds;
-    assert.ok(longer > 19.6);
+    assert.equal(longer, 30);
     if (c.audio.kind === "ownMusic") {
       assert.equal(c.audio.durationSeconds, longer);
       assert.equal(c.audio.startSeconds, 30 - longer);
     }
     c = setAudio(c, { kind: "none" });
     assert.equal(c.audio.kind, "none");
+  });
+
+  it("stores movement mode and per-photo overrides", () => {
+    let c = addPhotos(createPhotoVideoComposition(), nPhotos(2));
+    c = setMovementMode(c, "none");
+    assert.equal(c.movementMode, "none");
+    c = setPhotoMotionKind(c, "p0", "zoom-in");
+    assert.equal(c.photos[0]?.motionKind, "zoom-in");
   });
 });
