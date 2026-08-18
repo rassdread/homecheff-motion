@@ -5,6 +5,7 @@
  */
 
 export const PX4A_ITEM_COOKIE = "hc_px4a_item";
+export const PX4A_STANDALONE_CREATOR_PATH = "/studio/photo-video";
 export const PX4A_ITEM_CREATOR_PATH = "/studio/photo-video/from-item";
 export const PX4A_ITEM_HANDOFF_PATH = "/api/photo-video/item-handoff";
 export const PX4A_ITEM_TTL_SEC = 2 * 60 * 60;
@@ -19,6 +20,11 @@ export type Px4aItemHandoffPayload = {
   e: number;
   r: string;
 };
+
+export function isPx4aStandaloneCreatorPath(path: string): boolean {
+  const pathname = (path.split("?")[0] ?? path).trim();
+  return pathname === PX4A_STANDALONE_CREATOR_PATH;
+}
 
 export function isPx4aItemCreatorPath(path: string): boolean {
   const pathname = (path.split("?")[0] ?? path).trim();

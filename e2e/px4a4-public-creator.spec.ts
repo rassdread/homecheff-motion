@@ -12,6 +12,9 @@ test.describe("PX.4A.4 public compositor certification", () => {
     await expect(page.getByText("Geen credits nodig").first()).toBeVisible();
     await expect(page.locator("text=Koop credits")).toHaveCount(0);
     await expect(page.getByTestId("px4a-item-back")).toHaveCount(0);
+    await expect(page.getByTestId("px4a-style")).toContainText(/Overgang|Transition/);
+    await expect(page.getByTestId("px4a-audio-none")).toBeVisible();
+    await expect(page.getByTestId("px4a-global-more")).toBeVisible();
     await page.getByRole("button", { name: "Liggend" }).click();
     await expect(page.getByRole("button", { name: "Liggend" })).toHaveAttribute("aria-pressed", "true");
   });
@@ -62,6 +65,10 @@ test.describe("PX.4A.4 public compositor certification", () => {
     await expect(page.getByTestId("px4a-add-photo-tile")).toBeVisible();
     await expect(page.getByTestId("px4a-edit-toolbar")).toBeVisible();
     await expect(page.getByTestId("px4a-global-video")).toBeVisible();
+    await expect(page.getByText("Instellingen voor de hele video").first()).toBeVisible();
+    await expect(page.getByTestId("px4a-style")).toContainText(/Overgang|Transition/);
+    await expect(page.getByTestId("px4a-audio-none")).toBeVisible();
+    await expect(page.getByTestId("px4a-global-more")).toBeVisible();
     await context.close();
   });
 
@@ -176,6 +183,9 @@ test.describe("PX.4A.4 public compositor certification", () => {
     await expect(page.getByTestId("px4a-text-input")).toHaveValue("BETA");
     await expect(page.getByTestId("px4a-text-input")).toHaveAttribute("type", "text");
     await expect(page.getByTestId("px4a-add-photo-tile")).toBeVisible();
+    const motionTab = page.getByTestId("px4a-toolbar-motion");
+    if (await motionTab.isVisible()) await motionTab.click();
     await expect(page.getByTestId("px4a-movement-photo")).toBeVisible();
+    await expect(page.getByTestId("px4a-movement")).toBeVisible();
   });
 });
