@@ -7,12 +7,13 @@ import type { PhotoVideoComposition } from "@/lib/photo-video/composition";
 import { compositionDuration, isCompositionPreviewReady, overlaysForPhoto } from "@/lib/photo-video/composition";
 import { activePhotoIdAt } from "@/lib/photo-video/clock";
 import type { PhotoVideoContext } from "@/lib/photo-video/constants";
-import { coverFitRect, safeZones } from "@/lib/photo-video/layout";
+import { coverFitRect, containFitRect, safeZones } from "@/lib/photo-video/layout";
 import { sampleLocalMotion } from "@/lib/photo-video/motion";
 import { renderTransitionFrame } from "@/lib/photo-video/render-transition";
 import { styleRecipe } from "@/lib/photo-video/styles";
 import { hashTransitionSeed } from "@/lib/photo-video/transition-kind";
 import { motionKindForClip, playheadAt } from "@/lib/photo-video/timeline";
+import { isVideoPhoto } from "@/lib/photo-video/media-clip";
 import {
   canvasFontShorthand,
   fontSizePx,
@@ -22,6 +23,7 @@ import {
 } from "@/lib/photo-video/text-overlay";
 
 export type PhotoVideoImageCache = Map<string, HTMLImageElement>;
+export type PhotoVideoVideoCache = Map<string, HTMLVideoElement>;
 export type OverlayLayout = { id: string } & OverlayBox;
 
 let layerPair: { width: number; height: number; a: HTMLCanvasElement; b: HTMLCanvasElement } | null = null;
@@ -40,25 +42,48 @@ function acquireLayers(width: number, height: number): { a: HTMLCanvasElement; b
   return layerPair;
 }
 
+function sourcePixelSize(image: CanvasImageSource): { width: number; height: number } {
+  if (typeof HTMLVideoElement !== "undefined" && image instanceof HTMLVideoElement) {
+    return { width: image.videoWidth || image.width, height: image.videoHeight || image.height };
+  }
+  if (typeof HTMLImageElement !== "undefined" && image instanceof HTMLImageElement) {
+    return { width: image.naturalWidth || image.width, height: image.naturalHeight || image.height };
+  }
+  if (typeof HTMLCanvasElement !== "undefined" && image instanceof HTMLCanvasElement) {
+    return { width: image.width, height: image.height };
+  }
+  return { width: 1, height: 1 };
+}
+
 export function drawCoverImage(
   ctx: CanvasRenderingContext2D,
-  image: HTMLImageElement,
+  image: CanvasImageSource,
   canvasW: number,
   canvasH: number,
   zoom: number,
   panX: number,
   panY: number,
-  alpha: number
+  alpha: number,
+  fit: "cover" | "contain" = "cover"
 ) {
-  const rect = coverFitRect({
-    imageWidth: image.naturalWidth || image.width,
-    imageHeight: image.naturalHeight || image.height,
-    canvasWidth: canvasW,
-    canvasHeight: canvasH,
-    zoom,
-    panX,
-    panY,
-  });
+  const size = sourcePixelSize(image);
+  const rect =
+    fit === "contain"
+      ? containFitRect({
+          imageWidth: size.width,
+          imageHeight: size.height,
+          canvasWidth: canvasW,
+          canvasHeight: canvasH,
+        })
+      : coverFitRect({
+          imageWidth: size.width,
+          imageHeight: size.height,
+          canvasWidth: canvasW,
+          canvasHeight: canvasH,
+          zoom,
+          panX,
+          panY,
+        });
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.drawImage(image, rect.sx, rect.sy, rect.sw, rect.sh, rect.dx, rect.dy, rect.dw, rect.dh);
@@ -197,6 +222,7 @@ export function drawPhotoVideoFrame(input: {
   context?: PhotoVideoContext;
   timeSeconds: number;
   images: PhotoVideoImageCache;
+  videos?: PhotoVideoVideoCache;
   watermark: HTMLImageElement | null;
   selectedOverlayId?: string | null;
   placeholderText: string;
@@ -224,10 +250,15 @@ export function drawPhotoVideoFrame(input: {
     alpha: number,
     withText: boolean
   ) => {
+    const videoEl = isVideoPhoto(clip.photo) ? input.videos?.get(clip.photo.id) : undefined;
+    const readyVideo =
+      videoEl && videoEl.readyState >= 2 && (videoEl.videoWidth > 0 || videoEl.videoHeight > 0) ? videoEl : null;
     const image = input.images.get(clip.photo.previewUrl);
-    if (!image) return;
+    const source = readyVideo ?? image;
+    if (!source) return;
     const motion = sampleLocalMotion(motionKindForClip(input.composition, clip), progress, recipe.motionStrength);
-    drawCoverImage(target, image, w, h, motion.zoom, motion.panX, motion.panY, alpha);
+    const fit = clip.photo.video?.fit === "contain" ? "contain" : "cover";
+    drawCoverImage(target, source, w, h, motion.zoom, motion.panX, motion.panY, alpha, fit);
     if (!withText) return;
     for (const overlay of overlaysForPhoto(input.composition, clip.photo.id)) {
       drawOverlay(target, overlay, w, h, false, input.placeholderText);

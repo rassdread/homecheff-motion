@@ -1,9 +1,9 @@
 "use client";
 
-import { includedPhotos, type PhotoVideoComposition } from "@/lib/photo-video/composition";
+import { includedPhotos, compositionHasEnabledSourceAudio, type PhotoVideoComposition } from "@/lib/photo-video/composition";
 import type { PhotoVideoContext } from "@/lib/photo-video/constants";
 import { PHOTO_VIDEO_WATERMARK_SRC } from "@/lib/photo-video/constants";
-import { copyAudioWindow, ownMusicExportWindow } from "@/lib/photo-video/export-audio";
+import { copyAudioWindow, mixAudioLayers, ownMusicExportWindow } from "@/lib/photo-video/export-audio";
 import { photoVideoExportSettings, type PhotoVideoExportStage } from "@/lib/photo-video/export-settings";
 import { PHOTO_VIDEO_AUDIO_CODEC, PHOTO_VIDEO_EXPORT_CONTAINER, PHOTO_VIDEO_VIDEO_CODEC } from "@/lib/photo-video/export-muxer";
 import {
@@ -13,7 +13,15 @@ import {
   validatePhotoVideoExportFile,
   type PhotoVideoExportFailReason,
 } from "@/lib/photo-video/export-validate";
-import { drawPhotoVideoFrame, loadPhotoVideoImage, type PhotoVideoImageCache } from "@/lib/photo-video/render-frame";
+import { isVideoPhoto, videoClipDuration, videoSourceTime } from "@/lib/photo-video/media-clip";
+import {
+  drawPhotoVideoFrame,
+  loadPhotoVideoImage,
+  type PhotoVideoImageCache,
+  type PhotoVideoVideoCache,
+} from "@/lib/photo-video/render-frame";
+import { playheadAt, buildPhotoVideoClips } from "@/lib/photo-video/timeline";
+import { createDetachedVideoElement, releaseVideoElement, seekHtmlVideo, waitForVideoReady } from "@/lib/photo-video/video-element";
 
 export type { PhotoVideoExportStage };
 
@@ -55,10 +63,26 @@ export async function encodePhotoVideoLocal(input: {
   if (videoCodec !== PHOTO_VIDEO_VIDEO_CODEC) return { ok: false, reason: "unsupported" };
 
   const cache: PhotoVideoImageCache = new Map();
+  const videos: PhotoVideoVideoCache = new Map();
   const photos = includedPhotos(input.composition);
   try {
-    await Promise.all(photos.map((photo) => loadPhotoVideoImage(photo.previewUrl, cache)));
+    await Promise.all(
+      photos.map((photo) => {
+        if (!photo.previewUrl) return Promise.resolve(null);
+        return loadPhotoVideoImage(photo.previewUrl, cache).catch(() => null);
+      })
+    );
+    await Promise.all(
+      photos
+        .filter((photo) => isVideoPhoto(photo) && photo.video?.objectUrl)
+        .map(async (photo) => {
+          const video = createDetachedVideoElement(photo.video!.objectUrl);
+          await waitForVideoReady(video);
+          videos.set(photo.id, video);
+        })
+    );
   } catch {
+    for (const video of videos.values()) releaseVideoElement(video);
     return { ok: false, reason: "encode" };
   }
   let watermark: HTMLImageElement | null = null;
@@ -67,14 +91,23 @@ export async function encodePhotoVideoLocal(input: {
   } catch {
     watermark = null;
   }
-  if (!watermark) return { ok: false, reason: "encode" };
-  if (input.signal?.aborted) return { ok: false, reason: "cancelled" };
+  if (!watermark) {
+    for (const video of videos.values()) releaseVideoElement(video);
+    return { ok: false, reason: "encode" };
+  }
+  if (input.signal?.aborted) {
+    for (const video of videos.values()) releaseVideoElement(video);
+    return { ok: false, reason: "cancelled" };
+  }
 
   const canvas = document.createElement("canvas");
   canvas.width = settings.width;
   canvas.height = settings.height;
   const ctx = canvas.getContext("2d", { alpha: false });
-  if (!ctx) return { ok: false, reason: "unsupported" };
+  if (!ctx) {
+    for (const video of videos.values()) releaseVideoElement(video);
+    return { ok: false, reason: "unsupported" };
+  }
 
   const target = new mediabunny.BufferTarget();
   const output = new mediabunny.Output({
@@ -88,40 +121,49 @@ export async function encodePhotoVideoLocal(input: {
   });
   output.addVideoTrack(videoSource, { frameRate: settings.fps });
 
-  const wantsAudio = input.composition.audio.kind === "ownMusic";
+  const wantsAudio = input.composition.audio.kind === "ownMusic" || compositionHasEnabledSourceAudio(input.composition);
   let audioSource: InstanceType<typeof mediabunny.AudioBufferSource> | null = null;
-  let sliced: AudioBuffer | null = null;
+  let mixed: AudioBuffer | null = null;
   if (wantsAudio) {
     input.onStage?.("music");
-    const window = ownMusicExportWindow(input.composition.audio, preflight.durationSeconds);
-    const blob = input.audioBlob;
-    if (!window || !blob) {
-      await output.cancel().catch(() => undefined);
-      return { ok: false, reason: "encode" };
-    }
     const audioCodec = await mediabunny.getFirstEncodableAudioCodec([PHOTO_VIDEO_AUDIO_CODEC], {
       quality: new mediabunny.Quality({ bitrate: settings.audioBitrate }),
     });
     if (audioCodec !== PHOTO_VIDEO_AUDIO_CODEC) {
+      for (const video of videos.values()) releaseVideoElement(video);
       await output.cancel().catch(() => undefined);
       return { ok: false, reason: "unsupported" };
     }
     try {
-      sliced = await decodeAndSliceOwnMusic(blob, window.startSeconds, window.durationSeconds, window.volume);
+      mixed = await mixExportAudio({
+        composition: input.composition,
+        context: input.context,
+        audioBlob: input.audioBlob,
+        durationSeconds: preflight.durationSeconds,
+      });
     } catch {
+      for (const video of videos.values()) releaseVideoElement(video);
       await output.cancel().catch(() => undefined);
       return { ok: false, reason: "encode" };
     }
-    audioSource = new mediabunny.AudioBufferSource({
-      codec: PHOTO_VIDEO_AUDIO_CODEC,
-      quality: new mediabunny.Quality({ bitrate: settings.audioBitrate }),
-    });
-    output.addAudioTrack(audioSource);
+    if (!mixed) {
+      if (input.composition.audio.kind === "ownMusic") {
+        for (const video of videos.values()) releaseVideoElement(video);
+        await output.cancel().catch(() => undefined);
+        return { ok: false, reason: "encode" };
+      }
+    } else {
+      audioSource = new mediabunny.AudioBufferSource({
+        codec: PHOTO_VIDEO_AUDIO_CODEC,
+        quality: new mediabunny.Quality({ bitrate: settings.audioBitrate }),
+      });
+      output.addAudioTrack(audioSource);
+    }
   }
 
   try {
     await output.start();
-    if (audioSource && sliced) await audioSource.add(sliced);
+    if (audioSource && mixed) await audioSource.add(mixed);
     input.onStage?.("frames");
     const fps = settings.fps;
     const frameDuration = 1 / fps;
@@ -132,12 +174,24 @@ export async function encodePhotoVideoLocal(input: {
         return { ok: false, reason: "cancelled" };
       }
       const t = Math.min(preflight.durationSeconds - 1 / (fps * 2), i * frameDuration);
+      const head = playheadAt(input.composition, t, input.context);
+      const active = [head.from, head.to].filter(Boolean);
+      await Promise.all(
+        active.map(async (clip) => {
+          if (!clip || !isVideoPhoto(clip.photo)) return;
+          const video = videos.get(clip.photo.id);
+          if (!video) return;
+          const progress = clip === head.to ? head.toProgress : head.fromProgress;
+          await seekHtmlVideo(video, videoSourceTime(clip.photo, progress));
+        })
+      );
       drawPhotoVideoFrame({
         ctx,
         composition: input.composition,
         context: input.context,
         timeSeconds: t,
         images: cache,
+        videos,
         watermark,
         placeholderText: input.placeholderText ?? "",
         drawSelection: false,
@@ -151,6 +205,9 @@ export async function encodePhotoVideoLocal(input: {
   } catch {
     await output.cancel().catch(() => undefined);
     return { ok: false, reason: "encode" };
+  } finally {
+    for (const video of videos.values()) releaseVideoElement(video);
+    videos.clear();
   }
 
   const buffer = target.buffer;
@@ -190,6 +247,66 @@ async function decodeAndSliceOwnMusic(
   } finally {
     await ctx.close().catch(() => undefined);
   }
+}
+
+async function decodeMediaBlob(blob: Blob): Promise<AudioBuffer> {
+  const Ctx = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!Ctx) throw new Error("decode");
+  const ctx = new Ctx();
+  try {
+    const bytes = await blob.arrayBuffer();
+    return await ctx.decodeAudioData(bytes.slice(0));
+  } finally {
+    await ctx.close().catch(() => undefined);
+  }
+}
+
+async function mixExportAudio(input: {
+  composition: PhotoVideoComposition;
+  context: PhotoVideoContext;
+  audioBlob?: Blob | null;
+  durationSeconds: number;
+}): Promise<AudioBuffer | null> {
+  const layers: { buffer: AudioBuffer; startSeconds: number; volume: number }[] = [];
+  const musicWindow = ownMusicExportWindow(input.composition.audio, input.durationSeconds);
+  if (input.composition.audio.kind === "ownMusic") {
+    if (!musicWindow || !input.audioBlob) throw new Error("music");
+    layers.push({
+      buffer: await decodeAndSliceOwnMusic(
+        input.audioBlob,
+        musicWindow.startSeconds,
+        musicWindow.durationSeconds,
+        musicWindow.volume
+      ),
+      startSeconds: 0,
+      volume: 1,
+    });
+  }
+  const timeline = buildPhotoVideoClips(input.composition, input.context);
+  for (const clip of timeline) {
+    const photo = clip.photo;
+    if (!isVideoPhoto(photo) || !photo.video?.audioEnabled || (photo.video.volume ?? 0) <= 0) continue;
+    if (!photo.video.objectUrl) continue;
+    try {
+      const blob = await fetch(photo.video.objectUrl).then((res) => res.blob());
+      const decoded = await decodeMediaBlob(blob);
+      layers.push({
+        buffer: copyAudioWindow(
+          decoded,
+          photo.video.trimStartSeconds,
+          videoClipDuration(photo),
+          photo.video.volume
+        ),
+        startSeconds: clip.startSeconds,
+        volume: 1,
+      });
+    } catch {
+      /* Source audio may be undecodable. Keep picture. */
+    }
+  }
+  if (layers.length === 0) return null;
+  const sampleRate = layers[0]!.buffer.sampleRate;
+  return mixAudioLayers(input.durationSeconds, sampleRate, layers);
 }
 
 export function downloadPhotoVideoFile(file: File): void {

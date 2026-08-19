@@ -7,6 +7,7 @@ import {
   compositionDuration,
   createListingPhoto,
   createLocalPhoto,
+  createLocalVideo,
   createPhotoVideoComposition,
   excludePhoto,
   includePhoto,
@@ -30,6 +31,8 @@ import {
   setPace,
   setRatio,
   setStyle,
+  setVideoAudio,
+  setVideoTrim,
   updateTextOverlay,
 } from "@/lib/photo-video/composition";
 import { PHOTO_VIDEO_MAX_PHOTOS } from "@/lib/photo-video/constants";
@@ -251,5 +254,85 @@ describe("PX.4A.1 composition model", () => {
     assert.equal(c.photos[1]?.id, "p1");
     assert.equal(overlaysForPhoto(c, "p1")[0]?.photoId, "p1");
     assert.equal(c.photos.find((p) => p.id === "p1")?.motionKind, "zoom-in");
+  });
+});
+
+describe("PX.4A.7 mixed media clips", () => {
+  it("allocates real video duration and keeps photo-only totals identical", () => {
+    const photosOnly = addPhotos(createPhotoVideoComposition(), nPhotos(2));
+    assert.equal(compositionDuration(photosOnly).totalSeconds, 15);
+    assert.equal(compositionDuration(photosOnly).videoOverBudget, false);
+    let mixed = addPhotos(createPhotoVideoComposition(), [
+      nPhotos(1)[0]!,
+      {
+        ...createLocalPhoto({ id: "v0", previewUrl: "blob:v", naturalWidth: 10, naturalHeight: 10 }),
+        mediaKind: "video",
+        video: {
+          objectUrl: "blob:video",
+          sourceDurationSeconds: 20,
+          trimStartSeconds: 2,
+          trimEndSeconds: 7,
+          audioEnabled: true,
+          volume: 0.8,
+          fit: "cover",
+        },
+      },
+      { ...nPhotos(1)[0]!, id: "p1" },
+    ]);
+    mixed = setDurationSeconds(mixed, 15);
+    const duration = compositionDuration(mixed);
+    assert.equal(duration.totalSeconds, 15);
+    assert.equal(duration.videoSeconds, 5);
+    assert.equal(duration.imageCount, 2);
+    assert.equal(duration.videoOverBudget, false);
+  });
+
+  it("blocks export when video fragments exceed the selected duration", () => {
+    const mixed = addPhotos(createPhotoVideoComposition(), [
+      nPhotos(1)[0]!,
+      {
+        ...createLocalPhoto({ id: "v0", previewUrl: "blob:v", naturalWidth: 10, naturalHeight: 10 }),
+        mediaKind: "video",
+        video: {
+          objectUrl: "blob:video",
+          sourceDurationSeconds: 40,
+          trimStartSeconds: 0,
+          trimEndSeconds: 18,
+          audioEnabled: true,
+          volume: 1,
+          fit: "cover",
+        },
+      },
+    ]);
+    const duration = compositionDuration(setDurationSeconds(mixed, 15));
+    assert.equal(duration.videoOverBudget, true);
+    assert.ok(duration.totalSeconds > 15);
+  });
+
+  it("keeps trim, audio and overlays attached to clip ids after reorder", () => {
+    let c = addPhotos(createPhotoVideoComposition(), [
+      nPhotos(1)[0]!,
+      createLocalVideo({
+        id: "v0",
+        previewUrl: "blob:poster",
+        objectUrl: "blob:video",
+        naturalWidth: 10,
+        naturalHeight: 10,
+        sourceDurationSeconds: 12,
+        trimStartSeconds: 3,
+        trimEndSeconds: 8,
+      }),
+    ]);
+    c = addTextForPhoto(c, { id: "tv", photoId: "v0", text: "ON VIDEO" });
+    c = setVideoAudio(c, "v0", false);
+    c = setVideoTrim(c, "v0", 1, 4);
+    c = reorderPhotos(c, 1, 0);
+    const video = c.photos.find((photo) => photo.id === "v0");
+    assert.equal(c.photos[0]?.id, "v0");
+    assert.equal(video?.video?.audioEnabled, false);
+    assert.equal(video?.video?.trimStartSeconds, 1);
+    assert.equal(video?.video?.trimEndSeconds, 4);
+    assert.equal(overlaysForPhoto(c, "v0")[0]?.text, "ON VIDEO");
+    assert.equal(overlaysForPhoto(c, "p0").length, 0);
   });
 });

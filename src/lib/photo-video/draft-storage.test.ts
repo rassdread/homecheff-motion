@@ -43,6 +43,8 @@ describe("PX.4A.3 photo-video draft + funnel", () => {
     const meta = toDraftCompositionMeta(c);
     assert.equal(meta.photos[0]?.id, "p0");
     assert.equal("previewUrl" in meta.photos[0]!, false);
+    assert.equal(meta.photos[0]?.mediaKind, undefined);
+    assert.equal(meta.photos[0]?.video, undefined);
     assert.equal(meta.audio.kind, "ownMusic");
     if (meta.audio.kind === "ownMusic") {
       assert.equal(meta.audio.startSeconds, 2);

@@ -86,14 +86,14 @@ describe("PX.4A.6.3 whole-video settings", () => {
     assert.match(music, /px4a.audio.window/);
   });
 
-  it("restores stored style, pace, movement, and transitionKind without a draft version bump", () => {
+  it("restores stored style, pace, movement, and transitionKind across draft versions", () => {
     assert.match(draft, /style:/);
     assert.match(draft, /pace:/);
     assert.match(draft, /movementMode/);
     assert.match(draft, /durationSeconds/);
     assert.match(draft, /transitionKind/);
     assert.match(draft, /migrateComposition/);
-    assert.match(draft, /PHOTO_VIDEO_DRAFT_VERSION = 2/);
+    assert.match(draft, /PHOTO_VIDEO_DRAFT_VERSION = 3/);
     assert.doesNotMatch(draft, /px4a-global-more/);
   });
 

@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   addPhotos,
   createLocalPhoto,
+  createLocalVideo,
   createPhotoVideoComposition,
   migrateComposition,
   setDurationSeconds,
@@ -32,6 +33,31 @@ describe("PX.4A.4B timeline + local motion", () => {
     assert.ok(head.to);
     assert.ok(head.mix > 0);
     assert.equal(head.transition, "fade");
+  });
+
+  it("gives video clips their trim duration instead of equal photo hold", () => {
+    const c = setDurationSeconds(
+      addPhotos(createPhotoVideoComposition(), [
+        createLocalPhoto({ id: "p0", previewUrl: "x0", naturalWidth: 10, naturalHeight: 10 }),
+        createLocalVideo({
+          id: "v0",
+          previewUrl: "poster",
+          objectUrl: "blob:v",
+          naturalWidth: 10,
+          naturalHeight: 10,
+          sourceDurationSeconds: 12,
+          trimStartSeconds: 0,
+          trimEndSeconds: 5,
+        }),
+        createLocalPhoto({ id: "p1", previewUrl: "x1", naturalWidth: 10, naturalHeight: 10 }),
+      ]),
+      15
+    );
+    const clips = buildPhotoVideoClips(c);
+    assert.equal(clips.length, 3);
+    assert.equal(clips[1]?.holdSeconds, 5);
+    assert.ok(Math.abs((clips[0]?.holdSeconds ?? 0) - (clips[2]?.holdSeconds ?? 1)) < 1e-6);
+    assert.ok((clips[0]?.holdSeconds ?? 0) !== 5);
   });
 
   it("cut transition uses no mix", () => {

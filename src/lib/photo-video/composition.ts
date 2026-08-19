@@ -56,6 +56,16 @@ import {
   type PhotoVideoTextBackground,
   type PhotoVideoTextOverlay,
 } from "@/lib/photo-video/text-overlay";
+import {
+  clampVideoState,
+  defaultVideoTrimEnd,
+  includedImageCount,
+  includedVideoSeconds,
+  isVideoPhoto,
+  type PhotoVideoClipVideo,
+  type PhotoVideoMediaKind,
+  type PhotoVideoVideoFit,
+} from "@/lib/photo-video/media-clip";
 
 export type { PhotoVideoAudio, PhotoVideoTextOverlay };
 
@@ -70,6 +80,9 @@ export type PhotoVideoPhoto = {
   listingUrl?: string;
   /** Per-photo movement override; null clears override. */
   motionKind?: PhotoVideoUserMotionKind | null;
+  /** Absent or "image" keeps v1/v2 photo-only drafts unchanged. */
+  mediaKind?: PhotoVideoMediaKind;
+  video?: PhotoVideoClipVideo;
 };
 
 export type PhotoVideoComposition = {
@@ -121,6 +134,27 @@ export type PhotoVideoCompositionDraft = Omit<
   boundaryTransitions?: PhotoVideoResolvedTransition[];
 };
 
+function sanitizePhotoMedia(photo: PhotoVideoPhoto): PhotoVideoPhoto {
+  if (photo.source === "HOME_CHEFF_LISTING" || photo.mediaKind !== "video" || !photo.video) {
+    if (!photo.mediaKind || photo.mediaKind === "image") {
+      const next = { ...photo };
+      delete next.video;
+      if (next.mediaKind === "image") delete next.mediaKind;
+      return next;
+    }
+    const next = { ...photo };
+    delete next.video;
+    delete next.mediaKind;
+    return next;
+  }
+  return {
+    ...photo,
+    mediaKind: "video",
+    video: clampVideoState(photo.video),
+    motionKind: null,
+  };
+}
+
 function sanitizeBoundaryTransitions(value: unknown): PhotoVideoResolvedTransition[] | undefined {
   if (!Array.isArray(value) || value.length === 0) return undefined;
   const next: PhotoVideoResolvedTransition[] = [];
@@ -147,9 +181,12 @@ export function migrateComposition(
   const transitionKind = resolveTransitionKind(composition.transitionKind, composition.style);
   const boundaryTransitions = sanitizeBoundaryTransitions(composition.boundaryTransitions);
 
+  const photos = (composition.photos ?? []).map(sanitizePhotoMedia);
+
   if (hasDuration) {
     return {
       ...composition,
+      photos,
       audio: composition.audio ?? { kind: "none" },
       durationMode: composition.durationMode ?? PHOTO_VIDEO_DEFAULT_DURATION_MODE,
       durationSeconds: composition.durationSeconds ?? defaultPhotoVideoDurationSeconds(context),
@@ -176,6 +213,7 @@ export function migrateComposition(
 
   return {
     ...composition,
+    photos,
     durationMode: "fixed",
     durationSeconds: Math.min(nearest, maxSeconds),
     movementMode: PHOTO_VIDEO_DEFAULT_MOVEMENT_MODE,
@@ -193,9 +231,12 @@ export function compositionDurationInput(
   composition: PhotoVideoComposition,
   context: PhotoVideoContext = "studio"
 ) {
+  const included = includedPhotos(composition);
   return durationInputForContext(
     {
-      photoCount: includedPhotos(composition).length,
+      photoCount: included.length,
+      imageCount: includedImageCount(included),
+      videoSeconds: includedVideoSeconds(included),
       durationSeconds: composition.durationSeconds,
       durationMode: composition.durationMode,
       holdSeconds: holdSecondsForPace(composition.pace),
@@ -394,7 +435,7 @@ export function setPhotoMotionKind(
   return {
     ...composition,
     photos: composition.photos.map((photo) =>
-      photo.id === photoId ? { ...photo, motionKind: motion } : photo
+      photo.id === photoId && !isVideoPhoto(photo) ? { ...photo, motionKind: motion } : photo
     ),
   };
 }
@@ -595,6 +636,120 @@ export function createLocalPhoto(input: {
     naturalWidth: input.naturalWidth,
     naturalHeight: input.naturalHeight,
   };
+}
+
+export function createLocalVideo(input: {
+  id: string;
+  previewUrl: string;
+  objectUrl: string;
+  naturalWidth: number;
+  naturalHeight: number;
+  sourceDurationSeconds: number;
+  trimStartSeconds?: number;
+  trimEndSeconds?: number;
+  audioEnabled?: boolean;
+  volume?: number;
+  fit?: PhotoVideoVideoFit;
+}): PhotoVideoPhoto {
+  const sourceDurationSeconds = Math.max(0, input.sourceDurationSeconds);
+  const trimStartSeconds = input.trimStartSeconds ?? 0;
+  const trimEndSeconds = input.trimEndSeconds ?? defaultVideoTrimEnd(sourceDurationSeconds);
+  return {
+    id: input.id,
+    source: "LOCAL_UPLOAD",
+    previewUrl: input.previewUrl,
+    included: true,
+    naturalWidth: input.naturalWidth,
+    naturalHeight: input.naturalHeight,
+    mediaKind: "video",
+    motionKind: null,
+    video: clampVideoState({
+      objectUrl: input.objectUrl,
+      sourceDurationSeconds,
+      trimStartSeconds,
+      trimEndSeconds,
+      audioEnabled: input.audioEnabled,
+      volume: input.volume,
+      fit: input.fit,
+    }),
+  };
+}
+
+export function setVideoTrim(
+  composition: PhotoVideoComposition,
+  photoId: string,
+  trimStartSeconds: number,
+  trimEndSeconds: number,
+  context: PhotoVideoContext = "studio"
+): PhotoVideoComposition {
+  const target = composition.photos.find((photo) => photo.id === photoId);
+  if (!target || !isVideoPhoto(target) || !target.video) return composition;
+  return withDurationSync(
+    {
+      ...composition,
+      photos: composition.photos.map((photo) =>
+        photo.id === photoId && photo.video
+          ? {
+              ...photo,
+              video: clampVideoState({
+                ...photo.video,
+                trimStartSeconds,
+                trimEndSeconds,
+              }),
+            }
+          : photo
+      ),
+    },
+    context
+  );
+}
+
+export function setVideoAudio(
+  composition: PhotoVideoComposition,
+  photoId: string,
+  audioEnabled: boolean
+): PhotoVideoComposition {
+  return {
+    ...composition,
+    photos: composition.photos.map((photo) =>
+      photo.id === photoId && photo.video
+        ? { ...photo, video: { ...photo.video, audioEnabled } }
+        : photo
+    ),
+  };
+}
+
+export function setVideoVolume(
+  composition: PhotoVideoComposition,
+  photoId: string,
+  volume: number
+): PhotoVideoComposition {
+  const next = Math.max(0, Math.min(1, volume));
+  return {
+    ...composition,
+    photos: composition.photos.map((photo) =>
+      photo.id === photoId && photo.video ? { ...photo, video: { ...photo.video, volume: next } } : photo
+    ),
+  };
+}
+
+export function setVideoFit(
+  composition: PhotoVideoComposition,
+  photoId: string,
+  fit: PhotoVideoVideoFit
+): PhotoVideoComposition {
+  return {
+    ...composition,
+    photos: composition.photos.map((photo) =>
+      photo.id === photoId && photo.video ? { ...photo, video: { ...photo.video, fit } } : photo
+    ),
+  };
+}
+
+export function compositionHasEnabledSourceAudio(composition: PhotoVideoComposition): boolean {
+  return includedPhotos(composition).some(
+    (photo) => isVideoPhoto(photo) && photo.video?.audioEnabled !== false && (photo.video?.volume ?? 0) > 0
+  );
 }
 
 export function createListingPhoto(input: {

@@ -6,13 +6,17 @@ import { compositionDuration, includedPhotos, isCompositionPreviewReady } from "
 import { wrapCompositionTime } from "@/lib/photo-video/clock";
 import { PHOTO_VIDEO_WATERMARK_SRC, type PhotoVideoContext } from "@/lib/photo-video/constants";
 import { canvasSizeForRatio } from "@/lib/photo-video/layout";
+import { isVideoPhoto, videoSourceTime } from "@/lib/photo-video/media-clip";
 import { clientPointToNormalized, hitTestLayouts } from "@/lib/photo-video/text-overlay";
+import { playheadAt } from "@/lib/photo-video/timeline";
 import {
   drawPhotoVideoFrame,
   loadPhotoVideoImage,
   type OverlayLayout,
   type PhotoVideoImageCache,
+  type PhotoVideoVideoCache,
 } from "@/lib/photo-video/render-frame";
+import { createDetachedVideoElement, releaseVideoElement } from "@/lib/photo-video/video-element";
 
 export function PhotoVideoPreviewCanvas({
   composition,
@@ -37,6 +41,8 @@ export function PhotoVideoPreviewCanvas({
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const cacheRef = useRef<PhotoVideoImageCache>(new Map());
+  const videosRef = useRef<PhotoVideoVideoCache>(new Map());
+  const sourceAudioRef = useRef<HTMLAudioElement | null>(null);
   const watermarkRef = useRef<HTMLImageElement | null>(null);
   const compositionRef = useRef(composition);
   const playingRef = useRef(playing);
@@ -72,9 +78,25 @@ export function PhotoVideoPreviewCanvas({
 
   useEffect(() => {
     const cache = cacheRef.current;
-    const urls = includedPhotos(composition).map((photo) => photo.previewUrl);
+    const urls = includedPhotos(composition)
+      .map((photo) => photo.previewUrl)
+      .filter(Boolean);
     void Promise.all(urls.map((url) => loadPhotoVideoImage(url, cache).catch(() => null)));
   }, [composition]);
+
+  useEffect(() => {
+    const videos = videosRef.current;
+    return () => {
+      for (const video of videos.values()) releaseVideoElement(video);
+      videos.clear();
+      const audio = sourceAudioRef.current;
+      if (audio) {
+        audio.pause();
+        audio.removeAttribute("src");
+        audio.load();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,12 +128,59 @@ export function PhotoVideoPreviewCanvas({
       }
       lastTsRef.current = ts;
       clockRef.current = wrapCompositionTime(clockRef.current, total);
+      const head = playheadAt(current, clockRef.current, draftContext);
+      const needed = new Set<string>();
+      for (const clip of [head.from, head.to]) {
+        if (clip && isVideoPhoto(clip.photo) && clip.photo.video?.objectUrl) needed.add(clip.photo.id);
+      }
+      for (const [id, video] of videosRef.current) {
+        if (!needed.has(id)) {
+          releaseVideoElement(video);
+          videosRef.current.delete(id);
+        }
+      }
+      for (const id of needed) {
+        if (videosRef.current.has(id)) continue;
+        const photo = current.photos.find((item) => item.id === id);
+        if (photo?.video?.objectUrl) {
+          videosRef.current.set(id, createDetachedVideoElement(photo.video.objectUrl));
+        }
+      }
+      for (const clip of [head.from, head.to]) {
+        if (!clip || !isVideoPhoto(clip.photo)) continue;
+        const video = videosRef.current.get(clip.photo.id);
+        if (!video) continue;
+        const progress = clip === head.to ? head.toProgress : head.fromProgress;
+        const sourceTime = videoSourceTime(clip.photo, progress);
+        if (playingRef.current) {
+          if (Math.abs(video.currentTime - sourceTime) > 0.12) video.currentTime = sourceTime;
+          if (video.paused) void video.play().catch(() => undefined);
+        } else {
+          if (!video.paused) video.pause();
+          if (Math.abs(video.currentTime - sourceTime) > 0.04) video.currentTime = sourceTime;
+        }
+      }
+      const activeVideo = head.from && isVideoPhoto(head.from.photo) ? head.from.photo.video : null;
+      if (typeof Audio !== "undefined") {
+        if (!sourceAudioRef.current) sourceAudioRef.current = new Audio();
+        const audio = sourceAudioRef.current;
+        if (playingRef.current && activeVideo?.audioEnabled && activeVideo.objectUrl && (activeVideo.volume ?? 0) > 0) {
+          if (audio.src !== activeVideo.objectUrl) audio.src = activeVideo.objectUrl;
+          audio.volume = activeVideo.volume;
+          const sourceTime = videoSourceTime(head.from!.photo, head.fromProgress);
+          if (Math.abs(audio.currentTime - sourceTime) > 0.3) audio.currentTime = sourceTime;
+          if (audio.paused) void audio.play().catch(() => undefined);
+        } else if (!audio.paused) {
+          audio.pause();
+        }
+      }
       layoutsRef.current = drawPhotoVideoFrame({
         ctx,
         composition: current,
         context: draftContext,
         timeSeconds: clockRef.current,
         images: cacheRef.current,
+        videos: videosRef.current,
         watermark: watermarkRef.current,
         selectedOverlayId: selectedRef.current,
         placeholderText: placeholderRef.current,

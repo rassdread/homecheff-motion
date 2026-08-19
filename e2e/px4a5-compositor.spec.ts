@@ -26,7 +26,7 @@ function buildHarness(): string {
   return readFileSync(HARNESS_JS, "utf8");
 }
 
-async function runMode(page: Page, mode: "music" | "none" | "signature"): Promise<Px4a5CompositorResult> {
+async function runMode(page: Page, mode: "music" | "none" | "signature" | "mixed"): Promise<Px4a5CompositorResult> {
   const harness = buildHarness();
   await page.route("**/*", async (route) => {
     const url = route.request().url();
@@ -59,7 +59,7 @@ window.__px4a5Full = runPx4a5CompositorExport;
     (chosen) =>
       (
         window as unknown as {
-          __px4a5Full: (mode: "music" | "none" | "signature") => Promise<Px4a5CompositorResult>;
+          __px4a5Full: (mode: "music" | "none" | "signature" | "mixed") => Promise<Px4a5CompositorResult>;
         }
       ).__px4a5Full(chosen),
     mode
@@ -112,5 +112,17 @@ test.describe("PX.4A.5 full compositor export", () => {
     expect(result.videoCodec).toMatch(/avc|avc1/i);
     expect(result.audioCodec).toBeNull();
     expect(result.framesDiffer).toBeTruthy();
+  });
+
+  test("2 photos + 1 video / 15s / fade / moving source frames", async ({ page }, testInfo) => {
+    const result = await runMode(page, "mixed");
+    console.log(JSON.stringify({ project: testInfo.project.name, mode: "mixed", ...result }, null, 2));
+    expect(result.ok).toBeTruthy();
+    expect(result.hasFtyp).toBeTruthy();
+    expect(result.bytes).toBeGreaterThan(20_000);
+    expect(result.durationSeconds).toBe(15);
+    expect(result.videoCodec).toMatch(/avc|avc1/i);
+    expect(result.audioCodec).toBeNull();
+    expect(result.movingVideo).toBeTruthy();
   });
 });

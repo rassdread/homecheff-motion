@@ -70,9 +70,9 @@ describe("PX.4A.6.4 transition selector + renderer wiring", () => {
     assert.doesNotMatch(exportLocal, /renderTransitionFrame/);
   });
 
-  it("persists transitionKind without a draft version bump", () => {
+  it("persists transitionKind and mixed-media metadata in draft v3", () => {
     assert.match(draft, /transitionKind: composition.transitionKind/);
-    assert.match(draft, /PHOTO_VIDEO_DRAFT_VERSION = 2/);
+    assert.match(draft, /PHOTO_VIDEO_DRAFT_VERSION = 3/);
     assert.match(draft, /migrateComposition/);
   });
 

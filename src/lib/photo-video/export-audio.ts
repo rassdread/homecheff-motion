@@ -51,3 +51,39 @@ export function copyAudioWindow(
   }
   return out;
 }
+
+export type MixAudioLayer = {
+  buffer: AudioBuffer;
+  startSeconds: number;
+  volume?: number;
+};
+
+/** Mix PCM layers on a composition-length buffer. No ducking. */
+export function mixAudioLayers(
+  durationSeconds: number,
+  sampleRate: number,
+  layers: MixAudioLayer[]
+): AudioBuffer {
+  const length = Math.max(1, Math.floor(Math.max(0, durationSeconds) * sampleRate));
+  const channels = Math.max(1, ...layers.map((layer) => layer.buffer.numberOfChannels), 1);
+  const Ctor = (layers[0]?.buffer.constructor ?? undefined) as
+    | { new (channels: number, length: number, sampleRate: number): AudioBuffer }
+    | undefined;
+  const out =
+    typeof AudioBuffer !== "undefined"
+      ? new AudioBuffer({ length, numberOfChannels: channels, sampleRate })
+      : new Ctor!(channels, length, sampleRate);
+  for (const layer of layers) {
+    const gain = Math.max(0, Math.min(1, layer.volume ?? 1));
+    const start = Math.floor(layer.startSeconds * sampleRate);
+    for (let ch = 0; ch < channels; ch += 1) {
+      const src = layer.buffer.getChannelData(Math.min(ch, layer.buffer.numberOfChannels - 1));
+      const dest = out.getChannelData(ch);
+      for (let i = 0; i < src.length; i += 1) {
+        const j = start + i;
+        if (j >= 0 && j < length) dest[j] = Math.max(-1, Math.min(1, dest[j]! + src[i]! * gain));
+      }
+    }
+  }
+  return out;
+}

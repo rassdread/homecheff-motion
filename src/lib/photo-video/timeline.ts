@@ -1,5 +1,6 @@
 import type { PhotoVideoComposition, PhotoVideoPhoto } from "@/lib/photo-video/composition";
 import { compositionDuration, includedPhotos } from "@/lib/photo-video/composition";
+import { isVideoPhoto, videoClipDuration } from "@/lib/photo-video/media-clip";
 import { motionKindForPhoto } from "@/lib/photo-video/movement";
 import {
   boundaryTransitionKind,
@@ -38,9 +39,10 @@ export function buildPhotoVideoClips(
   const clips: PhotoVideoClip[] = [];
   let cursor = 0;
   for (const [index, photo] of photos.entries()) {
+    const clipHold = isVideoPhoto(photo) ? videoClipDuration(photo) : hold;
     const startSeconds = cursor;
-    const endSeconds = startSeconds + hold;
-    clips.push({ photo, index, startSeconds, endSeconds, holdSeconds: hold });
+    const endSeconds = startSeconds + clipHold;
+    clips.push({ photo, index, startSeconds, endSeconds, holdSeconds: clipHold });
     cursor = endSeconds - (index < photos.length - 1 ? overlap : 0);
   }
   return clips;

@@ -17,6 +17,8 @@ export const PHOTO_VIDEO_FREE_LOCAL_ACTIONS = [
   "no_music",
   "preview",
   "watermark",
+  "mixed_media_clips",
+  "source_video_audio",
   "local_export",
 ] as const;
 
