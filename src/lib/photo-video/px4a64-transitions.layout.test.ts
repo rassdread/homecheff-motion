@@ -54,7 +54,9 @@ describe("PX.4A.6.4 transition selector + renderer wiring", () => {
     assert.match(nl, /"px4a.transition.shards": "Scherven"/);
     assert.match(nl, /"px4a.transition.split": "Split"/);
     assert.match(nl, /"px4a.audio.catalog": "Gratis muziek"/);
-    assert.match(composer, /data-testid="px4a-audio-catalog"/);
+    assert.match(picker, /px4a.slice1b.transition.signatureBrand/);
+    assert.match(composer, /PHOTO_VIDEO_MUSIC_CATALOG_STATUS !== "empty"/);
+    assert.match(composer, /data-testid="px4a-audio-own"/);
     assert.match(picker, /px4a.transition.split/);
     assert.match(picker, /px4a.transition.strips/);
     assert.match(picker, /px4a.transition.lens/);

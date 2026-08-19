@@ -71,10 +71,11 @@ describe("PX.3 simple Studio Home", () => {
     assert.equal(tools.find((item) => item.productId === "presentation")?.href, "/publish");
   });
 
-  it("keeps Projects and Library in global chrome", () => {
+  it("keeps Projects and Slice 1A global chrome destinations", () => {
     const global = buildSuiteGlobalNavItems();
-    assert.equal(global.find((item) => item.labelKey === "suite.nav.projects")?.href, "/projects");
-    assert.equal(global.find((item) => item.labelKey === "suite.nav.library")?.href, "/library");
+    assert.equal(global.find((item) => item.labelKey === "suite.slice1a.nav.projects")?.href, "/projects");
+    assert.equal(global.find((item) => item.labelKey === "suite.slice1a.nav.studio")?.href, "/studio");
+    assert.equal(global.find((item) => item.labelKey === "suite.slice1a.nav.account")?.href, "/account");
   });
 
   it("signed-in Home secondary continues existing work without a new API", () => {
@@ -82,16 +83,17 @@ describe("PX.3 simple Studio Home", () => {
     assert.equal(resolveUniverseSecondaryCtaKey(true), "px3.cta.continue");
     assert.equal(nl["px3.cta.continue"], "Ga verder");
     assert.equal(resolveUniversePrimaryCtaHref(true), PX3_HOME_CREATE_HREF);
-    const home = readFileSync("src/components/studio/studio-home-dashboard.tsx", "utf8");
+    const home = readFileSync("src/components/studio/studio-unified-home-page.tsx", "utf8");
     assert.match(home, /view=shell/);
     assert.doesNotMatch(home, /limit=500/);
   });
 
-  it("renders one dominant Home creation entry and intent chooser", () => {
-    const dashboard = readFileSync("src/components/studio/studio-home-dashboard.tsx", "utf8");
-    assert.match(dashboard, /data-testid="px3-studio-home-create"/);
-    assert.match(dashboard, /href="\/studio\/experience"/);
-    assert.match(dashboard, /StudioPx4aFreeCreatorBanner/);
+  it("renders Slice 1A unified home with four intents", () => {
+    const home = readFileSync("src/components/studio/studio-unified-home-page.tsx", "utf8");
+    assert.match(home, /data-testid="studio-unified-home"/);
+    assert.match(home, /STUDIO_HOME_INTENTS/);
+    assert.match(home, /STUDIO_HOME_INTENTS/);
+    assert.match(home, /intent\.href/);
     const funnel = readFileSync("src/components/studio/studio-experience-pack-funnel.tsx", "utf8");
     assert.match(funnel, /StudioPx3IntentChooser/);
     assert.match(funnel, /data-testid="px3-pack-chooser"/);

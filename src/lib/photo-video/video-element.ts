@@ -86,6 +86,16 @@ export async function probeLocalVideoFile(file: File): Promise<{
       throw new Error("video-decode");
     }
     await seekHtmlVideo(video, Math.min(0.12, durationSeconds * 0.05));
+    if (video.readyState < 2) {
+      await new Promise<void>((resolve) => {
+        const done = () => {
+          video.removeEventListener("loadeddata", done);
+          resolve();
+        };
+        video.addEventListener("loadeddata", done, { once: true });
+        window.setTimeout(done, 150);
+      });
+    }
     const canvas = document.createElement("canvas");
     const scale = Math.min(1, 720 / Math.max(width, height));
     canvas.width = Math.max(2, Math.round(width * scale));

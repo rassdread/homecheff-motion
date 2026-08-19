@@ -72,6 +72,8 @@ export function PhotoVideoTextControls({
   onBackground,
   onNudge,
   embedded = false,
+  section = "all",
+  onFocusInput,
 }: {
   composition: PhotoVideoComposition;
   selectedPhotoId: string | null;
@@ -88,35 +90,42 @@ export function PhotoVideoTextControls({
   onBackground: (background: PhotoVideoTextBackground) => void;
   onNudge: (dx: number, dy: number) => void;
   embedded?: boolean;
+  section?: "all" | "text" | "style" | "position";
+  onFocusInput?: () => void;
 }) {
   const t = useActiveTranslator();
   const photoOverlays = selectedPhotoId ? overlaysForPhoto(composition, selectedPhotoId) : [];
   const canAdd = selectedPhotoId ? canAddOverlay(composition, selectedPhotoId) : false;
+  const showText = section === "all" || section === "text";
+  const showStyle = section === "all" || section === "style";
+  const showPosition = section === "all" || section === "position";
 
   return (
     <section className="space-y-3" data-testid="px4a-text">
-      {embedded ? (
+      {embedded && showText ?
         <h3 className="text-sm font-semibold text-zinc-900">{t("px4a.text.legend")}</h3>
-      ) : (
+      : !embedded && showText ?
         <h2 className="text-base font-semibold text-zinc-900">{t("px4a.text.legend")}</h2>
-      )}
-      {selectedPhotoId ? (
+      : null}
+      {showText && selectedPhotoId ?
         embedded ? null : (
           <p className="text-sm text-zinc-600">{t("px4a.text.forPhoto", { n: selectedPhotoIndex + 1 })}</p>
         )
-      ) : (
+      : showText ?
         <p className="text-sm text-zinc-600">{t("px4a.text.needPhoto")}</p>
-      )}
-      <button
-        type="button"
-        data-testid="px4a-add-text"
-        className="inline-flex min-h-11 items-center rounded-full bg-[#006D52] px-5 text-sm font-semibold text-white disabled:opacity-40"
-        onClick={onAdd}
-        disabled={!canAdd}
-      >
-        {t("px4a.text.add")}
-      </button>
-      {photoOverlays.length > 1 ? (
+      : null}
+      {showText ?
+        <button
+          type="button"
+          data-testid="px4a-add-text"
+          className="inline-flex min-h-11 items-center rounded-full bg-[#006D52] px-5 text-sm font-semibold text-white disabled:opacity-40"
+          onClick={onAdd}
+          disabled={!canAdd}
+        >
+          {t("px4a.text.add")}
+        </button>
+      : null}
+      {showText && photoOverlays.length > 1 ?
         <div className="flex flex-wrap gap-2">
           {photoOverlays.map((overlay, index) => (
             <button
@@ -130,9 +139,9 @@ export function PhotoVideoTextControls({
             </button>
           ))}
         </div>
-      ) : null}
+      : null}
 
-      {selectedOverlay ? (
+      {selectedOverlay && showText ?
         <div className="space-y-4">
           <label className="block space-y-1">
             <span className="text-sm font-medium text-zinc-800">{t("px4a.text.inputLabel")}</span>
@@ -153,9 +162,14 @@ export function PhotoVideoTextControls({
               placeholder={t("px4a.text.placeholder")}
               className="min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base text-zinc-900 [-webkit-text-security:none]"
               onChange={(event) => onChangeText(event.target.value)}
+              onFocus={() => onFocusInput?.()}
             />
           </label>
+        </div>
+      : null}
 
+      {selectedOverlay && showStyle ?
+        <div className="space-y-4">
           <fieldset className="space-y-2">
             <legend className="text-sm font-semibold text-zinc-900">{t("px4a.text.font")}</legend>
             <div className="flex flex-wrap gap-2" data-testid="px4a-text-font">
@@ -225,23 +239,6 @@ export function PhotoVideoTextControls({
           </div>
 
           <fieldset className="space-y-2">
-            <legend className="text-sm font-semibold text-zinc-900">{t("px4a.text.align")}</legend>
-            <div className="flex flex-wrap gap-2" data-testid="px4a-text-align">
-              {PHOTO_VIDEO_ALIGNS.map((align) => (
-                <button
-                  key={align}
-                  type="button"
-                  aria-pressed={selectedOverlay.align === align}
-                  className={chipClass(selectedOverlay.align === align)}
-                  onClick={() => onAlign(align)}
-                >
-                  {t(ALIGN_KEY[align])}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-
-          <fieldset className="space-y-2">
             <legend className="text-sm font-semibold text-zinc-900">{t("px4a.text.background")}</legend>
             <div className="flex flex-wrap gap-2" data-testid="px4a-text-bg">
               {PHOTO_VIDEO_BACKGROUNDS.map((background) => (
@@ -253,6 +250,27 @@ export function PhotoVideoTextControls({
                   onClick={() => onBackground(background)}
                 >
                   {t(BG_KEY[background])}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        </div>
+      : null}
+
+      {selectedOverlay && showPosition ?
+        <div className="space-y-4">
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-semibold text-zinc-900">{t("px4a.text.align")}</legend>
+            <div className="flex flex-wrap gap-2" data-testid="px4a-text-align">
+              {PHOTO_VIDEO_ALIGNS.map((align) => (
+                <button
+                  key={align}
+                  type="button"
+                  aria-pressed={selectedOverlay.align === align}
+                  className={chipClass(selectedOverlay.align === align)}
+                  onClick={() => onAlign(align)}
+                >
+                  {t(ALIGN_KEY[align])}
                 </button>
               ))}
             </div>
@@ -297,17 +315,19 @@ export function PhotoVideoTextControls({
               </button>
             </div>
           </fieldset>
-
-          <button
-            type="button"
-            data-testid="px4a-text-delete"
-            className="min-h-11 text-sm font-medium text-zinc-600 underline"
-            onClick={onDelete}
-          >
-            {t("px4a.text.delete")}
-          </button>
         </div>
-      ) : null}
+      : null}
+
+      {selectedOverlay && section === "all" ?
+        <button
+          type="button"
+          data-testid="px4a-text-delete"
+          className="min-h-11 text-sm font-medium text-zinc-600 underline"
+          onClick={onDelete}
+        >
+          {t("px4a.text.delete")}
+        </button>
+      : null}
     </section>
   );
 }

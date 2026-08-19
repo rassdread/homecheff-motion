@@ -77,23 +77,31 @@ function SortableThumb({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={photo.previewUrl} alt="" className="h-full w-full object-cover" />
           ) : video && photo.video?.objectUrl ? (
-            <video src={photo.video.objectUrl} muted playsInline className="h-full w-full object-cover" />
+            <span
+              className="flex h-full w-full flex-col items-center justify-center gap-1 bg-zinc-200 px-1 text-center"
+              data-testid={`px4a-video-preparing-${index}`}
+            >
+              <span className="text-[10px] font-medium text-zinc-600">{t("px4a.slice1b.media.preparing")}</span>
+            </span>
           ) : (
             <span className="block h-full w-full bg-zinc-200" />
           )}
-          {video ? (
+          {video ?
             <span
               className="pointer-events-none absolute inset-0 flex items-end justify-between bg-gradient-to-t from-black/55 to-transparent p-1"
               data-testid={`px4a-video-thumb-${index}`}
             >
-              <span aria-hidden="true" className="text-[10px] text-white">
-                ▶
+              <span
+                aria-hidden="true"
+                className="rounded bg-[#006D52] px-1 py-0.5 text-[9px] font-bold uppercase text-white"
+              >
+                {t("px4a.slice1b.media.videoBadge")}
               </span>
               <span className="rounded bg-black/60 px-1 text-[9px] font-semibold text-white">
                 {formatClipSeconds(videoClipDuration(photo), locale)}
               </span>
             </span>
-          ) : null}
+          : null}
         </button>
         {itemJourney && photo.source === "LOCAL_UPLOAD" ? (
           <span className="absolute bottom-0.5 left-0.5 right-0.5 truncate rounded bg-black/55 px-1 py-0.5 text-[9px] font-medium text-white">

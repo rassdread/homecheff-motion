@@ -59,8 +59,8 @@ export const PX3_INTENTS: readonly Px3Intent[] = [
   },
 ] as const;
 
-/** Destinations in global chrome — not the five-product pipeline. */
-export const PX3_GLOBAL_NAV_HREFS = ["/", "/projects", "/library"] as const;
+/** Slice 1A global chrome — Studio, projects, account. */
+export const PX3_GLOBAL_NAV_HREFS = ["/studio", "/projects", "/account"] as const;
 
 /** Expert/direct product access — overflow, not the front door. */
 export const PX3_TOOL_NAV_HREFS = ["/editor", "/studio", "/motion", "/publish"] as const;

@@ -55,5 +55,7 @@ next-env.d.ts
 # PX.4A human Production certification (local Chrome profile + live evidence)
 .px4a4-chrome-profile/
 .px4a5-chrome-profile/
+.px4a7-prod-profile/
 docs/audits/px4a4-human-cert/
+docs/audits/px4a5-human-cert/
 e2e/.generated/

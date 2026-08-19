@@ -14,6 +14,7 @@ describe("PX.4A.7 mixed media layout", () => {
   const strip = read("src/components/photo-video/photo-video-photo-strip.tsx");
   const inspector = read("src/components/photo-video/photo-video-photo-inspector.tsx");
   const toolbar = read("src/components/photo-video/photo-video-edit-toolbar.tsx");
+  const contextBar = read("src/components/photo-video/photo-video-context-bar.tsx");
   const trim = read("src/components/photo-video/photo-video-trim-control.tsx");
   const preview = read("src/components/photo-video/photo-video-preview-canvas.tsx");
   const duration = read("src/lib/photo-video/duration.ts");
@@ -32,7 +33,7 @@ describe("PX.4A.7 mixed media layout", () => {
     assert.match(trim, /px4a.video.trimLegend/);
     assert.match(inspector, /px4a-video-audio/);
     assert.match(inspector, /hasPhoto && !video/);
-    assert.match(toolbar, /PHOTO_VIDEO_VIDEO_EDIT_PANELS/);
+    assert.match(contextBar, /trim/);
   });
 
   it("uses one preview canvas and video elements only as hidden decoders", () => {

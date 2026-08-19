@@ -137,7 +137,7 @@ describe("PX.4 source context", () => {
     assert.ok(PX4_EXCLUDED_LISTING_FIELDS.includes("kvk"));
     const page = readFileSync("src/app/studio/from/homecheff/[type]/[id]/page.tsx", "utf8");
     assert.match(page, /redirectUnauthenticatedPrivate/);
-    assert.match(page, /StudioPx3IntentChooser/);
+    assert.match(page, /StudioPx4ContextualIntentChooser/);
     const api = readFileSync("src/app/api/studio/source-context/route.ts", "utf8");
     assert.doesNotMatch(api, /credit|stripe|wallet/i);
     assert.doesNotMatch(api, /priceCents/);

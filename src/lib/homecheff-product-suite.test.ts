@@ -130,11 +130,12 @@ describe("homecheff-product-suite", () => {
     assert.equal(legacy.some((i) => i.labelKey === "nav.assets"), false);
   });
 
-  it("suite nav shows Publish and Library, not Presentation or Assets", () => {
+  it("suite nav shows advanced tools in Meer, not library in global chrome", () => {
     const tools = buildSuiteToolNavItems();
     const global = buildSuiteGlobalNavItems();
     assert.ok(tools.some((i) => i.labelKey === "suite.nav.publish"));
-    assert.ok(global.some((i) => i.labelKey === "suite.nav.library"));
+    assert.equal(global.some((i) => i.labelKey === "suite.nav.library"), false);
+    assert.equal(global.some((i) => i.labelKey === "suite.slice1a.nav.studio"), true);
     assert.equal(tools.some((i) => i.labelKey === "suite.nav.presentation"), false);
     assert.equal([...global, ...tools].some((i) => i.labelKey === "suite.nav.assets"), false);
     assert.equal([...global, ...tools].some((i) => i.labelKey === "nav.usage"), false);

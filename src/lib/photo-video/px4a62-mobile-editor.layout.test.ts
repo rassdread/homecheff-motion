@@ -14,15 +14,16 @@ describe("PX.4A.6.2 sticky preview + mobile sheets", () => {
   const preview = read("src/components/photo-video/photo-video-preview-canvas.tsx");
   const inspector = read("src/components/photo-video/photo-video-photo-inspector.tsx");
   const toolbar = read("src/components/photo-video/photo-video-edit-toolbar.tsx");
+  const contextBar = read("src/components/photo-video/photo-video-context-bar.tsx");
   const text = read("src/components/photo-video/photo-video-text-controls.tsx");
   const exportLocal = read("src/lib/photo-video/export-local.ts");
   const exportUpload = read("src/app/api/photo-video/export-upload/route.ts");
   const exportHandoff = read("src/app/api/photo-video/export-handoff/route.ts");
 
-  it("keeps mobile structure preview → strip → toolbar → inspector", () => {
+  it("keeps mobile structure preview → strip → context bar → inspector", () => {
     const canvas = composer.indexOf("<PhotoVideoPreviewCanvas");
     const strip = composer.indexOf("<PhotoVideoPhotoStrip");
-    const bar = composer.indexOf("<PhotoVideoEditToolbar");
+    const bar = composer.indexOf("<PhotoVideoContextBar");
     const inspectorUse = composer.indexOf("<PhotoVideoPhotoInspector");
     const global = composer.indexOf('data-testid="px4a-global-video"');
     const actions = composer.indexOf('data-testid="px4a-actions"');
@@ -31,7 +32,6 @@ describe("PX.4A.6.2 sticky preview + mobile sheets", () => {
     assert.ok(inspectorUse > bar);
     assert.ok(global > inspectorUse);
     assert.ok(actions > inspectorUse);
-    assert.ok(actions < global);
   });
 
   it("uses exactly one preview canvas and one rAF loop", () => {
@@ -52,11 +52,11 @@ describe("PX.4A.6.2 sticky preview + mobile sheets", () => {
   });
 
   it("separates photo editing from whole-video settings", () => {
-    assert.match(composer, /px4a.global.legend/);
+    assert.match(composer, /px4a.slice1b.global.title/);
     assert.match(inspector, /px4a.inspector.thisPhoto|px4a.inspector.titleN/);
-    assert.match(toolbar, /px4a.toolbar.text/);
-    assert.match(toolbar, /px4a.toolbar.motion/);
-    assert.match(toolbar, /px4a.toolbar.order/);
+    assert.match(contextBar, /px4a.slice1b.context.text/);
+    assert.match(contextBar, /px4a.slice1b.context.motion/);
+    assert.match(contextBar, /px4a.slice1b.context.order/);
   });
 
   it("keeps overlay input as explicit text without password rendering", () => {

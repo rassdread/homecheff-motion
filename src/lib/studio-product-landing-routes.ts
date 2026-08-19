@@ -27,6 +27,15 @@ export function studioLandingHasDeepLink(searchParams: URLSearchParams): boolean
   return Boolean(searchParams.get("storyboardId")?.trim() || searchParams.get("hcProject")?.trim());
 }
 
+/** Slice 1A — workspace or legacy /studio/start workflow; not the unified home. */
+export function studioRouteNeedsRootPage(searchParams: URLSearchParams): boolean {
+  if (studioLandingHasDeepLink(searchParams)) {
+    return true;
+  }
+  const workflowKeys = ["intent", "idea", "characterId", "character", "autoProduce", "editorSession"];
+  return workflowKeys.some((key) => Boolean(searchParams.get(key)?.trim()));
+}
+
 export function publishLandingHasDeepLink(searchParams: URLSearchParams): boolean {
   return Boolean(
     searchParams.get("project")?.trim() ||

@@ -109,25 +109,27 @@ function publishMatch(pathname: string): boolean {
   );
 }
 
-/** PX.3 global chrome — destinations, not the five-product pipeline. */
+/** Slice 1A global chrome — Studio front door, projects, account. */
 export function buildSuiteGlobalNavItems(): PrimaryNavItem[] {
   return [
     {
-      href: "/",
-      labelKey: "suite.nav.home",
-      match: (pathname) => pathname === "/" || pathname === "/maak" || pathname.startsWith("/maak/"),
+      href: "/studio",
+      labelKey: "suite.slice1a.nav.studio",
+      match: (pathname) =>
+        (pathname === "/studio" || pathname.startsWith("/studio/")) &&
+        !pathname.startsWith("/studio/assets"),
+      productId: "studio",
     },
     {
       href: "/projects",
-      labelKey: "suite.nav.projects",
+      labelKey: "suite.slice1a.nav.projects",
       match: (pathname) => pathname === "/projects" || pathname.startsWith("/projects/"),
       authOnly: true,
     },
     {
-      href: resolveProductHref("assets"),
-      labelKey: "suite.nav.library",
-      match: libraryMatch,
-      productId: "assets",
+      href: "/account",
+      labelKey: "suite.slice1a.nav.account",
+      match: (pathname) => pathname === "/account" || pathname.startsWith("/account/"),
     },
   ];
 }

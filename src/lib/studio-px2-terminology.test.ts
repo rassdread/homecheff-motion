@@ -51,7 +51,7 @@ describe("PX.2 terminology contract", () => {
     assert.equal(tools.find((item) => item.labelKey === "suite.nav.studio")?.href, "/studio");
     assert.equal(tools.find((item) => item.productId === "motion")?.href, "/motion");
     assert.equal(tools.find((item) => item.productId === "presentation")?.href, "/publish");
-    assert.equal(buildSuiteGlobalNavItems().find((item) => item.productId === "assets")?.href, "/library");
+    assert.equal(buildSuiteGlobalNavItems().find((item) => item.labelKey === "suite.slice1a.nav.studio")?.href, "/studio");
   });
 
   it("maps planet chrome to outcome words, not EDITOR/MOTION", () => {

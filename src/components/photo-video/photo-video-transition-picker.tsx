@@ -211,8 +211,8 @@ export function PhotoVideoTransitionPicker({
           </div>
         </div>
         <div data-testid="px4a-transition-group-signature" className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-            {t("px4a.transition.signature")}
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#006D52]">
+            {t("px4a.slice1b.transition.signatureBrand")}
           </p>
           <p className="text-sm text-zinc-600">{t("px4a.transition.signatureHint")}</p>
           <div className="flex flex-wrap gap-2">

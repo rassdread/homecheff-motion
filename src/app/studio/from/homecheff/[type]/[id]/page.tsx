@@ -1,4 +1,4 @@
-import { StudioPx3IntentChooser } from "@/components/studio/studio-px3-intent-chooser";
+import { StudioPx4ContextualIntentChooser } from "@/components/studio/studio-px4-contextual-intent-chooser";
 import { StudioPx4SourceBanner } from "@/components/studio/studio-px4-source-banner";
 import { redirectUnauthenticatedPrivate } from "@/lib/identity/sso/private-entry";
 import { prisma } from "@/lib/prisma";
@@ -44,11 +44,16 @@ export default async function StudioPx4HomecheffFromPage({ params }: Props) {
     result = { ok: false, reason: "unresolved" };
   }
 
+  const quickVideoHref =
+    result.ok && result.context.media.length > 0
+      ? `/studio/from/homecheff/${type}/${id}/quick-video`
+      : "/studio/photo-video";
+
   return (
     <main className="min-h-[70vh] flex-1 bg-gradient-to-b from-zinc-50 to-white">
       <div className="mx-auto max-w-2xl space-y-6 px-4 py-10">
         <StudioPx4SourceBanner result={result} />
-        <StudioPx3IntentChooser contextual />
+        <StudioPx4ContextualIntentChooser quickVideoHref={quickVideoHref} />
       </div>
     </main>
   );

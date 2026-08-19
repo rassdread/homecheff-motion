@@ -8,11 +8,17 @@ import { PhotoVideoPhotoStrip } from "@/components/photo-video/photo-video-photo
 import { PhotoVideoPreviewCanvas } from "@/components/photo-video/photo-video-preview-canvas";
 import { PhotoVideoExportProgress } from "@/components/photo-video/photo-video-export-progress";
 import { PhotoVideoPhotoInspector } from "@/components/photo-video/photo-video-photo-inspector";
+import { PhotoVideoContextBar } from "@/components/photo-video/photo-video-context-bar";
 import { PhotoVideoTransitionPicker } from "@/components/photo-video/photo-video-transition-picker";
 import {
-  PhotoVideoEditToolbar,
-  type PhotoVideoEditPanel,
-} from "@/components/photo-video/photo-video-edit-toolbar";
+  usePhotoVideoKeyboardOpen,
+  usePhotoVideoLayoutPosture,
+} from "@/hooks/use-photo-video-layout-posture";
+import {
+  normalizeContextAction,
+  resolvePhotoVideoContextMode,
+  type PhotoVideoContextAction,
+} from "@/lib/photo-video/context-actions";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
 import {
@@ -101,6 +107,7 @@ import { trackPhotoVideoFunnelEvent } from "@/lib/photo-video/funnel-analytics";
 import { revokePhotoVideoObjectUrl } from "@/lib/photo-video/object-url";
 import { nudgeOverlay } from "@/lib/photo-video/text-overlay";
 import type { PhotoVideoOwnMusic } from "@/lib/photo-video/audio";
+import { PHOTO_VIDEO_MUSIC_CATALOG_STATUS } from "@/lib/photo-video/music-catalog";
 import type { TranslationKey } from "@/i18n";
 
 const PhotoVideoMusicPanel = dynamic(
@@ -252,8 +259,12 @@ export function PhotoVideoComposer({
   const [error, setError] = useState<string | null>(null);
   const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
-  const [editPanel, setEditPanel] = useState<PhotoVideoEditPanel>("text");
+  const [contextAction, setContextAction] = useState<PhotoVideoContextAction>("text");
+  const [overlayFocused, setOverlayFocused] = useState(false);
+  const [globalExpanded, setGlobalExpanded] = useState(true);
   const [previewCompact, setPreviewCompact] = useState(false);
+  const posture = usePhotoVideoLayoutPosture();
+  const keyboardOpen = usePhotoVideoKeyboardOpen();
   const editZoneRef = useRef<HTMLDivElement>(null);
   const previewDockRef = useRef<HTMLDivElement>(null);
   const previewSentinelRef = useRef<HTMLDivElement>(null);
@@ -407,10 +418,13 @@ export function PhotoVideoComposer({
   const selectPhoto = useCallback(
     (photoId: string) => {
       setSelectedPhotoId(photoId);
+      setOverlayFocused(false);
       clockRef.current = seekTimeForPhoto(composition, photoId, draftContext);
       setPlaying(false);
       const first = overlaysForPhoto(composition, photoId)[0];
       setSelectedOverlayId(first?.id ?? null);
+      const isVideo = isVideoPhoto(composition.photos.find((photo) => photo.id === photoId));
+      setContextAction(isVideo ? "trim" : "text");
     },
     [composition, draftContext, setPlaying, setSelectedOverlayId]
   );
@@ -536,7 +550,8 @@ export function PhotoVideoComposer({
         if (last) {
           setSelectedPhotoId(last.id);
           setSelectedOverlayId(null);
-          setEditPanel("clip");
+          setOverlayFocused(false);
+          setContextAction("trim");
           clockRef.current = seekTimeForPhoto(current, last.id, draftContext);
           setPlaying(false);
         }
@@ -719,14 +734,25 @@ export function PhotoVideoComposer({
   const selectedIsVideo = Boolean(
     selectedPhotoId && isVideoPhoto(composition.photos.find((photo) => photo.id === selectedPhotoId))
   );
+  const contextMode = resolvePhotoVideoContextMode({
+    selectedPhotoId,
+    selectedIsVideo,
+    overlayFocused,
+  });
+  const activeContextAction =
+    posture === "desktop" ? ("all" as const) : normalizeContextAction(contextMode, contextAction);
+  const previewKeyboardMode = keyboardOpen && (contextAction === "text" || overlayFocused);
+  const phoneLandscape = posture === "phone-landscape";
+  const hasSelection = Boolean(selectedPhotoId);
+
+  useEffect(() => {
+    if (posture !== "desktop" && hasSelection) {
+      setGlobalExpanded(false);
+    } else if (!hasSelection) {
+      setGlobalExpanded(true);
+    }
+  }, [hasSelection, posture]);
   const exportReady = ready && !duration.videoOverBudget;
-  const activeEditPanel: PhotoVideoEditPanel = selectedIsVideo
-    ? editPanel === "motion"
-      ? "clip"
-      : editPanel
-    : editPanel === "clip"
-      ? "text"
-      : editPanel;
   const durationChipValue =
     composition.durationMode === "auto" ? "auto" : String(composition.durationSeconds);
   const selectedPhotoMotion =
@@ -760,7 +786,7 @@ export function PhotoVideoComposer({
 
   return (
     <div className="space-y-8 pb-[max(1.25rem,env(safe-area-inset-bottom))]" data-testid="px4a-composer">
-      <header className="space-y-2">
+      <header className={`space-y-2 ${phoneLandscape ? "max-lg:hidden" : ""}`}>
         {itemJourney && returnHref ? (
           <a
             href={withItemReturnResult(returnHref, "cancel")}
@@ -867,14 +893,62 @@ export function PhotoVideoComposer({
       <div ref={previewSentinelRef} className="h-px w-full" data-testid="px4a-preview-sentinel" aria-hidden="true" />
       <div
         ref={editZoneRef}
-        className="grid gap-4 lg:grid-cols-2 lg:items-start"
+        className={`grid gap-4 lg:grid-cols-2 lg:items-start ${
+          phoneLandscape
+            ? "max-lg:fixed max-lg:inset-0 max-lg:z-40 max-lg:flex max-lg:h-[100dvh] max-lg:max-h-[100dvh] max-lg:flex-col max-lg:gap-2 max-lg:overflow-hidden max-lg:bg-white max-lg:px-2 max-lg:pt-[max(0.25rem,env(safe-area-inset-top))] max-lg:pb-[max(0.25rem,env(safe-area-inset-bottom))]"
+            : ""
+        }`}
         data-testid="px4a-edit-zone"
+        data-posture={posture}
+      >
+      {phoneLandscape ?
+        <div
+          className="max-lg:flex max-lg:w-full max-lg:shrink-0 max-lg:items-center max-lg:justify-between max-lg:gap-2 max-lg:border-b max-lg:border-zinc-200 max-lg:pb-2"
+          data-testid="px4a-landscape-header"
+        >
+          {itemJourney && returnHref ?
+            <button
+              type="button"
+              className="min-h-11 text-sm font-semibold text-[#006D52]"
+              onClick={() => {
+                exportAbortRef.current?.abort();
+                void returnToItem("cancel");
+              }}
+            >
+              ← {t("px4a.item.back")}
+            </button>
+          : <span />}
+          <p className="truncate text-sm font-semibold text-zinc-900">
+            {itemJourney ? t("px4a.item.title") : t("px4a.title")}
+          </p>
+          <span className="w-8" />
+        </div>
+      : null}
+      <div
+        className={`${
+          phoneLandscape
+            ? "max-lg:flex max-lg:min-h-0 max-lg:flex-1 max-lg:flex-row max-lg:gap-2 max-lg:overflow-hidden"
+            : "contents"
+        }`}
+        data-testid="px4a-landscape-body"
+      >
+      <div
+        className={`min-w-0 ${
+          phoneLandscape
+            ? "max-lg:flex max-lg:min-h-0 max-lg:flex-[55] max-lg:flex-col max-lg:gap-2 max-lg:overflow-hidden"
+            : "contents"
+        }`}
+        data-testid="px4a-left-pane"
       >
       <div
         ref={previewDockRef}
-        className="max-lg:sticky max-lg:top-[max(0.25rem,env(safe-area-inset-top))] max-lg:z-30 max-lg:bg-white/95 max-lg:backdrop-blur-sm lg:col-start-1 lg:row-start-1 lg:row-span-2"
+        className={`${
+          phoneLandscape
+            ? "max-lg:min-h-0 max-lg:flex-1 max-lg:overflow-hidden"
+            : "max-lg:sticky max-lg:top-[max(0.25rem,env(safe-area-inset-top))] max-lg:z-30 max-lg:bg-white/95 max-lg:backdrop-blur-sm"
+        } lg:col-start-1 lg:row-start-1 lg:row-span-2`}
         data-testid="px4a-preview-dock"
-        data-compact={previewCompact ? "true" : "false"}
+        data-compact={previewCompact || previewKeyboardMode ? "true" : "false"}
       >
       <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white p-3 sm:p-4">
         <PhotoVideoPreviewCanvas
@@ -884,16 +958,21 @@ export function PhotoVideoComposer({
           selectedOverlayId={selectedOverlayId}
           placeholderText={t("px4a.text.placeholder")}
           context={draftContext}
-          compact={previewCompact}
+          compact={previewCompact || previewKeyboardMode}
+          keyboardMode={previewKeyboardMode}
           onSelectOverlay={(id) => {
             setSelectedOverlayId(id);
             if (id) {
               const overlay = composition.overlays.find((item) => item.id === id);
               if (overlay) {
                 setSelectedPhotoId(overlay.photoId);
+                setOverlayFocused(true);
+                setContextAction("text");
                 clockRef.current = seekTimeForPhoto(composition, overlay.photoId, draftContext);
                 setPlaying(false);
               }
+            } else {
+              setOverlayFocused(false);
             }
           }}
           onMoveOverlay={(id, x, y) => setComposition((current) => moveTextOverlay(current, id, x, y))}
@@ -941,11 +1020,19 @@ export function PhotoVideoComposer({
       </div>
 
       <div
-        className="min-w-0 space-y-3 max-lg:sticky max-lg:z-20 max-lg:bg-white/95 max-lg:backdrop-blur-sm max-lg:pb-2 lg:static lg:col-start-2 lg:row-start-1"
+        className={`min-w-0 space-y-3 ${
+          phoneLandscape
+            ? "max-lg:shrink-0 max-lg:overflow-x-auto"
+            : "max-lg:sticky max-lg:z-20 max-lg:bg-white/95 max-lg:backdrop-blur-sm max-lg:pb-2 lg:static lg:col-start-2 lg:row-start-1"
+        }`}
         data-testid="px4a-strip-dock"
-        style={{
-          top: "max(0.25rem, calc(env(safe-area-inset-top, 0px) + var(--px4a-preview-h, 0px)))",
-        }}
+        style={
+          phoneLandscape
+            ? undefined
+            : {
+                top: "max(0.25rem, calc(env(safe-area-inset-top, 0px) + var(--px4a-preview-h, 0px)))",
+              }
+        }
       >
       <section className="space-y-3">
         <h2 className="text-base font-semibold text-zinc-900">
@@ -1026,7 +1113,21 @@ export function PhotoVideoComposer({
             })
           }
         />
-        <PhotoVideoEditToolbar panel={activeEditPanel} onPanel={setEditPanel} videoSelected={selectedIsVideo} />
+        {!phoneLandscape ?
+          <PhotoVideoContextBar
+            mode={contextMode}
+            action={contextAction}
+            onAction={setContextAction}
+            showDelete={overlayFocused && Boolean(selectedOverlayId)}
+            onDeleteOverlay={() => {
+              if (!selectedOverlayId) return;
+              setComposition((current) => removeTextOverlay(current, selectedOverlayId));
+              setSelectedOverlayId(null);
+              setOverlayFocused(false);
+              setContextAction("text");
+            }}
+          />
+        : null}
         {error ? (
           <p className="text-sm text-red-700" data-testid="px4a-export-error" role="status">
             {error}
@@ -1034,8 +1135,31 @@ export function PhotoVideoComposer({
         ) : null}
       </section>
       </div>
+      </div>
 
-      <div className="min-w-0 lg:col-start-2 lg:row-start-2">
+      <div
+        className={`min-w-0 ${
+          phoneLandscape
+            ? "max-lg:flex max-lg:min-h-0 max-lg:flex-[45] max-lg:flex-col max-lg:gap-2 max-lg:overflow-hidden"
+            : "lg:col-start-2 lg:row-start-2"
+        }`}
+        data-testid="px4a-right-pane"
+      >
+      {phoneLandscape ?
+        <PhotoVideoContextBar
+          mode={contextMode}
+          action={contextAction}
+          onAction={setContextAction}
+          showDelete={overlayFocused && Boolean(selectedOverlayId)}
+          onDeleteOverlay={() => {
+            if (!selectedOverlayId) return;
+            setComposition((current) => removeTextOverlay(current, selectedOverlayId));
+            setSelectedOverlayId(null);
+            setOverlayFocused(false);
+            setContextAction("text");
+          }}
+        />
+      : null}
       <PhotoVideoPhotoInspector
         composition={composition}
         selectedPhotoId={selectedPhotoId}
@@ -1043,7 +1167,8 @@ export function PhotoVideoComposer({
         photoCount={composition.photos.length}
         selectedOverlay={selectedOverlay}
         selectedPhotoMotion={selectedPhotoMotion}
-        panel={activeEditPanel}
+        contextAction={activeContextAction}
+        overlayFocused={overlayFocused}
         onAddText={() => {
           if (!selectedPhotoId) {
             setError(t("px4a.text.needPhoto"));
@@ -1058,6 +1183,8 @@ export function PhotoVideoComposer({
         }}
         onSelectOverlay={(id) => {
           setSelectedOverlayId(id);
+          setOverlayFocused(Boolean(id));
+          if (id) setContextAction("text");
           setPlaying(false);
         }}
         onChangeText={(text) => {
@@ -1106,9 +1233,36 @@ export function PhotoVideoComposer({
           setComposition((current) => setVideoFit(current, selectedPhotoId, fit));
         }}
       />
+      {phoneLandscape ?
+        <div className="max-lg:mt-auto max-lg:shrink-0" data-testid="px4a-actions-landscape">
+          {itemJourney ?
+            <button
+              type="button"
+              data-testid="px4a-item-finish"
+              disabled={!exportReady || exporting}
+              className="min-h-11 w-full rounded-full bg-[#006D52] px-5 text-sm font-semibold text-white disabled:opacity-50"
+              onClick={() => void onFinishItem()}
+            >
+              {t("px4a.item.finish")}
+            </button>
+          : (
+            <button
+              type="button"
+              data-testid="px4a-export-download"
+              disabled={!exportReady || exporting}
+              className="min-h-11 w-full rounded-full bg-[#006D52] px-5 text-sm font-semibold text-white disabled:opacity-50"
+              onClick={() => void onDownloadStudio()}
+            >
+              {exporting ? t("px4a.export.downloading") : t("px4a.slice1b.export.create")}
+            </button>
+          )}
+        </div>
+      : null}
+      </div>
       </div>
       </div>
 
+      {!phoneLandscape && !previewKeyboardMode ?
       <div className="flex flex-wrap gap-2" data-testid="px4a-actions">
         {itemJourney ? (
           <>
@@ -1166,19 +1320,23 @@ export function PhotoVideoComposer({
           {t("px4a.draft.reset")}
         </button>
       </div>
-      {itemJourney ? (
+      : null}
+      {itemJourney && !phoneLandscape ?
         <p className="text-sm text-zinc-600" data-testid="px4a-item-finish-hint">
           {t("px4a.item.finishHint")} {t("px4a.item.finishPending")}
         </p>
-      ) : null}
+      : null}
 
-      <section className="space-y-4" data-testid="px4a-global-video" aria-labelledby="px4a-global-heading">
-      <div className="space-y-1">
-        <h2 id="px4a-global-heading" className="text-base font-semibold text-zinc-900">
-          {t("px4a.global.legend")}
-        </h2>
-        <p className="text-sm text-zinc-600">{t("px4a.global.lead")}</p>
-      </div>
+      <details
+        className={`space-y-4 ${phoneLandscape ? "max-lg:hidden" : ""}`}
+        data-testid="px4a-global-video"
+        open={globalExpanded}
+        onToggle={(event) => setGlobalExpanded((event.currentTarget as HTMLDetailsElement).open)}
+      >
+      <summary className="cursor-pointer list-none text-base font-semibold text-zinc-900 marker:content-none [&::-webkit-details-marker]:hidden">
+        {t("px4a.slice1b.global.title")}
+      </summary>
+      <p className="text-sm text-zinc-600">{t("px4a.global.lead")}</p>
       <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
       <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-3 sm:p-4">
       <ChipGroup
@@ -1312,22 +1470,24 @@ export function PhotoVideoComposer({
           >
             {t("px4a.audio.own")}
           </button>
-          <button
-            type="button"
-            data-testid="px4a-audio-catalog"
-            aria-pressed={catalogOpen}
-            className={`min-h-11 rounded-full border px-4 text-sm font-medium ${
-              catalogOpen ? "border-[#006D52] bg-[#006D52] text-white" : "border-zinc-200 bg-white text-zinc-800"
-            }`}
-            onClick={() => {
-              setPickingMusic(false);
-              setCatalogOpen(true);
-            }}
-          >
-            {t("px4a.audio.catalog")}
-          </button>
+          {PHOTO_VIDEO_MUSIC_CATALOG_STATUS !== "empty" ?
+            <button
+              type="button"
+              data-testid="px4a-audio-catalog"
+              aria-pressed={catalogOpen}
+              className={`min-h-11 rounded-full border px-4 text-sm font-medium ${
+                catalogOpen ? "border-[#006D52] bg-[#006D52] text-white" : "border-zinc-200 bg-white text-zinc-800"
+              }`}
+              onClick={() => {
+                setPickingMusic(false);
+                setCatalogOpen(true);
+              }}
+            >
+              {t("px4a.audio.catalog")}
+            </button>
+          : null}
         </div>
-        {catalogOpen ? (
+        {catalogOpen && PHOTO_VIDEO_MUSIC_CATALOG_STATUS !== "empty" ? (
           <p className="text-sm text-zinc-600" data-testid="px4a-audio-catalog-empty">
             {t("px4a.audio.catalogEmpty")}
           </p>
@@ -1375,7 +1535,7 @@ export function PhotoVideoComposer({
         </details>
       ) : null}
 
-      </section>
+      </details>
 
       <p className="text-xs text-zinc-500">{t("px4a.watermark.note")}</p>
       <p className="sr-only" data-testid="px4a-max-seconds">
