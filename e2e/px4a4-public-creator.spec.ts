@@ -5,6 +5,8 @@ test.describe("PX.4A.4 public compositor certification", () => {
   test("desktop public creator keeps free watermark and duration control, no credits", async ({ page }) => {
     await page.goto("/studio/photo-video", { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("px4a-composer")).toBeVisible({ timeout: 20_000 });
+    const resume = page.getByTestId("px4a-resume-fresh");
+    if (await resume.count()) await resume.click();
     await expect(page.getByTestId("px4a-duration")).toBeVisible();
     await expect(page.getByTestId("px4a-video-duration")).toBeVisible();
     await expect(page.getByTestId("px4a-movement")).toBeVisible();
@@ -15,10 +17,10 @@ test.describe("PX.4A.4 public compositor certification", () => {
     await expect(page.getByTestId("px4a-style")).toContainText(/Overgang|Transition/);
     await expect(page.getByTestId("px4a-transition-group-standard")).toContainText(/Knippen|Cut/);
     await expect(page.getByTestId("px4a-transition-group-signature")).toContainText(/Scherven|Shards/);
-    await expect(page.getByTestId("px4a-transition-split")).toBeVisible();
+    await expect(page.getByTestId("px4a-transition-hc_split")).toBeVisible();
     await expect(page.locator("[data-testid='px4a-composer'] canvas")).toHaveCount(1);
     await expect(page.getByTestId("px4a-audio-none")).toBeVisible();
-    await expect(page.getByTestId("px4a-audio-catalog")).toBeVisible();
+    await expect(page.getByTestId("px4a-audio-catalog")).toHaveCount(0);
     await expect(page.getByTestId("px4a-global-more")).toBeVisible();
     await page.getByRole("button", { name: "Liggend" }).click();
     await expect(page.getByRole("button", { name: "Liggend" })).toHaveAttribute("aria-pressed", "true");
@@ -27,6 +29,8 @@ test.describe("PX.4A.4 public compositor certification", () => {
   test("all six overlay fonts resolve to a concrete canvas shorthand Chromium will honor", async ({ page }) => {
     await page.goto("/studio/photo-video", { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("px4a-composer")).toBeVisible({ timeout: 20_000 });
+    const resume = page.getByTestId("px4a-resume-fresh");
+    if (await resume.count()) await resume.click();
     const geist = await page.evaluate(() =>
       getComputedStyle(document.documentElement).getPropertyValue("--font-geist-sans")
     );
@@ -64,19 +68,21 @@ test.describe("PX.4A.4 public compositor certification", () => {
     const page = await context.newPage();
     await page.goto("/studio/photo-video", { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("px4a-composer")).toBeVisible({ timeout: 20_000 });
+    const resume = page.getByTestId("px4a-resume-fresh");
+    if (await resume.count()) await resume.click();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(8);
     await expect(page.getByTestId("px4a-file-input")).toBeAttached();
     await expect(page.getByTestId("px4a-add-photo-tile")).toBeVisible();
-    await expect(page.getByTestId("px4a-edit-toolbar")).toBeVisible();
+    await expect(page.getByTestId("px4a-context-none-helper")).toBeVisible();
     await expect(page.getByTestId("px4a-global-video")).toBeVisible();
-    await expect(page.getByText("Instellingen voor de hele video").first()).toBeVisible();
+    await expect(page.getByText("Voor hele video").first()).toBeVisible();
     await expect(page.getByTestId("px4a-style")).toContainText(/Overgang|Transition/);
     await expect(page.getByTestId("px4a-transition-group-standard")).toBeVisible();
     await expect(page.getByTestId("px4a-transition-group-signature")).toBeVisible();
     await expect(page.locator("[data-testid='px4a-composer'] canvas")).toHaveCount(1);
     await expect(page.getByTestId("px4a-audio-none")).toBeVisible();
-    await expect(page.getByTestId("px4a-audio-catalog")).toBeVisible();
+    await expect(page.getByTestId("px4a-audio-catalog")).toHaveCount(0);
     await expect(page.getByTestId("px4a-global-more")).toBeVisible();
     await context.close();
   });
@@ -88,10 +94,12 @@ test.describe("PX.4A.4 public compositor certification", () => {
     const page = await context.newPage();
     await page.goto("/studio/photo-video", { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("px4a-composer")).toBeVisible({ timeout: 20_000 });
+    const resume375 = page.getByTestId("px4a-resume-fresh");
+    if (await resume375.count()) await resume375.click();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(8);
     await expect(page.getByTestId("px4a-preview-dock")).toBeVisible();
-    await expect(page.getByTestId("px4a-edit-toolbar")).toBeVisible();
+    await expect(page.getByTestId("px4a-context-none-helper")).toBeVisible();
     await page.getByTestId("px4a-actions").scrollIntoViewIfNeeded();
     const covered = await page.evaluate(() => {
       const dock = document.querySelector("[data-testid='px4a-preview-dock']");
@@ -128,12 +136,15 @@ test.describe("PX.4A.4 public compositor certification", () => {
       { name: "b.png", mimeType: "image/png", buffer: png },
     ]);
     await expect(page.getByTestId("px4a-photo-0")).toBeVisible({ timeout: 15_000 });
+    await page.getByTestId("px4a-photo-0").locator("button[aria-pressed]").first().click();
     await page.getByTestId("px4a-add-text").click();
     await page.getByTestId("px4a-text-input").fill("Test");
+    await page.waitForTimeout(600);
     const ratios = ["Verticaal", "Vierkant", "Liggend"] as const;
     for (const label of ratios) {
+      await page.getByTestId("px4a-global-video").scrollIntoViewIfNeeded();
       await page.getByTestId("px4a-ratio").getByRole("button", { name: label }).click();
-      await page.waitForTimeout(350);
+      await page.waitForTimeout(500);
       const metrics = await page.evaluate(() => {
         const canvas = document.querySelector<HTMLCanvasElement>("[data-testid='px4a-preview-canvas']");
         if (!canvas) return { white: 0 };
@@ -192,8 +203,8 @@ test.describe("PX.4A.4 public compositor certification", () => {
     await expect(page.getByTestId("px4a-text-input")).toHaveValue("BETA");
     await expect(page.getByTestId("px4a-text-input")).toHaveAttribute("type", "text");
     await expect(page.getByTestId("px4a-add-photo-tile")).toBeVisible();
-    const motionTab = page.getByTestId("px4a-toolbar-motion");
-    if (await motionTab.isVisible()) await motionTab.click();
+    const motionAction = page.getByTestId("px4a-context-motion");
+    if (await motionAction.isVisible()) await motionAction.click();
     await expect(page.getByTestId("px4a-movement-photo")).toBeVisible();
     await expect(page.getByTestId("px4a-movement")).toBeVisible();
   });

@@ -1,0 +1,249 @@
+{
+  "startedAt": "2026-08-19T21:08:26.054Z",
+  "studioBaseUrl": "http://localhost:3000",
+  "commit": "3be9654b6ddc7b024cdaffda35e6daaa3dd07445",
+  "selectorMap": [
+    {
+      "old": "px4a-edit-toolbar",
+      "new": "px4a-context-bar / px4a-context-none-helper",
+      "intent": "mobile edit actions",
+      "preserved": true
+    },
+    {
+      "old": "px4a-toolbar-clip",
+      "new": "px4a-context-trim",
+      "intent": "open trim",
+      "preserved": true
+    },
+    {
+      "old": "px4a-toolbar-text",
+      "new": "px4a-context-text",
+      "intent": "open text",
+      "preserved": true
+    },
+    {
+      "old": "px4a-toolbar-motion",
+      "new": "px4a-context-motion",
+      "intent": "open movement",
+      "preserved": true
+    },
+    {
+      "old": "px4a-toolbar-order",
+      "new": "px4a-context-order",
+      "intent": "reorder media",
+      "preserved": true
+    },
+    {
+      "old": "Instellingen voor de hele video",
+      "new": "Voor hele video",
+      "intent": "global settings discoverability",
+      "preserved": true
+    }
+  ],
+  "viewports": {
+    "desktop-chromium": {
+      "layout": {
+        "posture": "desktop",
+        "leftPane": true,
+        "rightPane": true,
+        "landscapeHeader": false,
+        "landscapeBody": true,
+        "contextModel": true,
+        "globalTitle": true,
+        "overflow": 0,
+        "canvases": 1,
+        "pass": true
+      },
+      "edit": {
+        "textValue": "SLICE1B CERT",
+        "motionVisible": true,
+        "orderVisible": true
+      },
+      "transitions": {
+        "standard": {
+          "cut": true,
+          "fade": true,
+          "slide": true,
+          "wipe": true,
+          "zoom_blend": true
+        },
+        "signature": {
+          "hc_shards": true,
+          "hc_tiles": true,
+          "hc_orbit": true,
+          "hc_ripple": true,
+          "hc_split": true,
+          "hc_strips": true,
+          "hc_lens": true
+        },
+        "signatureGroupVisible": true,
+        "allStandard": true,
+        "allSignature": true
+      },
+      "orientation": null
+    },
+    "portrait-390x844": {
+      "layout": {
+        "posture": "phone-portrait",
+        "leftPane": true,
+        "rightPane": true,
+        "landscapeHeader": false,
+        "landscapeBody": true,
+        "contextModel": true,
+        "globalTitle": true,
+        "overflow": 0,
+        "canvases": 1,
+        "pass": true
+      },
+      "edit": {
+        "textValue": "SLICE1B CERT",
+        "motionVisible": true,
+        "orderVisible": true
+      },
+      "transitions": null,
+      "orientation": {
+        "portrait": {
+          "contextBar": true,
+          "contextHelper": false,
+          "contextTrim": false,
+          "contextText": true,
+          "trim": false,
+          "audio": false,
+          "fit": false,
+          "movementPhoto": false,
+          "posture": "phone-portrait",
+          "overflow": 0,
+          "canvas": 1,
+          "ua": "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.34 Mobile Safari/537.36"
+        },
+        "landscape": {
+          "contextBar": true,
+          "contextHelper": false,
+          "contextTrim": false,
+          "contextText": true,
+          "trim": false,
+          "audio": false,
+          "fit": false,
+          "movementPhoto": false,
+          "posture": "phone-landscape",
+          "overflow": 0,
+          "canvas": 1,
+          "ua": "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.34 Mobile Safari/537.36"
+        },
+        "backPortrait": {
+          "contextBar": true,
+          "contextHelper": false,
+          "contextTrim": false,
+          "contextText": true,
+          "trim": false,
+          "audio": false,
+          "fit": false,
+          "movementPhoto": false,
+          "posture": "phone-portrait",
+          "overflow": 0,
+          "canvas": 1,
+          "ua": "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.34 Mobile Safari/537.36"
+        },
+        "textPreserved": true,
+        "postureFlipped": true
+      }
+    },
+    "portrait-375x667": {
+      "layout": {
+        "posture": "phone-portrait",
+        "leftPane": true,
+        "rightPane": true,
+        "landscapeHeader": false,
+        "landscapeBody": true,
+        "contextModel": true,
+        "globalTitle": true,
+        "overflow": 0,
+        "canvases": 1,
+        "pass": true
+      },
+      "edit": null,
+      "transitions": null,
+      "orientation": null
+    },
+    "portrait-430x932": {
+      "layout": {
+        "posture": "phone-portrait",
+        "leftPane": true,
+        "rightPane": true,
+        "landscapeHeader": false,
+        "landscapeBody": true,
+        "contextModel": true,
+        "globalTitle": true,
+        "overflow": 0,
+        "canvases": 1,
+        "pass": true
+      },
+      "edit": null,
+      "transitions": null,
+      "orientation": null
+    },
+    "landscape-844x390": {
+      "layout": {
+        "posture": "phone-landscape",
+        "leftPane": true,
+        "rightPane": true,
+        "landscapeHeader": true,
+        "landscapeBody": true,
+        "contextModel": true,
+        "globalTitle": false,
+        "overflow": 0,
+        "canvases": 1,
+        "pass": true
+      },
+      "edit": null,
+      "transitions": null,
+      "orientation": null
+    },
+    "landscape-812x375": {
+      "layout": {
+        "posture": "phone-landscape",
+        "leftPane": true,
+        "rightPane": true,
+        "landscapeHeader": true,
+        "landscapeBody": true,
+        "contextModel": true,
+        "globalTitle": false,
+        "overflow": 0,
+        "canvases": 1,
+        "pass": true
+      },
+      "edit": null,
+      "transitions": null,
+      "orientation": null
+    },
+    "landscape-932x430": {
+      "layout": {
+        "posture": "phone-landscape",
+        "leftPane": true,
+        "rightPane": true,
+        "landscapeHeader": true,
+        "landscapeBody": true,
+        "contextModel": true,
+        "globalTitle": false,
+        "overflow": 0,
+        "canvases": 1,
+        "pass": true
+      },
+      "edit": null,
+      "transitions": null,
+      "orientation": null
+    }
+  },
+  "network": {
+    "providerHits": [],
+    "creditHits": []
+  },
+  "physicalIphone": {
+    "available": false,
+    "note": "Physical iPhone CDP not attempted in this automated run; prior Aug 19 baseline IPHONE_PX4A7_PASS with resume-continue path."
+  },
+  "blockers": [],
+  "verdict": "SLICE1B_AUTOMATED_PASS",
+  "status": "PASS",
+  "finishedAt": "2026-08-19T21:09:14.679Z"
+}
