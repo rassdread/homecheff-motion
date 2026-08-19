@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { canvasSizeForRatio, coverFitRect, safeZones } from "@/lib/photo-video/layout";
+import { canvasSizeForRatio, containFitRect, coverFitRect, safeZones } from "@/lib/photo-video/layout";
 
 describe("PX.4A.1 layout", () => {
   it("sizes 9:16 1:1 16:9 without square-forcing", () => {
@@ -28,6 +28,20 @@ describe("PX.4A.1 layout", () => {
     const scaleX = rect.dw / rect.sw;
     const scaleY = rect.dh / rect.sh;
     assert.ok(Math.abs(scaleX - scaleY) < 1e-9);
+  });
+
+  it("contain-fit letterboxes without cropping or distorting", () => {
+    const rect = containFitRect({
+      imageWidth: 1920,
+      imageHeight: 1080,
+      canvasWidth: 405,
+      canvasHeight: 720,
+    });
+    const scaleX = rect.dw / rect.sw;
+    const scaleY = rect.dh / rect.sh;
+    assert.ok(Math.abs(scaleX - scaleY) < 1e-9);
+    assert.ok(rect.dw <= 405 + 1e-6);
+    assert.ok(rect.dh <= 720 + 1e-6);
   });
 
   it("keeps watermark in the bottom-right safe corner", () => {

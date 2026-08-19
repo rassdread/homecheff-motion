@@ -34,10 +34,13 @@ describe("PX.4A.6.1 selected-photo inspector layout", () => {
 
   it("adds a + Foto tile on the existing file input path", () => {
     assert.match(strip, /px4a-add-photo-tile/);
-    assert.match(strip, /getElementById\(fileInputId\)/);
+    assert.match(strip, /px4a-add-video-tile/);
+    assert.match(strip, /getElementById\(id\)/);
     assert.match(composer, /data-testid="px4a-file-input"/);
+    assert.match(composer, /data-testid="px4a-video-input"/);
     assert.match(composer, /canAdd=\{canAddPhoto/);
     assert.match(composer, /createLocalPhoto/);
+    assert.match(composer, /createLocalVideo/);
     assert.doesNotMatch(strip, /type="file"/);
   });
 

@@ -14,6 +14,7 @@ import type { PhotoVideoTextOverlay } from "@/lib/photo-video/text-overlay";
 import type { PhotoVideoDurationMode, PhotoVideoMovementMode } from "@/lib/photo-video/constants";
 import type { PhotoVideoUserMotionKind } from "@/lib/photo-video/styles";
 import type { PhotoVideoResolvedTransition, PhotoVideoTransitionKind } from "@/lib/photo-video/transition-kind";
+import { clampVideoState, isVideoPhoto, type PhotoVideoVideoFit } from "@/lib/photo-video/media-clip";
 import { revokePhotoVideoObjectUrl } from "@/lib/photo-video/object-url";
 
 export const PHOTO_VIDEO_DRAFT_META_KEY = "hc-px4a-draft:v1";
@@ -21,8 +22,9 @@ export const PHOTO_VIDEO_DRAFT_DB = "hc-px4a-draft-blobs";
 export const PHOTO_VIDEO_DRAFT_STORE = "media";
 export const PHOTO_VIDEO_DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const PHOTO_VIDEO_DRAFT_MAX_TOTAL_BYTES = 80 * 1024 * 1024;
-export const PHOTO_VIDEO_DRAFT_VERSION = 2;
+export const PHOTO_VIDEO_DRAFT_VERSION = 3;
 export const PHOTO_VIDEO_DRAFT_LEGACY_VERSION = 1;
+export const PHOTO_VIDEO_DRAFT_ACCEPTED_VERSIONS = [1, 2, 3] as const;
 
 export type PhotoVideoDraftPhotoMeta = {
   id: string;
@@ -32,6 +34,15 @@ export type PhotoVideoDraftPhotoMeta = {
   naturalHeight: number;
   listingUrl?: string;
   motionKind?: PhotoVideoUserMotionKind | null;
+  mediaKind?: "image" | "video";
+  video?: {
+    sourceDurationSeconds: number;
+    trimStartSeconds: number;
+    trimEndSeconds: number;
+    audioEnabled: boolean;
+    volume: number;
+    fit?: PhotoVideoVideoFit;
+  };
 };
 
 export type PhotoVideoDraftAudioMeta =
@@ -161,7 +172,7 @@ export function readPhotoVideoDraftMeta(
     const raw = window.localStorage.getItem(photoVideoDraftMetaKey(context));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PhotoVideoDraftMeta;
-    if (!parsed || (parsed.version !== PHOTO_VIDEO_DRAFT_VERSION && parsed.version !== PHOTO_VIDEO_DRAFT_LEGACY_VERSION)) {
+    if (!parsed || !PHOTO_VIDEO_DRAFT_ACCEPTED_VERSIONS.includes(parsed.version as 1 | 2 | 3)) {
       return null;
     }
     if (!parsed.composition || !Array.isArray(parsed.composition.photos)) return null;
@@ -221,15 +232,29 @@ export function toDraftCompositionMeta(composition: PhotoVideoComposition): Phot
           peaks: composition.audio.peaks,
         };
   return {
-    photos: composition.photos.map((photo) => ({
-      id: photo.id,
-      source: photo.source,
-      included: photo.included,
-      naturalWidth: photo.naturalWidth,
-      naturalHeight: photo.naturalHeight,
-      listingUrl: photo.listingUrl,
-      motionKind: photo.motionKind,
-    })),
+    photos: composition.photos.map((photo) => {
+      const video = isVideoPhoto(photo) && photo.video
+        ? {
+            sourceDurationSeconds: photo.video.sourceDurationSeconds,
+            trimStartSeconds: photo.video.trimStartSeconds,
+            trimEndSeconds: photo.video.trimEndSeconds,
+            audioEnabled: photo.video.audioEnabled,
+            volume: photo.video.volume,
+            fit: photo.video.fit,
+          }
+        : undefined;
+      return {
+        id: photo.id,
+        source: photo.source,
+        included: photo.included,
+        naturalWidth: photo.naturalWidth,
+        naturalHeight: photo.naturalHeight,
+        listingUrl: photo.listingUrl,
+        motionKind: photo.motionKind,
+        mediaKind: photo.mediaKind,
+        video,
+      };
+    }),
     ratio: composition.ratio,
     pace: composition.pace,
     style: composition.style,
@@ -247,6 +272,7 @@ export function toDraftCompositionMeta(composition: PhotoVideoComposition): Phot
 export type CommitDraftInput = {
   composition: PhotoVideoComposition;
   photoBlobs: Record<string, Blob>;
+  posterBlobs?: Record<string, Blob>;
   audioBlob?: Blob | null;
   ownerUserId?: string | null;
   saved?: boolean;
@@ -266,6 +292,9 @@ export async function commitPhotoVideoDraft(input: CommitDraftInput): Promise<Co
     total += blob.size;
   }
   if (input.audioBlob) total += input.audioBlob.size;
+  if (input.posterBlobs) {
+    for (const blob of Object.values(input.posterBlobs)) total += blob.size;
+  }
   if (total > PHOTO_VIDEO_DRAFT_MAX_TOTAL_BYTES) return { ok: false, reason: "quota" };
 
   const context = input.context ?? "studio";
@@ -275,6 +304,11 @@ export async function commitPhotoVideoDraft(input: CommitDraftInput): Promise<Co
     if (!blob) continue;
     const ok = await idbPut(`photo:${photo.id}`, blob, context);
     if (!ok) return { ok: false, reason: "storage" };
+    const poster = input.posterBlobs?.[photo.id];
+    if (poster && isVideoPhoto(photo)) {
+      const posterOk = await idbPut(`poster:${photo.id}`, poster, context);
+      if (!posterOk) return { ok: false, reason: "storage" };
+    }
   }
   if (input.composition.audio.kind === "ownMusic" && input.audioBlob) {
     const ok = await idbPut("audio", input.audioBlob, context);
@@ -319,15 +353,29 @@ export async function restorePhotoVideoDraft(
   const objectUrls: string[] = [];
   const photos = [];
   for (const photo of meta.composition.photos) {
+    const isVideo = photo.mediaKind === "video" && Boolean(photo.video);
     let previewUrl = photo.listingUrl ?? "";
+    let videoObjectUrl = "";
     if (photo.source === "LOCAL_UPLOAD" || !photo.listingUrl) {
       const blob = await idbGet(`photo:${photo.id}`, context);
       if (!blob) {
         await clearPhotoVideoDraft(context);
         return null;
       }
-      previewUrl = URL.createObjectURL(blob);
-      objectUrls.push(previewUrl);
+      const sourceUrl = URL.createObjectURL(blob);
+      objectUrls.push(sourceUrl);
+      if (isVideo) {
+        videoObjectUrl = sourceUrl;
+        const poster = await idbGet(`poster:${photo.id}`, context);
+        if (poster) {
+          previewUrl = URL.createObjectURL(poster);
+          objectUrls.push(previewUrl);
+        } else {
+          previewUrl = "";
+        }
+      } else {
+        previewUrl = sourceUrl;
+      }
     }
     photos.push({
       id: photo.id,
@@ -338,6 +386,14 @@ export async function restorePhotoVideoDraft(
       naturalHeight: photo.naturalHeight,
       listingUrl: photo.listingUrl,
       motionKind: photo.motionKind,
+      mediaKind: photo.mediaKind,
+      video:
+        isVideo && photo.video
+          ? clampVideoState({
+              ...photo.video,
+              objectUrl: videoObjectUrl,
+            })
+          : undefined,
     });
   }
 
@@ -388,15 +444,20 @@ export async function restorePhotoVideoDraft(
 export async function loadPhotoVideoDraftBlobs(
   composition: PhotoVideoComposition,
   context: PhotoVideoDraftContext = "studio"
-): Promise<{ photoBlobs: Map<string, Blob>; audioBlob: Blob | null }> {
+): Promise<{ photoBlobs: Map<string, Blob>; posterBlobs: Map<string, Blob>; audioBlob: Blob | null }> {
   const photoBlobs = new Map<string, Blob>();
+  const posterBlobs = new Map<string, Blob>();
   for (const photo of composition.photos) {
     const blob = await idbGet(`photo:${photo.id}`, context);
     if (blob) photoBlobs.set(photo.id, blob);
+    if (isVideoPhoto(photo)) {
+      const poster = await idbGet(`poster:${photo.id}`, context);
+      if (poster) posterBlobs.set(photo.id, poster);
+    }
   }
   const audioBlob =
     composition.audio.kind === "ownMusic" ? await idbGet("audio", context) : null;
-  return { photoBlobs, audioBlob };
+  return { photoBlobs, posterBlobs, audioBlob };
 }
 
 export function photoVideoDraftReturnTo(resume = true): string {

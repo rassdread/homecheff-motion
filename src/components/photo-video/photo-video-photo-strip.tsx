@@ -17,7 +17,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { PhotoVideoPhoto } from "@/lib/photo-video/composition";
-import { useActiveTranslator } from "@/i18n/client";
+import { formatClipSeconds, isVideoPhoto, videoClipDuration } from "@/lib/photo-video/media-clip";
+import { useActiveTranslator, useLocale } from "@/i18n/client";
 
 function SortableThumb({
   photo,
@@ -43,6 +44,8 @@ function SortableThumb({
   onToggleIncluded?: (id: string) => void;
 }) {
   const t = useActiveTranslator();
+  const [locale] = useLocale();
+  const video = isVideoPhoto(photo);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: photo.id,
   });
@@ -64,14 +67,33 @@ function SortableThumb({
           type="button"
           aria-pressed={selected}
           aria-current={selected ? "true" : undefined}
-          aria-label={t("px4a.photo.select", { n: index + 1 })}
+          aria-label={t(video ? "px4a.video.select" : "px4a.photo.select", { n: index + 1 })}
           onClick={() => onSelect(photo.id)}
           className={`relative h-24 w-[5.5rem] overflow-hidden rounded-xl border bg-zinc-100 ${
             selected ? "border-[#006D52] ring-2 ring-[#006D52]" : "border-zinc-200"
           }`}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={photo.previewUrl} alt="" className="h-full w-full object-cover" />
+          {photo.previewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photo.previewUrl} alt="" className="h-full w-full object-cover" />
+          ) : video && photo.video?.objectUrl ? (
+            <video src={photo.video.objectUrl} muted playsInline className="h-full w-full object-cover" />
+          ) : (
+            <span className="block h-full w-full bg-zinc-200" />
+          )}
+          {video ? (
+            <span
+              className="pointer-events-none absolute inset-0 flex items-end justify-between bg-gradient-to-t from-black/55 to-transparent p-1"
+              data-testid={`px4a-video-thumb-${index}`}
+            >
+              <span aria-hidden="true" className="text-[10px] text-white">
+                ▶
+              </span>
+              <span className="rounded bg-black/60 px-1 text-[9px] font-semibold text-white">
+                {formatClipSeconds(videoClipDuration(photo), locale)}
+              </span>
+            </span>
+          ) : null}
         </button>
         {itemJourney && photo.source === "LOCAL_UPLOAD" ? (
           <span className="absolute bottom-0.5 left-0.5 right-0.5 truncate rounded bg-black/55 px-1 py-0.5 text-[9px] font-medium text-white">
@@ -81,7 +103,7 @@ function SortableThumb({
         <button
           type="button"
           className="absolute left-0.5 top-0.5 flex h-11 w-11 items-center justify-center rounded-lg bg-black/45 text-sm font-bold text-white"
-          aria-label={t("px4a.photo.dragHandle", { n: index + 1 })}
+          aria-label={t(video ? "px4a.video.dragHandle" : "px4a.photo.dragHandle", { n: index + 1 })}
           {...attributes}
           {...listeners}
         >
@@ -130,35 +152,57 @@ function SortableThumb({
   );
 }
 
-function AddPhotoTile({
+function AddMediaTiles({
   fileInputId,
+  videoInputId,
   disabled,
 }: {
   fileInputId: string;
+  videoInputId: string;
   disabled: boolean;
 }) {
   const t = useActiveTranslator();
-  const label = `+ ${t("px4a.photos.addTile")}`;
+  const photoLabel = `+ ${t("px4a.photos.addTile")}`;
+  const videoLabel = `+ ${t("px4a.photos.addVideoTile")}`;
+  const trigger = (id: string) => {
+    const input = document.getElementById(id);
+    if (input instanceof HTMLInputElement) input.click();
+  };
   return (
-    <li className="flex w-[5.5rem] shrink-0 flex-col gap-1" data-testid="px4a-add-photo-tile">
-      <button
-        type="button"
-        disabled={disabled}
-        aria-label={label}
-        className={`flex h-24 min-h-11 w-[5.5rem] flex-col items-center justify-center rounded-xl border border-dashed border-[#006D52] bg-[#006D52]/8 px-1 text-center text-xs font-semibold leading-tight text-[#006D52] ${
-          disabled ? "cursor-not-allowed opacity-40" : ""
-        }`}
-        onClick={() => {
-          const input = document.getElementById(fileInputId);
-          if (input instanceof HTMLInputElement) input.click();
-        }}
-      >
-        <span aria-hidden="true" className="text-lg leading-none">
-          +
-        </span>
-        <span>{t("px4a.photos.addTile")}</span>
-      </button>
-    </li>
+    <>
+      <li className="flex w-[5.5rem] shrink-0 flex-col gap-1" data-testid="px4a-add-photo-tile">
+        <button
+          type="button"
+          disabled={disabled}
+          aria-label={photoLabel}
+          className={`flex h-24 min-h-11 w-[5.5rem] flex-col items-center justify-center rounded-xl border border-dashed border-[#006D52] bg-[#006D52]/8 px-1 text-center text-xs font-semibold leading-tight text-[#006D52] ${
+            disabled ? "cursor-not-allowed opacity-40" : ""
+          }`}
+          onClick={() => trigger(fileInputId)}
+        >
+          <span aria-hidden="true" className="text-lg leading-none">
+            +
+          </span>
+          <span>{t("px4a.photos.addTile")}</span>
+        </button>
+      </li>
+      <li className="flex w-[5.5rem] shrink-0 flex-col gap-1" data-testid="px4a-add-video-tile">
+        <button
+          type="button"
+          disabled={disabled}
+          aria-label={videoLabel}
+          className={`flex h-24 min-h-11 w-[5.5rem] flex-col items-center justify-center rounded-xl border border-dashed border-[#006D52] bg-[#006D52]/8 px-1 text-center text-xs font-semibold leading-tight text-[#006D52] ${
+            disabled ? "cursor-not-allowed opacity-40" : ""
+          }`}
+          onClick={() => trigger(videoInputId)}
+        >
+          <span aria-hidden="true" className="text-lg leading-none">
+            ▶
+          </span>
+          <span>{t("px4a.photos.addVideoTile")}</span>
+        </button>
+      </li>
+    </>
   );
 }
 
@@ -172,6 +216,7 @@ export function PhotoVideoPhotoStrip({
   itemJourney = false,
   onToggleIncluded,
   fileInputId,
+  videoInputId,
   canAdd = false,
 }: {
   photos: PhotoVideoPhoto[];
@@ -183,6 +228,7 @@ export function PhotoVideoPhotoStrip({
   itemJourney?: boolean;
   onToggleIncluded?: (id: string) => void;
   fileInputId: string;
+  videoInputId: string;
   canAdd?: boolean;
 }) {
   const t = useActiveTranslator();
@@ -206,7 +252,7 @@ export function PhotoVideoPhotoStrip({
       <div className="space-y-2">
         <p className="text-sm text-zinc-600">{t("px4a.photos.empty")}</p>
         <ul className="flex gap-3 overflow-x-auto pb-2" data-testid="px4a-photo-strip">
-          <AddPhotoTile fileInputId={fileInputId} disabled={!canAdd} />
+          <AddMediaTiles fileInputId={fileInputId} videoInputId={videoInputId} disabled={!canAdd} />
         </ul>
       </div>
     );
@@ -231,7 +277,7 @@ export function PhotoVideoPhotoStrip({
               canMoveRight={index < photos.length - 1}
             />
           ))}
-          <AddPhotoTile fileInputId={fileInputId} disabled={!canAdd} />
+          <AddMediaTiles fileInputId={fileInputId} videoInputId={videoInputId} disabled={!canAdd} />
         </ul>
       </SortableContext>
     </DndContext>

@@ -33,6 +33,10 @@ export type PhotoVideoDurationInput = {
   overlapSeconds: number;
   endCardSeconds?: number;
   maxSeconds?: number;
+  /** Included image slots. Defaults to photoCount (photo-only). */
+  imageCount?: number;
+  /** Sum of included video trim lengths. Defaults to 0 (photo-only). */
+  videoSeconds?: number;
 };
 
 export type PhotoVideoDurationResult = {
@@ -49,6 +53,10 @@ export type PhotoVideoDurationResult = {
   exceedsMax: boolean;
   withinPhotoLimits: boolean;
   holdTooShort: boolean;
+  imageCount: number;
+  videoSeconds: number;
+  /** True when video fragments do not fit the selected duration without speeding them up. */
+  videoOverBudget: boolean;
 };
 
 export function clampOverlap(holdSeconds: number, overlapSeconds: number): number {
@@ -83,13 +91,29 @@ export function resolveAutoDurationSeconds(input: {
   overlapSeconds: number;
   endCardSeconds?: number;
   maxSeconds: number;
+  imageCount?: number;
+  videoSeconds?: number;
 }): number {
-  const raw = legacyDurationFromPhotoCount({
-    photoCount: input.photoCount,
-    holdSeconds: holdSecondsForPace(input.pace),
-    overlapSeconds: input.overlapSeconds,
-    endCardSeconds: input.endCardSeconds,
-  });
+  const videoSeconds = Math.max(0, input.videoSeconds ?? 0);
+  const photoCount = Math.max(0, Math.floor(input.photoCount));
+  const imageCount = Math.max(0, Math.floor(input.imageCount ?? photoCount));
+  if (videoSeconds <= 0) {
+    const raw = legacyDurationFromPhotoCount({
+      photoCount,
+      holdSeconds: holdSecondsForPace(input.pace),
+      overlapSeconds: input.overlapSeconds,
+      endCardSeconds: input.endCardSeconds,
+    });
+    return Math.min(Math.max(1, raw), input.maxSeconds);
+  }
+  const holdSeconds = holdSecondsForPace(input.pace);
+  const overlapSeconds = clampOverlap(holdSeconds, input.overlapSeconds);
+  const transitionCount = Math.max(0, photoCount - 1);
+  const raw =
+    videoSeconds +
+    imageCount * holdSeconds -
+    transitionCount * overlapSeconds +
+    Math.max(0, input.endCardSeconds ?? 0);
   return Math.min(Math.max(1, raw), input.maxSeconds);
 }
 
@@ -109,9 +133,61 @@ function distributeHoldPerPhoto(input: {
 
 export function calculatePhotoVideoDuration(input: PhotoVideoDurationInput): PhotoVideoDurationResult {
   const photoCount = Math.max(0, Math.floor(input.photoCount));
+  const videoSeconds = Math.max(0, input.videoSeconds ?? 0);
+  const imageCount = Math.max(0, Math.floor(input.imageCount ?? photoCount));
   const endCardSeconds = Math.max(0, input.endCardSeconds ?? 0);
   const maxSeconds = input.maxSeconds ?? PHOTO_VIDEO_MAX_SECONDS;
   let durationSeconds = Math.max(endCardSeconds, input.durationSeconds);
+
+  if (videoSeconds <= 0) {
+    if (input.durationMode === "auto" && photoCount > 0) {
+      durationSeconds = resolveAutoDurationSeconds({
+        photoCount,
+        pace: paceFromLegacyHold(input.holdSeconds),
+        overlapSeconds: input.overlapSeconds,
+        endCardSeconds,
+        maxSeconds,
+      });
+    }
+
+    durationSeconds = Math.min(durationSeconds, maxSeconds);
+    const overlapSeconds = clampOverlap(
+      photoCount > 0 ? durationSeconds / photoCount : 0,
+      input.overlapSeconds
+    );
+    const holdSeconds =
+      photoCount <= 0
+        ? 0
+        : distributeHoldPerPhoto({ photoCount, durationSeconds, overlapSeconds, endCardSeconds });
+
+    const transitionCount = Math.max(0, photoCount - 1);
+    const rawTotalSeconds =
+      photoCount <= 0
+        ? endCardSeconds
+        : photoCount * holdSeconds - transitionCount * overlapSeconds + endCardSeconds;
+    const totalSeconds =
+      input.durationMode === "fixed" && photoCount > 0 ? durationSeconds : rawTotalSeconds;
+
+    const averageSecondsPerPhoto = photoCount > 0 ? Math.max(0, totalSeconds - endCardSeconds) / photoCount : 0;
+
+    return {
+      photoCount,
+      durationSeconds,
+      durationMode: input.durationMode,
+      holdSeconds,
+      overlapSeconds,
+      endCardSeconds,
+      totalSeconds,
+      averageSecondsPerPhoto,
+      remainingSeconds: maxSeconds - totalSeconds,
+      exceedsMax: totalSeconds > maxSeconds + 1e-9,
+      withinPhotoLimits: photoCount >= PHOTO_VIDEO_MIN_PHOTOS && photoCount <= PHOTO_VIDEO_MAX_PHOTOS,
+      holdTooShort: photoCount > 0 && holdSeconds < PHOTO_VIDEO_MIN_HOLD_SECONDS,
+      imageCount: photoCount,
+      videoSeconds: 0,
+      videoOverBudget: false,
+    };
+  }
 
   if (input.durationMode === "auto" && photoCount > 0) {
     durationSeconds = resolveAutoDurationSeconds({
@@ -120,27 +196,40 @@ export function calculatePhotoVideoDuration(input: PhotoVideoDurationInput): Pho
       overlapSeconds: input.overlapSeconds,
       endCardSeconds,
       maxSeconds,
+      imageCount,
+      videoSeconds,
     });
   }
 
   durationSeconds = Math.min(durationSeconds, maxSeconds);
+  const contentSeconds = Math.max(0, durationSeconds - endCardSeconds);
   const overlapSeconds = clampOverlap(
-    photoCount > 0 ? durationSeconds / photoCount : 0,
+    photoCount > 0 ? contentSeconds / photoCount : 0,
     input.overlapSeconds
   );
-  const holdSeconds =
-    photoCount <= 0
-      ? 0
-      : distributeHoldPerPhoto({ photoCount, durationSeconds, overlapSeconds, endCardSeconds });
-
   const transitionCount = Math.max(0, photoCount - 1);
+  const photoBudget = contentSeconds + transitionCount * overlapSeconds - videoSeconds;
+  let holdSeconds = imageCount > 0 ? photoBudget / imageCount : 0;
+  const videoOverBudget =
+    imageCount > 0
+      ? photoBudget < imageCount * PHOTO_VIDEO_MIN_HOLD_SECONDS - 1e-6
+      : contentSeconds + 1e-6 < videoSeconds - transitionCount * overlapSeconds;
+
+  if (videoOverBudget && imageCount > 0) {
+    holdSeconds = PHOTO_VIDEO_MIN_HOLD_SECONDS;
+  } else if (videoOverBudget) {
+    holdSeconds = 0;
+  }
+
   const rawTotalSeconds =
     photoCount <= 0
       ? endCardSeconds
-      : photoCount * holdSeconds - transitionCount * overlapSeconds + endCardSeconds;
-  const totalSeconds =
-    input.durationMode === "fixed" && photoCount > 0 ? durationSeconds : rawTotalSeconds;
-
+      : videoSeconds + imageCount * holdSeconds - transitionCount * overlapSeconds + endCardSeconds;
+  const totalSeconds = videoOverBudget
+    ? rawTotalSeconds
+    : input.durationMode === "fixed" && photoCount > 0
+      ? durationSeconds
+      : rawTotalSeconds;
   const averageSecondsPerPhoto = photoCount > 0 ? Math.max(0, totalSeconds - endCardSeconds) / photoCount : 0;
 
   return {
@@ -155,7 +244,10 @@ export function calculatePhotoVideoDuration(input: PhotoVideoDurationInput): Pho
     remainingSeconds: maxSeconds - totalSeconds,
     exceedsMax: totalSeconds > maxSeconds + 1e-9,
     withinPhotoLimits: photoCount >= PHOTO_VIDEO_MIN_PHOTOS && photoCount <= PHOTO_VIDEO_MAX_PHOTOS,
-    holdTooShort: photoCount > 0 && holdSeconds < PHOTO_VIDEO_MIN_HOLD_SECONDS,
+    holdTooShort: imageCount > 0 && holdSeconds < PHOTO_VIDEO_MIN_HOLD_SECONDS,
+    imageCount,
+    videoSeconds,
+    videoOverBudget,
   };
 }
 

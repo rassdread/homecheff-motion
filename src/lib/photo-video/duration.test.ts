@@ -144,4 +144,55 @@ describe("PX.4A.4B duration calculator", () => {
   it("watermark uses the production globe asset", () => {
     assert.equal(PHOTO_VIDEO_WATERMARK_SRC, "/homecheff-globe-man.png");
   });
+
+  it("photo-only mixed fields stay inert", () => {
+    const result = calculatePhotoVideoDuration({
+      photoCount: 4,
+      durationMode: "fixed",
+      durationSeconds: 15,
+      holdSeconds: 2,
+      overlapSeconds: 0.4,
+      maxSeconds: 60,
+    });
+    assert.equal(result.videoSeconds, 0);
+    assert.equal(result.imageCount, 4);
+    assert.equal(result.videoOverBudget, false);
+    assert.equal(result.totalSeconds, 15);
+  });
+
+  it("video clips consume real time and photos share the remainder", () => {
+    const result = calculatePhotoVideoDuration({
+      photoCount: 4,
+      imageCount: 2,
+      videoSeconds: 9,
+      durationMode: "fixed",
+      durationSeconds: 15,
+      holdSeconds: 2,
+      overlapSeconds: 0.4,
+      maxSeconds: 60,
+    });
+    assert.equal(result.totalSeconds, 15);
+    assert.equal(result.videoSeconds, 9);
+    assert.equal(result.videoOverBudget, false);
+    assert.ok(result.holdSeconds > 0);
+    const overlap = result.overlapSeconds;
+    const reconstructed = 9 + 2 * result.holdSeconds - 3 * overlap;
+    assert.ok(Math.abs(reconstructed - 15) < 1e-6);
+  });
+
+  it("does not speed up video when fragments exceed the selected duration", () => {
+    const result = calculatePhotoVideoDuration({
+      photoCount: 3,
+      imageCount: 1,
+      videoSeconds: 18,
+      durationMode: "fixed",
+      durationSeconds: 15,
+      holdSeconds: 2,
+      overlapSeconds: 0.4,
+      maxSeconds: 60,
+    });
+    assert.equal(result.videoOverBudget, true);
+    assert.ok(result.totalSeconds > 15);
+    assert.equal(result.videoSeconds, 18);
+  });
 });

@@ -13,6 +13,20 @@ export const PHOTO_VIDEO_PREVIEW_MAX_EDGE = 720;
 export const PHOTO_VIDEO_PREVIEW_FPS = 30;
 export const PHOTO_VIDEO_WATERMARK_SRC = HOMECHEFF_BRAND_ICON_SOURCE;
 export const PHOTO_VIDEO_MAX_LOCAL_IMAGE_BYTES = 12 * 1024 * 1024;
+/** Per-file cap so mixed-media drafts stay inside the 80 MiB IndexedDB budget. */
+export const PHOTO_VIDEO_MAX_LOCAL_VIDEO_BYTES = 40 * 1024 * 1024;
+/** Source length cap. The composition still uses only the trimmed fragment. */
+export const PHOTO_VIDEO_MAX_VIDEO_SOURCE_SECONDS = 180;
+export const PHOTO_VIDEO_MIN_VIDEO_CLIP_SECONDS = 0.4;
+export const PHOTO_VIDEO_DEFAULT_VIDEO_CLIP_SECONDS = 6;
+export const PHOTO_VIDEO_VIDEO_ACCEPT = "video/mp4,video/quicktime,video/webm,video/x-m4v,video/3gpp";
+export const PHOTO_VIDEO_VIDEO_MIME_ALLOWLIST = [
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+  "video/x-m4v",
+  "video/3gpp",
+] as const;
 
 export const PHOTO_VIDEO_PACES = ["kort", "normaal", "rustig"] as const;
 export type PhotoVideoPace = (typeof PHOTO_VIDEO_PACES)[number];

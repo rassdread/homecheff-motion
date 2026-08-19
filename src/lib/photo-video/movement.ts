@@ -1,4 +1,5 @@
 import type { PhotoVideoComposition, PhotoVideoPhoto } from "@/lib/photo-video/composition";
+import { isVideoPhoto } from "@/lib/photo-video/media-clip";
 import type { PhotoVideoMovementMode } from "@/lib/photo-video/constants";
 import {
   motionKindForIndex,
@@ -12,6 +13,7 @@ export function motionKindForPhoto(
   photo: PhotoVideoPhoto,
   photoIndex: number
 ): PhotoVideoMotionKind {
+  if (isVideoPhoto(photo)) return "none";
   if (composition.movementMode === "none") return "none";
   if (photo.motionKind && photo.motionKind !== "auto") {
     const mapped = userMotionToKind(photo.motionKind as PhotoVideoUserMotionKind);

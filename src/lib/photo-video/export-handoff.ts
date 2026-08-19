@@ -58,7 +58,7 @@ export function canAttemptPhotoVideoExport(
   context: PhotoVideoContext = "homecheff-item"
 ): boolean {
   const duration = compositionDuration(composition, context);
-  return !duration.exceedsMax && duration.totalSeconds > 0;
+  return !duration.exceedsMax && !duration.videoOverBudget && duration.totalSeconds > 0;
 }
 
 /**

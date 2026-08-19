@@ -53,6 +53,31 @@ export function coverFitRect(input: {
   };
 }
 
+/**
+ * Contain-fit destination rect. Letterboxes without cropping.
+ * Used by video Fill/Fit; images keep cover unless a clip opts in.
+ */
+export function containFitRect(input: {
+  imageWidth: number;
+  imageHeight: number;
+  canvasWidth: number;
+  canvasHeight: number;
+}): { sx: number; sy: number; sw: number; sh: number; dx: number; dy: number; dw: number; dh: number } {
+  const scale = Math.min(input.canvasWidth / input.imageWidth, input.canvasHeight / input.imageHeight);
+  const dw = input.imageWidth * scale;
+  const dh = input.imageHeight * scale;
+  return {
+    sx: 0,
+    sy: 0,
+    sw: input.imageWidth,
+    sh: input.imageHeight,
+    dx: (input.canvasWidth - dw) / 2,
+    dy: (input.canvasHeight - dh) / 2,
+    dw,
+    dh,
+  };
+}
+
 export type SafeZones = {
   title: { x: number; y: number; width: number; height: number };
   extra: { x: number; y: number; width: number; height: number };

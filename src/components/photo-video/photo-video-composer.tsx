@@ -22,6 +22,7 @@ import {
   compositionDuration,
   createListingPhoto,
   createLocalPhoto,
+  createLocalVideo,
   createPhotoVideoComposition,
   excludePhoto,
   includePhoto,
@@ -48,6 +49,10 @@ import {
   setPhotoMotionKind,
   setRatio,
   setTransitionKind,
+  setVideoAudio,
+  setVideoFit,
+  setVideoTrim,
+  setVideoVolume,
   updateTextOverlay,
   type PhotoVideoComposition,
 } from "@/lib/photo-video/composition";
@@ -60,6 +65,7 @@ import {
   PHOTO_VIDEO_PREVIEW_MAX_EDGE,
   PHOTO_VIDEO_RATIOS,
   PHOTO_VIDEO_ITEM_DEFAULT_RATIO,
+  PHOTO_VIDEO_VIDEO_ACCEPT,
   photoVideoDurationPresets,
   photoVideoMaxSeconds,
   type PhotoVideoMovementMode,
@@ -67,6 +73,13 @@ import {
   type PhotoVideoRatio,
   type PhotoVideoStyle,
 } from "@/lib/photo-video/constants";
+import {
+  classifyLocalVideoFile,
+  formatSecondsWhole,
+  isVideoPhoto,
+  sourceExceedsMax,
+} from "@/lib/photo-video/media-clip";
+import { probeLocalVideoFile } from "@/lib/photo-video/video-element";
 import {
   formatAveragePerPhoto,
   formatPhotoVideoDuration,
@@ -227,6 +240,7 @@ export function PhotoVideoComposer({
   const searchParams = useSearchParams();
   const auth = useAuthSession();
   const fileInputId = useId();
+  const videoInputId = useId();
   const itemJourney = mode === "homecheff-item";
   const draftContext: PhotoVideoDraftContext = itemJourney ? "homecheff-item" : "studio";
   const durationPresets = photoVideoDurationPresets(draftContext);
@@ -256,6 +270,7 @@ export function PhotoVideoComposer({
   const [savedNotice, setSavedNotice] = useState(false);
   const previewUrlsRef = useRef<string[]>([]);
   const photoBlobsRef = useRef<Map<string, Blob>>(new Map());
+  const posterBlobsRef = useRef<Map<string, Blob>>(new Map());
   const audioBlobRef = useRef<Blob | null>(null);
   const clockRef = useRef(0);
   const audioUrlRef = useRef<string | undefined>(undefined);
@@ -297,6 +312,7 @@ export function PhotoVideoComposer({
       trackPhotoVideoFunnelEvent("photo_video_draft_restored");
       void loadPhotoVideoDraftBlobs(restored.composition, draftContext).then((blobs) => {
         photoBlobsRef.current = blobs.photoBlobs;
+        posterBlobsRef.current = blobs.posterBlobs;
         audioBlobRef.current = blobs.audioBlob;
       });
       return true;
@@ -367,6 +383,7 @@ export function PhotoVideoComposer({
       void commitPhotoVideoDraft({
         composition: compositionRef.current,
         photoBlobs: blobsToRecord(photoBlobsRef.current),
+        posterBlobs: blobsToRecord(posterBlobsRef.current),
         audioBlob: audioBlobRef.current,
         ownerUserId: auth.resolved ? auth.user?.id ?? null : null,
         context: draftContext,
@@ -457,11 +474,83 @@ export function PhotoVideoComposer({
     [composition, t, draftContext, setError, setComposition, setSelectedOverlayId, setPlaying]
   );
 
+  const onVideoFiles = useCallback(
+    async (list: FileList | null) => {
+      if (!list?.length) return;
+      setError(null);
+      const additions = [];
+      let current = composition;
+      for (const file of Array.from(list)) {
+        const classified = classifyLocalVideoFile(file);
+        if (classified === "type") {
+          setError(t("px4a.error.notVideo"));
+          continue;
+        }
+        if (classified === "size") {
+          setError(t("px4a.error.videoTooLarge"));
+          continue;
+        }
+        if (!canAddPhoto(current, 1)) {
+          setError(t("px4a.error.limit"));
+          break;
+        }
+        try {
+          const probed = await probeLocalVideoFile(file);
+          if (sourceExceedsMax(probed.durationSeconds)) {
+            revokePhotoVideoObjectUrl(probed.objectUrl);
+            revokePhotoVideoObjectUrl(probed.posterUrl);
+            setError(t("px4a.error.videoTooLong"));
+            continue;
+          }
+          const photo = createLocalVideo({
+            id: newId("pv"),
+            previewUrl: probed.posterUrl,
+            objectUrl: probed.objectUrl,
+            naturalWidth: probed.width,
+            naturalHeight: probed.height,
+            sourceDurationSeconds: probed.durationSeconds,
+          });
+          const next = addPhotos(current, [photo], draftContext);
+          if (next.photos.length === current.photos.length) {
+            revokePhotoVideoObjectUrl(probed.objectUrl);
+            revokePhotoVideoObjectUrl(probed.posterUrl);
+            setError(t("px4a.error.limit"));
+            break;
+          }
+          previewUrlsRef.current.push(probed.posterUrl, probed.objectUrl);
+          photoBlobsRef.current.set(photo.id, file);
+          posterBlobsRef.current.set(photo.id, probed.posterBlob);
+          additions.push(photo);
+          current = next;
+        } catch {
+          setError(t("px4a.error.videoDecode"));
+        }
+      }
+      if (additions.length) {
+        setComposition(current);
+        if (!firstPhotoTracked.current) {
+          firstPhotoTracked.current = true;
+          trackPhotoVideoFunnelEvent("photo_video_first_photo_added");
+        }
+        const last = additions[additions.length - 1];
+        if (last) {
+          setSelectedPhotoId(last.id);
+          setSelectedOverlayId(null);
+          setEditPanel("clip");
+          clockRef.current = seekTimeForPhoto(current, last.id, draftContext);
+          setPlaying(false);
+        }
+      }
+    },
+    [composition, t, draftContext, setError, setComposition, setSelectedOverlayId, setPlaying]
+  );
+
   const persistDraft = useCallback(
     async (opts?: { saved?: boolean }) => {
       const result = await commitPhotoVideoDraft({
         composition: compositionRef.current,
         photoBlobs: blobsToRecord(photoBlobsRef.current),
+        posterBlobs: blobsToRecord(posterBlobsRef.current),
         audioBlob: audioBlobRef.current,
         ownerUserId: auth.user?.id ?? null,
         saved: opts?.saved,
@@ -557,7 +646,7 @@ export function PhotoVideoComposer({
   }, [draftContext, persistDraft, setError, setPlaying, t]);
 
   const onFinishItem = useCallback(async () => {
-    if (!ready || exportingRef.current) return;
+    if (!ready || duration.videoOverBudget || exportingRef.current) return;
     const encoded = await runLocalExport();
     if (!encoded.ok) {
       if (encoded.reason !== "cancelled" && encoded.reason !== "busy") {
@@ -582,10 +671,10 @@ export function PhotoVideoComposer({
       exportAbortRef.current = null;
       if (!cancelled) setError(t("px4a.export.failed"));
     }
-  }, [ready, runLocalExport, t]);
+  }, [duration.videoOverBudget, ready, runLocalExport, t]);
 
   const onDownloadStudio = useCallback(async () => {
-    if (!ready || exportingRef.current) return;
+    if (!ready || duration.videoOverBudget || exportingRef.current) return;
     if (!authenticated && !skipAuthGate) {
       await persistDraft().catch(() => undefined);
       setGateOpen(true);
@@ -603,7 +692,7 @@ export function PhotoVideoComposer({
     exportingRef.current = false;
     setExporting(false);
     exportAbortRef.current = null;
-  }, [authenticated, persistDraft, ready, runLocalExport, skipAuthGate, t]);
+  }, [authenticated, duration.videoOverBudget, persistDraft, ready, runLocalExport, skipAuthGate, t]);
 
   const onReset = useCallback(async () => {
     if (!window.confirm(t("px4a.draft.resetConfirm"))) return;
@@ -611,6 +700,7 @@ export function PhotoVideoComposer({
     revokePhotoVideoObjectUrl(audioUrlRef.current);
     previewUrlsRef.current = [];
     photoBlobsRef.current.clear();
+    posterBlobsRef.current.clear();
     audioBlobRef.current = null;
     await clearPhotoVideoDraft(draftContext);
     setComposition(createPhotoVideoComposition(initialRatio ? { ratio: initialRatio } : undefined, draftContext));
@@ -626,6 +716,17 @@ export function PhotoVideoComposer({
 
   const durationLabel = formatPhotoVideoDuration(duration.totalSeconds, locale);
   const includedCount = includedPhotos(composition).length;
+  const selectedIsVideo = Boolean(
+    selectedPhotoId && isVideoPhoto(composition.photos.find((photo) => photo.id === selectedPhotoId))
+  );
+  const exportReady = ready && !duration.videoOverBudget;
+  const activeEditPanel: PhotoVideoEditPanel = selectedIsVideo
+    ? editPanel === "motion"
+      ? "clip"
+      : editPanel
+    : editPanel === "clip"
+      ? "text"
+      : editPanel;
   const durationChipValue =
     composition.durationMode === "auto" ? "auto" : String(composition.durationSeconds);
   const selectedPhotoMotion =
@@ -807,10 +908,18 @@ export function PhotoVideoComposer({
                   })
                 : t("px4a.duration", { duration: durationLabel })}
             </p>
-            {includedCount >= PHOTO_VIDEO_MIN_PHOTOS && !previewCompact ? (
+            {includedCount >= PHOTO_VIDEO_MIN_PHOTOS && !previewCompact && !duration.videoOverBudget ? (
               <p className="text-sm text-zinc-600" data-testid="px4a-duration-average">
                 {t("px4a.videoDuration.average", {
                   average: formatAveragePerPhoto(duration.averageSecondsPerPhoto, locale),
+                })}
+              </p>
+            ) : null}
+            {duration.videoOverBudget ? (
+              <p className="text-sm text-red-700" data-testid="px4a-video-over-budget" role="status">
+                {t("px4a.video.overBudget", {
+                  used: formatSecondsWhole(duration.videoSeconds),
+                  target: formatSecondsWhole(composition.durationSeconds),
                 })}
               </p>
             ) : null}
@@ -862,11 +971,26 @@ export function PhotoVideoComposer({
             event.target.value = "";
           }}
         />
+        <input
+          id={videoInputId}
+          data-testid="px4a-video-input"
+          type="file"
+          accept={PHOTO_VIDEO_VIDEO_ACCEPT}
+          multiple
+          aria-label={`+ ${t("px4a.photos.addVideoTile")}`}
+          disabled={!canAddPhoto(composition, 1)}
+          className="sr-only"
+          onChange={(event) => {
+            void onVideoFiles(event.target.files);
+            event.target.value = "";
+          }}
+        />
         <PhotoVideoPhotoStrip
           photos={composition.photos}
           selectedPhotoId={selectedPhotoId}
           itemJourney={itemJourney}
           fileInputId={fileInputId}
+          videoInputId={videoInputId}
           canAdd={canAddPhoto(composition, 1)}
           onSelect={selectPhoto}
           onReorder={(from, to) => setComposition((current) => reorderPhotos(current, from, to))}
@@ -885,9 +1009,13 @@ export function PhotoVideoComposer({
               if (photo && next.photos.length < current.photos.length) {
                 if (photo.source === "LOCAL_UPLOAD") {
                   revokePhotoVideoObjectUrl(photo.previewUrl);
-                  previewUrlsRef.current = previewUrlsRef.current.filter((url) => url !== photo.previewUrl);
+                  if (photo.video?.objectUrl) revokePhotoVideoObjectUrl(photo.video.objectUrl);
+                  previewUrlsRef.current = previewUrlsRef.current.filter(
+                    (url) => url !== photo.previewUrl && url !== photo.video?.objectUrl
+                  );
                 }
                 photoBlobsRef.current.delete(id);
+                posterBlobsRef.current.delete(id);
               }
               if (selectedPhotoId === id) {
                 const fallback = next.photos[0]?.id ?? null;
@@ -898,7 +1026,7 @@ export function PhotoVideoComposer({
             })
           }
         />
-        <PhotoVideoEditToolbar panel={editPanel} onPanel={setEditPanel} />
+        <PhotoVideoEditToolbar panel={activeEditPanel} onPanel={setEditPanel} videoSelected={selectedIsVideo} />
         {error ? (
           <p className="text-sm text-red-700" data-testid="px4a-export-error" role="status">
             {error}
@@ -915,7 +1043,7 @@ export function PhotoVideoComposer({
         photoCount={composition.photos.length}
         selectedOverlay={selectedOverlay}
         selectedPhotoMotion={selectedPhotoMotion}
-        panel={editPanel}
+        panel={activeEditPanel}
         onAddText={() => {
           if (!selectedPhotoId) {
             setError(t("px4a.text.needPhoto"));
@@ -961,6 +1089,22 @@ export function PhotoVideoComposer({
           if (!selectedPhotoId) return;
           setComposition((current) => movePhoto(current, selectedPhotoId, delta));
         }}
+        onTrim={(startSeconds, endSeconds) => {
+          if (!selectedPhotoId) return;
+          setComposition((current) => setVideoTrim(current, selectedPhotoId, startSeconds, endSeconds, draftContext));
+        }}
+        onVideoAudio={(enabled) => {
+          if (!selectedPhotoId) return;
+          setComposition((current) => setVideoAudio(current, selectedPhotoId, enabled));
+        }}
+        onVideoVolume={(volume) => {
+          if (!selectedPhotoId) return;
+          setComposition((current) => setVideoVolume(current, selectedPhotoId, volume));
+        }}
+        onVideoFit={(fit) => {
+          if (!selectedPhotoId) return;
+          setComposition((current) => setVideoFit(current, selectedPhotoId, fit));
+        }}
       />
       </div>
       </div>
@@ -971,7 +1115,7 @@ export function PhotoVideoComposer({
             <button
               type="button"
               data-testid="px4a-item-finish"
-              disabled={!ready || exporting}
+              disabled={!exportReady || exporting}
               className="min-h-11 rounded-full bg-[#006D52] px-5 text-sm font-semibold text-white disabled:opacity-50"
               onClick={() => void onFinishItem()}
             >
@@ -1005,7 +1149,7 @@ export function PhotoVideoComposer({
             <button
               type="button"
               data-testid="px4a-export-download"
-              disabled={!ready || exporting}
+              disabled={!exportReady || exporting}
               className="min-h-11 rounded-full border border-[#006D52] bg-white px-5 text-sm font-semibold text-[#006D52] disabled:opacity-50"
               onClick={() => void onDownloadStudio()}
             >
