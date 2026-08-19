@@ -115,6 +115,7 @@ test.describe("PX.4A.5 full compositor export", () => {
   });
 
   test("2 photos + 1 video / 15s / fade / moving source frames", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === "webkit", "Playwright WebKit build lacks VideoEncoder; certified on real Safari");
     const result = await runMode(page, "mixed");
     console.log(JSON.stringify({ project: testInfo.project.name, mode: "mixed", ...result }, null, 2));
     expect(result.ok).toBeTruthy();
