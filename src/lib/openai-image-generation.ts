@@ -190,15 +190,20 @@ export function buildOpenAiImageEditFormData(params: OpenAiImageEditParams): For
   form.append("prompt", params.prompt.slice(0, 32000));
   form.append("size", params.size);
   form.append("n", String(params.n ?? 1));
-  form.append("image", blob, params.imageFilename ?? "source.png");
 
   const supportsMulti = openAiImageEditSupportsMultiReference(params.model);
-  if (supportsMulti && params.additionalImages?.length) {
+  const hasAdditional = supportsMulti && Boolean(params.additionalImages?.length);
+  // OpenAI rejects repeated `image` parts ("Duplicate parameter"); multi-image
+  // edits require array syntax `image[]` for every file including BASE.
+  const imageField = hasAdditional ? "image[]" : "image";
+  form.append(imageField, blob, params.imageFilename ?? "source.png");
+
+  if (hasAdditional && params.additionalImages?.length) {
     for (const [index, ref] of params.additionalImages.entries()) {
       const refBytes = new Uint8Array(ref.buffer);
       const refBlob = new Blob([refBytes], { type: ref.contentType ?? "image/png" });
       const suffix = ref.role === "logo" ? "logo" : ref.role ?? "ref";
-      form.append("image", refBlob, ref.filename ?? `${suffix}_${index + 1}.png`);
+      form.append(imageField, refBlob, ref.filename ?? `${suffix}_${index + 1}.png`);
     }
   }
 

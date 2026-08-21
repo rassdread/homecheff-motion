@@ -279,10 +279,11 @@ describe("S2B.2 OpenAI edit input ordering", () => {
       }
     }
     const imageIndices = entries
-      .map((e, i) => (e.startsWith("image:") ? i : -1))
+      .map((e, i) => (e.startsWith("image[]:") || e.startsWith("image:") ? i : -1))
       .filter((i) => i >= 0);
     const maskIndex = entries.findIndex((e) => e.startsWith("mask:"));
     assert.ok(imageIndices.length >= 2);
+    assert.equal(entries.filter((e) => e.startsWith("image[]:")).length, 2);
     assert.ok(maskIndex > imageIndices[imageIndices.length - 1]!);
     assert.ok(entries.some((e) => e === "input_fidelity:high"));
   });

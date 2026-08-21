@@ -119,6 +119,19 @@ describe("openai-image-generation", () => {
       imageBuffer: Buffer.from("base"),
       additionalImages: [{ buffer: Buffer.from("ref"), filename: "ref.png", role: "reference" }],
     });
-    assert.equal(form.getAll("image").length, 2);
+    // Multi-image edits must use image[] (OpenAI rejects duplicate `image` parts).
+    assert.equal(form.getAll("image").length, 0);
+    assert.equal(form.getAll("image[]").length, 2);
+  });
+
+  it("keeps single-image edits on the `image` field", () => {
+    const form = buildOpenAiImageEditFormData({
+      model: "gpt-image-1",
+      prompt: "Edit base only",
+      size: "1024x1024",
+      imageBuffer: Buffer.from("base"),
+    });
+    assert.equal(form.getAll("image").length, 1);
+    assert.equal(form.getAll("image[]").length, 0);
   });
 });

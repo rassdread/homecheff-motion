@@ -1,0 +1,30 @@
+{
+  "multiRefFormField": "image[]",
+  "supportsMulti": true,
+  "inputs": {
+    "person": "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/full-studio-cert/person-a-gen-1787351361690.png",
+    "outfit": "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/full-studio-cert/outfit-b-gen-1787351381865.png",
+    "location": "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/full-studio-cert/location-1-gen-1787351401248.png",
+    "product": "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/full-studio-cert/product-1-gen-1787351431188.png",
+    "logo": "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/full-studio-cert/logo-1-gen-1787351450706.png"
+  },
+  "probes": {
+    "outfitOut": {
+      "ok": true,
+      "url": "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/full-studio-cert/out-D-outfit-v2-1787351476213.png",
+      "model": "gpt-image-1"
+    },
+    "locOut": {
+      "ok": true,
+      "url": "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/full-studio-cert/out-E-location-v2-1787351506243.png",
+      "model": "gpt-image-1"
+    },
+    "prodOut": {
+      "ok": true,
+      "url": "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/full-studio-cert/out-product-logo-v2-1787351556793.png",
+      "model": "gpt-image-1"
+    }
+  },
+  "finishedAt": "2026-08-21T22:32:39.757Z",
+  "verdict": "PROVIDER_VISUAL_MULTI_REF_EXECUTED"
+}

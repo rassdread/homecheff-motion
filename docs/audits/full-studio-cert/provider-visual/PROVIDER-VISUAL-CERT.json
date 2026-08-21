@@ -1,0 +1,114 @@
+{
+  "startedAt": "2026-08-21T22:26:07.188Z",
+  "caps": {
+    "openaiImage": 4
+  },
+  "probes": {
+    "outfit": {
+      "inputRoles": {
+        "BASE": "person-a",
+        "CLOTHING_REFERENCE": "outfit-b"
+      },
+      "requestedRoute": "MASKED_MULTI_REFERENCE_EDIT",
+      "actualRoute": "FUSION",
+      "maskUsed": false,
+      "maskNote": "MASK_UNAVAILABLE → Fusion/multi-ref fallback (explicit)",
+      "providerModel": "gpt-image-1",
+      "providerCallCount": 1,
+      "outputImage": null,
+      "error": "HTTP 400: {\n  \"error\": {\n    \"message\": \"Duplicate parameter: 'image'. You provided multiple values for this parameter, whereas only one is allowed. If you are trying to provide a list of values, use the array syntax instead e.g. 'image[]=<value>'.\",\n    \"type\": \"invalid_request_error\",\n    \"param\": \"image\",\n    \"code\": \"duplicate_parameter\"\n  }\n}",
+      "qa": {
+        "identityPreservation": "FAIL",
+        "requestedTransfer": "FAIL",
+        "protectionIntegrity": "FAIL",
+        "negativeTransferLeak": "UNKNOWN",
+        "maskIntegrity": "UNKNOWN"
+      },
+      "humanVerdict": "FAILED_PROVIDER",
+      "classification": "PROVIDER_OR_BUDGET_FAIL",
+      "traceRoles": [
+        "CLOTHING_REFERENCE"
+      ],
+      "origin": "FUSION_WIZARD"
+    },
+    "location": {
+      "inputRoles": {
+        "BASE": "person-a",
+        "LOCATION_REFERENCE": "location-1"
+      },
+      "requestedRoute": "MULTI_REFERENCE_EDIT",
+      "actualRoute": "FUSION",
+      "maskUsed": false,
+      "providerModel": "gpt-image-1",
+      "providerCallCount": 1,
+      "outputImage": null,
+      "error": "HTTP 400: {\n  \"error\": {\n    \"message\": \"Duplicate parameter: 'image'. You provided multiple values for this parameter, whereas only one is allowed. If you are trying to provide a list of values, use the array syntax instead e.g. 'image[]=<value>'.\",\n    \"type\": \"invalid_request_error\",\n    \"param\": \"image\",\n    \"code\": \"duplicate_parameter\"\n  }\n}",
+      "qa": {
+        "identityPreservation": "FAIL",
+        "requestedTransfer": "FAIL",
+        "protectionIntegrity": "FAIL",
+        "negativeTransferLeak": "UNKNOWN",
+        "maskIntegrity": "UNKNOWN"
+      },
+      "humanVerdict": "FAILED_PROVIDER",
+      "classification": "PROVIDER_OR_BUDGET_FAIL"
+    },
+    "productLogo": {
+      "inputRoles": {
+        "BASE": "person-a",
+        "PRODUCT": "product-1",
+        "LOGO": "logo-1"
+      },
+      "requestedRoute": "MULTI_REFERENCE_EDIT",
+      "actualRoute": "FUSION",
+      "providerModel": "gpt-image-1",
+      "providerCallCount": 1,
+      "outputImage": null,
+      "error": "HTTP 400: {\n  \"error\": {\n    \"message\": \"Duplicate parameter: 'image'. You provided multiple values for this parameter, whereas only one is allowed. If you are trying to provide a list of values, use the array syntax instead e.g. 'image[]=<value>'.\",\n    \"type\": \"invalid_request_error\",\n    \"param\": \"image\",\n    \"code\": \"duplicate_parameter\"\n  }\n}",
+      "executionQa": {
+        "overall": "PASS",
+        "recommendedEscalation": "NONE",
+        "checkedDimensions": [
+          "requestedChangeMatch",
+          "identityPreservation",
+          "protectedRegionStability"
+        ],
+        "productPreservation": "UNKNOWN",
+        "logoPreservation": "WARN",
+        "secondaryIdentityPreservation": "UNKNOWN",
+        "locationMatch": "UNKNOWN",
+        "clothingTransferMatch": "UNKNOWN"
+      },
+      "humanVerdict": "FAILED_PROVIDER",
+      "classification": "PROVIDER_OR_BUDGET_FAIL",
+      "note": "Pixel post-composite not exercised in this probe (requires Fusion brand-lock pipeline)."
+    },
+    "identityRerender": {
+      "inputRoles": {
+        "BASE": "approved-scene-still",
+        "change": "lighting"
+      },
+      "requestedRoute": "BASE_IMAGE_EDIT",
+      "actualRoute": "BASE_IMAGE_EDIT",
+      "usedApprovedBase": true,
+      "providerModel": "gpt-image-1",
+      "providerCallCount": 1,
+      "outputImage": "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/full-studio-cert/out-identity-rerender-s5-1787351195365.png",
+      "error": null,
+      "qa": {
+        "identityPreservation": "PASS",
+        "requestedTransfer": "UNKNOWN",
+        "protectionIntegrity": "PASS",
+        "negativeTransferLeak": "UNKNOWN",
+        "maskIntegrity": "UNKNOWN"
+      },
+      "humanVerdict": "ROUTE_OK_NEEDS_HUMAN_IDENTITY_REVIEW",
+      "classification": "PROVIDER_CALL_OK"
+    }
+  },
+  "actualCalls": {
+    "openaiImage": 4
+  },
+  "finishedAt": "2026-08-21T22:26:40.746Z",
+  "verdict": "PROVIDER_VISUAL_PARTIAL_OR_FAILED"
+}

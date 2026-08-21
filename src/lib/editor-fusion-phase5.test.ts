@@ -191,7 +191,8 @@ describe("editor-fusion-phase5", () => {
         { buffer: Buffer.from("logo"), filename: "logo_1.png", role: "logo" },
       ],
     });
-    const images = form.getAll("image");
+    const images = form.getAll("image[]");
+    assert.equal(form.getAll("image").length, 0);
     assert.equal(images.length, 3);
   });
 
