@@ -1,0 +1,80 @@
+{
+  "version": "s2e-p1.cert-prep.1",
+  "preparedAt": "2026-08-21",
+  "providerVisualCertification": "NOT_RUN",
+  "fullProductCertificationVerdict": "STUDIO_FULL_PRODUCT_CERTIFICATION_BLOCKED",
+  "sessionReport": "cert-session-report.json",
+  "finalReport": "FINAL-REPORT.md",
+  "scenarios": [
+    {
+      "id": "A",
+      "slug": "red-carpet",
+      "title": "Red carpet",
+      "paidProviders": true,
+      "checks": ["identity", "outfit", "motion", "music", "crowd", "camera-flash-sfx", "optional-voice-ducking", "finish", "project-library"]
+    },
+    {
+      "id": "B",
+      "slug": "product-commercial",
+      "title": "Product commercial",
+      "paidProviders": true,
+      "checks": ["product-exactness", "logo", "character", "voiceover", "music", "sfx", "version", "download"]
+    },
+    {
+      "id": "C",
+      "slug": "8-scene-consistency",
+      "title": "8-scene Pixar-stress",
+      "paidProviders": true,
+      "checks": ["character-recurrence", "location", "prop", "outfit-change", "dialogue", "voice-lock", "sfx", "rerender-scene-5", "final-composition"]
+    },
+    {
+      "id": "D",
+      "slug": "outfit",
+      "title": "Outfit transfer",
+      "paidProviders": true,
+      "checks": ["person-identity-A", "clothing-from-B", "no-B-face-import", "mask-route-trace"]
+    },
+    {
+      "id": "E",
+      "slug": "location",
+      "title": "Location transfer",
+      "paidProviders": true,
+      "checks": ["identity-preserved", "location-changed", "no-unwanted-people-transfer"]
+    },
+    {
+      "id": "F",
+      "slug": "multi-character",
+      "title": "Multi-character story",
+      "paidProviders": true,
+      "checks": ["association", "no-identity-blend", "voices", "continuity"]
+    },
+    {
+      "id": "G",
+      "slug": "homecheff",
+      "title": "HomeCheff item → Studio → result",
+      "paidProviders": "contextual",
+      "checks": ["source-context", "not-published", "gap2-existing-video", "handoff"]
+    },
+    {
+      "id": "H",
+      "slug": "quick-video",
+      "title": "Quick Video regression",
+      "paidProviders": false,
+      "checks": ["photos-video", "text", "transition", "music", "landscape", "local-mp4", "0-paid-providers"]
+    },
+    {
+      "id": "I",
+      "slug": "mobile-advanced",
+      "title": "Mobile advanced workspace",
+      "paidProviders": false,
+      "checks": ["stage-nav", "scene", "beeld", "geluid", "afronden", "orientation", "state"]
+    },
+    {
+      "id": "J",
+      "slug": "returning-project",
+      "title": "Returning project / version",
+      "paidProviders": false,
+      "checks": ["mijn-projecten", "same-project", "correct-stage", "current-output", "no-duplicate-card"]
+    }
+  ]
+}

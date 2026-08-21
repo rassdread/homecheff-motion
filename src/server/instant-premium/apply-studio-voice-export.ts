@@ -19,6 +19,10 @@ import {
   mixStudioAudioLayers,
   muxStudioVideoWithMixedAudio,
 } from "@/lib/studio-audio-mix-ffmpeg";
+import {
+  compactDiscreteSfxForMix,
+  resolveDiscreteSfxPathsForMixNullable,
+} from "@/lib/studio-audio-mix-assets";
 import { sanitizeOverlayError } from "@/lib/video-ffmpeg-capability";
 import { prisma } from "@/lib/prisma";
 import { probeVideoSegment } from "@/server/instant-premium/segment-transition";
@@ -153,14 +157,47 @@ export async function applyStudioVoiceExportToMergedVideo(params: {
         sceneSegments: [],
         mixReady: true,
       };
-      const planForRender = {
+
+      const discreteCues = (mixPlan.discreteSfx ?? []).filter((c) => c.url.trim());
+      let discretePaths: string[] = [];
+      let planDiscrete = discreteCues;
+      if (discreteCues.length > 0) {
+        const resolved = await resolveDiscreteSfxPathsForMixNullable({
+          cues: discreteCues,
+          workDir: params.workDir,
+        });
+        for (const w of resolved.warnings) {
+          warnings.push(w);
+        }
+        const compacted = compactDiscreteSfxForMix(discreteCues, resolved.paths);
+        discretePaths = compacted.paths;
+        planDiscrete = compacted.cues;
+        if (typeof console !== "undefined" && console.info) {
+          console.info("[studio-audio-mix]", {
+            projectId: params.projectId,
+            timelineHash: mixPlan.timelineHash ?? null,
+            sfxCueCount: discreteCues.length,
+            uniqueAudioAssets: resolved.uniqueDownloaded,
+            reusedAssets: resolved.reusedCount,
+            missingOptional: resolved.missingOptional,
+            duckingEnvelopeCount: mixPlan.duckingEnvelopes?.length ?? 0,
+          });
+        }
+      }
+
+      const planForRender: StudioAudioMixHandoffPlan = {
         ...mixPlan,
         totalDurationSeconds: videoDurationSec,
+        discreteSfx: planDiscrete,
       };
 
       const mixedAudioPath = path.join(params.workDir, "studio-mixed-audio.aac");
       const useMultiLayer = Boolean(
-        settings.mixEnabled && (settings.musicAudioUrl || settings.soundAudioUrl)
+        settings.mixEnabled &&
+          (settings.musicAudioUrl ||
+            settings.soundAudioUrl ||
+            discretePaths.length > 0 ||
+            (mixPlan.duckingEnvelopes?.length ?? 0) > 0)
       );
 
       if (useMultiLayer) {
@@ -168,6 +205,7 @@ export async function applyStudioVoiceExportToMergedVideo(params: {
           voicePath: voiceLocal,
           musicPath: musicLocal,
           soundPath: soundLocal,
+          discreteSfxPaths: discretePaths,
           outputPath: mixedAudioPath,
           plan: planForRender,
         });

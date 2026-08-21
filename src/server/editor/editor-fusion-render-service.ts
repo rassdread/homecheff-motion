@@ -8,6 +8,18 @@ import { buildFusionIntelligencePrompt } from "@/lib/editor-fusion-render-payloa
 import { resolveFusionVariantImageSlots } from "@/lib/editor-fusion-variant-render";
 import { validateEditorInstructionVariantImageSource } from "@/server/editor/editor-image-ownership";
 import { resolveFusionRenderCreditsRequired } from "@/server/editor/editor-fusion-render-billing";
+import {
+  executeClothingFusionTransformation,
+  shouldUseClothingTransformationRuntime,
+} from "@/server/editor/studio-clothing-transformation-execute";
+import {
+  executeLocationFusionTransformation,
+  shouldUseLocationTransformationRuntime,
+} from "@/server/editor/studio-location-transformation-execute";
+import {
+  executeProductLogoFusionTransformation,
+  shouldUseProductLogoTransformationRuntime,
+} from "@/server/editor/studio-product-logo-transformation-execute";
 import { executeEditorInstructionVariant } from "@/server/editor/editor-instruction-variant-service";
 import { ensureCompletedGenerationInLibrary } from "@/server/studio/library-consistency-service";
 import type { FusionRenderPayload } from "@/types/editor-fusion-intelligence";
@@ -49,6 +61,7 @@ export type FusionWizardRenderSuccess = {
   totalCreditsCharged: number;
   librarySaved: boolean;
   libraryAssetId: string | null;
+  transformationExecution?: import("@/types/studio-image-transformation").TransformationExecutionRecord;
 };
 
 export type FusionWizardRenderFailure = {
@@ -187,17 +200,64 @@ export async function executeFusionWizardRender(input: {
 
   const credits = resolveFusionWizardRenderCredits(input.body);
 
-  const result = await executeEditorInstructionVariant({
-    userId: input.user.id,
-    sessionId,
-    imageUrl,
-    prompt,
-    instruction: normalizeInstruction(input.body.instruction),
-    references: input.body.references,
-    fusionWorkflowType: workflowType,
-    fusionRenderPayload: payload,
-    fusionCreditsCharged: credits.renderCredits,
+  const useClothingRuntime = shouldUseClothingTransformationRuntime({
+    workflowType,
+    payload,
   });
+  const useLocationRuntime = shouldUseLocationTransformationRuntime({
+    workflowType,
+  });
+  const useProductLogoRuntime = shouldUseProductLogoTransformationRuntime({
+    workflowType,
+  });
+
+  const result = useClothingRuntime
+    ? await executeClothingFusionTransformation({
+        userId: input.user.id,
+        sessionId,
+        imageUrl,
+        prompt,
+        instruction: normalizeInstruction(input.body.instruction),
+        references: input.body.references,
+        fusionWorkflowType: workflowType,
+        fusionRenderPayload: payload,
+        fusionCreditsCharged: credits.renderCredits,
+      })
+    : useLocationRuntime
+      ? await executeLocationFusionTransformation({
+          userId: input.user.id,
+          sessionId,
+          imageUrl,
+          prompt,
+          instruction: normalizeInstruction(input.body.instruction),
+          references: input.body.references,
+          fusionWorkflowType: workflowType,
+          fusionRenderPayload: payload,
+          fusionCreditsCharged: credits.renderCredits,
+        })
+      : useProductLogoRuntime
+        ? await executeProductLogoFusionTransformation({
+            userId: input.user.id,
+            sessionId,
+            imageUrl,
+            prompt,
+            instruction: normalizeInstruction(input.body.instruction),
+            references: input.body.references,
+            fusionWorkflowType: workflowType,
+            fusionRenderPayload: payload,
+            fusionCreditsCharged: credits.renderCredits,
+          })
+        : await executeEditorInstructionVariant({
+            userId: input.user.id,
+            sessionId,
+            imageUrl,
+            prompt,
+            instruction: normalizeInstruction(input.body.instruction),
+            references: input.body.references,
+            fusionWorkflowType: workflowType,
+            fusionRenderPayload: payload,
+            fusionCreditsCharged: credits.renderCredits,
+          });
 
   if (!result.ok) {
     return {
@@ -252,5 +312,6 @@ export async function executeFusionWizardRender(input: {
     totalCreditsCharged: credits.totalCredits,
     librarySaved,
     libraryAssetId,
+    transformationExecution: result.fusionRun?.transformationExecution,
   };
 }

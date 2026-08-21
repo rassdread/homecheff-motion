@@ -5,11 +5,15 @@ import {
   withPrismaProductionRetry,
 } from "@/lib/prisma-production-retry";
 import { buildSceneMemoryBundleFromSceneRow } from "@/lib/studio-scene-memory-bundle";
-import { buildScenePromptFromSceneRow } from "@/server/studio/studio-prompt-builder-service";
+import { buildScenePromptFromSceneRow, buildUpcFromStoryboardDetail, buildProductionInstructionsForScene } from "@/server/studio/studio-prompt-builder-service";
 import {
   buildSceneImageGenerationPrompt,
   buildSceneImageReferenceAssets,
 } from "@/lib/studio-scene-image-prompt";
+import { pickReferenceUrlsForStillAdapter } from "@/lib/studio-production-prompt-orchestrator";
+import { isSceneContextStale } from "@/lib/studio-unified-production-context";
+import { buildProductionSpineTrace, redactProductionTraceForLog } from "@/lib/studio-production-spine-trace";
+import { collectWorldsFromWorldProfilePicks, type WorldProfilePick } from "@/lib/studio-prompt-source-entities";
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import { getSceneImageProvider, getSelectedSceneImageProviderId } from "@/server/scene-image-providers";
 import { uploadStudioSceneImageBuffers } from "@/server/studio/studio-scene-image-blob";
@@ -19,9 +23,18 @@ import { parseSceneConsistencyReport } from "@/lib/studio-consistency-report-par
 import { parseVisionConsistencyReport } from "@/lib/studio-vision-report-parse";
 import {
   computeCombinedImprovementScore,
-  computeImprovementScore,
 } from "@/lib/studio-improvement-score";
 import { mapStudioSceneImageToListItem } from "@/lib/studio-scene-image-map";
+import {
+  assessSceneRerenderQa,
+  buildSceneRerenderExecutionPrompt,
+  buildSceneTransformationExecutionRecord,
+  resolveApprovedSceneStillBase,
+  resolveSceneRerenderRoute,
+  shouldUseApprovedBaseEdit,
+} from "@/lib/studio-scene-rerender-runtime";
+import type { ImageChangeTarget } from "@/types/studio-image-transformation";
+import type { ClothingMaskStatus } from "@/types/studio-image-transformation";
 import {
   analyzeAndPersistSceneImage,
   analyzeSceneImageConsistency,
@@ -136,6 +149,8 @@ type SceneImageGenerationOverrides = {
   regeneratedFromImageId?: string;
   previousConsistencyScore?: number | null;
   previousVisionScore?: number | null;
+  changeTargets?: ImageChangeTarget[];
+  forceFullGeneration?: boolean;
 };
 
 async function runSceneImageGeneration(params: {
@@ -158,32 +173,258 @@ async function runSceneImageGeneration(params: {
     },
   });
   const boardDetail = boardRow ? mapStudioStoryboardToDetail(boardRow) : undefined;
+  const worldPicks: WorldProfilePick[] = [];
+  if (boardRow) {
+    for (const scene of boardRow.scenes) {
+      for (const link of scene.characters) {
+        if (link.character.worldProfile) {
+          worldPicks.push(link.character.worldProfile as WorldProfilePick);
+        }
+      }
+      if (scene.location?.worldProfile) {
+        worldPicks.push(scene.location.worldProfile as WorldProfilePick);
+      }
+      for (const link of scene.props) {
+        if (link.prop.worldProfile) {
+          worldPicks.push(link.prop.worldProfile as WorldProfilePick);
+        }
+      }
+    }
+  }
+  const upc = boardDetail
+    ? buildUpcFromStoryboardDetail(boardDetail, {
+        source: "workspace",
+        worlds: collectWorldsFromWorldProfilePicks(worldPicks),
+      })
+    : null;
   const promptOutput = buildScenePromptFromSceneRow(params.scene, styleProfile, undefined, {
     storyboard: boardDetail,
   });
   const identityDriftLines = boardDetail
     ? buildCharacterIdentityDriftLinesForStoryboard(boardDetail)
     : [];
-  const defaultFullPrompt = buildSceneImageGenerationPrompt(snapshot, promptOutput, {
-    identityDriftLines,
-    memoryBundle,
-  });
+  const sceneDetail = mapStudioSceneToDetail(params.scene);
+  const production = upc
+    ? buildProductionInstructionsForScene({
+        upc,
+        scene: sceneDetail,
+        target: params.overrides?.regeneratedFromImageId ? "rerender" : "scene-image",
+        identityDriftLines,
+        storyboard: boardDetail,
+      })
+    : null;
+  const defaultFullPrompt = production
+    ? production.assembledPrompt
+    : buildSceneImageGenerationPrompt(snapshot, promptOutput, {
+        identityDriftLines,
+        memoryBundle,
+      });
   const fullPrompt = params.overrides?.fullPrompt ?? defaultFullPrompt;
   const generationVersion = await nextGenerationVersion(params.scene.id);
   const correction = params.overrides?.correction;
+  const referenceImages = production ? pickReferenceUrlsForStillAdapter(production) : [];
+  const stale = upc
+    ? isSceneContextStale({
+        storedUpcHash:
+          typeof params.scene.sceneImages[0]?.generationSettings === "object" &&
+          params.scene.sceneImages[0]?.generationSettings &&
+          "upcHash" in (params.scene.sceneImages[0].generationSettings as object)
+            ? String((params.scene.sceneImages[0].generationSettings as { upcHash?: string }).upcHash ?? "")
+            : null,
+        current: upc,
+        sceneId: params.scene.id,
+      })
+    : false;
+
+  const approvedStill = resolveApprovedSceneStillBase({
+    selectedSceneImageId: params.scene.selectedSceneImageId,
+    sceneImages: params.scene.sceneImages.map((img) => ({
+      id: img.id,
+      status: img.status,
+      imageUrl: img.imageUrl,
+      generationVersion: img.generationVersion,
+      promptVersion: img.promptVersion,
+    })),
+  });
+  // Prefer explicit regenerate lineage when provided (corrections / improve).
+  const lineageBase =
+    params.overrides?.regeneratedFromImageId
+      ? params.scene.sceneImages.find(
+          (img) =>
+            img.id === params.overrides?.regeneratedFromImageId &&
+            img.status === "completed" &&
+            Boolean(img.imageUrl?.trim())
+        )
+      : null;
+  const baseStill = lineageBase
+    ? {
+        id: lineageBase.id,
+        url: lineageBase.imageUrl.trim(),
+        generationVersion: lineageBase.generationVersion,
+        promptVersion: lineageBase.promptVersion,
+      }
+    : approvedStill;
+
+  const isNetNew =
+    !baseStill &&
+    !params.scene.sceneImages.some((img) => img.status === "completed" && img.imageUrl.trim());
+  const useApprovedBase = shouldUseApprovedBaseEdit({
+    approvedStill: baseStill,
+    isNetNewSceneGeneration: isNetNew,
+    forceFullGeneration: params.overrides?.forceFullGeneration,
+  });
+
+  let transformationExecution: StudioSceneImageGenerationSettings["transformationExecution"];
+  let providerPrompt = fullPrompt;
+  let sourceImageUrl: string | undefined;
+  let generationIntent: "TRANSFORM_EXISTING_ASSET" | undefined;
+  const maskStatus: ClothingMaskStatus = "MASK_UNAVAILABLE";
+
+  if (useApprovedBase && baseStill) {
+    const { intent, plan, trace } = resolveSceneRerenderRoute({
+      approvedStill: baseStill,
+      upc,
+      sceneId: params.scene.id,
+      changeTargets: params.overrides?.changeTargets,
+      correctionText:
+        params.overrides?.correctedPrompt ??
+        correction?.correctedPrompt ??
+        correction?.patches?.map((p) => `${p.type} ${p.text}`).join(" ") ??
+        null,
+      forceFullGeneration: params.overrides?.forceFullGeneration,
+    });
+
+    if (plan.actualRoute === "TEXT_TO_IMAGE" || !plan.actualRoute) {
+      // Explicit last resort only when allowTextOnlyFallback; otherwise keep failing path without destroying BASE.
+      if (intent.allowTextOnlyFallback) {
+        transformationExecution = buildSceneTransformationExecutionRecord({
+          intent,
+          plan: {
+            ...plan,
+            actualRoute: "TEXT_TO_IMAGE",
+            downgradeReason: plan.downgradeReason ?? "EDIT_ROUTE_UNAVAILABLE",
+            protectionLost: [
+              ...plan.protectionLost,
+              "APPROVED_BASE_PIXEL_CONTINUITY",
+            ],
+          },
+          trace,
+          maskStatus,
+          maskStorageKey: null,
+          providerModel: null,
+          providerCallCount: 1,
+          segmentationCallCount: 0,
+          qa: assessSceneRerenderQa({
+            maskStatus,
+            providerSucceeded: false,
+            plan,
+            usedApprovedBase: false,
+          }),
+          baseSceneImageId: baseStill.id,
+        });
+      } else {
+        sourceImageUrl = baseStill.url;
+        generationIntent = "TRANSFORM_EXISTING_ASSET";
+        providerPrompt = buildSceneRerenderExecutionPrompt({
+          intent,
+          plan: {
+            ...plan,
+            actualRoute: plan.actualRoute ?? "BASE_IMAGE_EDIT",
+          },
+          productionPrompt: fullPrompt,
+        });
+        transformationExecution = buildSceneTransformationExecutionRecord({
+          intent,
+          plan: {
+            ...plan,
+            actualRoute: plan.actualRoute ?? "BASE_IMAGE_EDIT",
+          },
+          trace,
+          maskStatus,
+          maskStorageKey: null,
+          providerModel: null,
+          providerCallCount: 1,
+          segmentationCallCount: 0,
+          qa: assessSceneRerenderQa({
+            maskStatus,
+            providerSucceeded: true,
+            plan: { ...plan, actualRoute: plan.actualRoute ?? "BASE_IMAGE_EDIT" },
+            usedApprovedBase: true,
+          }),
+          baseSceneImageId: baseStill.id,
+        });
+      }
+    } else {
+      sourceImageUrl = baseStill.url;
+      generationIntent = "TRANSFORM_EXISTING_ASSET";
+      providerPrompt = buildSceneRerenderExecutionPrompt({
+        intent,
+        plan,
+        productionPrompt: fullPrompt,
+      });
+      transformationExecution = buildSceneTransformationExecutionRecord({
+        intent,
+        plan,
+        trace,
+        maskStatus,
+        maskStorageKey: null,
+        providerModel: null,
+        providerCallCount: 1,
+        segmentationCallCount: 0,
+        qa: assessSceneRerenderQa({
+          maskStatus,
+          providerSucceeded: true,
+          plan,
+          usedApprovedBase: true,
+        }),
+        baseSceneImageId: baseStill.id,
+      });
+    }
+  }
 
   const settings: StudioSceneImageGenerationSettings = {
     styleProfile,
     promptVersion: PROMPT_BUILDER_VERSION,
     generationVersion,
     referenceAssets: buildSceneImageReferenceAssets(snapshot, memoryBundle),
+    upcVersion: upc?.version,
+    upcHash: upc?.upcHash,
+    sceneContextHash: production?.sceneContextHash,
+    characterIds: sceneDetail.characters.map((c) => c.id),
+    locationId: sceneDetail.locationId,
+    propIds: sceneDetail.props.map((p) => p.id),
+    providerMode: production?.providerMode,
+    referenceAccounting: production?.referenceAccounting.map((row) => ({
+      entityId: row.entityId,
+      accounting: row.accounting,
+      reason: row.reason,
+    })),
+    contextStale: stale,
+    transformationExecution,
+    baseSceneImageId: baseStill?.id ?? null,
+    generationMode: generationIntent === "TRANSFORM_EXISTING_ASSET" ? "image_edit" : undefined,
   };
+
+  if (upc && production) {
+    console.info(
+      "[studio-production-spine]",
+      JSON.stringify(
+        redactProductionTraceForLog(
+          buildProductionSpineTrace({
+            upc,
+            instructions: production,
+            storedUpcHash: settings.upcHash,
+          })
+        )
+      )
+    );
+  }
 
   await prisma.studioSceneImage.update({
     where: { id: params.imageRowId },
     data: {
       status: "generating",
-      generatedPrompt: fullPrompt,
+      generatedPrompt: providerPrompt,
       correctedPrompt: params.overrides?.correctedPrompt ?? correction?.correctedPrompt ?? "",
       promptVersion: PROMPT_BUILDER_VERSION,
       generationVersion,
@@ -212,10 +453,15 @@ async function runSceneImageGeneration(params: {
       relatedJobId: params.imageRowId,
     };
     const result = await provider.generate({
-      prompt: fullPrompt,
+      prompt: providerPrompt,
       sceneId: params.scene.id,
       imageRecordId: params.imageRowId,
       ownerId: params.scene.storyboard.ownerId,
+      referenceImages,
+      sourceImageUrl,
+      generationIntent,
+      identityLockLevel: generationIntent === "TRANSFORM_EXISTING_ASSET" ? 2 : undefined,
+      logRoute: "/api/studio/storyboards/scenes/images",
     });
 
     meterOpenAiSceneImage({
@@ -243,6 +489,24 @@ async function runSceneImageGeneration(params: {
       thumbContentType,
     });
 
+    const finalExecution = transformationExecution
+      ? {
+          ...transformationExecution,
+          providerModel: result.model ?? transformationExecution.providerModel,
+          qa: assessSceneRerenderQa({
+            maskStatus,
+            providerSucceeded: true,
+            plan: {
+              requestedRoute: transformationExecution.requestedRoute,
+              actualRoute: transformationExecution.actualRoute,
+              downgradeReason: transformationExecution.downgradeReason,
+              protectionLost: transformationExecution.protectionLost,
+            } as import("@/types/studio-image-transformation").TransformationPlan,
+            usedApprovedBase: Boolean(sourceImageUrl),
+          }),
+        }
+      : transformationExecution;
+
     const completed = await prisma.studioSceneImage.update({
       where: { id: params.imageRowId },
       data: {
@@ -256,6 +520,8 @@ async function runSceneImageGeneration(params: {
           ...settings,
           model: result.model,
           size: result.size,
+          generationMode: result.generationMode ?? settings.generationMode,
+          transformationExecution: finalExecution,
         } as unknown as Prisma.InputJsonValue,
       },
     });

@@ -1,0 +1,83 @@
+{
+  "phase": "FULL_STUDIO_PRODUCT_CERTIFICATION",
+  "finishedAt": "2026-08-21T22:00:00.000Z",
+  "verdict": "STUDIO_FULL_PRODUCT_CERTIFICATION_BLOCKED",
+  "gitHeadLocalWorkspace": "b9eaf7dff0ae87f4f65508e7e27663b800303b62",
+  "gitNote": "S2C–S2H and S2E-P1 implementation exists as uncommitted working tree; Production Slice 1B cert was against this HEAD without those slices deployed.",
+  "productionUrl": "https://studio.homecheff.eu",
+  "priorProductionDeployId": "dpl_EXXndFYMCDw2siVojLKUiQ72hicR",
+  "priorProductionCert": "STUDIO_SLICE_1B_PRODUCTION_CERTIFIED + PX.4A.7_RECERTIFIED (2026-08-20)",
+  "automatedRegression": {
+    "tests": "5238/5238",
+    "build": "pass",
+    "typecheck": "pass",
+    "classification": "LOCAL_CODE_CERT"
+  },
+  "providerKeysPresentInDotEnv": {
+    "OPENAI_API_KEY": true,
+    "VIDU_API_KEY": true,
+    "ELEVENLABS_API_KEY": true,
+    "VIDU_ENABLE_REAL_CALLS": true
+  },
+  "realProviderVisualProbesThisSession": "NOT_RUN",
+  "realProviderBudget": {
+    "status": "NOT_EXECUTED",
+    "reason": "Full A–F real-provider matrix requires committed+deployed S2 stack and explicit cost gate; uncommitted S2G/S2H/S2E-P1 cannot be certified on Production. No unbounded paid runs started.",
+    "estimatedMaxIfRunLater": {
+      "scenarioA_redCarpet": { "openaiImages": "3-8", "vidu": "1-3", "eleven": "0-1", "musicSfx": "0-library" },
+      "scenarioB_commercial": { "openaiImages": "4-12", "vidu": "1-4", "eleven": "1", "musicSfx": "0-library" },
+      "scenarioC_8scene": { "openaiImages": "8-20", "vidu": "2-8", "eleven": "2", "musicSfx": "0-library" },
+      "scenarioD_outfit": { "openaiImages": "2-4", "vidu": "0", "eleven": "0" },
+      "scenarioE_location": { "openaiImages": "2-4", "vidu": "0", "eleven": "0" },
+      "scenarioF_multiChar": { "openaiImages": "4-10", "vidu": "1-3", "eleven": "2" }
+    }
+  },
+  "blockingDefects": [
+    {
+      "id": "BLOCK-01",
+      "severity": "P0",
+      "class": "ENVIRONMENT_FAILURE",
+      "title": "Full S2 product not on certified Production release",
+      "detail": "S2G Finish, S2H Mijn projecten, S2E-P1 ducking/SFX runtime exist only in uncommitted local tree. Production cert evidence is Slice 1B / PX.4A.7 era.",
+      "smallestRepair": "Commit/push S2C–S2H + S2E-P1, deploy, then re-run Full Studio cert against that deploy.",
+      "affectedScenarios": ["A", "B", "C", "I", "J", "Finish", "Projects"]
+    },
+    {
+      "id": "BLOCK-02",
+      "severity": "P0",
+      "class": "TEST_SCRIPT_DEFECT",
+      "title": "PROVIDER_VISUAL_CERTIFICATION remains NOT_RUN",
+      "detail": "Pass condition requires real-provider visual probes for identity/outfit/location/product/logo. S2B.4 debt not closed; this session did not execute paid visual probes.",
+      "smallestRepair": "Budgeted S2B.4 + scenarios D/E/B visual probe script with hard call caps; human scorecard; evidence under docs/audits/full-studio-cert/.",
+      "affectedScenarios": ["B", "C", "D", "E", "F", "PROVIDER_VISUAL_CERTIFICATION"]
+    },
+    {
+      "id": "BLOCK-03",
+      "severity": "P1",
+      "class": "ENVIRONMENT_FAILURE",
+      "title": "End-to-end scenarios A–G / I / K / L not executed with real product media",
+      "detail": "Only automated unit/regression evidence available for S2 architecture. No Rode loper / commercial / Pixar-stress real outputs this session.",
+      "smallestRepair": "After deploy: run scenario harness with fixtures + capped provider calls; physical iPhone smoke for advanced workspace.",
+      "affectedScenarios": ["A", "B", "C", "G", "I", "K", "L"]
+    }
+  ],
+  "scenarioStatus": {
+    "A": "NOT_RUN",
+    "B": "NOT_RUN",
+    "C": "NOT_RUN",
+    "D": "NOT_RUN",
+    "E": "NOT_RUN",
+    "F": "NOT_RUN",
+    "G": "PARTIAL",
+    "H": "CERTIFIED",
+    "I": "NOT_RUN",
+    "J": "PARTIAL",
+    "K": "NOT_RUN",
+    "L": "NOT_RUN"
+  },
+  "scenarioNotes": {
+    "G": "GAP2_PASS + HomeCheff attach from prior PX.4A.7 / Slice 1B evidence; not re-run after S2 Finish/Projects.",
+    "H": "Slice 1B + PX.4A.7 FREE_LOCAL physical + automated retained; Quick Video engine untouched by S2E-P1.",
+    "J": "S2H unit/aggregation tests PASS locally; Production library still legacy HC hub until deploy."
+  }
+}

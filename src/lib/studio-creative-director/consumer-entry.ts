@@ -24,6 +24,7 @@ import {
 } from "@/lib/studio-creative-director/missing-pack-policy";
 import type { StudioProductExperienceId } from "@/lib/studio-creative-director/product-experience-ids";
 import type { StudioProductMode } from "@/lib/studio-creative-director/types";
+import { classifyExperiencePackLifecycle } from "@/lib/studio-preset-lifecycle";
 
 export type ConsumerSourceAsset = {
   kind: "source_image" | "person_ref" | "clothing_ref" | "brand_asset" | "unknown";
@@ -72,6 +73,10 @@ export type OpenExperienceResult = {
   nextHref: string | null;
   returnTo: string | null;
   sourceAsset: ConsumerSourceAsset | null;
+  /** S2C lifecycle — registry-driven, no parallel architecture. */
+  lifecycleClass?: string | null;
+  continuationSupported?: boolean;
+  materializationMode?: string | null;
 };
 
 function continuityStrategyFor(
@@ -174,6 +179,8 @@ export function openExperience(input: OpenExperienceInput): OpenExperienceResult
     };
   }
 
+  const lifecycle = classifyExperiencePackLifecycle(experienceId);
+
   return {
     ok: true,
     blocked: false,
@@ -185,6 +192,9 @@ export function openExperience(input: OpenExperienceInput): OpenExperienceResult
     nextHref: nextHrefForPack(experienceId, orchestration.mode),
     returnTo: input.returnTo ?? null,
     sourceAsset: input.sourceAsset ?? null,
+    lifecycleClass: lifecycle.lifecycleClass,
+    continuationSupported: lifecycle.continuationSupported,
+    materializationMode: lifecycle.materializationMode,
   };
 }
 

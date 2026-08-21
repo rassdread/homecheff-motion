@@ -196,6 +196,10 @@ export async function executeEditorInstructionVariant(params: {
   fusionWorkflowType?: EditorFusionIntent;
   fusionRenderPayload?: FusionRenderPayload | null;
   fusionCreditsCharged?: number;
+  /** S2B.2 — OpenAI inpaint mask (already inverted for OpenAI semantics). */
+  maskBuffer?: Buffer;
+  forceInputFidelity?: "high" | "low";
+  providerRouteLabel?: string;
 }): Promise<EditorInstructionVariantResult> {
   const startedAt = Date.now();
   const apiKey = process.env.OPENAI_API_KEY?.trim();
@@ -241,9 +245,10 @@ export async function executeEditorInstructionVariant(params: {
   const referenceImageCount = 1 + (supportsMulti ? additionalImages.length : 0);
   const size = resolveOpenAiEditSize(sourceDimensions.width, sourceDimensions.height);
   const inputFidelity =
-    openAiImageEditSupportsInputFidelity(editModel) && params.instruction.sliders.preserveStyle >= 70
+    params.forceInputFidelity ??
+    (openAiImageEditSupportsInputFidelity(editModel) && params.instruction.sliders.preserveStyle >= 70
       ? "high"
-      : undefined;
+      : undefined);
 
   const res = await fetchOpenAiImageEdits({
     apiKey,
@@ -255,12 +260,14 @@ export async function executeEditorInstructionVariant(params: {
       imageFilename: source.filename,
       imageContentType: source.contentType,
       additionalImages: supportsMulti ? additionalImages : undefined,
+      maskBuffer: params.maskBuffer,
+      maskFilename: params.maskBuffer ? "clothing_mask.png" : undefined,
       inputFidelity,
       n: 1,
     },
     logContext: {
       helperPath: "executeEditorInstructionVariant",
-      route: "/api/editor/instruction/variant",
+      route: params.providerRouteLabel ?? "/api/editor/instruction/variant",
       model: editModel,
     },
   });

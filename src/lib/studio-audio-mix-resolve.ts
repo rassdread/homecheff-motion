@@ -2,21 +2,23 @@ import { buildAudioProductionDirectorPlan } from "@/lib/studio-audio-production-
 import { buildMusicDirectorPlan } from "@/lib/studio-music-director";
 import {
   buildSceneTimelineSegments,
-  duckingMusicMultiplier,
-  duckingSoundMultiplier,
-  fadeSecondsFromEndBehavior,
-  fadeSecondsFromStartBehavior,
   isHardCutTransition,
   mixVolumeFromPercent,
   totalDurationFromSegments,
   type StudioAudioMixHandoffPlan,
 } from "@/lib/studio-audio-mix-timeline";
+import {
+  buildAudioMixExecutionPlan,
+  resolveStudioAudioTimeline,
+} from "@/lib/studio-audio-timeline-resolve";
+import { readS2cMetadataFromAudioAssetJson } from "@/lib/studio-preset-materialization-plan";
 import { parseStoryboardAudioAssetLinks } from "@/lib/studio-storyboard-audio-asset-links";
 import { findUserAudioLibraryAsset } from "@/lib/studio-user-audio-library-find";
 import { isAudioDuckingMode } from "@/lib/studio-audio-production-validation";
 import type { StudioStoryboardDetail } from "@/types/studio-api";
 import type { UserAudioLibraryAsset } from "@/types/studio-user-audio-library";
 import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
+import type { StudioAudioTimeline } from "@/types/studio-audio-timeline";
 
 export function suggestUserAssetForMusicCue(
   assets: UserAudioLibraryAsset[],
@@ -61,11 +63,93 @@ export function suggestUserAssetForSoundCue(
   return match ?? null;
 }
 
+export function resolveStoryboardAudioTimeline(params: {
+  storyboard: StudioStoryboardDetail;
+  userLibrary: UserAudioLibraryAsset[];
+  voiceAudioUrl?: string | null;
+  voiceDurationSeconds?: number | null;
+  voiceAssetId?: string | null;
+  audioAssetMetadataJson?: unknown;
+  voiceLines?: Array<{
+    sceneId: string;
+    text: string;
+    speakerId?: string | null;
+    durationMs?: number;
+  }>;
+}): StudioAudioTimeline {
+  const links = parseStoryboardAudioAssetLinks(
+    params.audioAssetMetadataJson ?? params.storyboard.audioAssetLinks
+  );
+  const s2c = readS2cMetadataFromAudioAssetJson(
+    params.audioAssetMetadataJson ??
+      (params.storyboard as { audioAssetMetadataJson?: unknown }).audioAssetMetadataJson
+  );
+  const musicPlan = buildMusicDirectorPlan(params.storyboard);
+  const productionPlan = buildAudioProductionDirectorPlan(params.storyboard);
+  const firstProduction = productionPlan.sceneCues[0];
+  const duckingRaw = firstProduction?.duckingMode ?? "music_under_voice";
+
+  const musicAsset =
+    findUserAudioLibraryAsset(params.userLibrary, links.musicAssetId)
+    ?? suggestUserAssetForMusicCue(params.userLibrary, {
+      mood: musicPlan.profileId,
+      energy: musicPlan.intensity,
+    });
+  const soundAsset =
+    findUserAudioLibraryAsset(params.userLibrary, links.soundAssetId)
+    ?? suggestUserAssetForSoundCue(params.userLibrary, { category: "ambience" });
+
+  const mix = firstProduction?.mixRecommendation ?? { voice: 70, music: 60, sound: 50 };
+  const hints = s2c?.audioHints;
+
+  return resolveStudioAudioTimeline({
+    projectId: params.storyboard.id,
+    scenes: params.storyboard.scenes.map((scene) => ({
+      id: scene.id,
+      order: scene.order,
+      durationSeconds: scene.durationSeconds,
+      musicTransitionType: scene.musicTransitionType,
+      duckingMode: scene.duckingMode,
+      action: scene.action,
+      title: scene.title,
+    })),
+    voiceEnabled: params.storyboard.voiceEnabled,
+    voiceAudioUrl: params.voiceAudioUrl,
+    voiceAssetId: params.voiceAssetId,
+    voiceDurationSeconds: params.voiceDurationSeconds,
+    voiceLines: params.voiceLines,
+    voiceProfile: params.storyboard.voiceProfile,
+    voiceLanguage: params.storyboard.voiceLanguage,
+    musicEnabled: params.storyboard.musicEnabled,
+    musicAudioUrl: musicAsset?.audioUrl ?? null,
+    musicAssetId: musicAsset?.id ?? links.musicAssetId,
+    musicFadeInBehavior: musicPlan.sceneCues[0]?.startBehavior,
+    musicFadeOutBehavior: musicPlan.sceneCues[0]?.endBehavior,
+    musicVolume: mixVolumeFromPercent(mix.music),
+    musicMood: hints?.musicMood ?? params.storyboard.musicNotes ?? null,
+    soundEnabled: params.storyboard.soundEnabled,
+    soundAudioUrl: soundAsset?.audioUrl ?? null,
+    soundAssetId: soundAsset?.id ?? links.soundAssetId,
+    soundVolume: mixVolumeFromPercent(mix.sound),
+    duckingMode: duckingRaw,
+    sfxSuggestions: hints?.sfxSuggestions ?? [],
+    soundNotes: params.storyboard.soundNotes,
+  });
+}
+
 export function buildStoryboardAudioMixPlan(params: {
   storyboard: StudioStoryboardDetail;
   userLibrary: UserAudioLibraryAsset[];
   voiceAudioUrl?: string | null;
+  voiceDurationSeconds?: number | null;
+  voiceAssetId?: string | null;
   audioAssetMetadataJson?: unknown;
+  voiceLines?: Array<{
+    sceneId: string;
+    text: string;
+    speakerId?: string | null;
+    durationMs?: number;
+  }>;
 }): StudioAudioMixHandoffPlan {
   const links = parseStoryboardAudioAssetLinks(
     params.audioAssetMetadataJson ?? params.storyboard.audioAssetLinks
@@ -75,43 +159,31 @@ export function buildStoryboardAudioMixPlan(params: {
   const firstCue = musicPlan.sceneCues[0];
   const firstProduction = productionPlan.sceneCues[0];
 
+  const timeline = resolveStoryboardAudioTimeline(params);
+  const execution = buildAudioMixExecutionPlan(timeline);
+
   const sceneSegments = buildSceneTimelineSegments(
-    params.storyboard.scenes.map((scene) => ({
-      id: scene.id,
-      order: scene.order,
-      durationSeconds: scene.durationSeconds,
-      musicTransitionType: scene.musicTransitionType,
+    timeline.sceneSpans.map((span) => ({
+      id: span.sceneId,
+      order: span.order,
+      durationSeconds: span.visualDurationMs / 1000,
+      musicTransitionType: params.storyboard.scenes.find((s) => s.id === span.sceneId)
+        ?.musicTransitionType,
     }))
   );
   const totalDurationSeconds = Math.max(
     totalDurationFromSegments(sceneSegments),
-    params.storyboard.scenes.reduce((sum, s) => sum + Math.max(0.5, s.durationSeconds || 5), 0)
+    execution.totalDurationMs / 1000
   );
-
-  const musicAsset =
-    findUserAudioLibraryAsset(params.userLibrary, links.musicAssetId)
-    ?? suggestUserAssetForMusicCue(params.userLibrary, {
-      mood: musicPlan.profileId,
-      energy: musicPlan.intensity,
-    });
-
-  const soundAsset =
-    findUserAudioLibraryAsset(params.userLibrary, links.soundAssetId)
-    ?? suggestUserAssetForSoundCue(params.userLibrary, { category: "ambience" });
 
   const duckingRaw = firstProduction?.duckingMode ?? "music_under_voice";
   const duckingMode = isAudioDuckingMode(duckingRaw) ? duckingRaw : "music_under_voice";
-  const mix = firstProduction?.mixRecommendation ?? { voice: 70, music: 60, sound: 50 };
   const hasVoice = Boolean(params.voiceAudioUrl?.trim() && params.storyboard.voiceEnabled);
 
-  const voiceVolume = mixVolumeFromPercent(mix.voice);
-  const musicVolume =
-    mixVolumeFromPercent(mix.music) * duckingMusicMultiplier(duckingMode, hasVoice);
-  const soundVolume =
-    mixVolumeFromPercent(mix.sound) * duckingSoundMultiplier(duckingMode, hasVoice);
-
-  const musicEnabled = Boolean(params.storyboard.musicEnabled && musicAsset);
-  const soundEnabled = Boolean(params.storyboard.soundEnabled && soundAsset);
+  const musicEnabled = Boolean(params.storyboard.musicEnabled && execution.music.url);
+  const soundEnabled = Boolean(
+    params.storyboard.soundEnabled && (execution.ambience.url || execution.discreteSfx.length)
+  );
 
   return {
     enabled: musicEnabled || soundEnabled || hasVoice,
@@ -120,19 +192,39 @@ export function buildStoryboardAudioMixPlan(params: {
     voiceEnabled: hasVoice,
     totalDurationSeconds,
     duckingMode,
-    voiceVolume,
-    musicVolume,
-    soundVolume,
-    musicFadeInSeconds: fadeSecondsFromStartBehavior(firstCue?.startBehavior ?? "fade_in"),
-    musicFadeOutSeconds: fadeSecondsFromEndBehavior(firstCue?.endBehavior ?? "fade_out"),
+    voiceVolume: execution.voice.volume,
+    musicVolume: execution.music.volume,
+    soundVolume: execution.ambience.volume,
+    musicFadeInSeconds: execution.music.fadeInMs / 1000,
+    musicFadeOutSeconds: execution.music.fadeOutMs / 1000,
     musicHardCut: isHardCutTransition(firstCue?.transitionType ?? "crossfade"),
     voiceAudioUrl: params.voiceAudioUrl?.trim() || null,
-    musicAudioUrl: musicEnabled ? musicAsset?.audioUrl ?? null : null,
-    soundAudioUrl: soundEnabled ? soundAsset?.audioUrl ?? null : null,
-    musicAssetName: musicAsset?.name ?? null,
-    soundAssetName: soundAsset?.name ?? null,
+    musicAudioUrl: musicEnabled ? execution.music.url : null,
+    soundAudioUrl: execution.ambience.url,
+    musicAssetName:
+      findUserAudioLibraryAsset(params.userLibrary, links.musicAssetId)?.name ?? null,
+    soundAssetName:
+      findUserAudioLibraryAsset(params.userLibrary, links.soundAssetId)?.name ?? null,
     sceneSegments,
     mixReady: hasVoice || musicEnabled || soundEnabled,
+    discreteSfx: execution.discreteSfx.map((c) => ({
+      cueId: c.cueId,
+      url: c.url,
+      startSeconds: c.startMs / 1000,
+      durationSeconds: c.durationMs / 1000,
+      volume: c.volume,
+      assetId: c.assetId,
+    })),
+    duckingEnvelopes: execution.duckingEnvelopes.map((e) => ({
+      startSeconds: e.startMs / 1000,
+      endSeconds: e.endMs / 1000,
+      musicGain: e.musicGain,
+      ambienceGain: e.ambienceGain,
+      attackSeconds: e.attackMs / 1000,
+      releaseSeconds: e.releaseMs / 1000,
+    })),
+    timelineHash: timeline.timelineHash,
+    musicSourceOffsetSeconds: execution.music.sourceOffsetMs / 1000,
   };
 }
 

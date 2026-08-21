@@ -602,6 +602,12 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
       if (!firstUrl) {
         throw new Error("Story mode start image is missing a preview URL.");
       }
+      const studioHandoffForSegments = parseMotionHandoffPayloadForStorage(
+        transition.project.studioHandoffJson
+      );
+      const studioSegmentPrompts = studioHandoffForSegments
+        ? resolveExecutionPromptsBySceneIndex(studioHandoffForSegments, orderedProjectImages.length)
+        : undefined;
       const segments = orderedProjectImages.slice(1).map((img, index) => {
         const url =
           storyKeyframeUrls?.[index + 1] ??
@@ -612,6 +618,7 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
         return {
           keyImageUrl: url,
           durationSeconds: segmentDurations[index] ?? viduMultiframeSegmentDurationSeconds(transitionSeconds),
+          prompt: studioSegmentPrompts?.[index + 1]?.trim() || undefined,
         };
       });
       providerResult = await provider.createMultiImageVideoJob({

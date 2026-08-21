@@ -25,6 +25,27 @@ export type StudioAudioMixPlan = {
   soundAssetName: string | null;
   sceneSegments: StudioAudioMixSceneSegment[];
   mixReady: boolean;
+  /** S2E — discrete timed SFX (same asset may appear multiple times). */
+  discreteSfx?: Array<{
+    cueId: string;
+    url: string;
+    startSeconds: number;
+    durationSeconds: number;
+    volume: number;
+    assetId: string | null;
+  }>;
+  /** S2E-P1 — timed ducking envelopes executed in FFmpeg (not static bed attenuation). */
+  duckingEnvelopes?: Array<{
+    startSeconds: number;
+    endSeconds: number;
+    musicGain: number;
+    ambienceGain: number;
+    attackSeconds: number;
+    releaseSeconds: number;
+  }>;
+  /** S2E timeline fingerprint — 0 provider rebuilds when hash matches. */
+  timelineHash?: string | null;
+  musicSourceOffsetSeconds?: number;
 };
 
 export type StudioAudioMixHandoffPlan = StudioAudioMixPlan & {

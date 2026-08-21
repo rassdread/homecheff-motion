@@ -9,6 +9,11 @@ import type { StudioWorldProfileListItem } from "@/types/studio-api";
 import { buildSceneMemoryBundleFromSceneRow } from "@/lib/studio-scene-memory-bundle";
 import { studioSceneDetailToPromptInput } from "@/lib/studio-scene-to-prompt-input";
 import { buildSceneStillViaMatrix } from "@/lib/studio-prompt-matrix/scene-still";
+import { buildProductionInstructions } from "@/lib/studio-production-prompt-orchestrator";
+import { resolveUnifiedProductionContext } from "@/lib/studio-unified-production-context";
+import type { ProductionInstructions, ProductionPromptTarget, UnifiedProductionContext, CompactProductionContextSnapshot } from "@/types/studio-unified-production-context";
+import { compactProductionContextSnapshot } from "@/lib/studio-unified-production-context";
+import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
 import type { PromptBuilderOutput } from "@/types/studio-prompt-builder";
 import type { SceneSnapshot } from "@/types/studio-scene-snapshot";
 import type { StudioSceneDetail, StudioStoryboardDetail } from "@/types/studio-api";
@@ -89,6 +94,78 @@ export function buildScenePromptForDetail(
     storyboardId: options?.storyboard?.id ?? null,
     storyboardTitle: options?.storyboard?.title ?? null,
   }).builderOutput;
+}
+
+export function buildUpcFromStoryboardDetail(
+  storyboard: StudioStoryboardDetail,
+  options?: {
+    source?: UnifiedProductionContext["source"];
+    experienceId?: string | null;
+    worlds?: StudioWorldProfileListItem[];
+    worldPicks?: WorldProfilePick[];
+  }
+): UnifiedProductionContext {
+  return resolveUnifiedProductionContext({
+    storyboard,
+    worlds: options?.worlds,
+    worldPicks: options?.worldPicks,
+    source: options?.source ?? "workspace",
+    experienceId: options?.experienceId ?? null,
+  });
+}
+
+export function buildProductionInstructionsForScene(params: {
+  upc: UnifiedProductionContext;
+  scene: StudioSceneDetail;
+  target: ProductionPromptTarget;
+  identityDriftLines?: string[];
+  storyboard?: StudioStoryboardDetail;
+}): ProductionInstructions {
+  const builderOutput = buildScenePromptForDetail(params.scene, params.upc.style.storyboardStyleProfile, {
+    storyboard: params.storyboard,
+  });
+  return buildProductionInstructions({
+    upc: params.upc,
+    sceneId: params.scene.id,
+    target: params.target,
+    builderOutput,
+    identityDriftLines: params.identityDriftLines,
+  });
+}
+
+export function applyUpcExecutionToHandoff(
+  payload: MotionHandoffPayload,
+  storyboard: StudioStoryboardDetail,
+  options?: { source?: UnifiedProductionContext["source"] }
+): MotionHandoffPayload {
+  const upc = buildUpcFromStoryboardDetail(storyboard, { source: options?.source ?? "workspace" });
+  const snapshot: CompactProductionContextSnapshot = compactProductionContextSnapshot(upc);
+  const scenes = payload.scenes.map((scene) => {
+    const detail = storyboard.scenes.find((row) => row.id === scene.sceneId);
+    if (!detail) {
+      return scene;
+    }
+    try {
+      const instructions = buildProductionInstructionsForScene({
+        upc,
+        scene: detail,
+        target: "motion",
+        storyboard,
+      });
+      return {
+        ...scene,
+        executionPrompt: instructions.assembledPrompt,
+        productionSceneContextHash: instructions.sceneContextHash,
+      };
+    } catch {
+      return scene;
+    }
+  });
+  return {
+    ...payload,
+    productionContext: snapshot,
+    scenes,
+  };
 }
 
 export function buildScenePromptForSnapshot(

@@ -27,6 +27,9 @@ import type {
   StudioWorkflowTransaction,
 } from "@/types/studio-video-production";
 import { readHcWorkflowV2, storeStudioWorkflowInHc, writeHcWorkflowV2 } from "@/lib/hc-workflow-v2";
+import { resolveUnifiedProductionContext } from "@/lib/studio-unified-production-context";
+import type { StudioStoryboardDetail, StudioWorldProfileListItem } from "@/types/studio-api";
+import type { UnifiedProductionContext } from "@/types/studio-unified-production-context";
 
 export function readOrchestratorState(project: HomeCheffProjectPackage): HcOrchestratorState {
   const wf = readHcWorkflowV2(project);
@@ -300,6 +303,20 @@ export function markProductionCompleted(project: HomeCheffProjectPackage): HomeC
     status: "completed",
     completedAt: new Date().toISOString(),
     transaction,
+  });
+}
+
+/** Same UPC resolver as Story Workspace; HC is a source tag, not a second context builder. */
+export function resolveHcStoryboardProductionContext(params: {
+  storyboard: StudioStoryboardDetail;
+  worlds?: StudioWorldProfileListItem[];
+  experienceId?: string | null;
+}): UnifiedProductionContext {
+  return resolveUnifiedProductionContext({
+    storyboard: params.storyboard,
+    worlds: params.worlds,
+    source: "hc_orchestrator",
+    experienceId: params.experienceId ?? null,
   });
 }
 

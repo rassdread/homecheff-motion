@@ -3,11 +3,14 @@ import {
   fetchOpenAiImageEdits,
   fetchOpenAiImageGenerations,
   fetchSourceImageBuffer,
+  openAiImageEditSupportsMultiReference,
   openAiImageModelSupportsEdit,
   prepareOpenAiImageGenerationsBody,
   resolveOpenAiImageEditModel,
   resolveOpenAiImageModel,
+  type OpenAiImageEditReferenceImage,
 } from "@/lib/openai-image-generation";
+import { resolveSceneStillCapability } from "@/lib/studio-generation-provider-capabilities";
 
 type OpenAiImageResponse = {
   data?: Array<{ url?: string; b64_json?: string }>;
@@ -52,6 +55,14 @@ function shouldUseImageEdit(input: SceneImageGenerateInput): boolean {
   );
 }
 
+function shouldUseReferenceEdit(input: SceneImageGenerateInput): boolean {
+  if (shouldUseImageEdit(input)) {
+    return false;
+  }
+  const capability = resolveSceneStillCapability();
+  return capability.useReferenceEdit && Boolean(input.referenceImages?.some((ref) => ref.url.trim()));
+}
+
 export class OpenAiSceneImageProvider implements SceneImageProvider {
   readonly id = "openai";
 
@@ -65,6 +76,18 @@ export class OpenAiSceneImageProvider implements SceneImageProvider {
 
     if (shouldUseImageEdit(input)) {
       return this.generateFromSourceEdit(input, apiKey, size);
+    }
+
+    if (shouldUseReferenceEdit(input)) {
+      try {
+        return await this.generateFromReferenceEdit(input, apiKey, size);
+      } catch (error) {
+        console.warn(
+          "[OpenAiSceneImageProvider] Reference edit failed — falling back to text-to-image.",
+          { sceneId: input.sceneId, message: error instanceof Error ? error.message : "unknown" }
+        );
+        return this.generateFromPrompt(input, apiKey, size);
+      }
     }
 
     return this.generateFromPrompt(input, apiKey, size);
@@ -90,6 +113,32 @@ export class OpenAiSceneImageProvider implements SceneImageProvider {
         ? "high"
         : undefined;
 
+    const additionalImages: OpenAiImageEditReferenceImage[] = [];
+    const sourceUrl = input.sourceImageUrl!.trim();
+    if (openAiImageEditSupportsMultiReference(editModel) && input.referenceImages?.length) {
+      for (const ref of input.referenceImages) {
+        const refUrl = ref.url.trim();
+        if (!refUrl || refUrl === sourceUrl) {
+          continue;
+        }
+        if (additionalImages.length >= 4) {
+          break;
+        }
+        try {
+          const fetched = await fetchSourceImageBuffer(refUrl);
+          additionalImages.push({
+            buffer: fetched.buffer,
+            filename: fetched.filename,
+            contentType: fetched.contentType,
+            role: ref.exactness === "MUST_PRESERVE" ? "logo" : "reference",
+            referenceId: ref.entityId,
+          });
+        } catch {
+          /* skip stale supporting refs */
+        }
+      }
+    }
+
     const res = await fetchOpenAiImageEdits({
       apiKey,
       edit: {
@@ -99,11 +148,83 @@ export class OpenAiSceneImageProvider implements SceneImageProvider {
         imageBuffer: source.buffer,
         imageFilename: source.filename,
         imageContentType: source.contentType,
+        additionalImages,
         inputFidelity,
         n: 1,
       },
       logContext: {
         helperPath: "OpenAiSceneImageProvider.generateFromSourceEdit",
+        route: input.logRoute,
+        referenceImageCount: 1 + additionalImages.length,
+        providerSupportsMultiReference: openAiImageEditSupportsMultiReference(editModel),
+      },
+    });
+
+    const payload = (await res.json()) as OpenAiImageResponse;
+    if (!res.ok) {
+      throw new Error(payload.error?.message ?? `OpenAI image edit failed (${res.status}).`);
+    }
+
+    const imageBuffer = await this.extractImageBuffer(payload);
+    const thumbnailBuffer = await thumbnailFromMain(imageBuffer);
+
+    return {
+      imageBuffer,
+      thumbnailBuffer,
+      contentType: detectContentType(imageBuffer),
+      provider: this.id,
+      seed: input.seed ?? null,
+      model: editModel,
+      size,
+      generationMode: "image_edit",
+    };
+  }
+
+  private async generateFromReferenceEdit(
+    input: SceneImageGenerateInput,
+    apiKey: string,
+    size: string
+  ): Promise<SceneImageGenerateResult> {
+    const editModel = resolveOpenAiImageEditModel();
+    const refs = (input.referenceImages ?? []).filter((ref) => ref.url.trim());
+    const primary = refs[0];
+    if (!primary) {
+      return this.generateFromPrompt(input, apiKey, size);
+    }
+    const source = await fetchSourceImageBuffer(primary.url.trim());
+    const additionalImages: OpenAiImageEditReferenceImage[] = [];
+    if (openAiImageEditSupportsMultiReference(editModel)) {
+      for (const ref of refs.slice(1, 4)) {
+        try {
+          const fetched = await fetchSourceImageBuffer(ref.url.trim());
+          additionalImages.push({
+            buffer: fetched.buffer,
+            filename: fetched.filename,
+            contentType: fetched.contentType,
+            role: ref.exactness === "MUST_PRESERVE" ? "logo" : "reference",
+            referenceId: ref.entityId,
+          });
+        } catch {
+          /* skip stale supporting refs */
+        }
+      }
+    }
+
+    const res = await fetchOpenAiImageEdits({
+      apiKey,
+      edit: {
+        model: editModel,
+        prompt: input.prompt,
+        size,
+        imageBuffer: source.buffer,
+        imageFilename: source.filename,
+        imageContentType: source.contentType,
+        additionalImages,
+        inputFidelity: "high",
+        n: 1,
+      },
+      logContext: {
+        helperPath: "OpenAiSceneImageProvider.generateFromReferenceEdit",
         route: input.logRoute,
         model: editModel,
       },

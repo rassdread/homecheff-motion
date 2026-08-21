@@ -2,12 +2,14 @@
  * User-facing studio usage insights — counts only, no internal margins or COGS.
  */
 
+import { listStudioProjectsForHomeContinue } from "@/server/studio/studio-project-library";
 import { prisma } from "@/lib/prisma";
 import { DERIVATION_TIME_SAVED_MINUTES } from "@/lib/studio-asset-style-dna";
 import { readAssetLibraryPreferencesManifest } from "@/server/studio/studio-asset-library-preferences-blob";
 import { COST_ACTION } from "@/server/provider-cost/cost-event-types";
 import type { AssetLibraryTab } from "@/lib/studio-asset-library-filters";
 import type {
+  StudioContinueWorkingItem,
   UserStudioActivityItem,
   UserStudioDashboardReport,
   UserStudioInsightsReport,
@@ -252,14 +254,29 @@ export async function buildUserStudioHomeShell(userId: string): Promise<UserStud
     at: row.createdAt.toISOString(),
   }));
 
-  const continueItems = [
-    ...continueStoryboards.map((row) => ({
+  // S2H: Home continue prefers the same human project summaries as Mijn projecten.
+  let projectContinue: StudioContinueWorkingItem[] = [];
+  try {
+    const summaries = await listStudioProjectsForHomeContinue(userId, 8);
+    projectContinue = summaries.map((p) => ({
+      id: p.sourceId,
+      kind: (p.sourceType === "motion" ? "motion" : "project") as StudioContinueWorkingItem["kind"],
+      title: p.title.trim() || "Project",
+      href: p.continueHref,
+      updatedAt: p.lastEditedAt,
+      status: p.status,
+    }));
+  } catch {
+    projectContinue = continueStoryboards.map((row) => ({
       id: row.id,
       kind: "storyboard" as const,
       title: row.title?.trim() || "Storyboard",
       href: `/studio?storyboardId=${encodeURIComponent(row.id)}`,
       updatedAt: row.updatedAt.toISOString(),
-    })),
+    }));
+  }
+
+  const entityContinue: StudioContinueWorkingItem[] = [
     ...continueCharacters.map((row) => ({
       id: row.id,
       kind: "character" as const,
@@ -288,9 +305,14 @@ export async function buildUserStudioHomeShell(userId: string): Promise<UserStud
       href: `/studio/worlds/${row.id}`,
       updatedAt: row.updatedAt.toISOString(),
     })),
-  ]
-    .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
-    .slice(0, 8);
+  ];
+
+  const continueItems =
+    projectContinue.length >= 3
+      ? projectContinue.slice(0, 8)
+      : [...projectContinue, ...entityContinue]
+          .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+          .slice(0, 8);
 
   return {
     ...emptyInsightsShell(now),
@@ -541,14 +563,28 @@ export async function buildUserStudioDashboard(userId: string): Promise<UserStud
     at: row.createdAt.toISOString(),
   }));
 
-  const continueItems = [
-    ...continueStoryboards.map((row) => ({
+  let projectContinue: StudioContinueWorkingItem[] = [];
+  try {
+    const summaries = await listStudioProjectsForHomeContinue(userId, 8);
+    projectContinue = summaries.map((p) => ({
+      id: p.sourceId,
+      kind: (p.sourceType === "motion" ? "motion" : "project") as StudioContinueWorkingItem["kind"],
+      title: p.title.trim() || "Project",
+      href: p.continueHref,
+      updatedAt: p.lastEditedAt,
+      status: p.status,
+    }));
+  } catch {
+    projectContinue = continueStoryboards.map((row) => ({
       id: row.id,
       kind: "storyboard" as const,
       title: row.title?.trim() || "Storyboard",
       href: `/studio?storyboardId=${encodeURIComponent(row.id)}`,
       updatedAt: row.updatedAt.toISOString(),
-    })),
+    }));
+  }
+
+  const entityContinue: StudioContinueWorkingItem[] = [
     ...continueCharacters.map((row) => ({
       id: row.id,
       kind: "character" as const,
@@ -577,9 +613,14 @@ export async function buildUserStudioDashboard(userId: string): Promise<UserStud
       href: `/studio/worlds/${row.id}`,
       updatedAt: row.updatedAt.toISOString(),
     })),
-  ]
-    .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
-    .slice(0, 8);
+  ];
+
+  const continueItems =
+    projectContinue.length >= 3
+      ? projectContinue.slice(0, 8)
+      : [...projectContinue, ...entityContinue]
+          .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+          .slice(0, 8);
 
   return {
     ...insights,

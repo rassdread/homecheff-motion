@@ -39,6 +39,7 @@ import {
 } from "@/lib/studio-creative-director/types";
 import type { MatrixUserSelections } from "@/lib/studio-prompt-matrix/assemble";
 import type { StudioCreativeExperienceId } from "@/lib/studio-prompt-matrix/experience-ids";
+import { UPC_VERSION } from "@/types/studio-unified-production-context";
 import type { StudioMatrixDetailLevel } from "@/lib/studio-prompt-matrix/types";
 
 export type CreativeDirectorOrchestrateInput = {
@@ -70,6 +71,12 @@ export type CreativeDirectorHandoff = {
     billing: "billing_unchanged";
     credits: "credits_unchanged";
   };
+  /**
+   * S2A: Director plans feed UPC at generation time.
+   * UPC remains canonical after the user edits the storyboard.
+   */
+  canonicalContext: "unified_production_context";
+  upcVersion: string;
 };
 
 export type CreativeDirectorOrchestration = {
@@ -158,6 +165,8 @@ export function orchestrateCreativeDirector(
       billing: "billing_unchanged",
       credits: "credits_unchanged",
     },
+    canonicalContext: "unified_production_context",
+    upcVersion: UPC_VERSION,
   };
 
   const summary = [

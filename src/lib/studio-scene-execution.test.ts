@@ -194,7 +194,7 @@ describe("studio-scene-execution V30", () => {
 
   it("attachExecutionToHandoffPayload sets v11 fields and readiness", () => {
     const payload = attachExecutionToHandoffPayload(basePayload([baseScene()]));
-    assert.equal(payload.version, 11);
+    assert.equal(payload.version, MOTION_HANDOFF_PAYLOAD_VERSION);
     assert.ok(payload.executionPackage);
     assert.ok(payload.executionReadiness);
     assert.ok(payload.executionReadiness!.score >= 0);

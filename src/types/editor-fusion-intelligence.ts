@@ -154,6 +154,8 @@ export type FusionRunRecord = {
   errorCode?: string | null;
   completedAt: string;
   brandProtectionLog?: import("@/types/brand-asset-protection").BrandAssetProtectionLog;
+  /** S2B.2 — canonical transformation execution trace when router-backed. */
+  transformationExecution?: import("@/types/studio-image-transformation").TransformationExecutionRecord;
 };
 
 export type FusionAnalysisReadiness = {

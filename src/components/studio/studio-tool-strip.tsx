@@ -53,6 +53,10 @@ type Props = {
   disabled?: boolean;
   /** vertical compact rail for mobile landscape */
   variant?: "bottom" | "side";
+  /** S2F: when set, only these tools appear in the strip (stage-scoped). */
+  allowedTools?: StudioToolId[] | null;
+  /** Show full tool list toggle — default true; false for stage-filtered primary mode. */
+  allowShowAll?: boolean;
 };
 
 export function StudioToolStrip({
@@ -60,12 +64,21 @@ export function StudioToolStrip({
   onToolChange,
   disabled = false,
   variant = "bottom",
+  allowedTools = null,
+  allowShowAll = true,
 }: Props) {
   const t = useActiveTranslator();
   const [showAll, setShowAll] = useState(() => !isStudioPrimaryTool(activeTool));
 
   const visibleTools = useMemo(() => {
-    if (showAll) {
+    if (allowedTools && allowedTools.length > 0) {
+      const scoped = allowedTools.filter((id) => STUDIO_TOOL_IDS.includes(id));
+      if (!scoped.includes(activeTool)) {
+        return [...scoped, activeTool];
+      }
+      return scoped;
+    }
+    if (showAll && allowShowAll) {
       return STUDIO_TOOL_IDS;
     }
     const primary = STUDIO_TOOL_IDS.filter(isStudioPrimaryTool);
@@ -73,9 +86,10 @@ export function StudioToolStrip({
       return [...primary, activeTool];
     }
     return primary;
-  }, [activeTool, showAll]);
+  }, [activeTool, showAll, allowedTools, allowShowAll]);
 
   const isSide = variant === "side";
+  const showMoreToggle = allowShowAll && !allowedTools;
 
   return (
     <div
@@ -130,21 +144,23 @@ export function StudioToolStrip({
               </button>
             );
           })}
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => setShowAll((v) => !v)}
-            className={
-              isSide ?
-                "min-h-11 w-full rounded-lg border border-zinc-200 px-1 py-2 text-[10px] font-semibold text-zinc-700"
-              : "shrink-0 rounded-full border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 sm:px-4 sm:text-sm"
-            }
-            aria-expanded={showAll}
-          >
-            {showAll ? t("studio.tools.showLess") : t("studio.tools.showMore")}
-          </button>
+          {showMoreToggle ?
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => setShowAll((v) => !v)}
+              className={
+                isSide ?
+                  "min-h-11 w-full rounded-lg border border-zinc-200 px-1 py-2 text-[10px] font-semibold text-zinc-700"
+                : "shrink-0 rounded-full border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 sm:px-4 sm:text-sm"
+              }
+              aria-expanded={showAll}
+            >
+              {showAll ? t("studio.tools.showLess") : t("studio.tools.showMore")}
+            </button>
+          : null}
         </div>
-        {showAll && !isSide ?
+        {showMoreToggle && showAll && !isSide ?
           <div className="mt-2 flex flex-wrap gap-2 px-1" aria-hidden>
             {STUDIO_TOOL_GROUPS.map((group) => (
               <span

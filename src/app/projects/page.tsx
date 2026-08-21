@@ -1,5 +1,5 @@
-import { HomeCheffProjectHub } from "@/components/projects/homecheff-project-hub";
+import { StudioMyProjectsLibrary } from "@/components/projects/studio-my-projects-library";
 
 export default function ProjectsPage() {
-  return <HomeCheffProjectHub />;
+  return <StudioMyProjectsLibrary />;
 }

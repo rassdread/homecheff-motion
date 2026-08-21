@@ -27,6 +27,24 @@ export type StudioSceneImageGenerationSettings = {
   };
   model?: string;
   size?: string;
+  /** S2A lineage — stored in existing JSON, no schema migration. */
+  upcVersion?: string;
+  upcHash?: string;
+  sceneContextHash?: string;
+  characterIds?: string[];
+  locationId?: string | null;
+  propIds?: string[];
+  providerMode?: string;
+  referenceAccounting?: Array<{
+    entityId: string;
+    accounting: string;
+    reason: string;
+  }>;
+  contextStale?: boolean;
+  /** S2B.3 — router execution lineage (JSON only, no schema migration). */
+  transformationExecution?: import("@/types/studio-image-transformation").TransformationExecutionRecord;
+  baseSceneImageId?: string | null;
+  generationMode?: import("@/types/studio-asset-image-generation").AssetImageGenerationMode | string;
 };
 
 /** Lightweight version metadata stored on each image row (no separate table in V8). */

@@ -206,10 +206,12 @@ export type StudioHomeRecentItem = {
 
 export type StudioContinueWorkingItem = {
   id: string;
-  kind: "storyboard" | "character" | "prop" | "location" | "world";
+  kind: "storyboard" | "character" | "prop" | "location" | "world" | "project" | "motion";
   title: string;
   href: string;
   updatedAt: string;
+  /** S2H human status when from project library. */
+  status?: string;
 };
 
 export type UserStudioDashboardReport = UserStudioInsightsReport & {

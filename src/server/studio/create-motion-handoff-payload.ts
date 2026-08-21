@@ -5,7 +5,7 @@ import {
   type ServiceError,
   type StudioStoryboardSceneRow,
 } from "@/server/studio/studio-storyboard-service";
-import { buildScenePromptFromSceneRow } from "@/server/studio/studio-prompt-builder-service";
+import { buildScenePromptFromSceneRow, applyUpcExecutionToHandoff } from "@/server/studio/studio-prompt-builder-service";
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { computeShotDiversityScore } from "@/lib/studio-story-flow-analyzer";
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
@@ -520,6 +520,7 @@ export async function createMotionHandoffPayload(
       viduExecutionPlan: toMotionViduExecutionPlanHandoffPlan(viduExecutionPlan),
       sceneGenerationPlan: toMotionSceneGenerationHandoffPlan(sceneGenerationPlan),
     };
+    payload = applyUpcExecutionToHandoff(payload, detail);
   }
 
   return { payload };

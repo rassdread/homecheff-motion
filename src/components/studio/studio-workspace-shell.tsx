@@ -2,19 +2,22 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { StudioWorkspaceAssetEvolutionPanel } from "@/components/studio/studio-workspace-asset-evolution-panel";
 import { StudioWorkspaceProductionPlanPanel } from "@/components/studio/studio-workspace-production-plan-panel";
 import { StudioDirectorProposalFlow } from "@/components/studio/studio-director-proposal-flow";
 import { StudioWorkspaceProductionBanner } from "@/components/studio/studio-workspace-production-panels";
-import { useStoryboardMotionProjects } from "@/hooks/use-studio-workspace-motion";
+import { useStoryboardMotionProjects, pickPrimaryMotionProject } from "@/hooks/use-studio-workspace-motion";
 import { StudioWorkspaceSceneSidebar } from "@/components/studio/studio-workspace-scene-sidebar";
 import { StudioWorkspaceAssetsDrawer } from "@/components/studio/studio-workspace-assets-drawer";
 import { StudioWorkspaceSceneAssetsPanel } from "@/components/studio/studio-workspace-scene-assets-panel";
 import { StudioShellHeader } from "@/components/studio/studio-shell-header";
 import { StudioToolStrip } from "@/components/studio/studio-tool-strip";
+import { StudioProductionStageNav } from "@/components/studio/studio-production-stage-nav";
 import { StudioWorkspaceToolPanel } from "@/components/studio/studio-workspace-tool-panel";
+import { StudioFinishHub } from "@/components/studio/studio-finish-hub";
 import { MotionBuildDebugBadge } from "@/components/layout/motion-build-debug-badge";
 import { StudioWorkspaceInspectorPanel } from "@/components/studio/studio-workspace-inspector-panel";
 import { StudioWorkspaceCenterScenePreview } from "@/components/studio/studio-workspace-center-scene-preview";
@@ -32,6 +35,14 @@ import {
   studioToolToAssetTab,
   type StudioToolId,
 } from "@/lib/studio-tool-id";
+import {
+  defaultToolForStage,
+  resolveContinueStageLanding,
+  resolveStudioProductionReadiness,
+  stageForTool,
+  toolsForStage,
+  type StudioProductionStageId,
+} from "@/lib/studio-production-stages";
 import { fetchStudioCharacters } from "@/lib/studio-characters-client";
 import { fetchStudioLocations } from "@/lib/studio-locations-client";
 import { fetchStudioProps } from "@/lib/studio-props-client";
@@ -72,13 +83,13 @@ import {
   shouldRenderPermanentStudioRobot,
   STUDIO_POSTURE_BREAKPOINTS,
 } from "@/lib/studio-workspace-posture";
-import { inferStudioCreativeStage } from "@/lib/studio-creative-workflow";
 import { trackStudioCreativeEvent } from "@/lib/studio-creative-analytics";
 import {
   readStudioWorkspacePlace,
   writeStudioWorkspacePlace,
 } from "@/lib/studio-workspace-place";
 import type { TranslationKey } from "@/i18n";
+import { STAGE_LABEL_KEYS } from "@/lib/studio-production-stages";
 
 /** SP.2D-G: defer heavy Director V2 until workspace shell/storyboard are ready. */
 const StudioDirectorPanelV2 = dynamic(
@@ -102,6 +113,7 @@ type MobilePane = "list" | "editor";
 
 export function StudioWorkspaceShell({ storyboardId }: Props) {
   const t = useActiveTranslator();
+  const searchParams = useSearchParams();
   const session = useAuthSession();
   const layoutPlan = useStudioWorkspaceLayoutPlan();
   const [storyboard, setStoryboard] = useState<StudioStoryboardDetail | null>(null);
@@ -118,6 +130,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null);
   const [savingSceneId, setSavingSceneId] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<StudioToolId>("story");
+  const [activeStage, setActiveStage] = useState<StudioProductionStageId>("story");
   const [assetsDrawerOpen, setAssetsDrawerOpen] = useState(false);
   const [mobilePane, setMobilePane] = useState<MobilePane>("list");
   const [mobileInsightsOpen, setMobileInsightsOpen] = useState(false);
@@ -128,6 +141,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
   const [workspaceViewMode, setWorkspaceViewMode] = useState<"edit" | "preview">("edit");
   const placeRestoredRef = useRef(false);
   const { projects: motionProjects } = useStoryboardMotionProjects(storyboardId, Boolean(storyboard));
+  const primaryMotion = useMemo(() => pickPrimaryMotionProject(motionProjects), [motionProjects]);
   const permanentRobot = shouldRenderPermanentStudioRobot(layoutPlan);
 
   useEffect(() => {
@@ -190,6 +204,31 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
     if (savedPlace?.tool) {
       setActiveTool(savedPlace.tool);
     }
+    const readiness = resolveStudioProductionReadiness(sbRes.data.storyboard);
+    const explicitStage = searchParams.get("stage");
+    const continueFlag = searchParams.get("continueInStudio");
+    if (shouldRestorePlace && savedPlace?.tool && !explicitStage && !continueFlag) {
+      setActiveTool(savedPlace.tool);
+      setActiveStage(savedPlace.stage ?? stageForTool(savedPlace.tool));
+    } else {
+      const landedStage = resolveContinueStageLanding({
+        readiness,
+        explicitStage,
+        savedStage: savedPlace?.stage ?? null,
+        lifecycleClass: searchParams.get("lifecycle"),
+        sourcePresetId: searchParams.get("sourceId") ?? searchParams.get("preset"),
+      });
+      setActiveStage(landedStage);
+      setActiveTool(
+        savedPlace?.tool && stageForTool(savedPlace.tool) === landedStage
+          ? savedPlace.tool
+          : defaultToolForStage(landedStage)
+      );
+      trackStudioCreativeEvent("TOOL_CHANGED", {
+        storyboardId,
+        tool: defaultToolForStage(landedStage),
+      });
+    }
     setSceneDirty(false);
     setLoading(false);
 
@@ -212,7 +251,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
         setEntitiesHydrating(false);
       }
     })();
-  }, [storyboardId, t, session.user]);
+  }, [storyboardId, t, session.user, searchParams]);
 
   const refreshAssetLibraries = useCallback(async () => {
     const [locRes, charRes, propRes, worldRes, memoryRes] = await Promise.all([
@@ -404,15 +443,36 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
       return;
     }
     setActiveSceneId(res.data.scene.id);
-    writeStudioWorkspacePlace(storyboardId, { sceneId: res.data.scene.id, tool: activeTool });
+    writeStudioWorkspacePlace(storyboardId, { sceneId: res.data.scene.id, tool: activeTool, stage: activeStage });
     trackStudioCreativeEvent("SCENE_CREATED", { storyboardId, tool: activeTool });
     setMobilePane("editor");
     await load();
   };
 
+  const handleStageChange = (stageId: StudioProductionStageId) => {
+    setActiveStage(stageId);
+    const nextTool = defaultToolForStage(stageId);
+    setActiveTool(nextTool);
+    writeStudioWorkspacePlace(storyboardId, {
+      sceneId: activeSceneId,
+      tool: nextTool,
+      stage: stageId,
+    });
+    trackStudioCreativeEvent("TOOL_CHANGED", { storyboardId, tool: nextTool });
+    if (
+      typeof window !== "undefined" &&
+      window.innerWidth < STUDIO_POSTURE_BREAKPOINTS.compactMinWidth
+    ) {
+      setMobilePane("editor");
+      setAssetsDrawerOpen(false);
+    }
+  };
+
   const handleToolChange = (tool: StudioToolId) => {
     setActiveTool(tool);
-    writeStudioWorkspacePlace(storyboardId, { sceneId: activeSceneId, tool });
+    const stage = stageForTool(tool);
+    setActiveStage(stage);
+    writeStudioWorkspacePlace(storyboardId, { sceneId: activeSceneId, tool, stage });
     trackStudioCreativeEvent("TOOL_CHANGED", { storyboardId, tool });
     if (
       tool !== "story" &&
@@ -441,7 +501,11 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
   const selectScene = (sceneId: string) => {
     setActiveSceneId(sceneId);
     setMobilePane("editor");
-    writeStudioWorkspacePlace(storyboardId, { sceneId, tool: activeTool });
+    writeStudioWorkspacePlace(storyboardId, {
+      sceneId,
+      tool: activeTool,
+      stage: activeStage,
+    });
   };
 
   const handleMoveScene = async (sceneId: string, direction: "up" | "down") => {
@@ -468,19 +532,17 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
       return;
     }
     setActiveSceneId(sceneId);
-    writeStudioWorkspacePlace(storyboardId, { sceneId, tool: activeTool });
+    writeStudioWorkspacePlace(storyboardId, { sceneId, tool: activeTool, stage: activeStage });
     trackStudioCreativeEvent("SCENE_REORDERED", { storyboardId });
     await load();
   };
 
-  const creativeStage =
-    workspaceViewMode === "preview" ?
-      "preview"
-    : inferStudioCreativeStage({
-        hasScenes: scenes.length > 0,
-        activeTool,
-      });
-  const stageLabelKey = `studio.workflow.stage.${creativeStage}` as TranslationKey;
+  const productionReadiness = useMemo(
+    () => (storyboard ? resolveStudioProductionReadiness(storyboard) : null),
+    [storyboard]
+  );
+  const stageTools = useMemo(() => toolsForStage(activeStage), [activeStage]);
+  const productionStageLabelKey = STAGE_LABEL_KEYS[activeStage] as TranslationKey;
   const isPreviewMode = workspaceViewMode === "preview";
   const saveState =
     savingSceneId ? "saving"
@@ -513,6 +575,8 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
             activeTool={activeTool}
             onToolChange={handleToolChange}
             variant="side"
+            allowedTools={stageTools}
+            allowShowAll={advancedFeatures}
           />
         : null}
 
@@ -522,9 +586,27 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
           storyboardId={storyboardId}
           showMakeVideo={Boolean(storyboard && !loadFailure)}
           saveState={saveState}
-          workflowStageLabel={storyboard && !loadFailure ? t(stageLabelKey) : null}
+          workflowStageLabel={storyboard && !loadFailure ? t(productionStageLabelKey) : null}
         />
 
+        {storyboard && !loadFailure && !isPreviewMode ?
+          <StudioProductionStageNav
+            activeStage={activeStage}
+            stageStatuses={productionReadiness?.stages ?? []}
+            onStageChange={handleStageChange}
+            disabled={loading}
+          />
+        : null}
+
+        {productionReadiness && storyboard && !loadFailure && !isPreviewMode ?
+          <div className={`px-4 pt-2 text-xs text-zinc-600 sm:px-6 ${widthClass}`}>
+            <p data-testid="studio-recommended-action">
+              {t(
+                `studio.productionStage.action.${productionReadiness.recommendedActionCode}` as TranslationKey
+              )}
+            </p>
+          </div>
+        : null}
         {advancedFeatures ?
           <div className={`flex w-full flex-wrap items-center gap-2 px-4 pt-2 sm:px-6 ${widthClass}`}>
             <Link
@@ -641,10 +723,26 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                 </button>
               : null}
 
-              {motionProjects.length > 0 ?
+              {activeStage === "finish" && !isPreviewMode ?
+                <div className="mb-4" data-testid="studio-finish-hub">
+                  <StudioFinishHub
+                    storyboard={storyboard}
+                    hasCompletedFinal={Boolean(primaryMotion?.hasCompletedFinal)}
+                    motionProjectId={primaryMotion?.id ?? null}
+                    onGoStage={handleStageChange}
+                    onSelectTool={(tool) => {
+                      setActiveTool(tool);
+                      setMobilePane("editor");
+                    }}
+                  />
+                </div>
+              : null}
+
+              {motionProjects.length > 0 && activeStage !== "finish" ?
                 <StudioWorkspaceProductionBanner
                   projects={motionProjects}
                   onOpenRender={() => {
+                    setActiveStage("finish");
                     setActiveTool("render");
                     setMobilePane("editor");
                   }}
@@ -819,7 +917,13 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
         )}
 
         {storyboard && !loadFailure && layoutPlan.showBottomToolStrip && !isPreviewMode ?
-          <StudioToolStrip activeTool={activeTool} onToolChange={handleToolChange} variant="bottom" />
+          <StudioToolStrip
+            activeTool={activeTool}
+            onToolChange={handleToolChange}
+            variant="bottom"
+            allowedTools={stageTools}
+            allowShowAll={advancedFeatures}
+          />
         : null}
 
         {storyboard && activeScene && activeSceneIndex >= 0 && layoutPlan.showOnDemandAiEntry && !permanentRobot ?

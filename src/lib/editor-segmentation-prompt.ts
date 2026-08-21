@@ -8,7 +8,8 @@ export type EditorClickSegmentPrompt =
   | "person"
   | "background"
   | "text"
-  | "product";
+  | "product"
+  | "clothing";
 
 const PROMPT_ALIASES: Record<string, EditorClickSegmentPrompt> = {
   globe: "globe",
@@ -36,6 +37,14 @@ const PROMPT_ALIASES: Record<string, EditorClickSegmentPrompt> = {
   product: "product",
   prop: "product",
   object: "product",
+  clothing: "clothing",
+  clothes: "clothing",
+  outfit: "clothing",
+  jacket: "clothing",
+  shirt: "clothing",
+  coat: "clothing",
+  torso: "clothing",
+  upper_body: "clothing",
 };
 
 export function normalizeEditorSegmentPrompt(raw: string | undefined | null): string {

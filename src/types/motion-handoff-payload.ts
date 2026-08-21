@@ -271,6 +271,8 @@ export type MotionHandoffScene = SceneSnapshot & {
   sceneExecutionPackage?: StudioSceneExecutionPackage;
   /** V30: final combined execution prompt for generation. */
   executionPrompt?: string;
+  /** S2A: scene context hash from Unified Production Context. */
+  productionSceneContextHash?: string;
   /** V31: timed voice segment for this scene (metadata for Motion export). */
   voiceSegment?: MotionVoiceSegmentHandoff;
   /** V33: primary speaker on this scene. */
@@ -433,5 +435,7 @@ export type MotionHandoffPayload = {
   brandLockedAssets?: import("@/types/brand-asset-protection").BrandLockedAsset[];
   /** Sprint E: summary log for motion lock bridge (metadata only). */
   brandMotionLockLog?: import("@/types/brand-asset-protection").BrandMotionLockLog;
+  /** S2A: compact UPC snapshot for lineage / rerender. */
+  productionContext?: import("@/types/studio-unified-production-context").CompactProductionContextSnapshot;
   scenes: MotionHandoffScene[];
 };
