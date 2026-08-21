@@ -39,10 +39,11 @@ See `PRODUCTION-RELEASE-INVENTORY.md`.
 
 | Deploy | Notes |
 |--------|-------|
-| `dpl_AkM7saY5PsQQucZhBgYEAkR7CRgm` | First S2 deploy (`d80c5e8f`) — verified on `studio.homecheff.eu` via `data-dpl-id` + “Mijn projecten” + finish/stage i18n in JS |
-| Hotfix `homecheff-motion-4dvr3x7x8-…` | Building/Ready for `0512021d` (image[] fix) — confirm alias after Ready |
+| `dpl_AkM7saY5PsQQucZhBgYEAkR7CRgm` | First S2 deploy (`d80c5e8f`) — verified “Mijn projecten” + finish/stage i18n |
+| `dpl_5DAQnrEAgmBzysYLW8Zs6zK7TMyx` | Hotfix + docs era (`0512021d`/`d624cd53`) — **current** Production alias (`data-dpl-id` confirmed) |
 
-Production URL: https://studio.homecheff.eu
+Production URL: https://studio.homecheff.eu  
+**Current Production HEAD (feature):** `0512021d` (image[] fix); docs commit `d624cd53` may still be deploying.
 
 ## 6. Production feature verification
 
