@@ -9,6 +9,7 @@ import { isVideoRenderWorkerMode } from "@/lib/video-render-mode";
 import {
   clipsReadyForFinalizeRepair,
   dispatchInstantPremiumWorkerMerge,
+  isExportMergeStuck,
   REPAIR_WORKER_DISPATCH_STALE_MS,
 } from "@/server/instant-premium/finalize-repair";
 import { canMarkVideoRepairCompleted } from "@/server/instant-premium/start-instant-video-repair";
@@ -30,6 +31,7 @@ export async function reconcileVideoRepairState(projectId: string): Promise<void
           outputVideoUrl: true,
           errorMessage: true,
           progress: true,
+          updatedAt: true,
         },
       },
     },
@@ -119,16 +121,25 @@ export async function reconcileVideoRepairState(projectId: string): Promise<void
     ? clipsReadyForFinalizeRepair(fullProject.instantMode, fullProject.transitions)
     : false;
 
-  if (
-    repairStale &&
-    clipsReady &&
-    project.instantWorkerJobStatus === "queued" &&
-    isVideoRenderWorkerMode()
-  ) {
+  const exportStuck =
+    exportRow?.status === "rendering" &&
+    isExportMergeStuck({
+      status: exportRow.status,
+      progress: exportRow.progress ?? 0,
+      updatedAt: exportRow.updatedAt ?? new Date(0),
+    });
+
+  const workerNeedsRedispatch =
+    project.instantWorkerJobStatus === "queued" ||
+    (project.instantWorkerJobStatus === "running" && exportStuck);
+
+  if (repairStale && clipsReady && workerNeedsRedispatch && isVideoRenderWorkerMode()) {
     console.info("[instant-video-repair]", {
-      phase: "stale_queued_redispatch",
+      phase: exportStuck ? "stale_running_redispatch" : "stale_queued_redispatch",
       projectId,
       repairStartedAt: audit.startedAt,
+      workerStatus: project.instantWorkerJobStatus,
+      exportProgress: exportRow?.progress ?? null,
     });
     void dispatchInstantPremiumWorkerMerge(projectId, { force: true });
   }

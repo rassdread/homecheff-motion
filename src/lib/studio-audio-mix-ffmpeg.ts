@@ -38,7 +38,11 @@ export function buildStudioAudioMixFilterComplex(params: {
   let inputIndex = 0;
 
   if (params.hasVoice) {
-    chains.push(`[${inputIndex}:a]volume=${params.plan.voiceVolume.toFixed(3)}[a${inputIndex}]`);
+    // Pad/trim voice to full plan duration so amix cannot truncate music/SFX
+    // that land after the spoken take (duration=first + short VO was a cert P1).
+    chains.push(
+      `[${inputIndex}:a]volume=${params.plan.voiceVolume.toFixed(3)},apad,atrim=0:${dur.toFixed(3)},asetpts=PTS-STARTPTS[a${inputIndex}]`
+    );
     labels.push(`[a${inputIndex}]`);
     inputIndex++;
   }
@@ -103,7 +107,9 @@ export function buildStudioAudioMixFilterComplex(params: {
   }
 
   const mixInputs = labels.length;
-  chains.push(`${labels.join("")}amix=inputs=${mixInputs}:duration=first:dropout_transition=0[aout]`);
+  chains.push(
+    `${labels.join("")}amix=inputs=${mixInputs}:duration=longest:dropout_transition=0[aout]`
+  );
   return {
     filterComplex: chains.join(";"),
     outputLabel: "[aout]",

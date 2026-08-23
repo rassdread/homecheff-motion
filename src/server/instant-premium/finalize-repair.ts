@@ -231,11 +231,12 @@ export async function orchestrateFinalMerge(
   options?: { force?: boolean; awaitWorker?: boolean }
 ): Promise<void> {
   if (isVideoRenderWorkerMode()) {
+    const force = Boolean(options?.force);
+    const pollCompletion = () => runFinalExportToCompletion(projectId, { force });
+
     if (options?.awaitWorker) {
-      const dispatched = await dispatchInstantPremiumWorkerMerge(projectId, options);
-      if (!dispatched.ok) {
-        await runFinalExportToCompletion(projectId, { force: Boolean(options?.force) });
-      }
+      await dispatchInstantPremiumWorkerMerge(projectId, options);
+      await pollCompletion();
       return;
     }
 
@@ -251,6 +252,13 @@ export async function orchestrateFinalMerge(
       .catch(() => undefined);
 
     triggerInstantPremiumWorkerMerge(projectId, options);
+    void pollCompletion().catch((error) => {
+      console.warn("[hc-instant-premium]", {
+        projectId,
+        phase: "merge_completion_poll_failed",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
     return;
   }
   if (options?.awaitWorker) {

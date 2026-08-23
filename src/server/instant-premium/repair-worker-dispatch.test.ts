@@ -32,9 +32,18 @@ describe("repair worker dispatch", () => {
     );
   });
 
+  it("finalize repair orchestrate polls after worker dispatch", () => {
+    const src = readFileSync(join(__dirname, "finalize-repair.ts"), "utf8");
+    assert.match(src, /runFinalExportToCompletion/);
+    assert.match(src, /merge_completion_poll_failed/);
+    assert.ok(
+      src.includes("await pollCompletion()") || src.includes("await runFinalExportToCompletion")
+    );
+  });
+
   it("reconcile re-dispatches stale queued repair when clips exist", () => {
     const src = readFileSync(join(__dirname, "reconcile-video-repair.ts"), "utf8");
-    assert.match(src, /stale_queued_redispatch/);
+    assert.match(src, /stale_queued_redispatch|stale_running_redispatch/);
     assert.match(src, /dispatchInstantPremiumWorkerMerge/);
   });
 });
