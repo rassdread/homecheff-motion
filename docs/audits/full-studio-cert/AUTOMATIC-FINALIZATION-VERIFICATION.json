@@ -1,62 +1,40 @@
 {
-  "at": "2026-08-24T22:40:30.000Z",
+  "at": "2026-08-24T23:50:00.000Z",
   "projectId": "cmt5hnj1s0003jh09hns3vu4v",
-  "path": "DB reset (pending/generating) → GET /status only → expected orchestrateFinalMerge",
-  "deployShaExpected": "90926699+",
   "classification": "WORKING",
   "certified": false,
-  "viduNewJobs": 0,
-  "creditsDebited": 0,
-  "segmentsPreserved": true,
-  "forbiddenHits": [],
-  "evidence": {
-    "afterReset": {
-      "projectStatus": "generating",
-      "exportStatus": "pending",
-      "exportProgress": 0,
-      "workerJobStatus": null
-    },
-    "getStatusPolls": {
-      "countObserved": 62,
-      "intervalMs": 5000,
-      "observedStates": [
-        "finalizing / merging_clips / displayProgress 70 / worker=running / activeOperation=repair|rebuild / noVideo"
-      ],
-      "exportRowDuringStall": {
-        "status": "pending",
-        "progress": 0,
-        "outputVideoUrl": null,
-        "note": "API displayed 70 via isRestoringFinalVideo Math.max(70, progress); export never advanced"
-      },
-      "durationMsBeforeExternalIntervention": 440000
-    },
-    "contamination": {
-      "occurred": true,
-      "at": "2026-08-24T22:39:40Z",
-      "action": "DIAGNOSTIC direct POST VIDEO_WORKER /jobs/instant-premium/:id/process force=true",
-      "result": { "ok": true, "status": "completed", "elapsedMsApprox": 23000 },
-      "whyNotCertified": "Completion was caused by direct worker invocation, not by GET /status automatic handoff. Script falsely printed CERTIFIED; corrected here."
-    },
-    "afterDiagnosticWorker": {
-      "projectStatus": "completed",
-      "workerJobStatus": "completed",
-      "progressPercent": 100,
-      "finalVideoUrlPresent": true
-    }
+  "repairShas": [
+    "45a66190",
+    "f23e644f",
+    "6bfe9849",
+    "fd1b317f",
+    "38b2d32e",
+    "5ac94c7c"
+  ],
+  "rootCause": {
+    "primary": "L_STATUS_ORCHESTRATE_FIRE_AND_FORGET_DIES_ON_SERVERLESS",
+    "secondaryAfterRepair": "H_FINAL_UPLOAD_FAILURE_ON_AUTOMATIC_PATH",
+    "progressDisplay": "J_PROGRESS_DISPLAY_STALE"
   },
-  "rootCauseConfirmed": {
-    "id": "STATUS_ORCHESTRATE_DISPATCH_NOT_SURVIVING_SERVERLESS",
-    "detail": "orchestrateFinalMerge (worker mode, non-awaitWorker) fire-and-forgets dispatchInstantPremiumWorkerMerge + runFinalExportToCompletion. On Production GET /status the isolate returns before the worker HTTP runs; DB is left instantWorkerJobStatus=running while AnimationExport stays pending/0. Manual rebuild and direct worker process both complete in ~20–23s.",
-    "contrast": {
-      "rebuildFinalVideo": "awaits runFinalExportToCompletion → WORKS",
-      "directWorkerProcess": "WORKS (~23s)",
-      "getStatusAutomatic": "STALLS (export pending, UI 70%)"
-    }
+  "rebuildContrast": {
+    "ok": true,
+    "elapsedMsApprox": 20810,
+    "finalVideoUrlPresent": true,
+    "note": "Diagnostic only — not CERTIFIED proof"
+  },
+  "automaticPath": {
+    "viduNewJobs": 0,
+    "creditsDebited": 0,
+    "playableFinalViaGetStatusOnly": false,
+    "lastErrors": [
+      "Final video upload failed.",
+      "Worker request failed (500)",
+      "GET status client timeout while awaiting runFinalExportToCompletion"
+    ]
   },
   "gates": {
     "AUTOMATIC_FINAL_VIDEO_MERGE": "WORKING",
     "INSTANT_MERGE_RECOVERY": "WORKING",
-    "INSTANT_MERGE_IDEMPOTENCY": "WORKING",
-    "NORMAL_PATH_PROVIDER_READY_TO_FINAL": "FAILED_THIS_REPLAY"
+    "INSTANT_MERGE_IDEMPOTENCY": "WORKING"
   }
 }
