@@ -21,7 +21,10 @@ export type EcosystemProduct = {
   compactName: string;
   benefit: string;
   detail?: string;
+  /** Authenticated / in-app deep link (may use silent SSO). */
   href: string;
+  /** Public product root — preferred for marketing, footer, and crawlable surfaces. */
+  publicHref: string;
 };
 
 export const ECOSYSTEM_PRODUCTS: readonly EcosystemProduct[] = [
@@ -32,6 +35,7 @@ export const ECOSYSTEM_PRODUCTS: readonly EcosystemProduct[] = [
     benefit: "Ontdek, deel en verdien lokaal.",
     detail: "Zelfgemaakte producten, diensten en lokaal vakmanschap.",
     href: "https://homecheff.eu",
+    publicHref: "https://homecheff.eu/",
   },
   {
     id: "studio",
@@ -41,6 +45,7 @@ export const ECOSYSTEM_PRODUCTS: readonly EcosystemProduct[] = [
     detail: "Van idee tot beeld, video, stem en verhaal.",
     // SP.2D-C5 — deep-link ecosystem silent (parity with Growth; skip bare `/` hop).
     href: "https://studio.homecheff.eu/auth/sso/silent?mode=ecosystem&returnTo=%2F",
+    publicHref: "https://studio.homecheff.eu/",
   },
   {
     id: "growth",
@@ -49,6 +54,7 @@ export const ECOSYSTEM_PRODUCTS: readonly EcosystemProduct[] = [
     benefit: "Vind klanten en laat je bedrijf groeien.",
     detail: "Slimmer zoeken, leads vinden en kansen omzetten in groei.",
     href: "https://growth.homecheff.eu/auth/sso/silent?mode=ecosystem&returnTo=%2F",
+    publicHref: "https://growth.homecheff.eu/",
   },
 ] as const;
 
@@ -64,4 +70,15 @@ export function ecosystemProductById(id: EcosystemProductId): EcosystemProduct {
   const found = ECOSYSTEM_PRODUCTS.find((p) => p.id === id);
   if (!found) throw new Error(`Unknown ecosystem product: ${id}`);
   return found;
+}
+
+/** Marketing/footer surfaces use public roots so crawlers see clean product URLs. */
+export function ecosystemProductHref(
+  product: EcosystemProduct,
+  surface: EcosystemNavSurface,
+): string {
+  if (surface === "marketing" || surface === "footer") {
+    return product.publicHref;
+  }
+  return product.href;
 }

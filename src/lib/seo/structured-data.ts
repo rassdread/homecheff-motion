@@ -21,7 +21,11 @@ export function buildOrganizationJsonLd() {
       name: ORGANIZATION_NAME,
     },
     parentOrganization: { "@id": PARENT_ORG_ID },
-    sameAs: ["https://homecheff.eu", "https://www.linkedin.com/company/homecheff"],
+    sameAs: [
+      "https://homecheff.eu",
+      "https://homecheff.eu/ecosystem",
+      "https://www.linkedin.com/company/homecheff",
+    ],
   };
 }
 
@@ -56,9 +60,11 @@ export function buildSoftwareApplicationJsonLd(input?: {
   description?: string;
   featureList?: string[];
 }) {
+  const origin = getCanonicalStudioOrigin();
   return {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
+    "@id": `${origin}/#app`,
     name: input?.name ?? SITE_NAME,
     applicationCategory: "MultimediaApplication",
     operatingSystem: "Web",
@@ -66,7 +72,9 @@ export function buildSoftwareApplicationJsonLd(input?: {
     image: absoluteUrl(HOMECHEFF_BRAND_ICON_PATHS.source),
     description:
       input?.description ??
-      "AI video production software with image-to-video generation, storyboards, voice, subtitles, translation, and publishing.",
+      "CREATE layer of HomeCheff — AI video production with image-to-video, storyboards, voice, subtitles, translation, and publishing.",
+    isPartOf: { "@id": PARENT_ORG_ID },
+    provider: { "@id": PARENT_ORG_ID },
     featureList: input?.featureList ?? [
       "AI storyboard planning",
       "Image-to-video motion",
@@ -83,6 +91,7 @@ export function buildSoftwareApplicationJsonLd(input?: {
     publisher: {
       "@type": "Organization",
       name: ORGANIZATION_NAME,
+      "@id": PARENT_ORG_ID,
     },
   };
 }
