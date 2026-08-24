@@ -1,0 +1,8 @@
+browserType.connectOverCDP: fetch failed
+    at main (/Users/sergioarrias/HomeCheffProjects/homecheff video ai/scripts/_full-studio-cert-iphone-landscape-only.ts:24:32)
+    at <anonymous> (/Users/sergioarrias/HomeCheffProjects/homecheff video ai/scripts/_full-studio-cert-iphone-landscape-only.ts:107:1)
+    at Object.<anonymous> (/Users/sergioarrias/HomeCheffProjects/homecheff video ai/scripts/_full-studio-cert-iphone-landscape-only.ts:110:2)
+    at Object.transformer (/Users/sergioarrias/HomeCheffProjects/homecheff video ai/node_modules/tsx/dist/register-C557imBs.cjs:9:3619) {
+  log: [],
+  name: 'TypeError'
+}

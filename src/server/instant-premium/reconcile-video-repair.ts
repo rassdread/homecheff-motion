@@ -131,7 +131,12 @@ export async function reconcileVideoRepairState(projectId: string): Promise<void
 
   const workerNeedsRedispatch =
     project.instantWorkerJobStatus === "queued" ||
-    (project.instantWorkerJobStatus === "running" && exportStuck);
+    (project.instantWorkerJobStatus === "running" &&
+      (exportStuck ||
+        (!exportRow?.outputVideoUrl?.trim() &&
+          (exportRow?.status === "pending" ||
+            exportRow?.status === "queued" ||
+            (exportRow?.progress ?? 0) === 0))));
 
   if (repairStale && clipsReady && workerNeedsRedispatch && isVideoRenderWorkerMode()) {
     console.info("[instant-video-repair]", {
@@ -140,6 +145,7 @@ export async function reconcileVideoRepairState(projectId: string): Promise<void
       repairStartedAt: audit.startedAt,
       workerStatus: project.instantWorkerJobStatus,
       exportProgress: exportRow?.progress ?? null,
+      exportStatus: exportRow?.status ?? null,
     });
     void dispatchInstantPremiumWorkerMerge(projectId, { force: true });
   }

@@ -1,0 +1,70 @@
+
+*** CRITICAL: On iPhone Control Center, turn OFF Portrait Orientation Lock (lock icon). ***
+*** Then physically rotate to LANDSCAPE. Waiting up to 3 minutes… ***
+
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+  portrait 414x750
+
+*** Rotate back to PORTRAIT. Waiting 90s… ***
+
+  portrait 414x750
+{
+  "classification": "FAILED",
+  "failed": [
+    "landscape"
+  ],
+  "land": {
+    "w": 414,
+    "h": 750,
+    "orient": "portrait",
+    "so": "portrait-primary"
+  },
+  "port": {
+    "w": 414,
+    "h": 750,
+    "orient": "portrait"
+  }
+}

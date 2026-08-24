@@ -1,0 +1,40 @@
+{
+  "verdict": "STUDIO_FULL_PRODUCT_CERTIFICATION_BLOCKED",
+  "productionCommit": "9092669914c41bca24a246e437641246a7640eb1",
+  "productionUrl": "https://studio.homecheff.eu",
+  "date": "2026-08-24",
+  "newViduCalls": 0,
+  "certAccountBalance": 0,
+  "targets": {
+    "A_AUDIO": "CERTIFIED",
+    "B_AUTOMATIC_FINAL_VIDEO_MERGE": "WORKING",
+    "C_PHYSICAL_IPHONE_ADVANCED": "PARTIAL"
+  },
+  "physicalIphone": {
+    "portrait": "PASS",
+    "landscape": "PASS",
+    "orientationRecovery": "FAIL_OR_NOT_REMEASURED",
+    "usbThisTurn": false,
+    "classification": "PARTIAL"
+  },
+  "audio": {
+    "mixDurationSeconds": 10,
+    "mp4DurationSeconds": 10,
+    "duckingDeltaDb": -7.8,
+    "sfxLatePresent": true,
+    "providerCalls": 0
+  },
+  "merge": {
+    "rootCausePrior": "MERGE_DISPATCH_NOT_AWAITED",
+    "fixCommit": "90926699",
+    "rebuildWorks": true,
+    "directWorkerProcessWorks": true,
+    "getStatusAutomaticPath": "FAILED_THIS_REPLAY",
+    "automaticE2eWithoutRebuild": false,
+    "detail": "GET /status leaves export pending/0 while worker=running; UI shows 70%. Completion after diagnostic worker POST is not CERTIFIED."
+  },
+  "blockers": [
+    "ORIENTATION_RECOVERY requires USB + inspectable Safari",
+    "AUTOMATIC_FINAL_VIDEO_MERGE normal GET /status path not proven"
+  ]
+}

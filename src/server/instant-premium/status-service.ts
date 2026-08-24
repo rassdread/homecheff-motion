@@ -260,7 +260,9 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
   if (transitionsCompleted && refreshed.status !== "completed") {
     const stuckInfo = detectFinalizationStuck(refreshed);
     if (stuckInfo.shouldAutoRepair || refreshed.status === "failed_overlay") {
-      void startInstantVideoRepair(projectId, {
+      // Await acceptance so Next.js `after()` is registered before the response ends.
+      // Do not await the background merge itself.
+      await startInstantVideoRepair(projectId, {
         force: true,
         source: "status-auto",
       }).catch((error) => {

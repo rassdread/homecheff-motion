@@ -1,0 +1,78 @@
+current=landscape 800x301
+
+*** Rotate PHYSICAL iPhone back to PORTRAIT now. Waiting up to 3 min… ***
+
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+  landscape 800x301 so=landscape-primary
+{
+  "classification": "FAILED",
+  "failed": [
+    "orientation_recovery"
+  ],
+  "recoveryPass": false,
+  "port": {
+    "w": 800,
+    "h": 301,
+    "mmLandscape": true,
+    "so": "landscape-primary",
+    "orient": "landscape"
+  }
+}

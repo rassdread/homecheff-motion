@@ -1,0 +1,72 @@
+tabs=1; connecting…
+START orient=landscape 800x301 so=landscape-primary
+Expected portrait at start — continue anyway.
+
+*** Orientation Lock OFF. Physically rotate iPhone to LANDSCAPE now. Waiting up to 3 min… ***
+
+  landscape 800x301 so=landscape-primary mm=true
+
+*** Rotate back to PORTRAIT now. Waiting 2 min… ***
+
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+  landscape 800x301
+{
+  "classification": "FAILED",
+  "failed": [
+    "orientation_recovery"
+  ],
+  "landscapePass": true,
+  "recoveryPass": false,
+  "land": {
+    "w": 800,
+    "h": 301,
+    "mmLandscape": true,
+    "so": "landscape-primary",
+    "orient": "landscape"
+  },
+  "port": {
+    "w": 800,
+    "h": 301,
+    "mmLandscape": true,
+    "so": "landscape-primary",
+    "orient": "landscape"
+  }
+}

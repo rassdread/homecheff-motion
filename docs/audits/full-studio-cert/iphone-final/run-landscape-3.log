@@ -1,0 +1,3 @@
+Error: NO_INSPECTABLE_SAFARI_TAB
+    at connectBrowser (/Users/sergioarrias/HomeCheffProjects/homecheff video ai/scripts/_full-studio-cert-iphone-landscape-only.ts:39:17)
+    at async main (/Users/sergioarrias/HomeCheffProjects/homecheff video ai/scripts/_full-studio-cert-iphone-landscape-only.ts:93:19)

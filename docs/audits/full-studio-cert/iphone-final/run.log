@@ -1,0 +1,18 @@
+Connecting physical iPhone CDP http://127.0.0.1:9222
+
+*** MANUAL: Rotate the PHYSICAL iPhone to LANDSCAPE and leave Safari on Studio. Waiting 90s… ***
+
+
+*** MANUAL: Still portrait — rotate to landscape now. Waiting 60s more… ***
+
+
+*** MANUAL: Rotate the PHYSICAL iPhone back to PORTRAIT. Waiting 90s… ***
+
+{
+  "classification": "FAILED",
+  "failed": [
+    "stage_verhaal_portrait",
+    "landscape"
+  ],
+  "providerHits": 0
+}

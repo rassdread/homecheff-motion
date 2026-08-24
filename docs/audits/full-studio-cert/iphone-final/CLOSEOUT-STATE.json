@@ -1,0 +1,15 @@
+{
+  "at": "2026-08-24T22:55:57.069Z",
+  "ORIENTATION_RECOVERY": "FAIL",
+  "PHYSICAL_IPHONE_ADVANCED": "PARTIAL",
+  "port": {
+    "w": 800,
+    "h": 301,
+    "mmLandscape": true,
+    "so": "landscape-primary",
+    "orient": "landscape"
+  },
+  "afrondenOk": true,
+  "scrollOk": true,
+  "shot": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/full-studio-cert/iphone-final/1787612156943-portrait-recovery-final.png"
+}

@@ -154,4 +154,49 @@ describe("detectFinalizationStuck", () => {
       true
     );
   });
+
+  it("detects false running lease when export stays pending/idle past threshold", () => {
+    const info = detectFinalizationStuck({
+      status: "rendering",
+      instantWorkerJobStatus: "running",
+      instantWorkerJobStartedAt: old,
+      transitions: completedTransitions,
+      exports: [
+        {
+          status: "pending",
+          progress: 0,
+          outputVideoUrl: null,
+          updatedAt: old,
+        },
+      ],
+    });
+    assert.equal(info.isStuck, true);
+    assert.equal(info.mergeInProgress, false);
+    assert.equal(info.shouldAutoRepair, true);
+    assert.equal(info.reason, "false_running_export_idle");
+  });
+
+  it("keeps mergeInProgress for recent queued/running lease under threshold", () => {
+    const info = detectFinalizationStuck({
+      status: "rendering",
+      instantWorkerJobStatus: "queued",
+      instantWorkerJobStartedAt: recent,
+      transitions: completedTransitions,
+      exports: [
+        {
+          status: "pending",
+          progress: 0,
+          outputVideoUrl: null,
+          updatedAt: recent,
+        },
+      ],
+    });
+    assert.equal(info.mergeInProgress, true);
+    assert.equal(info.shouldAutoRepair, false);
+  });
+
+  it("stale threshold is materially above typical ~23s merge", () => {
+    assert.ok(FINALIZATION_STUCK_MS >= 60_000);
+    assert.ok(FINALIZATION_STUCK_MS <= 5 * 60_000);
+  });
 });

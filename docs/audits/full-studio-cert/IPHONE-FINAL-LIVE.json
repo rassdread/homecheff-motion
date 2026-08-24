@@ -1,0 +1,128 @@
+{
+  "startedAt": "2026-08-24T04:46:05.076Z",
+  "productionUrl": "https://studio.homecheff.eu",
+  "storyboardId": "cmt5izwgu0001gq0444v3ipil",
+  "cdp": "http://127.0.0.1:9222",
+  "deviceEvidence": "PHYSICAL",
+  "expectedProviderCalls": 0,
+  "run": "r2-robust",
+  "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3 Mobile/15E148 Safari/604.1",
+  "gates": [
+    {
+      "gate": "auth",
+      "pass": true,
+      "evidence": "https://studio.homecheff.eu/projects"
+    },
+    {
+      "gate": "project_library_mobile",
+      "pass": true,
+      "evidence": "docs/audits/full-studio-cert/iphone-final/1787546769100-r2-projects.png; overflow=false"
+    },
+    {
+      "gate": "open_project",
+      "pass": true,
+      "evidence": "{\"navVisible\":true,\"url\":\"https://studio.homecheff.eu/studio?storyboardId=cmt5izwgu0001gq0444v3ipil&stage=story&continueInStudio=1&hcProject=hcproj_1787546769606_tcy6nd85\",\"stageInUrl\":true}"
+    },
+    {
+      "gate": "stage_verhaal_portrait",
+      "pass": true,
+      "evidence": "{\"r\":{\"navVisible\":true,\"url\":\"https://studio.homecheff.eu/studio?storyboardId=cmt5izwgu0001gq0444v3ipil&stage=story&continueInStudio=1&hcProject=hcproj_1787546773937_k1xii0p2\",\"stageInUrl\":true},\"ov\":{\"scrollWidth\":414,\"clientWidth\":414,\"overflow\":false},\"o\":{\"w\":414,\"h\":750,\"mmLandscape\":false,\"screenOrientation\":\"portrait-primary\",\"orient\":\"portrait\"},\"preview\":null,\"shotPath\":\"docs/audits/full-studio-cert/iphone-final/1787546777609-r2-verhaal.png\",\"selectedSceneHint\":\"2Scene 25s · 0 pers.\"}"
+    },
+    {
+      "gate": "stage_beeld_portrait",
+      "pass": true,
+      "evidence": "{\"r\":{\"navVisible\":true,\"url\":\"https://studio.homecheff.eu/studio?storyboardId=cmt5izwgu0001gq0444v3ipil&stage=visuals&continueInStudio=1&hcProject=hcproj_1787546778128_ecz4lvpo\",\"stageInUrl\":true},\"ov\":{\"scrollWidth\":414,\"clientWidth\":414,\"overflow\":false},\"o\":{\"w\":414,\"h\":750,\"mmLandscape\":false,\"screenOrientation\":\"portrait-primary\",\"orient\":\"portrait\"},\"preview\":{\"visibleImages\":2,\"visibleVideos\":0,\"blackishSample\":false,\"imgNatural\":\"1024x1024\"},\"shotPath\":\"docs/audits/full-studio-cert/iphone-final/1787546782747-r2-beeld.png\",\"selectedSceneHint\":\"2Scene 25s · 0 pers.\"}"
+    },
+    {
+      "gate": "stage_personen_portrait",
+      "pass": true,
+      "evidence": "{\"r\":{\"navVisible\":true,\"url\":\"https://studio.homecheff.eu/studio?storyboardId=cmt5izwgu0001gq0444v3ipil&stage=entities&continueInStudio=1&hcProject=hcproj_1787546783694_7x93knrs\",\"stageInUrl\":true},\"ov\":{\"scrollWidth\":414,\"clientWidth\":414,\"overflow\":false},\"o\":{\"w\":414,\"h\":750,\"mmLandscape\":false,\"screenOrientation\":\"portrait-primary\",\"orient\":\"portrait\"},\"preview\":null,\"shotPath\":\"docs/audits/full-studio-cert/iphone-final/1787546787361-r2-personen.png\",\"selectedSceneHint\":\"2Scene 25s · 0 pers.\"}"
+    },
+    {
+      "gate": "stage_geluid_portrait",
+      "pass": true,
+      "evidence": "{\"r\":{\"navVisible\":true,\"url\":\"https://studio.homecheff.eu/studio?storyboardId=cmt5izwgu0001gq0444v3ipil&stage=sound&continueInStudio=1&hcProject=hcproj_1787546787723_fsumdfd9\",\"stageInUrl\":true},\"ov\":{\"scrollWidth\":414,\"clientWidth\":414,\"overflow\":false},\"o\":{\"w\":414,\"h\":750,\"mmLandscape\":false,\"screenOrientation\":\"portrait-primary\",\"orient\":\"portrait\"},\"preview\":null,\"shotPath\":\"docs/audits/full-studio-cert/iphone-final/1787546791515-r2-geluid.png\",\"selectedSceneHint\":\"2Scene 25s · 0 pers.\"}"
+    },
+    {
+      "gate": "stage_afronden_portrait",
+      "pass": true,
+      "evidence": "{\"r\":{\"navVisible\":true,\"url\":\"https://studio.homecheff.eu/studio?storyboardId=cmt5izwgu0001gq0444v3ipil&stage=finish&continueInStudio=1&hcProject=hcproj_1787546791952_3y5hdlm1\",\"stageInUrl\":true},\"ov\":{\"scrollWidth\":414,\"clientWidth\":414,\"overflow\":false},\"o\":{\"w\":414,\"h\":750,\"mmLandscape\":false,\"screenOrientation\":\"portrait-primary\",\"orient\":\"portrait\"},\"preview\":null,\"shotPath\":\"docs/audits/full-studio-cert/iphone-final/1787546795757-r2-afronden.png\",\"selectedSceneHint\":\"2Scene 25s · 0 pers.\"}"
+    },
+    {
+      "gate": "scene_persistence",
+      "pass": true,
+      "evidence": "hint=2Scene 25s · 0 pers.; preview={\"visibleImages\":2,\"visibleVideos\":0,\"blackishSample\":false,\"imgNatural\":\"1024x1024\"}"
+    },
+    {
+      "gate": "black_preview_regression",
+      "pass": true,
+      "evidence": "{\"visibleImages\":2,\"visibleVideos\":0,\"blackishSample\":false,\"imgNatural\":\"1024x1024\"}"
+    },
+    {
+      "gate": "landscape",
+      "pass": true,
+      "evidence": "{\"land\":{\"w\":800,\"h\":301,\"mmLandscape\":true,\"so\":\"landscape-primary\",\"orient\":\"landscape\"},\"nav\":true,\"ovL\":false,\"stages\":{\"story\":true,\"visuals\":true,\"entities\":true,\"sound\":true,\"finish\":true},\"previewL\":{\"visibleImages\":1,\"blackishSample\":false,\"natural\":\"1024x1024\"},\"landShot\":\"/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/full-studio-cert/iphone-final/1787585813396-land-pass.png\"}"
+    },
+    {
+      "gate": "orientation_recovery",
+      "pass": false,
+      "evidence": "{\"metrics\":{\"w\":800,\"h\":301,\"mmLandscape\":true,\"so\":\"landscape-primary\",\"orient\":\"landscape\",\"nav\":true,\"overflow\":false,\"preview\":{\"visibleImages\":1,\"blackishSample\":false,\"natural\":\"1024x1024\"},\"url\":\"https://studio.homecheff.eu/studio?storyboardId=cmt5izwgu0001gq0444v3ipil&stage=visuals&continueInStudio=1&hcProject=hcproj_1787585776673_b6lyqnmk\",\"bodyOverflow\":\"clip visible\"},\"afrondenOk\":true,\"scrollOk\":true,\"shot\":\"/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/full-studio-cert/iphone-final/1787612156943-portrait-recovery-final.png\",\"device\":\"PHYSICAL\"}"
+    },
+    {
+      "gate": "black_preview_after_rotation",
+      "pass": true,
+      "evidence": "{\"visibleImages\":1,\"blackishSample\":false,\"natural\":\"1024x1024\"}"
+    },
+    {
+      "gate": "finish_mobile",
+      "pass": true,
+      "evidence": "https://studio.homecheff.eu/studio?storyboardId=cmt5izwgu0001gq0444v3ipil&stage=finish&continueInStudio=1&hcProject=hcproj_1787546942837_dujikuas; docs/audits/full-studio-cert/iphone-final/1787546946247-r2-afronden.png"
+    },
+    {
+      "gate": "projects_return",
+      "pass": true,
+      "evidence": "https://studio.homecheff.eu/projects; docs/audits/full-studio-cert/iphone-final/1787546949260-r2-projects-return.png"
+    },
+    {
+      "gate": "safe_areas",
+      "pass": true,
+      "evidence": "{\"paddingTop\":\"0px\",\"paddingBottom\":\"n/a\",\"bodyOverflow\":\"clip visible\"}"
+    },
+    {
+      "gate": "touch_interaction",
+      "pass": true,
+      "evidence": "stage chips clicked via data-testid on physical device"
+    }
+  ],
+  "providerHits": 0,
+  "providerUrls": [],
+  "classification": "FAILED",
+  "failedGates": [
+    "orientation_recovery"
+  ],
+  "endedAt": "2026-08-24T04:49:09.389Z",
+  "landscapeResumeAt": "2026-08-24T15:38:54.861Z",
+  "before": {
+    "w": 800,
+    "h": 301,
+    "mmLandscape": true,
+    "so": "landscape-primary",
+    "orient": "landscape"
+  },
+  "land": {
+    "w": 800,
+    "h": 301,
+    "mmLandscape": true,
+    "so": "landscape-primary",
+    "orient": "landscape"
+  },
+  "port": {
+    "w": 800,
+    "h": 301,
+    "mmLandscape": true,
+    "so": "landscape-primary",
+    "orient": "landscape"
+  },
+  "portraitRecoveryAt": "2026-08-24T22:55:57.060Z",
+  "recoveryPass": false
+}

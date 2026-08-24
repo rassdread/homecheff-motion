@@ -1,0 +1,39 @@
+Connecting CDP http://127.0.0.1:9222
+
+*** MANUAL: Rotate PHYSICAL iPhone to LANDSCAPE now. Waiting 120s… ***
+
+  orient=portrait 414x750 mm=false so=portrait-primary
+  orient=portrait 414x750 mm=false so=portrait-primary
+  orient=portrait 414x750 mm=false so=portrait-primary
+  orient=portrait 414x750 mm=false so=portrait-primary
+  orient=portrait 414x750 mm=false so=portrait-primary
+  orient=portrait 414x750 mm=false so=portrait-primary
+  orient=portrait 414x750 mm=false so=portrait-primary
+  orient=portrait 414x750 mm=false so=portrait-primary
+  orient=portrait 414x750 mm=false so=portrait-primary
+  orient=portrait 414x750 mm=false so=portrait-primary
+  orient=portrait 414x750 mm=false so=portrait-primary
+  orient=portrait 414x750 mm=false so=portrait-primary
+  orient=portrait 414x750 mm=false so=portrait-primary
+  orient=portrait 414x750 mm=false so=portrait-primary
+  orient=portrait 414x750 mm=false so=portrait-primary
+  orient=portrait 414x750 mm=false so=portrait-primary
+  orient=portrait 414x750 mm=false so=portrait-primary
+  orient=portrait 414x750 mm=false so=portrait-primary
+  orient=portrait 414x750 mm=false so=portrait-primary
+  orient=portrait 414x750 mm=false so=portrait-primary
+  orient=portrait 414x750 mm=false so=portrait-primary
+  orient=portrait 414x750 mm=false so=portrait-primary
+  orient=portrait 414x750 mm=false so=portrait-primary
+  orient=portrait 414x750 mm=false so=portrait-primary
+
+*** MANUAL: Rotate PHYSICAL iPhone to PORTRAIT now. Waiting 90s… ***
+
+  orient=portrait 414x750 mm=false so=portrait-primary
+{
+  "classification": "FAILED",
+  "failed": [
+    "landscape"
+  ],
+  "providerHits": 0
+}
