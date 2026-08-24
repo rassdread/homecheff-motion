@@ -406,8 +406,11 @@ export async function orchestrateFinalMerge(
       mode: options?.awaitWorker ? "awaitWorker" : "await_dispatch_in_request",
     });
 
+    // When no playable final exists, force the shared merge primitive (same as rebuild).
+    // Without force, the worker can early-return status=running while another lease is
+    // mid-flight and the status caller treats that as a successful handoff.
     const dispatched = await dispatchInstantPremiumWorkerMerge(projectId, {
-      force,
+      force: true,
     });
     if (!dispatched.ok) {
       return;
