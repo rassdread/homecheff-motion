@@ -403,6 +403,10 @@ export async function orchestrateFinalMerge(
       mode: "trigger_and_poll",
     });
 
+    // Match rebuild: clear failed/pending export so merge starts from a clean lease
+    // (otherwise worker/upload can fail against a stale failed export row).
+    await resetInstantRepairExportState(projectId);
+
     await runFinalExportToCompletion(projectId, { force: true });
     return;
   }

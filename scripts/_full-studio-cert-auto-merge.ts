@@ -180,23 +180,27 @@ async function main() {
     let first: Record<string, unknown> | null = null;
     let last: Record<string, unknown> | null = null;
     for (let i = 0; i < 72; i++) {
-      const r = await ctx.request.get(
-        `${STUDIO}/api/instant-premium/projects/${PROJECT_ID}/status`,
-        { timeout: 180_000 }
-      );
-      const j = (await r.json()) as Record<string, unknown>;
-      if (!first) first = j;
-      last = j;
-      console.log(
-        i,
-        j.status,
-        j.phase,
-        j.progressPercent,
-        j.finalVideoUrl ? "hasVideo" : "noVideo",
-        j.workerJobStatus,
-        j.activeOperation
-      );
-      if (j.status === "completed" && j.finalVideoUrl) break;
+      try {
+        const r = await ctx.request.get(
+          `${STUDIO}/api/instant-premium/projects/${PROJECT_ID}/status`,
+          { timeout: 180_000 }
+        );
+        const j = (await r.json()) as Record<string, unknown>;
+        if (!first) first = j;
+        last = j;
+        console.log(
+          i,
+          j.status,
+          j.phase,
+          j.progressPercent,
+          j.finalVideoUrl ? "hasVideo" : "noVideo",
+          j.workerJobStatus,
+          j.activeOperation
+        );
+        if (j.status === "completed" && j.finalVideoUrl) break;
+      } catch (err) {
+        console.log(i, "GET_ERROR", err instanceof Error ? err.message : String(err));
+      }
       await sleep(5000);
     }
 
