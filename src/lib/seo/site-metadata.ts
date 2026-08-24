@@ -13,13 +13,39 @@ const SITE_NAME = "HomeCheff Studio";
 const DEFAULT_DESCRIPTION = PUBLIC_PAGE_SEO.home.description;
 
 /** Routes that should not appear in search indexes. */
-export const SEO_NOINDEX_PATH_PREFIXES = ["/account", "/admin", "/mijn-verbruik"] as const;
+export const SEO_NOINDEX_PATH_PREFIXES = [
+  "/account",
+  "/admin",
+  "/mijn-verbruik",
+  "/editor",
+  "/library",
+  "/projects",
+  "/signup",
+] as const;
+
+/** Application/tool surfaces — excluded from sitemap, noindex via layout metadata. */
+export const SEO_APP_TOOL_PATHS = [
+  PUBLIC_PAGE_SEO.editor.path,
+  PUBLIC_PAGE_SEO.library.path,
+  PUBLIC_PAGE_SEO.projects.path,
+  PUBLIC_PAGE_SEO.signup.path,
+] as const;
 
 export function buildNoIndexMetadata(): Metadata {
   return {
     robots: {
       index: false,
       follow: false,
+    },
+  };
+}
+
+/** Authenticated app/tool routes: exclude from index, allow follow for exit links. */
+export function buildAppToolNoIndexMetadata(): Metadata {
+  return {
+    robots: {
+      index: false,
+      follow: true,
     },
   };
 }
@@ -148,16 +174,16 @@ export function buildArticleJsonLd(input: {
 
 const HELP_SITEMAP_PATHS = HELP_ARTICLES.map((article) => `/help/${article.slug}` as const);
 
-export const SEO_PUBLIC_PATHS = [
+/** Marketing + help + programmatic content hubs included in XML sitemap. */
+export const SEO_SITEMAP_PATHS = [
   PUBLIC_PAGE_SEO.home.path,
   PUBLIC_PAGE_SEO.pricing.path,
   PUBLIC_PAGE_SEO.help.path,
   PUBLIC_PAGE_SEO.studio.path,
-  PUBLIC_PAGE_SEO.editor.path,
   PUBLIC_PAGE_SEO.motion.path,
-  PUBLIC_PAGE_SEO.library.path,
-  PUBLIC_PAGE_SEO.projects.path,
-  PUBLIC_PAGE_SEO.signup.path,
   ...HELP_SITEMAP_PATHS,
   ...SEO_CONTENT_PATHS,
 ] as const;
+
+/** Legacy alias — sitemap generation uses SEO_SITEMAP_PATHS only. */
+export const SEO_PUBLIC_PATHS = SEO_SITEMAP_PATHS;

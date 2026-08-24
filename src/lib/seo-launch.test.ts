@@ -25,15 +25,14 @@ describe("SEO launch readiness", () => {
     for (const path of [
       "/",
       "/studio",
-      "/editor",
       "/animate/instant",
       "/pricing",
       "/help",
-      "/library",
-      "/projects",
-      "/signup",
     ]) {
       assert.ok(SEO_PUBLIC_PATHS.includes(path as (typeof SEO_PUBLIC_PATHS)[number]), path);
+    }
+    for (const path of ["/editor", "/library", "/projects", "/signup"]) {
+      assert.ok(!SEO_PUBLIC_PATHS.includes(path as (typeof SEO_PUBLIC_PATHS)[number]), path);
     }
     for (const article of HELP_ARTICLES) {
       const path = `/help/${article.slug}`;
@@ -102,11 +101,23 @@ describe("SEO launch readiness", () => {
       "src/app/account/layout.tsx",
       "src/app/admin/layout.tsx",
       "src/app/mijn-verbruik/layout.tsx",
+      "src/app/editor/layout.tsx",
+      "src/app/library/layout.tsx",
+      "src/app/projects/layout.tsx",
+      "src/app/signup/layout.tsx",
     ]) {
       const source = read(file);
-      assert.match(source, /buildNoIndexMetadata/);
+      assert.match(source, /buildNoIndexMetadata|buildAppToolNoIndexMetadata/);
     }
-    assert.deepEqual(SEO_NOINDEX_PATH_PREFIXES, ["/account", "/admin", "/mijn-verbruik"]);
+    assert.deepEqual(SEO_NOINDEX_PATH_PREFIXES, [
+      "/account",
+      "/admin",
+      "/mijn-verbruik",
+      "/editor",
+      "/library",
+      "/projects",
+      "/signup",
+    ]);
   });
 
   it("robots disallows private prefixes and references sitemap", () => {
@@ -118,10 +129,17 @@ describe("SEO launch readiness", () => {
     assert.match(robots, /sitemap/);
   });
 
-  it("sitemap is driven by SEO_PUBLIC_PATHS only", () => {
+  it("sitemap is driven by SEO_SITEMAP_PATHS only", () => {
     const sitemap = read("src/app/sitemap.ts");
-    assert.match(sitemap, /SEO_PUBLIC_PATHS/);
+    assert.match(sitemap, /SEO_SITEMAP_PATHS/);
     assert.doesNotMatch(sitemap, /HELP_ARTICLES/);
+  });
+
+  it("anonymous homepage does not silent-SSO redirect", () => {
+    const page = read("src/app/page.tsx");
+    const middleware = read("src/middleware.ts");
+    assert.doesNotMatch(page, /maybeSilentHydratePublicStudio/);
+    assert.doesNotMatch(middleware, /maybePublicSilentHydrate/);
   });
 
   it("major public routes have dedicated metadata layouts", () => {

@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { absoluteUrl, SEO_PUBLIC_PATHS } from "@/lib/seo/site-metadata";
+import { absoluteUrl, SEO_SITEMAP_PATHS } from "@/lib/seo/site-metadata";
 
 function priorityForPath(path: string): number {
   if (path === "/") return 1;
@@ -13,7 +13,7 @@ function priorityForPath(path: string): number {
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
-  return SEO_PUBLIC_PATHS.map((path) => ({
+  return SEO_SITEMAP_PATHS.map((path) => ({
     url: absoluteUrl(path),
     lastModified: now,
     changeFrequency: "weekly" as const,

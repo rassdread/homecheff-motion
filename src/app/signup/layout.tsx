@@ -2,7 +2,7 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { CommercialSeoEnrichment } from "@/components/seo/commercial-seo-enrichment";
 import { buildFaqPageJsonLd, buildSoftwareApplicationJsonLd } from "@/lib/seo/structured-data";
 import { PUBLIC_PAGE_SEO } from "@/lib/seo/public-pages";
-import { buildPageMetadata } from "@/lib/seo/site-metadata";
+import { buildAppToolNoIndexMetadata, buildPageMetadata } from "@/lib/seo/site-metadata";
 
 const seo = PUBLIC_PAGE_SEO.signup;
 
@@ -19,11 +19,14 @@ const SIGNUP_FAQ = [
   },
 ];
 
-export const metadata = buildPageMetadata({
-  title: seo.title,
-  description: seo.description,
-  path: seo.path,
-});
+export const metadata = {
+  ...buildPageMetadata({
+    title: seo.title,
+    description: seo.description,
+    path: seo.path,
+  }),
+  ...buildAppToolNoIndexMetadata(),
+};
 
 export default function SignupLayout({ children }: { children: React.ReactNode }) {
   return (

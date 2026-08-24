@@ -4,31 +4,40 @@ import { absoluteUrl } from "@/lib/seo/site-metadata";
 
 const SITE_NAME = "HomeCheff Studio";
 const ORGANIZATION_NAME = "HomeCheff";
+const PARENT_ORG_ID = "https://homecheff.eu/#organization";
+const PARENT_WEBSITE_ID = "https://homecheff.eu/#website";
 
 export function buildOrganizationJsonLd() {
+  const origin = getCanonicalStudioOrigin();
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
+    "@id": `${origin}/#organization`,
     name: ORGANIZATION_NAME,
-    url: getCanonicalStudioOrigin(),
+    url: origin,
     logo: absoluteUrl(HOMECHEFF_BRAND_ICON_PATHS.source),
     brand: {
       "@type": "Brand",
       name: ORGANIZATION_NAME,
     },
-    sameAs: [] as string[],
+    parentOrganization: { "@id": PARENT_ORG_ID },
+    sameAs: ["https://homecheff.eu", "https://www.linkedin.com/company/homecheff"],
   };
 }
 
 export function buildWebSiteJsonLd() {
+  const origin = getCanonicalStudioOrigin();
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
+    "@id": `${origin}/#website`,
     name: SITE_NAME,
     url: absoluteUrl("/"),
+    isPartOf: { "@id": PARENT_WEBSITE_ID },
     publisher: {
       "@type": "Organization",
       name: ORGANIZATION_NAME,
+      "@id": PARENT_ORG_ID,
     },
     potentialAction: {
       "@type": "SearchAction",

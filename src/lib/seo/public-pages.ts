@@ -3,7 +3,7 @@ export const PUBLIC_PAGE_SEO = {
   home: {
     title: "HomeCheff Studio",
     description:
-      "AI video production line for creators and teams — image-to-video, AI storyboards, voice, subtitles, translation, and publishing in one connected workflow.",
+      "HomeCheff Studio is the CREATE layer of HomeCheff — make promotional images, video and content for products, services and businesses. Part of the HomeCheff ecosystem alongside Marketplace and Growth.",
     path: "/",
   },
   editor: {
