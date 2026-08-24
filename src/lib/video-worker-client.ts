@@ -98,13 +98,16 @@ export async function fetchWorkerVideoHealth(): Promise<WorkerHealthResponse | n
 
 async function postWorkerJob(
   path: string,
-  options?: { force?: boolean }
+  options?: { force?: boolean; timeoutMs?: number }
 ): Promise<WorkerJobResponse> {
+  const timeoutMs = options?.timeoutMs ?? 30_000;
   const res = await fetch(`${workerBaseUrl()}${path}`, {
     method: "POST",
     headers: workerHeaders(),
-    body: JSON.stringify(options ?? {}),
-    signal: AbortSignal.timeout(30_000),
+    body: JSON.stringify(
+      typeof options?.force === "boolean" ? { force: options.force } : {}
+    ),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   const body = (await res.json().catch(() => ({}))) as WorkerJobResponse & { error?: string };
   if (!res.ok) {
@@ -118,22 +121,28 @@ export function triggerWorkerInstantPremiumProcess(
   projectId: string,
   options?: { force?: boolean }
 ): void {
-  void postWorkerJob(`/jobs/instant-premium/${encodeURIComponent(projectId)}/process`, options).catch(
-    (error) => {
-      console.info("[hc-instant-premium]", {
-        projectId,
-        phase: "worker_trigger_failed",
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  );
+  void postWorkerJob(`/jobs/instant-premium/${encodeURIComponent(projectId)}/process`, {
+    force: Boolean(options?.force),
+    // Merge + upload often exceeds 30s; do not abort mid-upload.
+    timeoutMs: 180_000,
+  }).catch((error) => {
+    console.info("[hc-instant-premium]", {
+      projectId,
+      phase: "worker_trigger_failed",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
 }
 
 export async function requestWorkerInstantPremiumProcess(
   projectId: string,
   options?: { force?: boolean }
 ): Promise<WorkerJobResponse> {
-  return postWorkerJob(`/jobs/instant-premium/${encodeURIComponent(projectId)}/process`, options);
+  return postWorkerJob(`/jobs/instant-premium/${encodeURIComponent(projectId)}/process`, {
+    force: Boolean(options?.force),
+    // Await full merge+upload (typically ~20–40s; cap aligned with status maxDuration).
+    timeoutMs: 180_000,
+  });
 }
 
 export async function requestWorkerRetryOverlay(projectId: string): Promise<WorkerJobResponse> {
