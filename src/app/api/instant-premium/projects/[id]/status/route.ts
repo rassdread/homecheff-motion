@@ -6,6 +6,9 @@ import { getAnimationProjectByIdForViewer } from "@/server/animation-projects/qu
 import { getInstantPremiumStatus } from "@/server/instant-premium/status-service";
 import type { InstantPremiumStatusApiResponse } from "@/types/animation-api";
 
+/** Allow in-request worker merge handoff (~20–25s) when segments become finalization-eligible. */
+export const maxDuration = 300;
+
 type RouteContext = {
   params: Promise<{ id: string }>;
 };

@@ -113,11 +113,11 @@ describe("automatic finalization orchestration contract", () => {
     assert.match(rebuild, /ProjectRenderVersion|renderVersion|billingImpact|aiCreditsUsed/);
   });
 
-  it("16–18: status path schedules durable after() dispatch and awaits repair acceptance", () => {
+  it("16–18: status path awaits worker dispatch in-request and awaits repair acceptance", () => {
     const finalize = read("finalize-repair.ts");
     const status = read("status-service.ts");
-    assert.match(finalize, /after\(/);
-    assert.match(finalize, /mode: "after_dispatch"/);
+    assert.match(finalize, /await_dispatch_in_request/);
+    assert.match(finalize, /await dispatchInstantPremiumWorkerMerge/);
     assert.match(status, /await startInstantVideoRepair/);
     assert.match(status, /await orchestrateFinalMerge/);
     assert.ok(!status.includes("void startInstantVideoRepair(projectId"));

@@ -34,24 +34,23 @@ describe("repair worker dispatch", () => {
     );
   });
 
-  it("finalize repair orchestrate schedules dispatch via after() and awaits worker when required", () => {
+  it("finalize repair orchestrate awaits worker dispatch in-request", () => {
     const src = readFileSync(join(__dirname, "finalize-repair.ts"), "utf8");
     assert.match(src, /runFinalExportToCompletion/);
     assert.match(src, /merge_completion_poll_failed/);
-    assert.match(src, /from "next\/server"/);
-    assert.match(src, /after\(/);
+    assert.match(src, /await_dispatch_in_request/);
     assert.match(src, /FINAL_MERGE_DISPATCH_START/);
     assert.match(src, /markFinalMergeDispatchFailed/);
     assert.match(src, /claimFinalMergeQueued/);
-    assert.ok(src.includes("await runFinalExportToCompletion"));
-    // Must not fire-and-forget triggerInstantPremiumWorkerMerge on the status path.
-    assert.ok(!/triggerInstantPremiumWorkerMerge\(projectId,\s*options\);\s*\n\s*void/.test(src));
+    assert.match(src, /await dispatchInstantPremiumWorkerMerge/);
   });
 
-  it("status-auto repair awaits acceptance so after() can register", () => {
-    const src = readFileSync(join(__dirname, "status-service.ts"), "utf8");
-    assert.match(src, /await startInstantVideoRepair/);
-    assert.ok(!src.includes("void startInstantVideoRepair(projectId"));
+  it("status route allows long enough maxDuration for in-request merge handoff", () => {
+    const src = readFileSync(
+      join(__dirname, "../../app/api/instant-premium/projects/[id]/status/route.ts"),
+      "utf8"
+    );
+    assert.match(src, /export const maxDuration = 300/);
   });
 
   it("reconcile re-dispatches stale queued repair when clips exist", () => {

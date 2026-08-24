@@ -361,11 +361,12 @@ export function triggerInstantPremiumWorkerMerge(
 }
 
 /**
- * Schedule / run final merge.
+ * Run final merge for Production worker mode.
  *
- * Production (worker mode, non-awaitWorker): claim queued lease, then use Next.js
- * `after()` so dispatch survives the GET /status response lifecycle. Never
- * fire-and-forget the worker HTTP on the request isolate.
+ * GET /status owns opportunistic dispatch. Fire-and-forget and after()-only
+ * handoffs left immortal `running` while the status isolate ended before the
+ * worker HTTP completed. Always await dispatch in-request (same reliability as
+ * rebuild); the worker process endpoint typically finishes merge in ~20–25s.
  */
 export async function orchestrateFinalMerge(
   projectId: string,
@@ -373,22 +374,6 @@ export async function orchestrateFinalMerge(
 ): Promise<void> {
   if (isVideoRenderWorkerMode()) {
     const force = Boolean(options?.force);
-
-    if (options?.awaitWorker) {
-      console.info("[hc-instant-premium]", {
-        projectId,
-        phase: "FINAL_MERGE_ELIGIBLE",
-        mode: "awaitWorker",
-      });
-      const dispatched = await dispatchInstantPremiumWorkerMerge(projectId, options);
-      if (!dispatched.ok) {
-        return;
-      }
-      if (dispatched.status !== "completed") {
-        await runFinalExportToCompletion(projectId, { force });
-      }
-      return;
-    }
 
     if (force) {
       await prisma.animationProject
@@ -418,38 +403,35 @@ export async function orchestrateFinalMerge(
     console.info("[hc-instant-premium]", {
       projectId,
       phase: "FINAL_MERGE_ELIGIBLE",
-      mode: "after_dispatch",
+      mode: options?.awaitWorker ? "awaitWorker" : "await_dispatch_in_request",
     });
 
-    const runDispatch = async () => {
-      try {
-        const dispatched = await dispatchInstantPremiumWorkerMerge(projectId, {
-          force,
-        });
-        if (!dispatched.ok) {
-          return;
-        }
-        if (dispatched.status !== "completed") {
-          await runFinalExportToCompletion(projectId, { force }).catch((error) => {
-            console.warn("[hc-instant-premium]", {
-              projectId,
-              phase: "merge_completion_poll_failed",
-              error: error instanceof Error ? error.message : String(error),
-            });
-          });
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        await markFinalMergeDispatchFailed(projectId, message).catch(() => undefined);
+    const dispatched = await dispatchInstantPremiumWorkerMerge(projectId, {
+      force,
+    });
+    if (!dispatched.ok) {
+      return;
+    }
+    if (dispatched.status !== "completed") {
+      // Worker accepted async job — poll DB to completion when caller requires it,
+      // otherwise schedule a bounded poll after the response.
+      if (options?.awaitWorker) {
+        await runFinalExportToCompletion(projectId, { force });
+        return;
       }
-    };
-
-    // Prefer Next.js after() so work survives GET /status response completion.
-    // Fall back to detached promise only when after() is unavailable (non-request contexts).
-    try {
-      after(runDispatch);
-    } catch {
-      void runDispatch();
+      const poll = () =>
+        runFinalExportToCompletion(projectId, { force }).catch((error) => {
+          console.warn("[hc-instant-premium]", {
+            projectId,
+            phase: "merge_completion_poll_failed",
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
+      try {
+        after(poll);
+      } catch {
+        void poll();
+      }
     }
     return;
   }
