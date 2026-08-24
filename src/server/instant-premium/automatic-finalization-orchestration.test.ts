@@ -113,11 +113,11 @@ describe("automatic finalization orchestration contract", () => {
     assert.match(rebuild, /ProjectRenderVersion|renderVersion|billingImpact|aiCreditsUsed/);
   });
 
-  it("16–18: status path awaits worker dispatch in-request and awaits repair acceptance", () => {
+  it("16–18: status path uses rebuild-identical trigger_and_poll and awaits repair acceptance", () => {
     const finalize = read("finalize-repair.ts");
     const status = read("status-service.ts");
-    assert.match(finalize, /await_dispatch_in_request/);
-    assert.match(finalize, /await dispatchInstantPremiumWorkerMerge/);
+    assert.match(finalize, /trigger_and_poll/);
+    assert.match(finalize, /await runFinalExportToCompletion/);
     assert.match(status, /await startInstantVideoRepair/);
     assert.match(status, /await orchestrateFinalMerge/);
     assert.ok(!status.includes("void startInstantVideoRepair(projectId"));

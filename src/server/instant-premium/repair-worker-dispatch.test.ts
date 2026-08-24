@@ -34,15 +34,14 @@ describe("repair worker dispatch", () => {
     );
   });
 
-  it("finalize repair orchestrate awaits worker dispatch in-request", () => {
+  it("finalize repair orchestrate uses trigger_and_poll like rebuild", () => {
     const src = readFileSync(join(__dirname, "finalize-repair.ts"), "utf8");
     assert.match(src, /runFinalExportToCompletion/);
-    assert.match(src, /merge_completion_poll_failed/);
-    assert.match(src, /await_dispatch_in_request/);
+    assert.match(src, /trigger_and_poll/);
     assert.match(src, /FINAL_MERGE_DISPATCH_START/);
     assert.match(src, /markFinalMergeDispatchFailed/);
     assert.match(src, /claimFinalMergeQueued/);
-    assert.match(src, /await dispatchInstantPremiumWorkerMerge/);
+    assert.match(src, /await runFinalExportToCompletion/);
   });
 
   it("status route allows long enough maxDuration for in-request merge handoff", () => {
@@ -51,6 +50,12 @@ describe("repair worker dispatch", () => {
       "utf8"
     );
     assert.match(src, /export const maxDuration = 300/);
+  });
+
+  it("status-auto repair awaits acceptance so after() can register", () => {
+    const src = readFileSync(join(__dirname, "status-service.ts"), "utf8");
+    assert.match(src, /await startInstantVideoRepair/);
+    assert.ok(!src.includes("void startInstantVideoRepair(projectId"));
   });
 
   it("reconcile re-dispatches stale queued repair when clips exist", () => {

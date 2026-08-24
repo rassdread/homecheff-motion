@@ -1,4 +1,3 @@
-import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isInstantPremiumExportCompleted } from "@/lib/instant-premium-export-status";
 import { isVideoRenderWorkerMode } from "@/lib/video-render-mode";
@@ -363,19 +362,17 @@ export function triggerInstantPremiumWorkerMerge(
 /**
  * Run final merge for Production worker mode.
  *
- * GET /status owns opportunistic dispatch. Fire-and-forget and after()-only
- * handoffs left immortal `running` while the status isolate ended before the
- * worker HTTP completed. Always await dispatch in-request (same reliability as
- * rebuild); the worker process endpoint typically finishes merge in ~20–25s.
+ * Proven reliable pattern (same as rebuild): claim lease → trigger worker
+ * (non-blocking HTTP start) → poll DB until export completes. Awaiting the
+ * full worker HTTP response caused Production 500 / "Final video upload failed"
+ * while rebuild's trigger+poll path succeeded on the same assets.
  */
 export async function orchestrateFinalMerge(
   projectId: string,
   options?: { force?: boolean; awaitWorker?: boolean }
 ): Promise<void> {
   if (isVideoRenderWorkerMode()) {
-    const force = Boolean(options?.force);
-
-    if (force) {
+    if (options?.force) {
       await prisma.animationProject
         .update({
           where: { id: projectId },
@@ -403,39 +400,10 @@ export async function orchestrateFinalMerge(
     console.info("[hc-instant-premium]", {
       projectId,
       phase: "FINAL_MERGE_ELIGIBLE",
-      mode: options?.awaitWorker ? "awaitWorker" : "await_dispatch_in_request",
+      mode: "trigger_and_poll",
     });
 
-    // When no playable final exists, force the shared merge primitive (same as rebuild).
-    // Without force, the worker can early-return status=running while another lease is
-    // mid-flight and the status caller treats that as a successful handoff.
-    const dispatched = await dispatchInstantPremiumWorkerMerge(projectId, {
-      force: true,
-    });
-    if (!dispatched.ok) {
-      return;
-    }
-    if (dispatched.status !== "completed") {
-      // Worker accepted async job — poll DB to completion when caller requires it,
-      // otherwise schedule a bounded poll after the response.
-      if (options?.awaitWorker) {
-        await runFinalExportToCompletion(projectId, { force });
-        return;
-      }
-      const poll = () =>
-        runFinalExportToCompletion(projectId, { force }).catch((error) => {
-          console.warn("[hc-instant-premium]", {
-            projectId,
-            phase: "merge_completion_poll_failed",
-            error: error instanceof Error ? error.message : String(error),
-          });
-        });
-      try {
-        after(poll);
-      } catch {
-        void poll();
-      }
-    }
+    await runFinalExportToCompletion(projectId, { force: true });
     return;
   }
   if (options?.awaitWorker) {
