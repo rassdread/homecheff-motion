@@ -38,4 +38,24 @@ describe("resolveFinalBlobVersionForUpload", () => {
     );
     assert.equal(finalBlobPathname("proj-1", 0), "motion/final/proj-1/final.mp4");
   });
+
+  it("bumps versioned blob path for automatic re-finalization after prior rebuilds", () => {
+    assert.equal(
+      resolveFinalBlobVersionForUpload({
+        pendingRenderVersionNumber: null,
+        isMergeOnlyTextRebuild: false,
+        nextTextRebuildCount: 5,
+        existingRebuildCount: 4,
+      }),
+      5
+    );
+    assert.equal(
+      finalBlobPathname("proj-1", 5),
+      "motion/final/proj-1/final-v5.mp4"
+    );
+    assert.notEqual(
+      finalBlobPathname("proj-1", 5),
+      "motion/final/proj-1/final.mp4"
+    );
+  });
 });

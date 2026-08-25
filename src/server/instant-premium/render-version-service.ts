@@ -69,11 +69,17 @@ export function resolveFinalBlobVersionForUpload(params: {
   pendingRenderVersionNumber: number | null;
   isMergeOnlyTextRebuild: boolean;
   nextTextRebuildCount: number;
+  /** Completed rebuild cycles on project (automatic re-finalization after prior finals). */
+  existingRebuildCount?: number;
 }): number {
   if (params.pendingRenderVersionNumber != null && params.pendingRenderVersionNumber > 0) {
     return params.pendingRenderVersionNumber;
   }
   if (params.isMergeOnlyTextRebuild && params.nextTextRebuildCount > 0) {
+    return params.nextTextRebuildCount;
+  }
+  const existing = params.existingRebuildCount ?? 0;
+  if (existing > 0 && params.nextTextRebuildCount > 0) {
     return params.nextTextRebuildCount;
   }
   return 0;

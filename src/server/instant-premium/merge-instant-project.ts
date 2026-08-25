@@ -197,6 +197,7 @@ async function uploadMergedVideoToBlob(
     body,
     contentType: "video/mp4",
     addRandomSuffix: false,
+    allowOverwrite: true,
     context: {
       projectId,
       uploadTarget,
@@ -227,6 +228,7 @@ async function uploadCleanFinalVideoToBlob(
     body,
     contentType: "video/mp4",
     addRandomSuffix: false,
+    allowOverwrite: true,
     context: {
       projectId,
       uploadTarget,
@@ -305,7 +307,20 @@ export async function retryUploadLocalMergedFinalVideo(projectId: string): Promi
   });
 
   try {
-    const finalUrl = await uploadMergedVideoToBlob(projectId, localPath);
+    const finalBlobVersion = resolveFinalBlobVersionForUpload({
+      pendingRenderVersionNumber: null,
+      isMergeOnlyTextRebuild: false,
+      nextTextRebuildCount: project.instantFinalRebuildCount + 1,
+      existingRebuildCount: project.instantFinalRebuildCount,
+    });
+    const previousFinalUrl =
+      project.instantPreviousFinalVideoUrl?.trim() ??
+      exportRow?.outputVideoUrl?.trim() ??
+      null;
+    const finalUrl = await uploadMergedVideoToBlob(projectId, localPath, {
+      rebuildVersion: finalBlobVersion,
+      previousFinalUrl,
+    });
     const lockedLayers = parseLockedTextLayersJson(project.instantLockedTextLayers);
     const textValidation = validateLockedTextLayerMetadata(lockedLayers);
     await prisma.animationExport.update({
@@ -993,6 +1008,7 @@ export async function executeInstantPremiumMerge(
         pendingRenderVersionNumber: pendingRender?.renderVersionNumber ?? null,
         isMergeOnlyTextRebuild: isTextRebuild,
         nextTextRebuildCount: project.instantFinalRebuildCount + 1,
+        existingRebuildCount: project.instantFinalRebuildCount,
       });
       const cleanUrl = await persistCleanFinalVideoUrl(projectId, mergedPath, finalBlobVersion);
 
@@ -1240,8 +1256,12 @@ export async function executeInstantPremiumMerge(
         data: { progress: 85, status: "rendering" },
       });
       setFinalExportStage(projectId, "upload", { exportId: exportRow.id });
-      const isRebuild = isTextRebuild;
-      const nextRebuildCount = isRebuild ? project.instantFinalRebuildCount + 1 : 0;
+      const isVersionedAutomaticRefinalization =
+        !isTextRebuild && finalBlobVersion > 0 && project.instantFinalRebuildCount > 0;
+      const isRebuild = isTextRebuild || isVersionedAutomaticRefinalization;
+      const nextRebuildCount = isRebuild
+        ? Math.max(finalBlobVersion, project.instantFinalRebuildCount + 1)
+        : 0;
       const previousFinalUrl =
         project.instantPreviousFinalVideoUrl?.trim() ??
         latestExport?.outputVideoUrl?.trim() ??

@@ -74,6 +74,7 @@ export async function replaceFinalVideoBlobSafely(
       body,
       contentType: "video/mp4",
       addRandomSuffix: false,
+      allowOverwrite: true,
       context: {
         projectId,
         uploadTarget,
