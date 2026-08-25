@@ -1,26 +1,29 @@
 {
-  "at": "2026-08-24T23:50:00.000Z",
+  "at": "2026-08-26T00:00:00.000Z",
   "projectId": "cmt5hnj1s0003jh09hns3vu4v",
   "classification": "WORKING",
   "certified": false,
+  "firstDivergence": {
+    "fact": "automatic upload targeted final.mp4 allowOverwrite=false; rebuild used final-vN.mp4 allowOverwrite=true",
+    "primaryRootCause": "H6_STORAGE_KEY_COLLISION",
+    "secondaryRootCause": "H3_STORAGE_REQUEST_REJECTED",
+    "doc": "TARGET-B-FIRST-DIVERGENCE.md"
+  },
+  "fixSha": "32abbba208666a8c37a0aa543c0210e7d4987935",
   "repairShas": [
     "45a66190",
     "f23e644f",
     "6bfe9849",
     "fd1b317f",
     "38b2d32e",
-    "5ac94c7c"
+    "5ac94c7c",
+    "32abbba2"
   ],
-  "rootCause": {
-    "primary": "L_STATUS_ORCHESTRATE_FIRE_AND_FORGET_DIES_ON_SERVERLESS",
-    "secondaryAfterRepair": "H_FINAL_UPLOAD_FAILURE_ON_AUTOMATIC_PATH",
-    "progressDisplay": "J_PROGRESS_DISPLAY_STALE"
-  },
   "rebuildContrast": {
     "ok": true,
-    "elapsedMsApprox": 20810,
+    "elapsedMsApprox": 20635,
     "finalVideoUrlPresent": true,
-    "note": "Diagnostic only — not CERTIFIED proof"
+    "note": "Forensic only — not CERTIFIED proof"
   },
   "automaticPath": {
     "viduNewJobs": 0,
@@ -28,9 +31,9 @@
     "playableFinalViaGetStatusOnly": false,
     "lastErrors": [
       "Final video upload failed.",
-      "Worker request failed (500)",
       "GET status client timeout while awaiting runFinalExportToCompletion"
-    ]
+    ],
+    "workerSourceParity": "pending Render redeploy >= 32abbba2"
   },
   "gates": {
     "AUTOMATIC_FINAL_VIDEO_MERGE": "WORKING",

@@ -17,7 +17,11 @@
 
 ### Secondary (after orchestration repair)
 
-**H. FINAL_UPLOAD_FAILURE** — automatic GET `/status` path still ends with export `Final video upload failed.` / worker HTTP 500 in several Production replays, while **manual `rebuild-final-video` succeeds** (~20s, playable `final-v4.mp4`) on the same project/segments.
+**H6 STORAGE_KEY_COLLISION / H3 STORAGE_REQUEST_REJECTED** — automatic GET `/status` path targeted legacy `final.mp4` with `allowOverwrite=false` on project with `instantFinalRebuildCount=4` and existing blob object; rebuild used versioned `final-v{N}.mp4` with overwrite allowed. Surfaced as export `Final video upload failed.` / progress 70.
+
+**Fix:** `32abbba2`. **Worker deploy required** — upload runs on Render worker (`homecheff-motion.onrender.com`), not Vercel alone.
+
+See [TARGET-B-FIRST-DIVERGENCE.md](./TARGET-B-FIRST-DIVERGENCE.md).
 
 ## Call chain (current code intent)
 

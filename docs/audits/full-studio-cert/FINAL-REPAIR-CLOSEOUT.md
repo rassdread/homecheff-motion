@@ -1,7 +1,7 @@
 # Final Repair Closeout — Summary
 
-**Date:** 2026-08-24 (orchestration repair continued)  
-**Latest repair SHA:** `5ac94c7c`  
+**Date:** 2026-08-26 (Target B first-divergence forensic)  
+**Latest repair SHA:** `32abbba2`  
 **Prior audio SHA:** `90926699`
 
 ## Verdict token
@@ -15,13 +15,13 @@ STUDIO_FULL_PRODUCT_CERTIFICATION_BLOCKED
 | Target | Status | Notes |
 |--------|--------|-------|
 | A — Audio | **CERTIFIED** | unchanged |
-| B — Automatic final merge | **WORKING** | orchestration repaired in code; Production GET `/status` replay still fails upload; rebuild works |
+| B — Automatic final merge | **WORKING** | **H6** proven: legacy `final.mp4` collision on automatic re-finalization; fix `32abbba2`; Render worker redeploy pending for cert |
 | C — Physical iPhone | **PARTIAL** | PORTRAIT+LANDSCAPE PASS preserved; ORIENTATION_RECOVERY measured landscape `800×301` |
 
 ## Target B evidence
 
-- Root cause **L** (fire-and-forget / false running) addressed: claim, maxDuration 300, trigger+poll, export reset, 180s worker client timeout, force, tests.
-- Remaining Production blocker: **H** upload failure on automatic path despite rebuild success on same assets.
+- First divergence: **H6 STORAGE_KEY_COLLISION** — see [TARGET-B-FIRST-DIVERGENCE.md](./TARGET-B-FIRST-DIVERGENCE.md)
+- Remaining Production blocker: Render worker must run `32abbba2+` (upload executes on worker)
 - Vidu new generations: **0**
 
 ## Target C evidence

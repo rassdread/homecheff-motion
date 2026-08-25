@@ -13,9 +13,9 @@
 
 | Action | Provider credits | Notes |
 |--------|------------------|-------|
-| Orchestration repairs + tests | 0 | |
-| Automatic merge replays | 0 | existing segments |
-| Diagnostic rebuild | 0 | provider-free |
+| Target B forensic + upload fix `32abbba2` | 0 | existing segments |
+| Automatic merge replays (runs 3–10) | 0 | |
+| Diagnostic rebuild (historical) | 0 | forensic contrast only |
 | New Vidu | **0** | |
 | Promo grant | **0** | |
 

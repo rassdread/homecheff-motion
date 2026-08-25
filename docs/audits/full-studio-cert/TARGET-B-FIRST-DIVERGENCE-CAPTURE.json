@@ -1,0 +1,109 @@
+{
+  "at": "2026-08-25T23:44:27.908Z",
+  "projectId": "cmt5hnj1s0003jh09hns3vu4v",
+  "exportId": "cmt5ix69w0002jh0akm0u6zzo",
+  "renderVersionId": "cmt7v3lw70000kp0azlwqxh3d",
+  "project": {
+    "id": "cmt5hnj1s0003jh09hns3vu4v",
+    "status": "failed",
+    "instantFinalRebuildCount": 4,
+    "instantPreviousFinalVideoUrl": null,
+    "instantCleanFinalVideoUrl": "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/motion/final/cmt5hnj1s0003jh09hns3vu4v/clean-v4.mp4",
+    "instantFinalRebuildStatus": null,
+    "instantWorkerJobStatus": "failed",
+    "failureReason": "merge_failed",
+    "lastOverlayError": null
+  },
+  "export": {
+    "id": "cmt5ix69w0002jh0akm0u6zzo",
+    "status": "failed",
+    "progress": 70,
+    "errorMessage": "Final video upload failed.",
+    "hasOutputVideoUrl": false,
+    "updatedAt": "2026-08-25T23:31:18.257Z"
+  },
+  "versions": [
+    {
+      "id": "cmt7v3lw70000kp0azlwqxh3d",
+      "renderVersionNumber": 4,
+      "status": "failed",
+      "finalVideoUrl": null,
+      "exportId": null,
+      "updatedAt": "2026-08-24T23:27:06.110Z"
+    },
+    {
+      "id": "cmt6eiei70000ji0a8gz8jga4",
+      "renderVersionNumber": 3,
+      "status": "failed",
+      "finalVideoUrl": null,
+      "exportId": null,
+      "updatedAt": "2026-08-24T23:23:17.508Z"
+    },
+    {
+      "id": "cmt6edag50000kp0blstlsszg",
+      "renderVersionNumber": 2,
+      "status": "completed",
+      "finalVideoUrl": "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/motion/final/cmt5hnj1s0003jh09hns3vu4v/final-v2.mp4",
+      "exportId": "cmt5ix69w0002jh0akm0u6zzo",
+      "updatedAt": "2026-08-23T22:51:08.112Z"
+    }
+  ],
+  "uploadTargetAnalysis": {
+    "instantFinalRebuildCount": 4,
+    "nextTextRebuildCount": 5,
+    "automaticPreFixTarget": "motion/final/cmt5hnj1s0003jh09hns3vu4v/final.mp4",
+    "automaticPreFixAllowOverwrite": false,
+    "automaticPostFixTarget": "motion/final/cmt5hnj1s0003jh09hns3vu4v/final-v5.mp4",
+    "automaticPostFixUsesReplaceFinalVideoBlobSafely": true,
+    "rebuildTarget": "motion/final/cmt5hnj1s0003jh09hns3vu4v/final-v5.mp4",
+    "rebuildAllowOverwrite": true
+  },
+  "blobChecks": [
+    {
+      "pathname": "motion/final/cmt5hnj1s0003jh09hns3vu4v/final.mp4",
+      "status": 200,
+      "contentType": "video/mp4",
+      "ok": true
+    },
+    {
+      "pathname": "motion/final/cmt5hnj1s0003jh09hns3vu4v/final-v4.mp4",
+      "status": 200,
+      "contentType": "video/mp4",
+      "ok": true
+    },
+    {
+      "pathname": "motion/final/cmt5hnj1s0003jh09hns3vu4v/final-v5.mp4",
+      "status": 404,
+      "contentType": "text/plain; charset=utf-8",
+      "ok": false
+    },
+    {
+      "pathname": "motion/final/cmt5hnj1s0003jh09hns3vu4v/clean.mp4",
+      "status": 200,
+      "contentType": "video/mp4",
+      "ok": true
+    },
+    {
+      "pathname": "motion/final/cmt5hnj1s0003jh09hns3vu4v/clean-v4.mp4",
+      "status": 200,
+      "contentType": "video/mp4",
+      "ok": true
+    },
+    {
+      "pathname": "motion/final/cmt5hnj1s0003jh09hns3vu4v/clean-v5.mp4",
+      "status": 404,
+      "contentType": "text/plain; charset=utf-8",
+      "ok": false
+    }
+  ],
+  "workerHealth": {
+    "ok": true,
+    "ffmpegPath": "/usr/bin/ffmpeg",
+    "hasDrawtext": true,
+    "fontPath": "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "fontReadable": true,
+    "errors": [],
+    "service": "instant-premium-video-worker"
+  },
+  "localGitHead": "32abbba208666a8c37a0aa543c0210e7d4987935"
+}

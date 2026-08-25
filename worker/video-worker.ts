@@ -50,13 +50,30 @@ function requireWorkerAuth(
 const app = express();
 app.use(express.json({ limit: "1mb" }));
 
+function workerSourceCommit(): string | null {
+  return (
+    process.env.RENDER_GIT_COMMIT?.trim() ||
+    process.env.VERCEL_GIT_COMMIT_SHA?.trim() ||
+    process.env.SOURCE_COMMIT_SHA?.trim() ||
+    null
+  );
+}
+
 app.get("/health", (_req, res) => {
-  res.json({ status: "ok", service: "instant-premium-video-worker" });
+  res.json({
+    status: "ok",
+    service: "instant-premium-video-worker",
+    sourceCommitSha: workerSourceCommit(),
+  });
 });
 
 app.get("/health/video", async (_req, res) => {
   const report = await checkVideoFfmpegCapability();
-  const body = { ...toVideoHealthResponse(report), service: "instant-premium-video-worker" };
+  const body = {
+    ...toVideoHealthResponse(report),
+    service: "instant-premium-video-worker",
+    sourceCommitSha: workerSourceCommit(),
+  };
   res.status(body.ok ? 200 : 503).json(body);
 });
 

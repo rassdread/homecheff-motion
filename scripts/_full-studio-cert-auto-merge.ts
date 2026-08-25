@@ -30,6 +30,80 @@ function sanitize(url?: string | null) {
   }
 }
 
+/** Addendum B — full automatic chain: merge → upload → persist → version → playable. */
+async function verifyAutomaticFinalChain(projectId: string, exportId: string) {
+  const exportRow = await prisma.animationExport.findUnique({
+    where: { id: exportId },
+    select: {
+      status: true,
+      progress: true,
+      outputVideoUrl: true,
+      errorMessage: true,
+    },
+  });
+  const version = await prisma.projectRenderVersion.findFirst({
+    where: { projectId },
+    orderBy: { renderVersionNumber: "desc" },
+    select: {
+      status: true,
+      finalVideoUrl: true,
+      renderVersionNumber: true,
+      exportId: true,
+    },
+  });
+  const project = await prisma.animationProject.findUnique({
+    where: { id: projectId },
+    select: {
+      status: true,
+      instantFinalRebuildStatus: true,
+      instantFinalRebuildCount: true,
+    },
+  });
+
+  let headStatus = 0;
+  let contentType: string | null = null;
+  let playable = false;
+  const finalUrl = exportRow?.outputVideoUrl?.trim() ?? version?.finalVideoUrl?.trim() ?? null;
+  if (finalUrl) {
+    try {
+      const res = await fetch(finalUrl, { method: "HEAD", redirect: "follow" });
+      headStatus = res.status;
+      contentType = res.headers.get("content-type");
+      playable = res.ok && /video/i.test(contentType ?? "");
+    } catch (err) {
+      headStatus = 0;
+      contentType = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  const chain = {
+    exportCompleted: exportRow?.status === "completed",
+    exportHasFinalUrl: Boolean(exportRow?.outputVideoUrl),
+    exportProgress100: exportRow?.progress === 100,
+    exportError: exportRow?.errorMessage ?? null,
+    versionCompleted: version?.status === "completed",
+    versionHasFinalUrl: Boolean(version?.finalVideoUrl),
+    versionNumber: version?.renderVersionNumber ?? null,
+    projectCompleted: project?.status === "completed",
+    rebuildStatus: project?.instantFinalRebuildStatus ?? null,
+    headStatus,
+    contentType,
+    playable,
+    finalUrlSanitized: sanitize(finalUrl),
+  };
+
+  const certified =
+    chain.exportCompleted &&
+    chain.exportHasFinalUrl &&
+    chain.exportProgress100 &&
+    chain.versionCompleted &&
+    chain.versionHasFinalUrl &&
+    chain.projectCompleted &&
+    chain.playable;
+
+  return { chain, certified };
+}
+
 async function main() {
   mkdirSync(OUT, { recursive: true });
   const forbiddenHits: string[] = [];
@@ -181,9 +255,10 @@ async function main() {
     let last: Record<string, unknown> | null = null;
     for (let i = 0; i < 72; i++) {
       try {
+        const pollTimeout = i === 0 ? 300_000 : 60_000;
         const r = await ctx.request.get(
           `${STUDIO}/api/instant-premium/projects/${PROJECT_ID}/status`,
-          { timeout: 180_000 }
+          { timeout: pollTimeout }
         );
         const j = (await r.json()) as Record<string, unknown>;
         if (!first) first = j;
@@ -205,10 +280,17 @@ async function main() {
     }
 
     const elapsedMs = Date.now() - t0;
-    const ok =
+    const statusOk =
       last?.status === "completed" &&
       Boolean(last?.finalVideoUrl) &&
       forbiddenHits.length === 0;
+
+    const { chain, certified: chainCertified } = await verifyAutomaticFinalChain(
+      PROJECT_ID,
+      beforeExport.id
+    );
+
+    const ok = statusOk && chainCertified;
 
     report.trigger = {
       method: "GET /api/instant-premium/projects/:id/status only",
@@ -233,7 +315,13 @@ async function main() {
       getStatusHits: getHits.length,
       forbiddenHits,
     };
-    report.classification = ok ? "CERTIFIED" : "FAILED";
+    report.finalChain = chain;
+    report.classification = ok ? "CERTIFIED" : statusOk ? "PARTIAL_CHAIN" : "FAILED";
+    report.addendum = {
+      policy: "CERTIFICATION-EVIDENCE-POLICY.md",
+      targetBRequiresFullChain: true,
+      rebuildNotCertPath: true,
+    };
     report.viduNewJobs = 0;
     report.creditsDebited = 0;
 
