@@ -21,6 +21,7 @@ import {
   ensureInitialRenderVersion,
   failPendingFullRerenderVersion,
   loadVersionHistoryUrlSource,
+  persistFinalRenderVersionAfterExport,
   readPendingFullRerender,
 } from "@/server/instant-premium/render-version-service";
 import {
@@ -54,6 +55,8 @@ export async function commitInstantPremiumFinalVideoExport(params: {
   rebuildCandidateUrl?: string | null;
   identicalOutputDetected?: boolean;
   validationOk?: boolean;
+  /** When rebuild/re-finalization has no pending audit row, which version kind to create. */
+  renderVersionKind?: "text_rerender" | "full_rerender";
 }): Promise<void> {
   const {
     projectId,
@@ -68,6 +71,7 @@ export async function commitInstantPremiumFinalVideoExport(params: {
     rebuildCandidateUrl = null,
     identicalOutputDetected = false,
     validationOk = true,
+    renderVersionKind = "full_rerender",
   } = params;
   const rebuiltAt = new Date();
   const textValidation = validateLockedTextLayerMetadata(lockedLayers);
@@ -318,6 +322,52 @@ export async function commitInstantPremiumFinalVideoExport(params: {
           committedCleanVideoUrl?.trim() ||
           projectForVersion.instantCleanFinalVideoUrl,
         exportId,
+      });
+    } else {
+      // V1 closeout: automatic re-finalization sets isRebuild without pending audit.
+      // Reuse rebuild primitives (seal → createPending → complete) so ProjectRenderVersion
+      // always tracks the successful final blob.
+      const persisted = await persistFinalRenderVersionAfterExport({
+        project: projectForVersion,
+        finalVideoUrl: finalUrl,
+        cleanVideoUrl:
+          committedCleanVideoUrl?.trim() ||
+          projectForVersion.instantCleanFinalVideoUrl,
+        exportId,
+        previousFinalUrl,
+        kind: renderVersionKind,
+      });
+      const auditBase =
+        projectForVersion.instantFinalRebuildAuditJson &&
+        typeof projectForVersion.instantFinalRebuildAuditJson === "object" &&
+        !Array.isArray(projectForVersion.instantFinalRebuildAuditJson)
+          ? (projectForVersion.instantFinalRebuildAuditJson as Record<string, unknown>)
+          : {};
+      const lastVersionKey =
+        renderVersionKind === "text_rerender" ? "lastTextRerender" : "lastFullRerender";
+      await prisma.animationProject.update({
+        where: { id: projectId },
+        data: {
+          instantFinalRebuildAuditJson: {
+            ...auditBase,
+            pendingFullRerender: null,
+            [lastVersionKey]: {
+              renderVersionId: persisted.id,
+              renderVersionNumber: persisted.renderVersionNumber,
+              completedAt: rebuiltAt.toISOString(),
+              status: "completed",
+              finalVideoUrl: finalUrl,
+              kind: renderVersionKind,
+            },
+          } as object,
+        },
+      });
+      console.info("[hc-instant-premium]", {
+        projectId,
+        phase: "FINAL_RENDER_VERSION_PERSISTED",
+        renderVersionId: persisted.id,
+        renderVersionNumber: persisted.renderVersionNumber,
+        kind: renderVersionKind,
       });
     }
   }

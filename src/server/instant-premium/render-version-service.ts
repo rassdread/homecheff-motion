@@ -436,6 +436,76 @@ export async function completePendingFullRerenderVersion(params: {
   });
 }
 
+/**
+ * Shared post-upload version persistence for rebuild/automatic re-finalization
+ * when no pendingFullRerender audit row exists (e.g. automatic GET /status path).
+ * Reuses seal → createPending → completePending primitives (idempotent by final URL).
+ */
+export async function persistFinalRenderVersionAfterExport(params: {
+  project: AnimationProjectWithMedia;
+  finalVideoUrl: string;
+  cleanVideoUrl: string | null;
+  exportId: string;
+  previousFinalUrl?: string | null;
+  kind?: "text_rerender" | "full_rerender";
+}): Promise<{ id: string; renderVersionNumber: number }> {
+  const finalUrl = params.finalVideoUrl.trim();
+  const cleanUrl = params.cleanVideoUrl?.trim() || null;
+  const kind = params.kind ?? "full_rerender";
+
+  const duplicate = await findCompletedVersionWithFinalUrl(params.project.id, finalUrl);
+  if (duplicate) {
+    await prisma.projectRenderVersion.updateMany({
+      where: {
+        projectId: params.project.id,
+        isDefault: true,
+        id: { not: duplicate.id },
+      },
+      data: { isDefault: false },
+    });
+    const row = await prisma.projectRenderVersion.update({
+      where: { id: duplicate.id },
+      data: {
+        status: "completed",
+        isDefault: true,
+        finalVideoUrl: finalUrl,
+        cleanVideoUrl: cleanUrl ?? undefined,
+        exportId: params.exportId,
+        completedAt: new Date(),
+      },
+      select: { id: true, renderVersionNumber: true },
+    });
+    return { id: row.id, renderVersionNumber: row.renderVersionNumber };
+  }
+
+  await sealDefaultRenderVersion({
+    project: params.project,
+    finalVideoUrl: params.previousFinalUrl?.trim() || null,
+    cleanVideoUrl: cleanUrl,
+    exportId: params.exportId,
+  });
+
+  const pending =
+    kind === "text_rerender"
+      ? await createPendingTextRerenderVersion({
+          project: params.project,
+          sourceCleanVideoUrl: cleanUrl,
+        })
+      : await createPendingFullRerenderVersion({
+          project: params.project,
+        });
+
+  await completePendingFullRerenderVersion({
+    projectId: params.project.id,
+    renderVersionId: pending.id,
+    finalVideoUrl: finalUrl,
+    cleanVideoUrl: cleanUrl,
+    exportId: params.exportId,
+  });
+
+  return pending;
+}
+
 export async function failPendingFullRerenderVersion(params: {
   projectId: string;
   renderVersionId: string;

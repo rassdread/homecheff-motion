@@ -64,6 +64,12 @@ describe("final upload and persist (automatic vs rebuild)", () => {
     );
   });
 
+  it("9b: automatic and rebuild share version persistence via persistFinalRenderVersionAfterExport", () => {
+    const commit = read("final-video-export-commit.ts");
+    assert.match(commit, /persistFinalRenderVersionAfterExport/);
+    assert.match(merge, /renderVersionKind/);
+  });
+
   it("10: DB commit is separate from storage upload (distinguishable failures)", () => {
     assert.match(merge, /await uploadMergedVideoToBlob[\s\S]*await commitInstantPremiumFinalVideoExport/);
     assert.match(commit, /await prisma\.animationExport\.update/);

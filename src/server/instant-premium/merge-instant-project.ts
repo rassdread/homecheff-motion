@@ -1283,6 +1283,7 @@ export async function executeInstantPremiumMerge(
         rebuildCandidateUrl: rebuildFinalize?.rebuildCandidateUrl ?? null,
         identicalOutputDetected: rebuildFinalize?.identicalOutputDetected ?? false,
         validationOk: rebuildFinalize?.validationOk ?? true,
+        renderVersionKind: isTextRebuild ? "text_rerender" : "full_rerender",
       });
       console.info("[hc-instant-premium]", {
         projectId,
