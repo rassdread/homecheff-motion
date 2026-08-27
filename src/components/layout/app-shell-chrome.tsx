@@ -8,6 +8,7 @@ import { HomeCheffAssistantMount } from "@/components/assistant/homecheff-assist
 import { OntdekHomeCheffShellControl } from "@/components/ecosystem/ontdek-homecheff-shell-control";
 import { AppShellPrimaryNav } from "@/components/layout/app-shell-primary-nav";
 import { AppShellUserBar } from "@/components/layout/app-shell-user-bar";
+import { StudioSiteFooter } from "@/components/layout/studio-site-footer";
 import { BillingConversionShell } from "@/components/billing/billing-conversion-shell";
 import { GlobalCreditIndicator } from "@/components/billing/global-credit-indicator";
 import { LanguageSwitch } from "@/components/layout/language-switch";
@@ -72,6 +73,7 @@ export function AppShellChrome({ children }: { children: ReactNode }) {
       <div className="flex min-w-0 w-full flex-col overflow-visible">
         <HomeCheffAssistantMount>{children}</HomeCheffAssistantMount>
       </div>
+      {itemJourney || standaloneCreator ? null : <StudioSiteFooter />}
     </>
   );
 }

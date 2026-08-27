@@ -257,22 +257,22 @@ export function buildFaqPageJsonLd(faqs: Array<{ question: string; answer: strin
   };
 }
 
-/** Pricing FAQ — English canonical strings for schema (matches pricing.faq.* i18n). */
+/** Pricing FAQ — English canonical strings for schema (must match live plan SSOT). */
 export const PRICING_FAQ_SCHEMA: Array<{ question: string; answer: string }> = [
   {
     question: "Do credits expire?",
     answer:
-      "Purchased credit packs do not expire while your account is active. Subscription monthly credits follow your plan rules — see Billing for details.",
+      "Purchased credit packs do not expire while your account is active. Current Studio subscription plans do not grant a monthly credit allotment — credits come from packs (subscribers get pack discounts).",
   },
   {
     question: "What does a subscription include?",
     answer:
-      "Subscriptions add monthly credits, storage, and lower per-action costs on credit packs. Plans scale from Creator to Studio for teams and power users.",
+      "Subscriptions add storage and lower per-action costs on credit packs. Live plans: Creator, Pro, and Studio. Monthly credit grants on subscriptions are currently 0 in the Studio plan SSOT.",
   },
   {
     question: "What happens if I cancel my subscription?",
     answer:
-      "You keep unused purchased credits. Monthly subscription credits stop renewing at the end of your billing period.",
+      "You keep unused purchased credits. Subscription benefits (storage tiers and pack discounts) end when the paid period ends after cancel-at-period-end.",
   },
   {
     question: "Can I buy credits without subscribing?",
@@ -281,12 +281,12 @@ export const PRICING_FAQ_SCHEMA: Array<{ question: string; answer: string }> = [
   {
     question: "Where do I see my balance and receipts?",
     answer:
-      "Sign in and open Billing & credits in your account for your balance, transaction history, and subscription management.",
+      "Sign in and open Billing & credits in your account for your balance, transaction history, and subscription management via the Stripe Customer Portal.",
   },
   {
     question: "What is the difference between monthly and yearly?",
     answer:
-      "Monthly billing renews each month and you can cancel anytime. Yearly billing is paid once per year at roughly 17% lower cost than twelve monthly payments.",
+      "Monthly billing renews each month and you can cancel anytime (at period end). Yearly billing is paid once per year at a lower effective cost than twelve monthly payments.",
   },
 ];
 

@@ -1,0 +1,80 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Terms | HomeCheff Studio",
+  description:
+    "Studio uses HomeCheff ecosystem Subscription Terms and Credits Terms for paid plans.",
+  robots: { index: true, follow: true },
+};
+
+export default function StudioTermsPage() {
+  return (
+    <main className="mx-auto max-w-3xl px-6 py-12 text-zinc-800">
+      <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+        LEGAL_REVIEW_RECOMMENDED — points to published ecosystem commercial Terms
+      </p>
+      <h1 className="mt-2 text-3xl font-semibold text-zinc-900">Terms — HomeCheff Studio</h1>
+      <p className="mt-4 text-sm leading-relaxed">
+        Paid HomeCheff Studio subscriptions are governed by the HomeCheff ecosystem{" "}
+        <strong>Subscription Terms</strong> and <strong>HC Credits Terms</strong> published for
+        Growth & Studio central billing:
+      </p>
+      <ul className="mt-4 list-disc space-y-2 pl-5 text-sm">
+        <li>
+          <a className="underline" href="https://growth.homecheff.eu/legal/terms">
+            Subscription Terms (Growth & Studio)
+          </a>
+        </li>
+        <li>
+          <a className="underline" href="https://growth.homecheff.eu/legal/credits-terms">
+            HC Credits Terms
+          </a>
+        </li>
+        <li>
+          <a className="underline" href="https://homecheff.eu/terms">
+            Marketplace / ecosystem Terms (homecheff.eu)
+          </a>
+        </li>
+      </ul>
+      <section className="mt-10 space-y-3">
+        <h2 className="text-xl font-semibold">Studio product notes (Production)</h2>
+        <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed">
+          <li>
+            Live subscription prices: Creator €7.99 / Pro €24.99 / Studio €79.99 per month (yearly
+            options on Pricing). Subscriptions currently grant <strong>0 monthly Studio Credits</strong>{" "}
+            in the Studio plan SSOT; credit packs are purchased separately. Pack discounts apply for
+            subscribers.
+          </li>
+          <li>
+            Failed generations are typically refunded automatically when the product marks a failed
+            job; cancelled work that already started may still consume credits.
+          </li>
+          <li>
+            Built-in music catalog may be empty; only use music/assets you have rights to. Do not
+            treat Studio music as “royalty-free” unless a specific track licence says so.
+          </li>
+          <li>
+            Affiliate creatives in Studio are creative templates — Studio does not currently host a
+            separate Studio affiliate payout program. Marketplace and Growth affiliate rules are
+            product-specific.
+          </li>
+        </ul>
+      </section>
+      <nav className="mt-12 flex flex-wrap gap-4 border-t border-zinc-200 pt-6 text-sm">
+        <Link href="/privacy" className="underline">
+          Privacy
+        </Link>
+        <Link href="/cookies" className="underline">
+          Cookies
+        </Link>
+        <Link href="/pricing" className="underline">
+          Pricing
+        </Link>
+        <Link href="/help" className="underline">
+          Help
+        </Link>
+      </nav>
+    </main>
+  );
+}
