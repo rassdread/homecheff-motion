@@ -23,6 +23,9 @@ export function StudioSiteFooter() {
           <Link href="/pricing" className="underline-offset-2 hover:underline">
             Pricing
           </Link>
+          <Link href="/faq" className="underline-offset-2 hover:underline">
+            FAQ
+          </Link>
           <Link href="/help" className="underline-offset-2 hover:underline">
             Help
           </Link>

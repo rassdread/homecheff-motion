@@ -38,6 +38,27 @@ export default function StudioTermsPage() {
         </li>
       </ul>
       <section className="mt-10 space-y-3">
+        <h2 className="text-xl font-semibold">AI and content rights (product policy)</h2>
+        <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed">
+          <li>You must have rights to everything you upload (media, music, logos, trademarks, likenesses).</li>
+          <li>
+            HomeCheff receives only the rights necessary to process, store, render and deliver the
+            Studio service — not a broader ownership grab of your originals.
+          </li>
+          <li>
+            AI-assisted output can contain errors, may not be unique, and is not guaranteed free of
+            third-party rights in every jurisdiction. Review before commercial publication.
+          </li>
+          <li>
+            HomeCheff does <strong>not</strong> state that AI output is always exclusively owned by
+            the user. Copyright status can be jurisdiction-sensitive —{" "}
+            <span className="text-amber-900">AI_IP_COUNSEL_REVIEW_REQUIRED</span>.
+          </li>
+          <li>Illegal, infringing or abusive use is not permitted.</li>
+          <li>Provider availability and exact generation success are not guaranteed.</li>
+        </ul>
+      </section>
+      <section className="mt-10 space-y-3">
         <h2 className="text-xl font-semibold">Studio product notes (Production)</h2>
         <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed">
           <li>
@@ -51,8 +72,8 @@ export default function StudioTermsPage() {
             job; cancelled work that already started may still consume credits.
           </li>
           <li>
-            Built-in music catalog may be empty; only use music/assets you have rights to. Do not
-            treat Studio music as “royalty-free” unless a specific track licence says so.
+            Built-in music catalog is currently <strong>empty</strong>. Upload only music you have
+            rights to. Studio does not currently provide a HomeCheff-licensed royalty-free library.
           </li>
           <li>
             Affiliate creatives in Studio are creative templates — Studio does not currently host a

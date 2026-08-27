@@ -52,7 +52,24 @@ export default function StudioPrivacyPage() {
           publishing.
         </p>
         <p className="text-sm text-amber-900">
-          LEGAL_REVIEW_RECOMMENDED: jurisdiction-specific AI IP and likeness/personality rights.
+          AI_IP_COUNSEL_REVIEW_REQUIRED: jurisdiction-specific AI IP and likeness/personality rights.
+        </p>
+      </section>
+
+      <section className="mt-10 space-y-3">
+        <h2 className="text-xl font-semibold">Providers (operational map)</h2>
+        <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed">
+          <li>Stripe — payments (no full card numbers at HomeCheff)</li>
+          <li>Vercel / app hosting — application delivery</li>
+          <li>Object storage (e.g. Vercel Blob) — media/artifacts</li>
+          <li>Database host — projects, billing metadata, jobs</li>
+          <li>Vidu — video generation where Instant Premium / motion uses it</li>
+          <li>ElevenLabs — voice/music generation where those capabilities are enabled</li>
+          <li>Other AI adapters — only when the specific action is invoked</li>
+        </ul>
+        <p className="text-sm text-zinc-600">
+          Training / retention / DPA status per vendor: UNKNOWN unless separately confirmed. We do
+          not claim “never used for training” without evidence.
         </p>
       </section>
 

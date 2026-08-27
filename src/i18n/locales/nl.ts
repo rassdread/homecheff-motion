@@ -241,8 +241,9 @@ export const nl = {
   "px4a.audio.legend": "Muziek",
   "px4a.audio.none": "Geen muziek",
   "px4a.audio.own": "Eigen muziek",
-  "px4a.audio.catalog": "Gratis muziek",
-  "px4a.audio.catalogEmpty": "Gratis muziek komt later. We voegen alleen nummers toe die HomeCheff mag hosten en in de editor mag gebruiken.",
+  "px4a.audio.catalog": "Jouw muziek",
+  "px4a.audio.catalogEmpty":
+    "Er is nog geen HomeCheff-muziekbibliotheek. Upload alleen audio waarvoor je de rechten hebt. Catalogustracks volgen pas na gedocumenteerde licentieherkomst.",
   "px4a.audio.legal": "Gebruik alleen muziek die je zelf mag gebruiken.",
   "px4a.audio.choose": "Kies een muziekbestand",
   "px4a.audio.volume": "Volume",

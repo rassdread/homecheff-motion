@@ -245,8 +245,9 @@ export const en: LocaleSchema = {
   "px4a.audio.legend": "Music",
   "px4a.audio.none": "No music",
   "px4a.audio.own": "Your music",
-  "px4a.audio.catalog": "Free music",
-  "px4a.audio.catalogEmpty": "Free music comes later. We only add tracks HomeCheff may host and use inside the editor.",
+  "px4a.audio.catalog": "Your music",
+  "px4a.audio.catalogEmpty":
+    "No HomeCheff music library is included yet. Upload audio you have the right to use. We will only add catalog tracks after licence provenance is documented.",
   "px4a.audio.legal": "Only use music you have the right to use.",
   "px4a.audio.choose": "Choose a music file",
   "px4a.audio.volume": "Volume",
