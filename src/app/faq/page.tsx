@@ -7,6 +7,11 @@ export const metadata: Metadata = {
   description:
     "Plain-language Studio FAQ: plans, credits, AI limits, music, cancellation and support — aligned with Production.",
   robots: { index: true, follow: true },
+  alternates: { canonical: "/faq" },
+  openGraph: {
+    title: "FAQ | HomeCheff Studio",
+    url: "https://studio.homecheff.eu/faq",
+  },
 };
 
 export default function StudioFaqPage() {
