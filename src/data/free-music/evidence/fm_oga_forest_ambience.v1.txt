@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/forest-ambience
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=TinyWorlds
+title=Forest Ambience
+downloadUrl=https://opengameart.org/sites/default/files/Forest_Ambience.mp3
+sha256=9850aa1d0d5d66bd9c5daf8bb77c6d852e01f2f4de22f283bd5621e8bed13b75
+bytes=716670
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; Adventure&#039;s Edge Ambience ambient Audio Assets for Project: MG audio-ambiant Autumn Card Game CardMancer CC0 Audio - Uploader: TinyWorlds CC0 Background Ambience CC0 Fantasy Music &amp; Sounds CC0 Music CC0 Music CC0 Music Collection for Ovaloord Corsairs ! Fishing Game Flora - Vegetation - Plants Game Game Art Horrorsoft inspired point and click game <a href="

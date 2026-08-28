@@ -1,0 +1,2713 @@
+{
+  "paths_considered": 326,
+  "candidates": [
+    {
+      "title": "16 RPG-like procedural generated music tracks",
+      "artist": "messersm",
+      "sourceUrl": "https://opengameart.org/content/16-rpg-like-procedural-generated-music-tracks",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; A Simple Knight (considered graphics) Art for &quot;Be Realistic&quot; CC0 Music CC0 Music Music Sound ",
+      "downloads": [],
+      "has_cc0": true,
+      "status": "REJECTED"
+    },
+    {
+      "title": "2am in Sector 3 (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/2am-in-sector-3-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Captain Fluffles Panda Disk System podcast tunes Favorites:&nbsp; 2 Preview:&nbsp; In a cyber cit",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/2am_in_sector_3_0.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "5 Chiptunes (Action)",
+      "artist": "SubspaceAudio",
+      "sourceUrl": "https://opengameart.org/content/5-chiptunes-action",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; A Simple Knight (considered graphics) AAAAXY Astar Asteria Audio - Commercial use OK Audio 8-bits audio",
+      "downloads": [],
+      "has_cc0": true,
+      "status": "REJECTED"
+    },
+    {
+      "title": "A chill shop",
+      "artist": "game guy maker",
+      "sourceUrl": "https://opengameart.org/content/a-chill-shop",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; Can be used for a game just give credits. Copyright/Attribution",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/a_jazzy_place_idk.mp3"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "A Dilemma",
+      "artist": "Crusoe",
+      "sourceUrl": "https://opengameart.org/content/a-dilemma",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Did I spell dilemma right? I feel pressured about this. File(s):&nbsp; <a href=\"ht",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/daniels_dilemma.wav"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "A kingdom of tears",
+      "artist": "game guy maker",
+      "sourceUrl": "https://opengameart.org/content/a-kingdom-of-tears",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; Fixed version with the tunes fixed Also may get into artcore mo",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/rpg_or_kirby_type_beat_1.mp3"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "A Kingdom of tears battle theme.",
+      "artist": "game guy maker",
+      "sourceUrl": "https://opengameart.org/content/a-kingdom-of-tears-battle-theme",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; REMADE! Copyright/Attribution Notice:&nbsp; Credits File(s):&nbsp; <div",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/battle_theme_2_0.mp3"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "A Maze of Secret Dungeons (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/a-maze-of-secret-dungeons-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Full of oubliettes? (Like in the movie Labyrinth?) Dark and atmospheric...maybe fo",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/a_maze_of_secret_dungeons_0.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "A Meadow of Mysteries",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/a-meadow-of-mysteries",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Panda Disk System podcast tunes Favorites:&nbsp; 1 Preview:&nbsp; Seemingly innocent\u2026but what hid",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/a_meadow_of_mysteries_0.mp3"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "A sunset.",
+      "artist": "game guy maker",
+      "sourceUrl": "https://opengameart.org/content/a-sunset",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Just something I made also inspirations from this guy https://onlinesequencer.net/",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/splash_hill_.mp3"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "A Wild Party in Doctor Strangevolt's Castle (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/a-wild-party-in-doctor-strangevolts-castle-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 2 Preview:&nbsp; What are they up to in there?! Who cares\u2026party on! (1:34) Thous",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/a_wild_party_in_doctor_strangevolts_castle.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "About to Log on",
+      "artist": "fluffclipse",
+      "sourceUrl": "https://opengameart.org/content/about-to-log-on",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Panda Disk System podcast tunes Favorites:&nbsp; 1 Preview:&nbsp; An old title theme i made for a",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/about_to_log_on_0.mp3",
+        "https://opengameart.org/sites/default/files/about_to_log_on.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Action 32: 32+ LOOPING 8-Bit Action-Game Chiptunes",
+      "artist": "Volcano of Bears",
+      "sourceUrl": "https://opengameart.org/content/action-32-32-looping-8-bit-action-game-chiptunes",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 OGA-BY 3.0 OGA-BY 4.0 CC-BY 4.0 CC-BY-SA 4.0 Collections:&nbsp; Favorites:&nbsp; 1 ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/thump_spark.wav"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "action track 4, A.I. fight & jumping cyborg (Zhelanov vs tricksntraps)",
+      "artist": "glitchart",
+      "sourceUrl": "https://opengameart.org/content/action-track-4-ai-fight-jumping-cyborg-zhelanov-vs-tricksntraps",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; This is a preliminary idea that I may improve or further develo",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/action-track-4-ai-fight-jumping-cyborg-mix_0.ogg",
+        "https://opengameart.org/sites/default/files/action-track-4-ai-fight-jumping-cyborg-mix.flac",
+        "https://opengameart.org/sites/default/files/action-track-4-ai-fight-jumping-cyborg-loopable.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Ad Ignum",
+      "artist": "Crusoe",
+      "sourceUrl": "https://opengameart.org/content/ad-ignum",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; 2018 Collection Preview:&nbsp; Brass song File(s):&nbsp; <a ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/ad_ignum2_0.wav"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Adventure Time",
+      "artist": "Scribe",
+      "sourceUrl": "https://opengameart.org/content/adventure-time",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; 16. Music All CC0 - Uploader: Scribe Art With (Open) Character CC0 Music CC0 Music Cool Music Good CC0-",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/adventuring_song.mp3"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_adventure_time",
+      "sha256": "8dc0aa25c1d29713bdb416f64eb4c27b1af86fa807d3ca39f3fdb1850b716cea"
+    },
+    {
+      "title": "Alien Vistas",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/alien-vistas",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 3 Preview:&nbsp; Here's a hypnotic-sounding piece that could depict strange but ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/alien_vistas_0.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Alone",
+      "artist": "Sudocolon",
+      "sourceUrl": "https://opengameart.org/content/alone",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; Castle Game Engine Demos CC0 Music CC0 Music Music Music - Game Over Music I might use Favorites:&nbsp;",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/Alone.mp3"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_alone",
+      "sha256": "84c87719d37726e85e2d0122f37bacf628ef97ef13f58756556d3a497f6de2ef"
+    },
+    {
+      "title": "alr ig",
+      "artist": "river.mp3",
+      "sourceUrl": "https://opengameart.org/content/alr-ig",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; bass heavy/jersey vibes Made via Sountrap File(s):&nbsp; <a href=\"https://opengame",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/alr_ig.mp3",
+        "https://opengameart.org/sites/default/files/alr_ig_0.wav",
+        "https://opengameart.org/sites/default/files/alr_ig.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "amp to 11",
+      "artist": "river.mp3",
+      "sourceUrl": "https://opengameart.org/content/amp-to-11",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; fun hihat w/ phaser Made via Soundtrap File(s):&nbsp; <a href=\"https://opengameart",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/amp_to_11_0.mp3",
+        "https://opengameart.org/sites/default/files/amp_to_11.wav",
+        "https://opengameart.org/sites/default/files/amp_to_11.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "An Enchanted Box",
+      "artist": "Terrazon",
+      "sourceUrl": "https://opengameart.org/content/an-enchanted-box",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; A true plethora of colours and feels... although they all seem too similar... 04/0",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/an_enchanted_box.mp3"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Andy's report (8bit and piano ver)",
+      "artist": "megupets",
+      "sourceUrl": "https://opengameart.org/content/andys-report-8bit-and-piano-ver",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; 2d sci-fi platformer - scouting 8-bit Chiptune commercial ok Audio - CC0 - 8Bit -Chiptune Audio - Comme",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/Andys%20Report.mp3",
+        "https://opengameart.org/sites/default/files/Andys%20Report%20%28piano%29.mp3"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_andys_report_8bit_and_piano_ver",
+      "sha256": "d38382d79563628c7187690399ebba64e9de1df04db47096b0b0079574e0560e"
+    },
+    {
+      "title": "Another space background track",
+      "artist": "yd",
+      "sourceUrl": "https://opengameart.org/content/another-space-background-track",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; !Project::Archeron 16x16 Adventure&#039;s Edge All CC0 - Uploader: yd Artwork used by Space Inc. audio:",
+      "downloads": [],
+      "has_cc0": true,
+      "status": "REJECTED"
+    },
+    {
+      "title": "anotherMetalPeve",
+      "artist": "goldsonne",
+      "sourceUrl": "https://opengameart.org/content/anothermetalpeve",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; fitting not for everything but something https://www.goldsonne.",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/cool_riffaget_0.mp3"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Arcade Oddities (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/arcade-oddities-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; A strangely quirky little tune\u2026maybe for a strange quirky game?",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/arcade_oddities_2.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Arcade Puzzler (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/arcade-puzzler-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 3 Preview:&nbsp; Gotta love that \u201980s arcade music sound! (00:48) Thousands of f",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/arcade_puzzler_0.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Austerity's Friend",
+      "artist": "Spring Spring",
+      "sourceUrl": "https://opengameart.org/content/austeritys-friend",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 OGA-BY 3.0 OGA-BY 4.0 CC-BY 4.0 CC-BY-SA 4.0 CC-BY-SA 3.0 Collections:&nbsp; <div class=\"field-it",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/spring_spring_-_austeritys_friend_-_01_austeritys_friend_0.mp3",
+        "https://opengameart.org/sites/default/files/spring_spring_-_austeritys_friend_-_02_wobblemind_0.mp3",
+        "https://opengameart.org/sites/default/files/spring_spring_-_austeritys_friend_-_03_the_era_of_abundance_0.mp3"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Background space track",
+      "artist": "yd",
+      "sourceUrl": "https://opengameart.org/content/background-space-track",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; !Project::Archeron 16x16 3D Space Shooter All CC0 - Uploader: yd audio-ambiant audio::music::space Blac",
+      "downloads": [],
+      "has_cc0": true,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Backyard Doll",
+      "artist": "Louswan",
+      "sourceUrl": "https://opengameart.org/content/backyard-doll",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; This one is calmer and more melancholic in a doll-ish way you c",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/backyard_doll.ogg",
+        "https://opengameart.org/sites/default/files/backyard_doll.flac",
+        "https://opengameart.org/sites/default/files/backyard_doll_dry.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Balloons Forever (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/balloons-forever-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Perhaps for a fun, relaxing game or app? (:49) It's 100% free to use with attribut",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/balloons-forever.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Battle in the winter & Battle theme a (Pixelsphere vs Jobromedia)",
+      "artist": "glitchart",
+      "sourceUrl": "https://opengameart.org/content/battle-in-the-winter-battle-theme-a-pixelsphere-vs-jobromedia",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 OGA-BY 3.0 GPL 3.0 Collections:&nbsp; Favorites:&nbsp; 3 Preview:&nbsp; <div class='play-button' data-ogg-url='https",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/battle_in_the_wintermix_0.ogg",
+        "https://opengameart.org/sites/default/files/battle_in_the_wintermix.flac"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Battle Theme",
+      "artist": "Wolfgang_",
+      "sourceUrl": "https://opengameart.org/content/battle-theme-0",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; 16. Music Action/Adventure/Battle/Fantasy music CC0 Fantasy Music &amp; Sounds CC0 Music CF Inspiration",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/Battle.mp3"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_battle_theme_0",
+      "sha256": "dde7bd4f10bde031800ba8e22151fad591b7c13e1c9ae51920341b4e4ae37be5"
+    },
+    {
+      "title": "Battle Theme A",
+      "artist": "cynicmusic",
+      "sourceUrl": "https://opengameart.org/content/battle-theme-a",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; !Project::KISS Armored Battle 4j Action/Adventure/Battle/Fantasy music AK Game Audio AnyRPG Battle Musi",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/battleThemeA.mp3"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_battle_theme_a",
+      "sha256": "6042399782e581d753d616bc703e66483d5eccb5fb687a20c9a552d68c49e620"
+    },
+    {
+      "title": "BBEG",
+      "artist": "ShoeGeezer",
+      "sourceUrl": "https://opengameart.org/content/bbeg",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; Big Bad Evil Guy File(s):&nbsp; ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/cubby_beech_-_bbeg_1.wav"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Beautiful Day",
+      "artist": "Crusoe",
+      "sourceUrl": "https://opengameart.org/content/beautiful-day",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; 2018 Collection Favorites:&nbsp; 1 Preview:&nbsp; This song just feels kinda nice. ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/crusoe_scene_1.wav"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Besai Crystal Gardens 2 Forbidden Pathway",
+      "artist": "Tozan",
+      "sourceUrl": "https://opengameart.org/content/besai-crystal-gardens-2-forbidden-pathway",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; Audio CC0 Music CC0 Music Legend of Rathnor Parts Music Favorites:&nbsp; 4 Preview:&nbsp; <div class=\"f",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/Crystal2_0.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_besai_crystal_gardens_2_forbidden_pathway",
+      "sha256": "816f7e3efe3667f7ebf67d9407a2bd78ac4c6eb7edd49ef5c45bfce7512e837c"
+    },
+    {
+      "title": "Besai Crystal Gardens Entranceway",
+      "artist": "Tozan",
+      "sourceUrl": "https://opengameart.org/content/besai-crystal-gardens-entranceway",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Music Favorites:&nbsp; 1 Preview:&nbsp; More strange musc when you first step into ",
+      "downloads": [],
+      "has_cc0": true,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Besai Crystal Gardens Forbbiden Area 6",
+      "artist": "Tozan",
+      "sourceUrl": "https://opengameart.org/content/besai-crystal-gardens-forbbiden-area-6",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Music Favorites:&nbsp; 2 Preview:&nbsp; Another similar tune for game area. <",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/darkforbidden6_0.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_besai_crystal_gardens_forbbiden_area_6",
+      "sha256": "cc99b6628c3ac5e75f5d0719881f4d2335d914515f6c16cfa9eaaab7cfe8c606"
+    },
+    {
+      "title": "Besai Crystal Gardens Forbidden Area 5",
+      "artist": "Tozan",
+      "sourceUrl": "https://opengameart.org/content/besai-crystal-gardens-forbidden-area-5",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Favorites:&nbsp; 1 Preview:&nbsp; This is the background music for a certain area o",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/darkforbbiden5_0.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_besai_crystal_gardens_forbidden_area_5",
+      "sha256": "548f203c07be3cedf2f7b01116d91a7ea6bd8a8a67ca3fefac7f3e66aa97b1db"
+    },
+    {
+      "title": "Besai Crystal Gardens Zone 10 Forbidden",
+      "artist": "Tozan",
+      "sourceUrl": "https://opengameart.org/content/besai-crystal-gardens-zone-10-forbidden",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Music Favorites:&nbsp; 2 Preview:&nbsp; Even more trouble down in the crystal garde",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/Besaiark10_0.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_besai_crystal_gardens_zone_10_forbidden",
+      "sha256": "571dcd5f82826688b1330e9ecbfb8f40269205675382afac1a65fbc3315faeb6"
+    },
+    {
+      "title": "Besai Crystal Gardens Zone 11",
+      "artist": "Tozan",
+      "sourceUrl": "https://opengameart.org/content/besai-crystal-gardens-zone-11",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; Art With (Open) Character CC0 Music CC0 Music Truly Truly Public Domain Favorites:&nbsp; 1 Preview:&nbs",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/Besaiark11_0.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_besai_crystal_gardens_zone_11",
+      "sha256": "e7cc0c9a72e1c1969ea458a2dd292584f6df5998177a34ea27b8d6e4c1490e12"
+    },
+    {
+      "title": "Besai Crystal Gardens Zone 7 Forbidden Transition Area",
+      "artist": "Tozan",
+      "sourceUrl": "https://opengameart.org/content/besai-crystal-gardens-zone-7-forbidden-transition-area",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music CheezeMaze Music Favorites:&nbsp; 3 Preview:&nbsp; Another tune for game i'm m",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/Besaiadrk7_0.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_besai_crystal_gardens_zone_7_forbidden_transitio",
+      "sha256": "cdb73870ae37da6bc2a3aa39509b11f3e397cd60b26616685e887bcbdc8df29d"
+    },
+    {
+      "title": "Besai Crystal Last zone",
+      "artist": "Tozan",
+      "sourceUrl": "https://opengameart.org/content/besai-crystal-last-zone",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Music Favorites:&nbsp; 2 Preview:&nbsp; Another tune, this one a little bit longer.",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/besailastz_0.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_besai_crystal_last_zone",
+      "sha256": "3a3faa8be9a2e94f51063ee66c86ff5c2ae0d7820d671e10475009f90413e9c0"
+    },
+    {
+      "title": "Besai Sky City Crystal Gardens Dark Lower Depths Area 4",
+      "artist": "Tozan",
+      "sourceUrl": "https://opengameart.org/content/besai-sky-city-crystal-gardens-dark-lower-depths-area-4",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Music Favorites:&nbsp; 1 Preview:&nbsp; Dark Moody Background tune for game I'm mak",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/Besaidark4_0.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_besai_sky_city_crystal_gardens_dark_lower_depths",
+      "sha256": "6831b7146ee25e0f9ad1e2e18efaa7ec95b1c61bf661b4f24bd6dd5d89e564be"
+    },
+    {
+      "title": "Besai Sky City Dark 1",
+      "artist": "Tozan",
+      "sourceUrl": "https://opengameart.org/content/besai-sky-city-dark-1",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Music Favorites:&nbsp; 2 Preview:&nbsp; The Background Ambient Music for a game I'm",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/Besaidark1_0.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_besai_sky_city_dark_1",
+      "sha256": "7c90f3f41d6eac419ca565695f13b30c954839e0a5b74bb263619ec790b9cc76"
+    },
+    {
+      "title": "Besailightend",
+      "artist": "Tozan",
+      "sourceUrl": "https://opengameart.org/content/besailightend",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Music Favorites:&nbsp; 2 Preview:&nbsp; Besai Eng Light Zone, (exit out of garden) ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/Besailightend_0.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_besailightend",
+      "sha256": "255eaa72e9d208534147872c84b6d8128e1fc738e516be8fb268c6ba2367023a"
+    },
+    {
+      "title": "Bleeding out",
+      "artist": "HaelDB",
+      "sourceUrl": "https://opengameart.org/content/bleeding-out",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; OGA-BY 3.0 CC0 Collections:&nbsp; !Project::Archeron Adventure Co Ambience audio-ambiant audio::music::space Bloodlords Music ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/bleeding_out2.flac",
+        "https://opengameart.org/sites/default/files/bleeding_out2_2.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_bleeding_out",
+      "sha256": "0f76d09dfff29f0cf615456d7a74cba6f5034428bf24a0bdda99ad52f7698fcd"
+    },
+    {
+      "title": "Blew 1",
+      "artist": "iamoneabe",
+      "sourceUrl": "https://opengameart.org/content/blew-1",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Something something bleep bloob.. DAW Experiements #123 File(s):&nbsp; <a ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/blew_1_2025-09-22_1934_0.mp3",
+        "https://opengameart.org/sites/default/files/blew_1_2025-09-22_1934.wav"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Bobble of Love (Gundatsch)",
+      "artist": "glitchart",
+      "sourceUrl": "https://opengameart.org/content/bobble-of-love-gundatsch",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Bobble of Love Another somehow weird ... lets call it jazz-step thing. https://ope",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/bobbleoflovemix_0.ogg",
+        "https://opengameart.org/sites/default/files/bobbleoflovemix16bits.flac"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Boss Battle #2 [Symphonic Metal]",
+      "artist": "nene",
+      "sourceUrl": "https://opengameart.org/content/boss-battle-2-symphonic-metal",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; Action/Adventure/Battle/Fantasy music assets for the odin-skeleton project Audio - Commercial use OK Bl",
+      "downloads": [],
+      "has_cc0": true,
+      "status": "REJECTED"
+    },
+    {
+      "title": "BOSS fight music",
+      "artist": "moskowa2",
+      "sourceUrl": "https://opengameart.org/content/boss-fight-music",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 OGA-BY 3.0 OGA-BY 4.0 CC-BY 4.0 GPL 3.0 GPL 2.0 <img src='https://opengameart.org/sites/default/files/license_imag",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/evil.wav"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Bossa Nova",
+      "artist": "Joth",
+      "sourceUrl": "https://opengameart.org/content/bossa-nova",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; 16-Bit Short Film 2D Adventure Adventures of KEROGE Audio - Commercial use OK Audio 8-bits BGM BlobGame",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/8bit%20Bossa.mp3"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_bossa_nova",
+      "sha256": "0ee835fd279ac5fa15f9346744cbafc2ba800c1c0671b78ca9abe2b4353402f7"
+    },
+    {
+      "title": "bossa nova, headscratcher, Cutie pie (migfus20 vs congusbongus vs FrancisLeeMusic)",
+      "artist": "glitchart",
+      "sourceUrl": "https://opengameart.org/content/bossa-nova-headscratcher-cutie-pie-migfus20-vs-congusbongus-vs-francisleemusic",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 CC-BY 4.0 Collections:&nbsp; Preview:&nbsp; <div",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/bosa_nova_remix_0.ogg",
+        "https://opengameart.org/sites/default/files/bosa_nova_remix.flac",
+        "https://opengameart.org/sites/default/files/bosa_nova_remix_version2.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Bounce Light 3 (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/bounce-light-3-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 4 Preview:&nbsp; Maybe for a shimmering light game? Or something else? (1:32) Th",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/bounce_light_3_0.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Broken Metronome [2A03 + 3 N163]",
+      "artist": "Alejo_c....",
+      "sourceUrl": "https://opengameart.org/content/broken-metronome-2a03-3-n163",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; BANANA_SPLEET NeuroBlade [Airos] [CC] Music - Chiptune Favorites:&nbsp; 4 Preview:&nbsp; testing ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/broken_metronome.wav"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Bubble Gum Groovin' (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/bubble-gum-groovin-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; Here\u2019s a funky little track that might be fun in a quirky urban",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/bubble_gum_groovin_looping_0.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "BubbleBobble",
+      "artist": "ShoeGeezer",
+      "sourceUrl": "https://opengameart.org/content/bubblebobble",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Another track from my 3D Boomer Platformer \"Dreamwave'84\" Copyright/Attribution No",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/cubby_beech_-_bubble_bobble.wav"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Build",
+      "artist": "Chasersgaming",
+      "sourceUrl": "https://opengameart.org/content/build",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; A Test agent chaser assets CC0 Chiptunes CC0 Music CC0 Music Chiptunes Music Favorites:&nbsp; 7 Preview",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/build.mp3_0.mp3",
+        "https://opengameart.org/sites/default/files/build.oggvorbis.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_build",
+      "sha256": "800639fc23e4630d18e2622654d4b3e3366307da66f0f40d5206418dc160c954"
+    },
+    {
+      "title": "Building Things in Faraway Places (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/building-things-in-faraway-places-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; <div class='play-button' data-ogg-url='https://opengameart.org/sites/default/files",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/building_things_in_faraway_places_v1_0.ogg",
+        "https://opengameart.org/sites/default/files/building_things_in_faraway_places.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Captive Audience",
+      "artist": "gorbygorby",
+      "sourceUrl": "https://opengameart.org/content/captive-audience",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 2 Preview:&nbsp; It'd be in your best interest to keep your eyes on me, darling.",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/captive_audience1.mp3"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Cave explorer",
+      "artist": "mutantleg",
+      "sourceUrl": "https://opengameart.org/content/cave-explorer",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 CC0 Music CC0 Music Music Music - Puzzle _Audio - A Catalogar Favorites:&nbsp; 7 Preview:&nbsp; <di",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/caveexplorer_hq.mp3"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_cave_explorer",
+      "sha256": "7815210480b7bdbbdfadd37b151554be8df114888a4667435733652b3c9f8e24"
+    },
+    {
+      "title": "Chase Theme",
+      "artist": "CDMJ",
+      "sourceUrl": "https://opengameart.org/content/chase-theme",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; This is my first song I ever made on BeepBox. I tried to go with a \"big monster is",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/chase_song_0.mp3"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Chill",
+      "artist": "cosmac",
+      "sourceUrl": "https://opengameart.org/content/chill-3",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; A relaxing, short theme. File(s):&nbsp; <a href=\"https://opengameart.org/sites/def",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/chill.mp3"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Chillwave Loop / Background music",
+      "artist": "jdee",
+      "sourceUrl": "https://opengameart.org/content/chillwave-loop-background-music",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Cool sci-fi track to vibe to. Energetic but not high-octane. File(s):&nbsp; <a hre",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/chill.wav",
+        "https://opengameart.org/sites/default/files/chill_2.mp3"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Chippey",
+      "artist": "Chasersgaming",
+      "sourceUrl": "https://opengameart.org/content/chippey",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; A Test CC0 Music CC0 Music Music PGMMV - TEST PROJECT Favorites:&nbsp; 3 Preview:&nbsp; <div class=\"fie",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/song.mp3_0.mp3",
+        "https://opengameart.org/sites/default/files/song.oggvorbis.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_chippey",
+      "sha256": "4a41e689f29ebd6107254d4e80834d879969f66365c0325fed603361f2193b12"
+    },
+    {
+      "title": "Chuggin' Through Columbia (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/chuggin-through-columbia-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; Riding the rails over the mountains...or maybe for something el",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/chuggin_through_colombia_0.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Circuit City",
+      "artist": "Tarush Singhal",
+      "sourceUrl": "https://opengameart.org/content/circuit-city",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; inspired by deltarune cc by 3.0 license which means you use it ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/circuits_fin.wav"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Clean rock (Pro Sensory & Outer123 & Tad & Santiago S\u00e1nchez)",
+      "artist": "glitchart",
+      "sourceUrl": "https://opengameart.org/content/clean-rock-pro-sensory-outer123-tad-santiago-s%C3%A1nchez",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; <div class='play-button' data-ogg-url='https://opengameart.org/",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/cleanrockmix_0.ogg",
+        "https://opengameart.org/sites/default/files/cleanrockmix16bits.flac",
+        "https://opengameart.org/sites/default/files/cleanrockmixflamenco_0.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Closing In",
+      "artist": "section31",
+      "sourceUrl": "https://opengameart.org/content/closing-in",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; audio::music::space CC0 Music CC0 Music Music Section 31&#039;s Game Music Favorites:&nbsp; 3 Preview:&",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/S31-Closing%20In.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_closing_in",
+      "sha256": "b72b3572545401ddfa4ae058f5e0b427745c2ac5457318b15e881c531274f70f"
+    },
+    {
+      "title": "COIN-OP SHENANIGANS (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/coin-op-shenanigans-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 3 Preview:&nbsp; Another retro-arcade-sounding level track. (:33) CUSTOM WORK Ne",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/coin-op_shenanigans_0.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Colt Magnum",
+      "artist": "iamoneabe",
+      "sourceUrl": "https://opengameart.org/content/colt-magnum",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; Playful something something.. Learning a new DAW File(s):&nbsp;",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/new_1_2025-09-21_0251_0.mp3",
+        "https://opengameart.org/sites/default/files/new_1_2025-09-21_0251.wav"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Continue?",
+      "artist": "megupets",
+      "sourceUrl": "https://opengameart.org/content/continue",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; 2d sci-fi platformer - scouting 8-bit Chiptune commercial ok A Simple Knight (considered graphics) Audi",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/06%20-%20Continue.mp3"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_continue",
+      "sha256": "f8d68da03254980643f7a045ef879076a840741b0842125ec4702e8aa199cea6"
+    },
+    {
+      "title": "Cool Adventure Intro (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/cool-adventure-intro-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 4 Preview:&nbsp; Might be fun under titles/menus for an upbeat game. :-) Thousan",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/cool_adventure_intro_0.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Coral Kingdom",
+      "artist": "gorbygorby",
+      "sourceUrl": "https://opengameart.org/content/coral-kingdom",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Life is nice in shallow waters Specially made for my brother's project, but you ma",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/coral_kingdom1.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Cosmic Candy Catchers (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/cosmic-candy-catchers-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 3 Preview:&nbsp; NOTE: If you've been downloading my music tracks from my pages ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/cosmic_candy_catchers_0.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Cosmic Cookie",
+      "artist": "Louswan",
+      "sourceUrl": "https://opengameart.org/content/cosmic-cookie",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 6 Preview:&nbsp; Hey guys, it's me again! So I tried a little bit of 8 bit the l",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/cosmic_cookie_normal_1.ogg",
+        "https://opengameart.org/sites/default/files/cosmic_cookie_normal_1.mp3",
+        "https://opengameart.org/sites/default/files/cosmic_cookie_slower_1.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Covert Operations",
+      "artist": "artisticdude",
+      "sourceUrl": "https://opengameart.org/content/covert-operations",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; 3d game parts Art for a Metal Gear-like game CC0 Music CC0 Music Little Spy Music No way of losing it! ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/covert_operations.mp3"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_covert_operations",
+      "sha256": "535c023b09f25fd32abcc7ec75d5e64f45d3c3f2393c295c8465ad686899e0c2"
+    },
+    {
+      "title": "Cozy Puzzle In-Game 3 (Mintodog & nlhoang162 & Santiago S\u00e1nchez & Pro Sensory)",
+      "artist": "glitchart",
+      "sourceUrl": "https://opengameart.org/content/cozy-puzzle-in-game-3-mintodog-nlhoang162-santiago-s%C3%A1nchez-pro-sensory",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 CC-BY-SA 3.0 Collections:&nbsp; Favorites:&nbsp; 2 Preview:&nbsp; <div class=\"field-it",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/cozzypuzzle3mix_0.ogg",
+        "https://opengameart.org/sites/default/files/cozzypuzzle3mix_16bits.flac"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Cracked Out Robot",
+      "artist": "section31",
+      "sourceUrl": "https://opengameart.org/content/cracked-out-robot",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; !Project::KISS Topdown Shooter CC0 Music CC0 Music DieselGate The Game[SoundTrack] Music Section 31&#03",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/S31-Cracked%20Out%20Robot_0.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_cracked_out_robot",
+      "sha256": "1ccd57cc6803cd141632a7670dff49eae6f824bd8936ea2baa8dcf5957f2bf0a"
+    },
+    {
+      "title": "Crystal Cave (song18)",
+      "artist": "cynicmusic",
+      "sourceUrl": "https://opengameart.org/content/crystal-cave-song18",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; !Project::Archeron !Project::KISS Topdown Shooter Adventure&#039;s Edge AnyRPG Background Music audio::",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/song18_0.mp3"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_crystal_cave_song18",
+      "sha256": "42349d7c615fe947866100a90289d61a1e64620e11f2d041b37166eaaa4e5840"
+    },
+    {
+      "title": "Cyberpunk Beauty, touch the sky & Neon owl (Tarush Singhal vs Zodik)",
+      "artist": "glitchart",
+      "sourceUrl": "https://opengameart.org/content/cyberpunk-beauty-touch-the-sky-neon-owl-tarush-singhal-vs-zodik",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; barbadel music Futuristic Farming Game [Airos] [CC] Music Favorites:&nbsp; 7 Preview:&nbsp; <img ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/cyberpunkmix2_0.ogg",
+        "https://opengameart.org/sites/default/files/cyberpunkmix3_3.ogg",
+        "https://opengameart.org/sites/default/files/cyberpunkmix4_0.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Cyberpunk Moonlight Sonata",
+      "artist": "Joth",
+      "sourceUrl": "https://opengameart.org/content/cyberpunk-moonlight-sonata",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; Adventure&#039;s Edge Audio - Commercial use OK audio::music::space BlackCortex bleeding-tube BlobGame ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/Cyberpunk%20Moonlight%20Sonata_0.mp3",
+        "https://opengameart.org/sites/default/files/Cyberpunk%20Moonlight%20Sonata%20v2.mp3"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_cyberpunk_moonlight_sonata",
+      "sha256": "75da0c212b36cab3556dfe2928d10d996fa4a6e4ad1e068e06a565389cc2c90c"
+    },
+    {
+      "title": "Dank Mistur Spooder",
+      "artist": "Sudocolon",
+      "sourceUrl": "https://opengameart.org/content/dank-mistur-spooder",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Music Truly Truly Public Domain Preview:&nbsp; haunted creeper File(s):&nbsp;</d",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/Dank%20Mistur%20Spooder_0.mp3"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_dank_mistur_spooder",
+      "sha256": "17f42f71af83a651b814188563022155ce1450bb3775fc356c728b435ff9b3b2"
+    },
+    {
+      "title": "Dark Alleys, Dark Times",
+      "artist": "section31",
+      "sourceUrl": "https://opengameart.org/content/dark-alleys-dark-times",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; !Project::KISS Armored Battle CC0 Music CC0 Music Music Section 31&#039;s Game Music Favorites:&nbsp; 9",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/S31-Dark%20Alleys%2C%20Dark%20Times.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_dark_alleys_dark_times",
+      "sha256": "2dc627e46b531add8bdd5f5eae8813d364ef6918ce73cda3eb36590c51144dcd"
+    },
+    {
+      "title": "Dark Theme",
+      "artist": "JaggedStone",
+      "sourceUrl": "https://opengameart.org/content/dark-theme",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; Cake Quest CC0 Music CC0 Music DieselGate The Game[SoundTrack] Dungeon of Ohk Game Over Good CC0 Music ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/theme_0.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_dark_theme",
+      "sha256": "9a31b27f7db7e60e382345c9ec2127f3859efd730c3f640a7b2f2d5b24d91dc4"
+    },
+    {
+      "title": "Dark Untilted Remix",
+      "artist": "Tozan",
+      "sourceUrl": "https://opengameart.org/content/dark-untilted-remix",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music CheezeMaze Favorites:&nbsp; 3 Preview:&nbsp; Untitled (originally by Megupets uner ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/untitledremix_0.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_dark_untilted_remix",
+      "sha256": "406854923b31445720712b7071d830365b3c027a3dab9a61ead9e1baa79d40be"
+    },
+    {
+      "title": "Dawg Dojo",
+      "artist": "fluffclipse",
+      "sourceUrl": "https://opengameart.org/content/dawg-dojo",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Panda Disk System podcast tunes Favorites:&nbsp; 1 Preview:&nbsp; A track made for an earlier fri",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/dawg_dojo_0.mp3",
+        "https://opengameart.org/sites/default/files/dawg_dojo.ogg",
+        "https://opengameart.org/sites/default/files/dawg_dojo.wav"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Decency",
+      "artist": "Spring Spring",
+      "sourceUrl": "https://opengameart.org/content/decency",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 CC-BY 4.0 CC-BY-SA 4.0 CC-BY-SA 3.0 Collections:&nbsp; Preview:&nbsp; <img class='audio-image' src='https://opengame",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/01._pastorale_hideuse_0.ogg",
+        "https://opengameart.org/sites/default/files/02._sandbags_0.ogg",
+        "https://opengameart.org/sites/default/files/03._sun_and_sea_0.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Delusional Lies",
+      "artist": "megupets",
+      "sourceUrl": "https://opengameart.org/content/delusional-lies",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; Audio - Commercial use OK CC0 Music CC0 Music CC0 resources Music _Audio - A Catalogar Favorites:&nbsp;",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/08%20-%20Delusional%20Lies_0.mp3"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_delusional_lies",
+      "sha256": "615b6c59183288274d31e159ad8d0250b93dcefe081799421a88cc7da5e3058c"
+    },
+    {
+      "title": "Desert theme",
+      "artist": "yd",
+      "sourceUrl": "https://opengameart.org/content/desert-theme",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; # Arabian platform maybe All CC0 - Uploader: yd AnyRPG Background Music Atmospheric Game Music audio::m",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/caravan.ogg.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_desert_theme",
+      "sha256": "086f52dc18e1db9a51831708295ae6e758f2f5edf79a0241b390d72bfb858c01"
+    },
+    {
+      "title": "Determination",
+      "artist": "artisticdude",
+      "sourceUrl": "https://opengameart.org/content/determination",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Little Spy Music reverie lost RPG::Music The Best of OGA Music Tower Defense Sound ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/determination.mp3"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_determination",
+      "sha256": "98542edc14912aa227b6e4f1ea820ab89d1efd8615fd442b56e0cf258adcd77b"
+    },
+    {
+      "title": "Determined to Fly",
+      "artist": "OwlishMedia",
+      "sourceUrl": "https://opengameart.org/content/determined-to-fly",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music RPG::Music Favorites:&nbsp; 3 Preview:&nbsp; This is an extended piece from my animated short",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/climax.wav"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_determined_to_fly",
+      "sha256": "ab3de3b142879d41b52cb7fba820d2834bfc77cfeb9cc7d19d97884955e3268f"
+    },
+    {
+      "title": "Difference",
+      "artist": "Chasersgaming",
+      "sourceUrl": "https://opengameart.org/content/difference",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; A Test agent chaser assets Beasts &amp; Brutes considering music CC0 Music CC0 Music Chiptune music Chi",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/song2.mp3_0.mp3"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_difference",
+      "sha256": "6588293a83a4e6aa8ab9e24e3d855e9b7b812e0b75dc541dbe10a884c1521ba8"
+    },
+    {
+      "title": "dissonant clean guitar",
+      "artist": "goldsonne",
+      "sourceUrl": "https://opengameart.org/content/dissonant-clean-guitar",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; sad stuff https://www.goldsonne.studio https://soundcloud.com/c4l0p3c File(s):&nbs",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/dissonant_clean.wav"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Doodle menu like song",
+      "artist": "StumpyStrust",
+      "sourceUrl": "https://opengameart.org/content/doodle-menu-like-song",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; BlackCortex CC0 Music CC0 Music Menu Music Stuff and Things Wolf _Audio - A Catalogar Favorites:&nbsp; ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/doodle_0.mp3"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_doodle_menu_like_song",
+      "sha256": "e74874295992900758cba8077f110024680bd7592e5c6103960f99d29ba8f13d"
+    },
+    {
+      "title": "dreamy guitar licks",
+      "artist": "goldsonne",
+      "sourceUrl": "https://opengameart.org/content/dreamy-guitar-licks",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; you will going places https://www.goldsonne.studio https://soundcloud.com/c4l0p3c ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/dreamyguitar.wav",
+        "https://opengameart.org/sites/default/files/dreamyguitarloop.wav"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Dreamy side scrolling, RPG Title menu and RPG village exploration (Hitctrl remixed)",
+      "artist": "glitchart",
+      "sourceUrl": "https://opengameart.org/content/dreamy-side-scrolling-rpg-title-menu-and-rpg-village-exploration-hitctrl-remixed",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 3 Preview:&nbsp; <img class='audio-image' src='https://opengameart.org/sites/def",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/dreamy_rpg_title_village_exploration_mix_0.ogg",
+        "https://opengameart.org/sites/default/files/dreamy_rpg_title_village_exploration_mix2_0.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Dungeon Ambience",
+      "artist": "yd",
+      "sourceUrl": "https://opengameart.org/content/dungeon-ambience",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; Acid Cube Dungeon Crawler Assets All CC0 - Uploader: yd AnyRPG Ambient Music audio-ambiant audio::music",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/dungeon002_0.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_dungeon_ambience",
+      "sha256": "18da6d6c4492d744f5ebde5bb128a636770df4197d2d4a0b5e8d65df6e27f57b"
+    },
+    {
+      "title": "Elecrticity",
+      "artist": "GlitchesDunArtist",
+      "sourceUrl": "https://opengameart.org/content/elecrticity",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Zap Zap Useful for dying of electricity hazards. Copyright/Attribution Notice:&nbs",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/electricity.mp3"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Emerge",
+      "artist": "SpiderDave",
+      "sourceUrl": "https://opengameart.org/content/emerge",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; At the Last Abbey Audio Audio - Commercial use OK BlueDreams CC0 Music CC0 Music Free Music Music Favor",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/85%20Emerge.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_emerge",
+      "sha256": "614ebc1775a62bdc50bb26f74320dab7a75247bacbb0e2ec45058d90e5c79f48"
+    },
+    {
+      "title": "Energetic Electro Tune",
+      "artist": "TinyWorlds",
+      "sourceUrl": "https://opengameart.org/content/energetic-electro-tune",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Audio - Uploader: TinyWorlds CC0 Music CC0 Music Music RTE game art _Audio - A Catalogar Favorites:",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/mixdown.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_energetic_electro_tune",
+      "sha256": "4a2360010627f1fc04eedb640285a032d6d4bdd3e1aed24b469a8b0c29f76dd4"
+    },
+    {
+      "title": "Evil Awaits",
+      "artist": "bosslevelaudio",
+      "sourceUrl": "https://opengameart.org/content/evil-awaits",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 OGA-BY 3.0 OGA-BY 4.0 CC-BY 4.0 GPL 3.0 GPL 2.0 <img src='https://opengameart.org/sites/default/files/license_imag",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/evil_awaits.mp3"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Exploring Place",
+      "artist": "Sen",
+      "sourceUrl": "https://opengameart.org/content/exploring-place",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; [Airos] [CC] Music Favorites:&nbsp; 1 Preview:&nbsp; A simple sine with bunch drum pattern. <div ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/fun_1.wav"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Eye of the Storm",
+      "artist": "Joth",
+      "sourceUrl": "https://opengameart.org/content/eye-of-the-storm",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; 16-Bit Short Film audio::music::space CC0 CC0 Audio - Uploader: Joth CC0 Music CC0 Music Dragon Booster",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/Eye%20of%20the%20Storm.mp3"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_eye_of_the_storm",
+      "sha256": "3f25710090659287e3f184a2968af8c965b1480eb6d7665b0a0c43866eb8af85"
+    },
+    {
+      "title": "Fantasy",
+      "artist": "Boogey999",
+      "sourceUrl": "https://opengameart.org/content/fantasy-0",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Commando tile sets, sprites and sounds Music Music Music collection Favorites:&nbsp",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/FantasyWav.wav"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_fantasy_0",
+      "sha256": "1bbf44b26b9cf298a4eabf4720aaabb6f2d6d75f7dd11552ab4b2cab6bbd775d"
+    },
+    {
+      "title": "FAQ",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/faq",
+      "licenseText": "",
+      "downloads": [],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Fishbowl Acrobatics (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/fishbowl-acrobatics-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Here's a sweet little piece that might work in a cute game. :-) Thousands of my or",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/fishbowl_acrobatics_0.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "flat-head-thrash-metal",
+      "artist": "darkmg",
+      "sourceUrl": "https://opengameart.org/content/flat-head-thrash-metal",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; flat-head-thrash-metal File(s):&nbsp; <div c",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/flat-head-thrash-metal_0.mp3"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "For the Win!",
+      "artist": "Crusoe",
+      "sourceUrl": "https://opengameart.org/content/for-the-win",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; 2018 Collection Preview:&nbsp; Have you ever won something? Yeah? Well it feels like this... File",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/for_the_win.wav"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Forest Ambience",
+      "artist": "TinyWorlds",
+      "sourceUrl": "https://opengameart.org/content/forest-ambience",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; Adventure&#039;s Edge Ambience ambient Audio Assets for Project: MG audio-ambiant Autumn Card Game Card",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/Forest_Ambience.mp3"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_forest_ambience",
+      "sha256": "9850aa1d0d5d66bd9c5daf8bb77c6d852e01f2f4de22f283bd5621e8bed13b75"
+    },
+    {
+      "title": "Forgoten tomb ambience",
+      "artist": "kindland",
+      "sourceUrl": "https://opengameart.org/content/forgoten-tomb-ambience",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; ambient Atmospheric Game Music audio-ambiant audio::music::space CC0 Fantasy Music &amp; Sounds CC0 Mus",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/Forgoten_tombs_1.mp3"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_forgoten_tomb_ambience",
+      "sha256": "989b26d4c6ec9fb90da2c9c892a396920e1b2e14a426052574310e275ebd01d0"
+    },
+    {
+      "title": "Found you (Game version) - AndyNope",
+      "artist": "AndyNope",
+      "sourceUrl": "https://opengameart.org/content/found-you-game-version-andynope",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 CC0 Collections:&nbsp; Preview:&nbsp; I wrote a song with lyrics called Found you. This is the game version, free to",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/found_you_-_andynope.mp3"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_found_you_game_version_andynope",
+      "sha256": "a0cc7733abfa15247344b7f3a2f6d966a593e5b9d98fb6916e3655cf2e1e8ae2"
+    },
+    {
+      "title": "Frantic Game Play (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/frantic-game-play-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; Here's a wacky loop that might work in a crazy driving game, a ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/frantic_gameplay_v001_0.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "FreeMusic",
+      "artist": "goldsonne",
+      "sourceUrl": "https://opengameart.org/content/freemusic",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Wolf Favorites:&nbsp; 1 Preview:&nbsp; FreeMusic for Actionscenes. Metal if you like it please vi",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/scnell4.wav"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Funked Up",
+      "artist": "Joth",
+      "sourceUrl": "https://opengameart.org/content/funked-up",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; Barajam Game CC0 Audio - Uploader: Joth CC0 Music Funky tunes Panda Disk System podcast tunes soundtrac",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/Funked%20Up.mp3"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_funked_up",
+      "sha256": "57cd81254a0f4e068535c5421f93b586514332ad2377f81aea190dd91659fff3"
+    },
+    {
+      "title": "Funky Chiptune (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/funky-chiptune-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 3 Preview:&nbsp; Here's one that might work in a high energy retro-arcade style ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/funky_chiptune_0.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Funky Pixeltown",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/funky-pixeltown",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Florida Crab Game? Favorites:&nbsp; 2 Preview:&nbsp; Overflowing with characters who are just too",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/funky_pixel_town_0.mp3",
+        "https://opengameart.org/sites/default/files/funky_pixel_town_looping.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Funky Sidewalk Antics (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/funky-sidewalk-antics-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 3 Preview:&nbsp; NOTE: If you've been downloading my music tracks from my pages ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/funky_sidewalk_antics_0.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Futuristic-Resources",
+      "artist": "section31",
+      "sourceUrl": "https://opengameart.org/content/futuristic-resources",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Music RTE game art Section 31&#039;s Game Music Favorites:&nbsp; 8 Preview:&nbsp; <",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/S31-Futuristic-Resources.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_futuristic_resources",
+      "sha256": "58a3d9fdd5bf76666e0bec747dab5045bfd5ca98ff45db77d5dfd36fa06f16f2"
+    },
+    {
+      "title": "Galactic Enterprises",
+      "artist": "Crusoe",
+      "sourceUrl": "https://opengameart.org/content/galactic-enterprises",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; 2018 Collection Preview:&nbsp; Using symphonies to create a melody about space. cool huh? File(s)",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/galactic_enterprise.wav"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Galactic Temple",
+      "artist": "yd",
+      "sourceUrl": "https://opengameart.org/content/galactic-temple",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; All CC0 - Uploader: yd audio::music::space CC0 CC0 Music CC0 Music CF Inspiration Dot Universe Gude!Jum",
+      "downloads": [],
+      "has_cc0": true,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Game Menu (Standard and Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/game-menu-standard-and-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; A cool, hypnotic piece with a bit of mystery. Could be used und",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/game-menu_remixed_0.mp3",
+        "https://opengameart.org/sites/default/files/game_menu_looping.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Glowsphere",
+      "artist": "obscure music",
+      "sourceUrl": "https://opengameart.org/content/glowsphere",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; A Test Art With (Open) Character CC0 CC0 Music CC0 Music Cold Circuit Music My Public Domain music Old ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/Glowsphere.mp3"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_glowsphere",
+      "sha256": "7a31e7190e33e7620ab8ced6e3e71b8e74ab40e4168722c1b64e13d807effc24"
+    },
+    {
+      "title": "Go Lucky",
+      "artist": "Chasersgaming",
+      "sourceUrl": "https://opengameart.org/content/go-lucky",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; A Test agent chaser assets CC0 Chiptunes CC0 Music CC0 Music Chiptunes Music Ooga &amp; Goga - 2D platf",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/golucky.mp3_0.mp3",
+        "https://opengameart.org/sites/default/files/golucky.oggvorbis.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_go_lucky",
+      "sha256": "818392502ed6cf76b18e9d80460e557d7fafaff65ee52c52a255234320be8b0e"
+    },
+    {
+      "title": "Goblins Soundtrack",
+      "artist": "Spring Spring",
+      "sourceUrl": "https://opengameart.org/content/goblins-soundtrack",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 OGA-BY 3.0 OGA-BY 4.0 CC-BY 4.0 CC-BY-SA 4.0 CC-BY-SA 3.0 Collections:&nbsp; <div class=\"field-it",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/town_day.flac",
+        "https://opengameart.org/sites/default/files/town_night.flac",
+        "https://opengameart.org/sites/default/files/champion_fight.flac"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Great Labyrinth (Mintodog & Jonathan Shaw)",
+      "artist": "glitchart",
+      "sourceUrl": "https://opengameart.org/content/great-labyrinth-mintodog-jonathan-shaw",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Great Labyrinth(Orchestral dungeon music) Author: Mintodog https://opengameart.org",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/greatlabyrinthmix_0.ogg",
+        "https://opengameart.org/sites/default/files/greatlabyrinthmixcut.flac"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_great_labyrinth_mintodog_jonathan_shaw",
+      "sha256": "759678c7a651c80564e2757d755a61aeb9986f74591d8ac3418b63b66016956a"
+    },
+    {
+      "title": "guitars",
+      "artist": "goldsonne",
+      "sourceUrl": "https://opengameart.org/content/guitars",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; guitars https://www.goldsonne.studio https://soundcloud.com/c4l0p3c File(s):&nbsp;",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/guitars.mp3"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Gumboot Blues",
+      "artist": "gorbygorby",
+      "sourceUrl": "https://opengameart.org/content/gumboot-blues",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Panda Disk System podcast tunes Preview:&nbsp; river vibes... let's go fishing for some trout!!!!",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/gumboot_blues.wav"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Happy Clappy Loop",
+      "artist": "OwlishMedia",
+      "sourceUrl": "https://opengameart.org/content/happy-clappy-loop",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music RPG::Music Favorites:&nbsp; 11 Preview:&nbsp; This is a piece from my animated short film <a ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/HappyClappyLoop.wav"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_happy_clappy_loop",
+      "sha256": "1ca66b4e4d41e14a4ccfcc3b758e061cf283b9d5e332c4ea8e00f94f4deb6554"
+    },
+    {
+      "title": "Happy Plains",
+      "artist": "Erick Soto 624",
+      "sourceUrl": "https://opengameart.org/content/happy-plains",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 OGA-BY 3.0 OGA-BY 4.0 CC-BY 4.0 GPL 3.0 GPL 2.0 <img src='https://opengameart.org/sites/default/files/license_imag",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/happy_plains.wav",
+        "https://opengameart.org/sites/default/files/happy_plains_loop.wav"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Happy Trancin' (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/happy-trancin-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 3 Preview:&nbsp; A really fun-sounding tranc-y loop. (:46) You can download thou",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/happy_trancin_0.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Har\u00e1n",
+      "artist": "megupets",
+      "sourceUrl": "https://opengameart.org/content/har%C3%A1n",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; 2d sci-fi platformer - scouting 8-bit Chiptune commercial ok Audio - CC0 - 8Bit -Chiptune CC0 Music CC0",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/Har%C3%A1n.mp3"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_har_3_1n",
+      "sha256": "5a7f6e79cf321b73f99e4f78b15cfbc7ac8dec37bfe52984b66a4cdfc72f550b"
+    },
+    {
+      "title": "Haydenwoffle .it Soundtrack",
+      "artist": "Spring Spring",
+      "sourceUrl": "https://opengameart.org/content/haydenwoffle-it-soundtrack",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 - Retro Music CC0 Audio - Uploader: Spring Spring CC0 Music Frolic Hayden&#039;s Theme OH GULLY 2, ",
+      "downloads": [],
+      "has_cc0": true,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Hazy Darkness (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/hazy-darkness-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; \u2022\u00b0\u00af`\u2022\u2022Attribution Needed\u2022\u2022\u00b4\u00af\u00b0\u2022 Favorites:&nbsp; 3 Preview:&nbsp; An eerie soundscape, possibly",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/hazy_darkness_looping_0.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Head in the Sand (seamless loop)",
+      "artist": "congusbongus",
+      "sourceUrl": "https://opengameart.org/content/head-in-the-sand-seamless-loop",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Famitracker Audio Heritage Inventory Manic Minutes Music My Game Music Pixelated Mu",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/headinthesand_0.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_head_in_the_sand_seamless_loop",
+      "sha256": "953a0a9e3d8d3ea6084d9a218bd99fba2c6ed20e1c0c6114d619cab2f8734971"
+    },
+    {
+      "title": "headscratcher, Cutie pie, Bossa Nova ( congusbongus vs FrancisLeeMusic vs Joth)",
+      "artist": "glitchart",
+      "sourceUrl": "https://opengameart.org/content/headscratcher-cutie-pie-bossa-nova-congusbongus-vs-francisleemusic-vs-joth",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 CC-BY 4.0 Collections:&nbsp; Favorites:&nbsp; 3 Preview:&nbsp; <",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/headscratchermix_0.ogg",
+        "https://opengameart.org/sites/default/files/headscratchermixcut.flac",
+        "https://opengameart.org/sites/default/files/headscratcherdance_0.ogg"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Heart of machine, Singularity, Curse of the wolf and boss Battle 2 (Zhelanov vs Vitalezzz vs Tausdei vs nene)",
+      "artist": "glitchart",
+      "sourceUrl": "https://opengameart.org/content/heart-of-machine-singularity-curse-of-the-wolf-and-boss-battle-2-zhelanov-vs-vitalezzz-vs",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Epic Trailer Music Favorites:&nbsp; 6 Preview:&nbsp; A new mix with tracks by Alexandr Zhelanov, ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/heartofmachinemix_2.ogg",
+        "https://opengameart.org/sites/default/files/heartofmachinemix.flac"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Heavy Steroid Use",
+      "artist": "section31",
+      "sourceUrl": "https://opengameart.org/content/heavy-steroid-use",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Music Section 31&#039;s Game Music Space Game Favorites:&nbsp; 5 Preview:&nbsp; <di",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/S31-Heavy%20Steroid%20Use.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_heavy_steroid_use",
+      "sha256": "ecda687fe9fd7b562944ee27abcd1c13548ba4f8ed156d33f694eee5e4591738"
+    },
+    {
+      "title": "High Alert",
+      "artist": "section31",
+      "sourceUrl": "https://opengameart.org/content/high-alert",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Section 31&#039;s Game Music Favorites:&nbsp; 6 Preview:&nbsp; Just starting to me",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/S31-High%20Alert.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_high_alert",
+      "sha256": "8e07e7454c216acb9f89e25400cf2d4bfed2715dc08f52988065b9445981146c"
+    },
+    {
+      "title": "Holy sword, chill jungle ambient , the eternal sands & Caryil the Desert of Dreams (Tausdei vs Hitctrl vs Insydnis)",
+      "artist": "glitchart",
+      "sourceUrl": "https://opengameart.org/content/holy-sword-chill-jungle-ambient-the-eternal-sands-caryil-the-desert-of-dreams-tausdei-vs",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; <div class='play-button' data-ogg-url='https://opengameart.org/",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/holy_sword_remixed_0.ogg",
+        "https://opengameart.org/sites/default/files/holy_sword_remixed2_0.ogg",
+        "https://opengameart.org/sites/default/files/holy_sword_remixed.flac"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Hydrophobic Hideout [2A03]",
+      "artist": "Alejo_c....",
+      "sourceUrl": "https://opengameart.org/content/hydrophobic-hideout-2a03",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Cryothene GRIMOIRE 2 Favorites:&nbsp; 3 Preview:&nbsp; Port of my previous work that I had to tak",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/hydrophobic_hideout_2a03.wav"
+      ],
+      "has_cc0": false,
+      "status": "REJECTED"
+    },
+    {
+      "title": "Hyoshi Shot",
+      "artist": "Tozan",
+      "sourceUrl": "https://opengameart.org/content/hyoshi-shot",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Music Preview:&nbsp; Strange tune with all kinds of weird clicks in it.d Copyright/",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/Hyoshishort_0.ogg"
+      ],
+      "has_cc0": true,
+      "status": "APPROVED_DRAFT",
+      "trackId": "fm_oga_hyoshi_shot",
+      "sha256": "0826aedad9160db4b942e7a6566eecb4c9efaea820c5914c947219df5f52e2de"
+    }
+  ],
+  "rejected": [
+    {
+      "title": "16 RPG-like procedural generated music tracks",
+      "artist": "messersm",
+      "sourceUrl": "https://opengameart.org/content/16-rpg-like-procedural-generated-music-tracks",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; A Simple Knight (considered graphics) Art for &quot;Be Realistic&quot; CC0 Music CC0 Music Music Sound ",
+      "downloads": [],
+      "has_cc0": true,
+      "reason": "NO_DOWNLOAD"
+    },
+    {
+      "title": "2am in Sector 3 (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/2am-in-sector-3-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Captain Fluffles Panda Disk System podcast tunes Favorites:&nbsp; 2 Preview:&nbsp; In a cyber cit",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/2am_in_sector_3_0.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "5 Chiptunes (Action)",
+      "artist": "SubspaceAudio",
+      "sourceUrl": "https://opengameart.org/content/5-chiptunes-action",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; A Simple Knight (considered graphics) AAAAXY Astar Asteria Audio - Commercial use OK Audio 8-bits audio",
+      "downloads": [],
+      "has_cc0": true,
+      "reason": "NO_DOWNLOAD"
+    },
+    {
+      "title": "A chill shop",
+      "artist": "game guy maker",
+      "sourceUrl": "https://opengameart.org/content/a-chill-shop",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; Can be used for a game just give credits. Copyright/Attribution",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/a_jazzy_place_idk.mp3"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "A Dilemma",
+      "artist": "Crusoe",
+      "sourceUrl": "https://opengameart.org/content/a-dilemma",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Did I spell dilemma right? I feel pressured about this. File(s):&nbsp; <a href=\"ht",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/daniels_dilemma.wav"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "A kingdom of tears",
+      "artist": "game guy maker",
+      "sourceUrl": "https://opengameart.org/content/a-kingdom-of-tears",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; Fixed version with the tunes fixed Also may get into artcore mo",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/rpg_or_kirby_type_beat_1.mp3"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "A Kingdom of tears battle theme.",
+      "artist": "game guy maker",
+      "sourceUrl": "https://opengameart.org/content/a-kingdom-of-tears-battle-theme",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; REMADE! Copyright/Attribution Notice:&nbsp; Credits File(s):&nbsp; <div",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/battle_theme_2_0.mp3"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "A Maze of Secret Dungeons (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/a-maze-of-secret-dungeons-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Full of oubliettes? (Like in the movie Labyrinth?) Dark and atmospheric...maybe fo",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/a_maze_of_secret_dungeons_0.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "A Meadow of Mysteries",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/a-meadow-of-mysteries",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Panda Disk System podcast tunes Favorites:&nbsp; 1 Preview:&nbsp; Seemingly innocent\u2026but what hid",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/a_meadow_of_mysteries_0.mp3"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "A sunset.",
+      "artist": "game guy maker",
+      "sourceUrl": "https://opengameart.org/content/a-sunset",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Just something I made also inspirations from this guy https://onlinesequencer.net/",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/splash_hill_.mp3"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "A Wild Party in Doctor Strangevolt's Castle (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/a-wild-party-in-doctor-strangevolts-castle-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 2 Preview:&nbsp; What are they up to in there?! Who cares\u2026party on! (1:34) Thous",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/a_wild_party_in_doctor_strangevolts_castle.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "About to Log on",
+      "artist": "fluffclipse",
+      "sourceUrl": "https://opengameart.org/content/about-to-log-on",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Panda Disk System podcast tunes Favorites:&nbsp; 1 Preview:&nbsp; An old title theme i made for a",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/about_to_log_on_0.mp3",
+        "https://opengameart.org/sites/default/files/about_to_log_on.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Action 32: 32+ LOOPING 8-Bit Action-Game Chiptunes",
+      "artist": "Volcano of Bears",
+      "sourceUrl": "https://opengameart.org/content/action-32-32-looping-8-bit-action-game-chiptunes",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 OGA-BY 3.0 OGA-BY 4.0 CC-BY 4.0 CC-BY-SA 4.0 Collections:&nbsp; Favorites:&nbsp; 1 ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/thump_spark.wav"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "action track 4, A.I. fight & jumping cyborg (Zhelanov vs tricksntraps)",
+      "artist": "glitchart",
+      "sourceUrl": "https://opengameart.org/content/action-track-4-ai-fight-jumping-cyborg-zhelanov-vs-tricksntraps",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; This is a preliminary idea that I may improve or further develo",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/action-track-4-ai-fight-jumping-cyborg-mix_0.ogg",
+        "https://opengameart.org/sites/default/files/action-track-4-ai-fight-jumping-cyborg-mix.flac",
+        "https://opengameart.org/sites/default/files/action-track-4-ai-fight-jumping-cyborg-loopable.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Ad Ignum",
+      "artist": "Crusoe",
+      "sourceUrl": "https://opengameart.org/content/ad-ignum",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; 2018 Collection Preview:&nbsp; Brass song File(s):&nbsp; <a ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/ad_ignum2_0.wav"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Alien Vistas",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/alien-vistas",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 3 Preview:&nbsp; Here's a hypnotic-sounding piece that could depict strange but ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/alien_vistas_0.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "alr ig",
+      "artist": "river.mp3",
+      "sourceUrl": "https://opengameart.org/content/alr-ig",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; bass heavy/jersey vibes Made via Sountrap File(s):&nbsp; <a href=\"https://opengame",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/alr_ig.mp3",
+        "https://opengameart.org/sites/default/files/alr_ig_0.wav",
+        "https://opengameart.org/sites/default/files/alr_ig.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "amp to 11",
+      "artist": "river.mp3",
+      "sourceUrl": "https://opengameart.org/content/amp-to-11",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; fun hihat w/ phaser Made via Soundtrap File(s):&nbsp; <a href=\"https://opengameart",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/amp_to_11_0.mp3",
+        "https://opengameart.org/sites/default/files/amp_to_11.wav",
+        "https://opengameart.org/sites/default/files/amp_to_11.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "An Enchanted Box",
+      "artist": "Terrazon",
+      "sourceUrl": "https://opengameart.org/content/an-enchanted-box",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; A true plethora of colours and feels... although they all seem too similar... 04/0",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/an_enchanted_box.mp3"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Another space background track",
+      "artist": "yd",
+      "sourceUrl": "https://opengameart.org/content/another-space-background-track",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; !Project::Archeron 16x16 Adventure&#039;s Edge All CC0 - Uploader: yd Artwork used by Space Inc. audio:",
+      "downloads": [],
+      "has_cc0": true,
+      "reason": "NO_DOWNLOAD"
+    },
+    {
+      "title": "anotherMetalPeve",
+      "artist": "goldsonne",
+      "sourceUrl": "https://opengameart.org/content/anothermetalpeve",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; fitting not for everything but something https://www.goldsonne.",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/cool_riffaget_0.mp3"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Arcade Oddities (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/arcade-oddities-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; A strangely quirky little tune\u2026maybe for a strange quirky game?",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/arcade_oddities_2.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Arcade Puzzler (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/arcade-puzzler-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 3 Preview:&nbsp; Gotta love that \u201980s arcade music sound! (00:48) Thousands of f",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/arcade_puzzler_0.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Austerity's Friend",
+      "artist": "Spring Spring",
+      "sourceUrl": "https://opengameart.org/content/austeritys-friend",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 OGA-BY 3.0 OGA-BY 4.0 CC-BY 4.0 CC-BY-SA 4.0 CC-BY-SA 3.0 Collections:&nbsp; <div class=\"field-it",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/spring_spring_-_austeritys_friend_-_01_austeritys_friend_0.mp3",
+        "https://opengameart.org/sites/default/files/spring_spring_-_austeritys_friend_-_02_wobblemind_0.mp3",
+        "https://opengameart.org/sites/default/files/spring_spring_-_austeritys_friend_-_03_the_era_of_abundance_0.mp3"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Background space track",
+      "artist": "yd",
+      "sourceUrl": "https://opengameart.org/content/background-space-track",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; !Project::Archeron 16x16 3D Space Shooter All CC0 - Uploader: yd audio-ambiant audio::music::space Blac",
+      "downloads": [],
+      "has_cc0": true,
+      "reason": "NO_DOWNLOAD"
+    },
+    {
+      "title": "Backyard Doll",
+      "artist": "Louswan",
+      "sourceUrl": "https://opengameart.org/content/backyard-doll",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; This one is calmer and more melancholic in a doll-ish way you c",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/backyard_doll.ogg",
+        "https://opengameart.org/sites/default/files/backyard_doll.flac",
+        "https://opengameart.org/sites/default/files/backyard_doll_dry.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Balloons Forever (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/balloons-forever-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Perhaps for a fun, relaxing game or app? (:49) It's 100% free to use with attribut",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/balloons-forever.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Battle in the winter & Battle theme a (Pixelsphere vs Jobromedia)",
+      "artist": "glitchart",
+      "sourceUrl": "https://opengameart.org/content/battle-in-the-winter-battle-theme-a-pixelsphere-vs-jobromedia",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 OGA-BY 3.0 GPL 3.0 Collections:&nbsp; Favorites:&nbsp; 3 Preview:&nbsp; <div class='play-button' data-ogg-url='https",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/battle_in_the_wintermix_0.ogg",
+        "https://opengameart.org/sites/default/files/battle_in_the_wintermix.flac"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "BBEG",
+      "artist": "ShoeGeezer",
+      "sourceUrl": "https://opengameart.org/content/bbeg",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; Big Bad Evil Guy File(s):&nbsp; ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/cubby_beech_-_bbeg_1.wav"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Beautiful Day",
+      "artist": "Crusoe",
+      "sourceUrl": "https://opengameart.org/content/beautiful-day",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; 2018 Collection Favorites:&nbsp; 1 Preview:&nbsp; This song just feels kinda nice. ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/crusoe_scene_1.wav"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Besai Crystal Gardens Entranceway",
+      "artist": "Tozan",
+      "sourceUrl": "https://opengameart.org/content/besai-crystal-gardens-entranceway",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Music Favorites:&nbsp; 1 Preview:&nbsp; More strange musc when you first step into ",
+      "downloads": [],
+      "has_cc0": true,
+      "reason": "NO_DOWNLOAD"
+    },
+    {
+      "title": "Blew 1",
+      "artist": "iamoneabe",
+      "sourceUrl": "https://opengameart.org/content/blew-1",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Something something bleep bloob.. DAW Experiements #123 File(s):&nbsp; <a ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/blew_1_2025-09-22_1934_0.mp3",
+        "https://opengameart.org/sites/default/files/blew_1_2025-09-22_1934.wav"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Bobble of Love (Gundatsch)",
+      "artist": "glitchart",
+      "sourceUrl": "https://opengameart.org/content/bobble-of-love-gundatsch",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Bobble of Love Another somehow weird ... lets call it jazz-step thing. https://ope",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/bobbleoflovemix_0.ogg",
+        "https://opengameart.org/sites/default/files/bobbleoflovemix16bits.flac"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Boss Battle #2 [Symphonic Metal]",
+      "artist": "nene",
+      "sourceUrl": "https://opengameart.org/content/boss-battle-2-symphonic-metal",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; Action/Adventure/Battle/Fantasy music assets for the odin-skeleton project Audio - Commercial use OK Bl",
+      "downloads": [],
+      "has_cc0": true,
+      "reason": "NO_DOWNLOAD"
+    },
+    {
+      "title": "Boss Battle Music",
+      "artist": "SubspaceAudio",
+      "sourceUrl": "https://opengameart.org/content/boss-battle-music",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; 4j Action/Adventure/Battle/Fantasy music AnyRPG Battle Music Audio Bal Ental Ambience/Music CC0 - Cinem",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/Juhani%20Junkala%20-%20Epic%20Boss%20Battle%20%5BSeamlessly%20Looping%5D.wav"
+      ],
+      "has_cc0": true,
+      "reason": "SIZE_21773152"
+    },
+    {
+      "title": "BOSS fight music",
+      "artist": "moskowa2",
+      "sourceUrl": "https://opengameart.org/content/boss-fight-music",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 OGA-BY 3.0 OGA-BY 4.0 CC-BY 4.0 GPL 3.0 GPL 2.0 <img src='https://opengameart.org/sites/default/files/license_imag",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/evil.wav"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "bossa nova, headscratcher, Cutie pie (migfus20 vs congusbongus vs FrancisLeeMusic)",
+      "artist": "glitchart",
+      "sourceUrl": "https://opengameart.org/content/bossa-nova-headscratcher-cutie-pie-migfus20-vs-congusbongus-vs-francisleemusic",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 CC-BY 4.0 Collections:&nbsp; Preview:&nbsp; <div",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/bosa_nova_remix_0.ogg",
+        "https://opengameart.org/sites/default/files/bosa_nova_remix.flac",
+        "https://opengameart.org/sites/default/files/bosa_nova_remix_version2.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Bounce Light 3 (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/bounce-light-3-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 4 Preview:&nbsp; Maybe for a shimmering light game? Or something else? (1:32) Th",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/bounce_light_3_0.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Broken Metronome [2A03 + 3 N163]",
+      "artist": "Alejo_c....",
+      "sourceUrl": "https://opengameart.org/content/broken-metronome-2a03-3-n163",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; BANANA_SPLEET NeuroBlade [Airos] [CC] Music - Chiptune Favorites:&nbsp; 4 Preview:&nbsp; testing ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/broken_metronome.wav"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Bubble Gum Groovin' (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/bubble-gum-groovin-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; Here\u2019s a funky little track that might be fun in a quirky urban",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/bubble_gum_groovin_looping_0.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "BubbleBobble",
+      "artist": "ShoeGeezer",
+      "sourceUrl": "https://opengameart.org/content/bubblebobble",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Another track from my 3D Boomer Platformer \"Dreamwave'84\" Copyright/Attribution No",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/cubby_beech_-_bubble_bobble.wav"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Building Things in Faraway Places (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/building-things-in-faraway-places-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; <div class='play-button' data-ogg-url='https://opengameart.org/sites/default/files",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/building_things_in_faraway_places_v1_0.ogg",
+        "https://opengameart.org/sites/default/files/building_things_in_faraway_places.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Captive Audience",
+      "artist": "gorbygorby",
+      "sourceUrl": "https://opengameart.org/content/captive-audience",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 2 Preview:&nbsp; It'd be in your best interest to keep your eyes on me, darling.",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/captive_audience1.mp3"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Chase Theme",
+      "artist": "CDMJ",
+      "sourceUrl": "https://opengameart.org/content/chase-theme",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; This is my first song I ever made on BeepBox. I tried to go with a \"big monster is",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/chase_song_0.mp3"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Chill",
+      "artist": "cosmac",
+      "sourceUrl": "https://opengameart.org/content/chill-3",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; A relaxing, short theme. File(s):&nbsp; <a href=\"https://opengameart.org/sites/def",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/chill.mp3"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Chillwave Loop / Background music",
+      "artist": "jdee",
+      "sourceUrl": "https://opengameart.org/content/chillwave-loop-background-music",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Cool sci-fi track to vibe to. Energetic but not high-octane. File(s):&nbsp; <a hre",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/chill.wav",
+        "https://opengameart.org/sites/default/files/chill_2.mp3"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Chuggin' Through Columbia (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/chuggin-through-columbia-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; Riding the rails over the mountains...or maybe for something el",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/chuggin_through_colombia_0.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Circuit City",
+      "artist": "Tarush Singhal",
+      "sourceUrl": "https://opengameart.org/content/circuit-city",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; inspired by deltarune cc by 3.0 license which means you use it ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/circuits_fin.wav"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Clean rock (Pro Sensory & Outer123 & Tad & Santiago S\u00e1nchez)",
+      "artist": "glitchart",
+      "sourceUrl": "https://opengameart.org/content/clean-rock-pro-sensory-outer123-tad-santiago-s%C3%A1nchez",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; <div class='play-button' data-ogg-url='https://opengameart.org/",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/cleanrockmix_0.ogg",
+        "https://opengameart.org/sites/default/files/cleanrockmix16bits.flac",
+        "https://opengameart.org/sites/default/files/cleanrockmixflamenco_0.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "COIN-OP SHENANIGANS (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/coin-op-shenanigans-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 3 Preview:&nbsp; Another retro-arcade-sounding level track. (:33) CUSTOM WORK Ne",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/coin-op_shenanigans_0.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Colt Magnum",
+      "artist": "iamoneabe",
+      "sourceUrl": "https://opengameart.org/content/colt-magnum",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; Playful something something.. Learning a new DAW File(s):&nbsp;",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/new_1_2025-09-21_0251_0.mp3",
+        "https://opengameart.org/sites/default/files/new_1_2025-09-21_0251.wav"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Cool Adventure Intro (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/cool-adventure-intro-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 4 Preview:&nbsp; Might be fun under titles/menus for an upbeat game. :-) Thousan",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/cool_adventure_intro_0.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Coral Kingdom",
+      "artist": "gorbygorby",
+      "sourceUrl": "https://opengameart.org/content/coral-kingdom",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Life is nice in shallow waters Specially made for my brother's project, but you ma",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/coral_kingdom1.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Cosmic Candy Catchers (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/cosmic-candy-catchers-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 3 Preview:&nbsp; NOTE: If you've been downloading my music tracks from my pages ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/cosmic_candy_catchers_0.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Cosmic Cookie",
+      "artist": "Louswan",
+      "sourceUrl": "https://opengameart.org/content/cosmic-cookie",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 6 Preview:&nbsp; Hey guys, it's me again! So I tried a little bit of 8 bit the l",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/cosmic_cookie_normal_1.ogg",
+        "https://opengameart.org/sites/default/files/cosmic_cookie_normal_1.mp3",
+        "https://opengameart.org/sites/default/files/cosmic_cookie_slower_1.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Cozy Puzzle In-Game 3 (Mintodog & nlhoang162 & Santiago S\u00e1nchez & Pro Sensory)",
+      "artist": "glitchart",
+      "sourceUrl": "https://opengameart.org/content/cozy-puzzle-in-game-3-mintodog-nlhoang162-santiago-s%C3%A1nchez-pro-sensory",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 CC-BY-SA 3.0 Collections:&nbsp; Favorites:&nbsp; 2 Preview:&nbsp; <div class=\"field-it",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/cozzypuzzle3mix_0.ogg",
+        "https://opengameart.org/sites/default/files/cozzypuzzle3mix_16bits.flac"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Creepy depressed theme",
+      "artist": "obscure music",
+      "sourceUrl": "https://opengameart.org/content/creepy-depressed-theme",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; A Test CC0 Music CC0 Music Horror game (untitled) H_V_ Music My Public Domain music _Audio - A Cataloga",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/goo.wav"
+      ],
+      "has_cc0": true,
+      "reason": "SIZE_85739780"
+    },
+    {
+      "title": "Cyberpunk Beauty, touch the sky & Neon owl (Tarush Singhal vs Zodik)",
+      "artist": "glitchart",
+      "sourceUrl": "https://opengameart.org/content/cyberpunk-beauty-touch-the-sky-neon-owl-tarush-singhal-vs-zodik",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; barbadel music Futuristic Farming Game [Airos] [CC] Music Favorites:&nbsp; 7 Preview:&nbsp; <img ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/cyberpunkmix2_0.ogg",
+        "https://opengameart.org/sites/default/files/cyberpunkmix3_3.ogg",
+        "https://opengameart.org/sites/default/files/cyberpunkmix4_0.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Dawg Dojo",
+      "artist": "fluffclipse",
+      "sourceUrl": "https://opengameart.org/content/dawg-dojo",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Panda Disk System podcast tunes Favorites:&nbsp; 1 Preview:&nbsp; A track made for an earlier fri",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/dawg_dojo_0.mp3",
+        "https://opengameart.org/sites/default/files/dawg_dojo.ogg",
+        "https://opengameart.org/sites/default/files/dawg_dojo.wav"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Decency",
+      "artist": "Spring Spring",
+      "sourceUrl": "https://opengameart.org/content/decency",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 CC-BY 4.0 CC-BY-SA 4.0 CC-BY-SA 3.0 Collections:&nbsp; Preview:&nbsp; <img class='audio-image' src='https://opengame",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/01._pastorale_hideuse_0.ogg",
+        "https://opengameart.org/sites/default/files/02._sandbags_0.ogg",
+        "https://opengameart.org/sites/default/files/03._sun_and_sea_0.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "dissonant clean guitar",
+      "artist": "goldsonne",
+      "sourceUrl": "https://opengameart.org/content/dissonant-clean-guitar",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; sad stuff https://www.goldsonne.studio https://soundcloud.com/c4l0p3c File(s):&nbs",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/dissonant_clean.wav"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "dreamy guitar licks",
+      "artist": "goldsonne",
+      "sourceUrl": "https://opengameart.org/content/dreamy-guitar-licks",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; you will going places https://www.goldsonne.studio https://soundcloud.com/c4l0p3c ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/dreamyguitar.wav",
+        "https://opengameart.org/sites/default/files/dreamyguitarloop.wav"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Dreamy side scrolling, RPG Title menu and RPG village exploration (Hitctrl remixed)",
+      "artist": "glitchart",
+      "sourceUrl": "https://opengameart.org/content/dreamy-side-scrolling-rpg-title-menu-and-rpg-village-exploration-hitctrl-remixed",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 3 Preview:&nbsp; <img class='audio-image' src='https://opengameart.org/sites/def",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/dreamy_rpg_title_village_exploration_mix_0.ogg",
+        "https://opengameart.org/sites/default/files/dreamy_rpg_title_village_exploration_mix2_0.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Elecrticity",
+      "artist": "GlitchesDunArtist",
+      "sourceUrl": "https://opengameart.org/content/elecrticity",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Zap Zap Useful for dying of electricity hazards. Copyright/Attribution Notice:&nbs",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/electricity.mp3"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Evil Awaits",
+      "artist": "bosslevelaudio",
+      "sourceUrl": "https://opengameart.org/content/evil-awaits",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 OGA-BY 3.0 OGA-BY 4.0 CC-BY 4.0 GPL 3.0 GPL 2.0 <img src='https://opengameart.org/sites/default/files/license_imag",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/evil_awaits.mp3"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Exploring Place",
+      "artist": "Sen",
+      "sourceUrl": "https://opengameart.org/content/exploring-place",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; [Airos] [CC] Music Favorites:&nbsp; 1 Preview:&nbsp; A simple sine with bunch drum pattern. <div ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/fun_1.wav"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "FAQ",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/faq",
+      "licenseText": "",
+      "downloads": [],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Fishbowl Acrobatics (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/fishbowl-acrobatics-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Here's a sweet little piece that might work in a cute game. :-) Thousands of my or",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/fishbowl_acrobatics_0.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "flat-head-thrash-metal",
+      "artist": "darkmg",
+      "sourceUrl": "https://opengameart.org/content/flat-head-thrash-metal",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; flat-head-thrash-metal File(s):&nbsp; <div c",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/flat-head-thrash-metal_0.mp3"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "For the Win!",
+      "artist": "Crusoe",
+      "sourceUrl": "https://opengameart.org/content/for-the-win",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; 2018 Collection Preview:&nbsp; Have you ever won something? Yeah? Well it feels like this... File",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/for_the_win.wav"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Frantic Game Play (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/frantic-game-play-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; Here's a wacky loop that might work in a crazy driving game, a ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/frantic_gameplay_v001_0.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "FreeMusic",
+      "artist": "goldsonne",
+      "sourceUrl": "https://opengameart.org/content/freemusic",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Wolf Favorites:&nbsp; 1 Preview:&nbsp; FreeMusic for Actionscenes. Metal if you like it please vi",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/scnell4.wav"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Funky Chiptune (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/funky-chiptune-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 3 Preview:&nbsp; Here's one that might work in a high energy retro-arcade style ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/funky_chiptune_0.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Funky Pixeltown",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/funky-pixeltown",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Florida Crab Game? Favorites:&nbsp; 2 Preview:&nbsp; Overflowing with characters who are just too",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/funky_pixel_town_0.mp3",
+        "https://opengameart.org/sites/default/files/funky_pixel_town_looping.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Funky Sidewalk Antics (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/funky-sidewalk-antics-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 3 Preview:&nbsp; NOTE: If you've been downloading my music tracks from my pages ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/funky_sidewalk_antics_0.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Galactic Enterprises",
+      "artist": "Crusoe",
+      "sourceUrl": "https://opengameart.org/content/galactic-enterprises",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; 2018 Collection Preview:&nbsp; Using symphonies to create a melody about space. cool huh? File(s)",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/galactic_enterprise.wav"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Galactic Temple",
+      "artist": "yd",
+      "sourceUrl": "https://opengameart.org/content/galactic-temple",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; All CC0 - Uploader: yd audio::music::space CC0 CC0 Music CC0 Music CF Inspiration Dot Universe Gude!Jum",
+      "downloads": [],
+      "has_cc0": true,
+      "reason": "NO_DOWNLOAD"
+    },
+    {
+      "title": "Game Menu (Standard and Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/game-menu-standard-and-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; A cool, hypnotic piece with a bit of mystery. Could be used und",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/game-menu_remixed_0.mp3",
+        "https://opengameart.org/sites/default/files/game_menu_looping.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Goblins Soundtrack",
+      "artist": "Spring Spring",
+      "sourceUrl": "https://opengameart.org/content/goblins-soundtrack",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 OGA-BY 3.0 OGA-BY 4.0 CC-BY 4.0 CC-BY-SA 4.0 CC-BY-SA 3.0 Collections:&nbsp; <div class=\"field-it",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/town_day.flac",
+        "https://opengameart.org/sites/default/files/town_night.flac",
+        "https://opengameart.org/sites/default/files/champion_fight.flac"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "guitars",
+      "artist": "goldsonne",
+      "sourceUrl": "https://opengameart.org/content/guitars",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; guitars https://www.goldsonne.studio https://soundcloud.com/c4l0p3c File(s):&nbsp;",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/guitars.mp3"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Gumboot Blues",
+      "artist": "gorbygorby",
+      "sourceUrl": "https://opengameart.org/content/gumboot-blues",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Panda Disk System podcast tunes Preview:&nbsp; river vibes... let's go fishing for some trout!!!!",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/gumboot_blues.wav"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Happy Plains",
+      "artist": "Erick Soto 624",
+      "sourceUrl": "https://opengameart.org/content/happy-plains",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 OGA-BY 3.0 OGA-BY 4.0 CC-BY 4.0 GPL 3.0 GPL 2.0 <img src='https://opengameart.org/sites/default/files/license_imag",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/happy_plains.wav",
+        "https://opengameart.org/sites/default/files/happy_plains_loop.wav"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Happy Trancin' (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/happy-trancin-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 3 Preview:&nbsp; A really fun-sounding tranc-y loop. (:46) You can download thou",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/happy_trancin_0.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Haydenwoffle .it Soundtrack",
+      "artist": "Spring Spring",
+      "sourceUrl": "https://opengameart.org/content/haydenwoffle-it-soundtrack",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 - Retro Music CC0 Audio - Uploader: Spring Spring CC0 Music Frolic Hayden&#039;s Theme OH GULLY 2, ",
+      "downloads": [],
+      "has_cc0": true,
+      "reason": "NO_DOWNLOAD"
+    },
+    {
+      "title": "Hazy Darkness (Looping)",
+      "artist": "Eric Matyas",
+      "sourceUrl": "https://opengameart.org/content/hazy-darkness-looping",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; \u2022\u00b0\u00af`\u2022\u2022Attribution Needed\u2022\u2022\u00b4\u00af\u00b0\u2022 Favorites:&nbsp; 3 Preview:&nbsp; An eerie soundscape, possibly",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/hazy_darkness_looping_0.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "headscratcher, Cutie pie, Bossa Nova ( congusbongus vs FrancisLeeMusic vs Joth)",
+      "artist": "glitchart",
+      "sourceUrl": "https://opengameart.org/content/headscratcher-cutie-pie-bossa-nova-congusbongus-vs-francisleemusic-vs-joth",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 CC-BY 4.0 Collections:&nbsp; Favorites:&nbsp; 3 Preview:&nbsp; <",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/headscratchermix_0.ogg",
+        "https://opengameart.org/sites/default/files/headscratchermixcut.flac",
+        "https://opengameart.org/sites/default/files/headscratcherdance_0.ogg"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Heart of machine, Singularity, Curse of the wolf and boss Battle 2 (Zhelanov vs Vitalezzz vs Tausdei vs nene)",
+      "artist": "glitchart",
+      "sourceUrl": "https://opengameart.org/content/heart-of-machine-singularity-curse-of-the-wolf-and-boss-battle-2-zhelanov-vs-vitalezzz-vs",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Epic Trailer Music Favorites:&nbsp; 6 Preview:&nbsp; A new mix with tracks by Alexandr Zhelanov, ",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/heartofmachinemix_2.ogg",
+        "https://opengameart.org/sites/default/files/heartofmachinemix.flac"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Holy sword, chill jungle ambient , the eternal sands & Caryil the Desert of Dreams (Tausdei vs Hitctrl vs Insydnis)",
+      "artist": "glitchart",
+      "sourceUrl": "https://opengameart.org/content/holy-sword-chill-jungle-ambient-the-eternal-sands-caryil-the-desert-of-dreams-tausdei-vs",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Favorites:&nbsp; 1 Preview:&nbsp; <div class='play-button' data-ogg-url='https://opengameart.org/",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/holy_sword_remixed_0.ogg",
+        "https://opengameart.org/sites/default/files/holy_sword_remixed2_0.ogg",
+        "https://opengameart.org/sites/default/files/holy_sword_remixed.flac"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    },
+    {
+      "title": "Hydrophobic Hideout [2A03]",
+      "artist": "Alejo_c....",
+      "sourceUrl": "https://opengameart.org/content/hydrophobic-hideout-2a03",
+      "licenseText": " field-type-taxonomy-term-reference field-label-above\"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Cryothene GRIMOIRE 2 Favorites:&nbsp; 3 Preview:&nbsp; Port of my previous work that I had to tak",
+      "downloads": [
+        "https://opengameart.org/sites/default/files/hydrophobic_hideout_2a03.wav"
+      ],
+      "has_cc0": false,
+      "reason": "LICENCE_NOT_CC0_CLEAN"
+    }
+  ]
+}

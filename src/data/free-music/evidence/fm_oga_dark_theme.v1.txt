@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/dark-theme
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=JaggedStone
+title=Dark Theme
+downloadUrl=https://opengameart.org/sites/default/files/theme_0.ogg
+sha256=9a31b27f7db7e60e382345c9ec2127f3859efd730c3f640a7b2f2d5b24d91dc4
+bytes=1006663
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; Cake Quest CC0 Music CC0 Music DieselGate The Game[SoundTrack] Dungeon of Ohk Game Over Good CC0 Music Music Stuff and Things _Audio - A Catalogar Favorites:&nbsp; 38 Preview:&nbsp; <div class='play-butto

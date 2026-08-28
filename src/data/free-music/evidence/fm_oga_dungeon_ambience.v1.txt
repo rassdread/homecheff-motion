@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/dungeon-ambience
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=yd
+title=Dungeon Ambience
+downloadUrl=https://opengameart.org/sites/default/files/dungeon002_0.ogg
+sha256=18da6d6c4492d744f5ebde5bb128a636770df4197d2d4a0b5e8d65df6e27f57b
+bytes=1202848
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; Acid Cube Dungeon Crawler Assets All CC0 - Uploader: yd AnyRPG Ambient Music audio-ambiant audio::music::space AWeirdDay:RPG CC0 Music CC0 Music Dark Fantasy Dungeon of Ohk Dungeon2025 GS Prototype RPG 2018 KOLEKCJA Music Music music Music - Ambient Puzzle Game Music QnD002 Assets RPG Música RPG::Audio::Ambiance Soundtracks for use in Open Dungeons

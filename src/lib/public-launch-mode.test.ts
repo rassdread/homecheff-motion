@@ -45,7 +45,7 @@ describe("public launch mode", () => {
     assert.doesNotMatch(robots, /noindex/i);
 
     const sitemap = readFileSync(join(ROOT, "src/app/sitemap.ts"), "utf8");
-    assert.match(sitemap, /SEO_PUBLIC_PATHS/);
+    assert.match(sitemap, /SEO_SITEMAP_PATHS/);
     for (const path of ["/", "/studio", "/pricing", "/help"]) {
       assert.ok(SEO_PUBLIC_PATHS.includes(path as (typeof SEO_PUBLIC_PATHS)[number]), path);
     }

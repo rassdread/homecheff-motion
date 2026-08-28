@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/go-lucky
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=Chasersgaming
+title=Go Lucky
+downloadUrl=https://opengameart.org/sites/default/files/golucky.mp3_0.mp3
+sha256=818392502ed6cf76b18e9d80460e557d7fafaff65ee52c52a255234320be8b0e
+bytes=1393247
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; A Test agent chaser assets CC0 Chiptunes CC0 Music CC0 Music Chiptunes Music Ooga &amp; Goga - 2D platformer - scouting Favorites:&nbsp; 8 Preview:&nbsp; <div class='play-button' data-ogg-url='https://opengameart.org/sites/default/files/audio_preview/golucky.mp3.mp3.ogg' data-mp3-url='https:

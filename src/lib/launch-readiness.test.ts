@@ -18,7 +18,7 @@ describe("launch readiness", () => {
   });
 
   it("sitemap and robots are configured", () => {
-    assert.match(readFileSync(join(ROOT, "src/app/sitemap.ts"), "utf8"), /SEO_PUBLIC_PATHS/);
+    assert.match(readFileSync(join(ROOT, "src/app/sitemap.ts"), "utf8"), /SEO_SITEMAP_PATHS/);
     assert.match(readFileSync(join(ROOT, "src/app/robots.ts"), "utf8"), /sitemap/);
   });
 

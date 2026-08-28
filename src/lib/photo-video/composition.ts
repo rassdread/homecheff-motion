@@ -39,8 +39,10 @@ import {
 } from "@/lib/photo-video/transition-kind";
 import {
   clampOwnMusicToVideo,
+  clampCatalogMusicToVideo,
   setOwnMusicStart,
   setOwnMusicVolume,
+  setCatalogMusicVolume,
   type PhotoVideoAudio,
 } from "@/lib/photo-video/audio";
 import {
@@ -393,11 +395,14 @@ function syncAudioWindow(
   composition: PhotoVideoComposition,
   context: PhotoVideoContext = "studio"
 ): PhotoVideoComposition {
-  if (composition.audio.kind !== "ownMusic") return composition;
-  return {
-    ...composition,
-    audio: clampOwnMusicToVideo(composition.audio, compositionDuration(composition, context).totalSeconds),
-  };
+  const total = compositionDuration(composition, context).totalSeconds;
+  if (composition.audio.kind === "ownMusic") {
+    return { ...composition, audio: clampOwnMusicToVideo(composition.audio, total) };
+  }
+  if (composition.audio.kind === "catalog") {
+    return { ...composition, audio: clampCatalogMusicToVideo(composition.audio, total) };
+  }
+  return composition;
 }
 
 export function setDurationSeconds(
@@ -609,17 +614,28 @@ export function setMusicStart(
   startSeconds: number,
   context: PhotoVideoContext = "studio"
 ): PhotoVideoComposition {
-  if (composition.audio.kind !== "ownMusic") return composition;
-  return setAudio(
-    composition,
-    setOwnMusicStart(composition.audio, startSeconds, compositionDuration(composition, context).totalSeconds),
-    context
-  );
+  const total = compositionDuration(composition, context).totalSeconds;
+  if (composition.audio.kind === "ownMusic") {
+    return setAudio(composition, setOwnMusicStart(composition.audio, startSeconds, total), context);
+  }
+  if (composition.audio.kind === "catalog") {
+    return setAudio(
+      composition,
+      clampCatalogMusicToVideo({ ...composition.audio, startSeconds }, total),
+      context
+    );
+  }
+  return composition;
 }
 
 export function setMusicVolume(composition: PhotoVideoComposition, volume: number): PhotoVideoComposition {
-  if (composition.audio.kind !== "ownMusic") return composition;
-  return { ...composition, audio: setOwnMusicVolume(composition.audio, volume) };
+  if (composition.audio.kind === "ownMusic") {
+    return { ...composition, audio: setOwnMusicVolume(composition.audio, volume) };
+  }
+  if (composition.audio.kind === "catalog") {
+    return { ...composition, audio: setCatalogMusicVolume(composition.audio, volume) };
+  }
+  return composition;
 }
 
 export function createLocalPhoto(input: {

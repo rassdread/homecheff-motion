@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/cyberpunk-moonlight-sonata
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=Joth
+title=Cyberpunk Moonlight Sonata
+downloadUrl=https://opengameart.org/sites/default/files/Cyberpunk%20Moonlight%20Sonata_0.mp3
+sha256=75da0c212b36cab3556dfe2928d10d996fa4a6e4ad1e068e06a565389cc2c90c
+bytes=2338920
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; Adventure&#039;s Edge Audio - Commercial use OK audio::music::space BlackCortex bleeding-tube BlobGame BoscoMusic CC0 CC0 - Upbeat / Electronic Music CC0 Audio - Uploader: Joth CC0 Music CC0 Music Collected Cyberpunk Cyberpunk Music Digital_Music_Collection Dragon Booster Remake Free music - CC0 Game Asset Kits gamedev-time Joth : Modern Dance Little One </li

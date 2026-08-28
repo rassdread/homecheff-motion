@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/battle-theme-0
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=Wolfgang_
+title=Battle Theme
+downloadUrl=https://opengameart.org/sites/default/files/Battle.mp3
+sha256=dde7bd4f10bde031800ba8e22151fad591b7c13e1c9ae51920341b4e4ae37be5
+bytes=4646747
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; 16. Music Action/Adventure/Battle/Fantasy music CC0 Fantasy Music &amp; Sounds CC0 Music CF Inspiration Dark Fantasy Elemental Verbs Tower Defense Epic Fantasy Music feb game H_V_ Legend of Rathnor Parts Music Music - Boss Battle Music - Puzzle Music - RPG Music - Strategy Music/Sound Effects NecroPunk Orcish Adventure! Quality Music RPG Battle Themes 

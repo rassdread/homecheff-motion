@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/besai-crystal-gardens-2-forbidden-pathway
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=Tozan
+title=Besai Crystal Gardens 2 Forbidden Pathway
+downloadUrl=https://opengameart.org/sites/default/files/Crystal2_0.ogg
+sha256=816f7e3efe3667f7ebf67d9407a2bd78ac4c6eb7edd49ef5c45bfce7512e837c
+bytes=1210193
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; Audio CC0 Music CC0 Music Legend of Rathnor Parts Music Favorites:&nbsp; 4 Preview:&nbsp; <div class="field-ite

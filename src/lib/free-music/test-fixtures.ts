@@ -1,0 +1,71 @@
+import { createHash } from "node:crypto";
+import type { FreeMusicTrackRights } from "@/lib/free-music/types";
+
+export function sha256Hex(buf: Buffer | string): string {
+  return createHash("sha256").update(buf).digest("hex");
+}
+
+export function makeCc0Fixture(overrides: Partial<FreeMusicTrackRights> = {}): FreeMusicTrackRights {
+  const now = "2026-08-27T12:00:00.000Z";
+  const hash = sha256Hex("homecheff-free-music-fixture-v1");
+  return {
+    id: "fm_fixture_cc0_1",
+    trackId: "fm_fixture_cc0_1",
+    title: "Fixture Calm Loop",
+    artist: "HomeCheff Test Affirmer",
+    artistUrl: "https://example.invalid/artist",
+    sourceName: "OpenGameArt",
+    sourceAssetId: "fixture-1",
+    sourceTrackUrl: "https://opengameart.org/content/fixture-calm-loop",
+    sourceDownloadUrl: "https://example.invalid/fixture.ogg",
+    licenseClass: "CC0",
+    licenseType: "CC0 1.0 Universal",
+    licenseVersion: "1.0",
+    licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/",
+    licenseTextSnapshot: "CC0 1.0 dedication verified on source page for this recording.",
+    licenseEvidenceUrl: "https://opengameart.org/content/fixture-calm-loop",
+    licenseEvidenceStorageKey: "music/evidence/fm_fixture_cc0_1/v1.txt",
+    licenseVerifiedAt: now,
+    commercialUseAllowed: true,
+    modificationAllowed: true,
+    syncAllowed: true,
+    finishedOutputDistributionAllowed: true,
+    homecheffHostingAllowed: true,
+    studioCatalogDistributionAllowed: true,
+    browserDeliveryAllowed: true,
+    standaloneRedistributionAllowed: true,
+    sublicensingRequired: false,
+    sublicensingAllowed: true,
+    attributionRequired: false,
+    attributionText: null,
+    shareAlikeRequired: false,
+    compositionRightsStatus: "VERIFIED",
+    recordingRightsStatus: "VERIFIED",
+    territories: "WORLDWIDE_CC0_ASSUMED",
+    expiry: null,
+    revocable: false,
+    contentIdRisk: "UNKNOWN",
+    contentIdNotes: "No known Content ID fingerprint; residual automated-claim risk remains.",
+    rightsReviewStatus: "APPROVED",
+    reviewReason: "Phase 2 fixture",
+    reviewedBy: "phase2-curator",
+    reviewedAt: now,
+    reviewDecision: "APPROVED",
+    reviewNotes: "Synthetic fixture for admission/security tests only.",
+    sourceFileHash: hash,
+    storedMasterHash: hash,
+    mimeType: "audio/ogg",
+    codec: "vorbis",
+    durationMs: 90000,
+    sampleRate: 44100,
+    fileSize: 120000,
+    masterStorageKey: "music/master/fm_fixture_cc0_1.ogg",
+    previewStorageKey: "music/preview/fm_fixture_cc0_1.mp3",
+    catalogStatus: "ACTIVE",
+    category: "CHILL",
+    mood: "calm",
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+}

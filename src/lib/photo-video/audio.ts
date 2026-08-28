@@ -30,7 +30,21 @@ export type PhotoVideoOwnMusic = {
   peaks?: number[];
 };
 
-export type PhotoVideoAudio = { kind: "none" } | PhotoVideoOwnMusic;
+/** Built-in Free Music selection — resolve bytes server-side via catalogTrackId only. */
+export type PhotoVideoCatalogMusic = {
+  kind: "catalog";
+  trackId: string;
+  startSeconds: number;
+  durationSeconds: number;
+  trackDurationSeconds: number;
+  volume: number;
+  title?: string;
+  artist?: string;
+  objectUrl?: string;
+  peaks?: number[];
+};
+
+export type PhotoVideoAudio = { kind: "none" } | PhotoVideoOwnMusic | PhotoVideoCatalogMusic;
 
 export type AudioWindow = {
   startSeconds: number;
@@ -108,11 +122,31 @@ export function audioTrackTimeAt(input: {
   audio: PhotoVideoAudio;
   compositionTimeSeconds: number;
 }): number | null {
-  if (input.audio.kind !== "ownMusic") return null;
+  if (input.audio.kind !== "ownMusic" && input.audio.kind !== "catalog") return null;
   const t = Math.max(0, input.compositionTimeSeconds);
   const trackTime = input.audio.startSeconds + t;
   if (trackTime >= input.audio.trackDurationSeconds) return null;
   return trackTime;
+}
+
+export function clampCatalogMusicToVideo(
+  audio: PhotoVideoCatalogMusic,
+  videoDurationSeconds: number
+): PhotoVideoCatalogMusic {
+  const window = audioWindowFor({
+    videoDurationSeconds,
+    trackDurationSeconds: audio.trackDurationSeconds,
+    startSeconds: audio.startSeconds,
+  });
+  return {
+    ...audio,
+    startSeconds: window.startSeconds,
+    durationSeconds: window.windowSeconds,
+  };
+}
+
+export function setCatalogMusicVolume(audio: PhotoVideoCatalogMusic, volume: number): PhotoVideoCatalogMusic {
+  return { ...audio, volume: Math.max(0, Math.min(1, volume)) };
 }
 
 export function classifyDecodedDuration(durationSeconds: number): "ok" | "duration" {

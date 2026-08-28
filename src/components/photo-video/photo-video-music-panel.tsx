@@ -44,25 +44,33 @@ export function PhotoVideoMusicPanel({
   const [error, setError] = useState<string | null>(null);
   const audio = composition.audio;
   const videoDuration = compositionDuration(composition).totalSeconds;
-  const selection =
-    audio.kind === "ownMusic"
-      ? audioWindowFor({
-          videoDurationSeconds: videoDuration,
-          trackDurationSeconds: audio.trackDurationSeconds,
-          startSeconds: audio.startSeconds,
-        })
-      : null;
+  const hasMusicBed = audio.kind === "ownMusic" || audio.kind === "catalog";
+  const selection = hasMusicBed
+    ? audioWindowFor({
+        videoDurationSeconds: videoDuration,
+        trackDurationSeconds: audio.trackDurationSeconds,
+        startSeconds: audio.startSeconds,
+      })
+    : null;
+
+  const catalogPreviewSrc =
+    audio.kind === "catalog"
+      ? `/api/studio/free-music/asset/${encodeURIComponent(audio.trackId)}?kind=preview`
+      : undefined;
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || audio.kind !== "ownMusic" || !selection) return;
+    if (!canvas || !hasMusicBed || !selection) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const w = canvas.width;
     const h = canvas.height;
     ctx.fillStyle = "#0f172a";
     ctx.fillRect(0, 0, w, h);
-    const peaks = audio.peaks?.length ? audio.peaks : Array.from({ length: 64 }, () => 0.15);
+    const peaks =
+      audio.kind === "ownMusic" && audio.peaks?.length
+        ? audio.peaks
+        : Array.from({ length: 64 }, () => 0.15);
     const barW = w / peaks.length;
     peaks.forEach((peak, i) => {
       const bh = Math.max(2, peak * (h - 8));
@@ -80,7 +88,7 @@ export function PhotoVideoMusicPanel({
     ctx.strokeStyle = "#006D52";
     ctx.lineWidth = 3;
     ctx.strokeRect(px.x + 1.5, 1.5, Math.max(8, px.width) - 3, h - 3);
-  }, [audio, selection]);
+  }, [audio, selection, hasMusicBed]);
 
   useEffect(() => {
     const el = audioRef.current;
@@ -89,7 +97,7 @@ export function PhotoVideoMusicPanel({
     let raf = 0;
     const tick = () => {
       const current = composition.audio;
-      if (current.kind !== "ownMusic") {
+      if (current.kind !== "ownMusic" && current.kind !== "catalog") {
         if (!el.paused) el.pause();
         raf = window.requestAnimationFrame(tick);
         return;
@@ -134,7 +142,7 @@ export function PhotoVideoMusicPanel({
           startSeconds: 0,
           durationSeconds: videoDuration,
           trackDurationSeconds: decoded.durationSeconds,
-          volume: audio.kind === "ownMusic" ? audio.volume : PHOTO_VIDEO_DEFAULT_VOLUME,
+          volume: hasMusicBed ? audio.volume : PHOTO_VIDEO_DEFAULT_VOLUME,
           objectUrl,
           fileName: file.name,
           peaks: decoded.peaks,
@@ -149,7 +157,7 @@ export function PhotoVideoMusicPanel({
   };
 
   const onPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    if (audio.kind !== "ownMusic" || !selection) return;
+    if (!hasMusicBed || !selection) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -168,7 +176,7 @@ export function PhotoVideoMusicPanel({
 
   const onPointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     const drag = dragRef.current;
-    if (!drag || audio.kind !== "ownMusic") return;
+    if (!drag || !hasMusicBed) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -195,27 +203,36 @@ export function PhotoVideoMusicPanel({
 
   return (
     <div className="space-y-3" data-testid="px4a-music-panel">
-      <p className="text-sm text-zinc-600">{t("px4a.audio.legal")}</p>
-      <label
-        htmlFor={fileId}
-        className="inline-flex min-h-11 cursor-pointer items-center rounded-full border border-zinc-200 px-4 text-sm font-medium"
-      >
-        {t("px4a.audio.choose")}
-      </label>
-      <input
-        id={fileId}
-        data-testid="px4a-audio-file"
-        type="file"
-        accept="audio/mpeg,audio/mp3,audio/mp4,audio/aac,audio/wav,audio/x-wav,audio/ogg,audio/webm,audio/x-m4a,.mp3,.m4a,.aac,.wav,.ogg,.webm"
-        className="sr-only"
-        onChange={(event) => {
-          void onFile(event.target.files);
-          event.target.value = "";
-        }}
-      />
-      {audio.kind === "ownMusic" ? (
+      {audio.kind !== "catalog" ? (
         <>
-          {audio.fileName ? (
+          <p className="text-sm text-zinc-600">{t("px4a.audio.legal")}</p>
+          <label
+            htmlFor={fileId}
+            className="inline-flex min-h-11 cursor-pointer items-center rounded-full border border-zinc-200 px-4 text-sm font-medium"
+          >
+            {t("px4a.audio.choose")}
+          </label>
+          <input
+            id={fileId}
+            data-testid="px4a-audio-file"
+            type="file"
+            accept="audio/mpeg,audio/mp3,audio/mp4,audio/aac,audio/wav,audio/x-wav,audio/ogg,audio/webm,audio/x-m4a,.mp3,.m4a,.aac,.wav,.ogg,.webm"
+            className="sr-only"
+            onChange={(event) => {
+              void onFile(event.target.files);
+              event.target.value = "";
+            }}
+          />
+        </>
+      ) : (
+        <p className="text-sm text-zinc-700" data-testid="px4a-catalog-track-meta">
+          {audio.title ?? audio.trackId}
+          {audio.artist ? ` — ${audio.artist}` : ""}
+        </p>
+      )}
+      {hasMusicBed ? (
+        <>
+          {audio.kind === "ownMusic" && audio.fileName ? (
             <p className="truncate text-sm text-zinc-700">{t("px4a.audio.fileName", { name: audio.fileName })}</p>
           ) : null}
           {selection?.trackShorterThanVideo ? (
@@ -249,7 +266,12 @@ export function PhotoVideoMusicPanel({
               onChange={(event) => onVolume(Number(event.target.value) / 100)}
             />
           </label>
-          <audio ref={audioRef} src={audio.objectUrl} preload="auto" />
+          <audio
+            ref={audioRef}
+            src={audio.kind === "ownMusic" ? audio.objectUrl : catalogPreviewSrc}
+            preload={audio.kind === "catalog" ? "none" : "auto"}
+            crossOrigin={audio.kind === "catalog" ? "use-credentials" : undefined}
+          />
         </>
       ) : null}
       {error ? (
@@ -261,7 +283,7 @@ export function PhotoVideoMusicPanel({
         type="button"
         className="min-h-11 rounded-full border border-zinc-200 px-4 text-sm font-medium"
         onClick={() => onPlayingChange(!playing)}
-        disabled={audio.kind !== "ownMusic"}
+        disabled={!hasMusicBed}
       >
         {playing ? t("px4a.preview.pause") : t("px4a.preview.play")}
       </button>

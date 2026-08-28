@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/doodle-menu-like-song
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=StumpyStrust
+title=Doodle menu like song
+downloadUrl=https://opengameart.org/sites/default/files/doodle_0.mp3
+sha256=e74874295992900758cba8077f110024680bd7592e5c6103960f99d29ba8f13d
+bytes=2338447
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; BlackCortex CC0 Music CC0 Music Menu Music Stuff and Things Wolf _Audio - A Catalogar Favorites:&nbsp; 32 Preview:&nbsp; 

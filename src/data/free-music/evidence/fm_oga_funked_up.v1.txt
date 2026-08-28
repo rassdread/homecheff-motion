@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/funked-up
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=Joth
+title=Funked Up
+downloadUrl=https://opengameart.org/sites/default/files/Funked%20Up.mp3
+sha256=57cd81254a0f4e068535c5421f93b586514332ad2377f81aea190dd91659fff3
+bytes=1329549
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; Barajam Game CC0 Audio - Uploader: Joth CC0 Music Funky tunes Panda Disk System podcast tunes soundtrack [Airos] [CC0] Music - Chiptune Favorites:&nbsp; 12 Preview:&nbsp; <div class='play-button' data-ogg-url='https://opengameart.org/sites/default/files/audio_preview/Funked%20Up.mp3.ogg' data-mp3-url='https://op

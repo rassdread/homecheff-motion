@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/besai-sky-city-crystal-gardens-dark-lower-depths-area-4
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=Tozan
+title=Besai Sky City Crystal Gardens Dark Lower Depths Area 4
+downloadUrl=https://opengameart.org/sites/default/files/Besaidark4_0.ogg
+sha256=6831b7146ee25e0f9ad1e2e18efaa7ec95b1c61bf661b4f24bd6dd5d89e564be
+bytes=1024456
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Music Favorites:&nbsp; 1 Preview:&nbsp; Dark Moody Background tune for game I'm making <p

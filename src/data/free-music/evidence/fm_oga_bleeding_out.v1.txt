@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/bleeding-out
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=HaelDB
+title=Bleeding out
+downloadUrl=https://opengameart.org/sites/default/files/bleeding_out2.flac
+sha256=0f76d09dfff29f0cf615456d7a74cba6f5034428bf24a0bdda99ad52f7698fcd
+bytes=11322490
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; OGA-BY 3.0 CC0 Collections:&nbsp; !Project::Archeron Adventure Co Ambience audio-ambiant audio::music::space Bloodlords Music Samples Card Game CC0 Audio - Uploader: HaelDB CC0 Music Cold Circuit Dark Sci-Fi Dot Universe Farewell project Horrorsoft inspired point and click game Living Forests - Travel music Music <a hr

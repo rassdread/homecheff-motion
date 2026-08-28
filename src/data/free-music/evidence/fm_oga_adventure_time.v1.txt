@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/adventure-time
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=Scribe
+title=Adventure Time
+downloadUrl=https://opengameart.org/sites/default/files/adventuring_song.mp3
+sha256=8dc0aa25c1d29713bdb416f64eb4c27b1af86fa807d3ca39f3fdb1850b716cea
+bytes=1381272
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; 16. Music All CC0 - Uploader: Scribe Art With (Open) Character CC0 Music CC0 Music Cool Music Good CC0-Art MetalTek Music Public Domain Music Public Domain Music I like RoboMulti Truly Truly Public Domain Favorites:&nbsp; 42 Preview:&nbsp; <div class='art_preview_multiple audio-preview' data-display-type='art_preview_multi

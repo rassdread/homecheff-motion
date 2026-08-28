@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/besai-crystal-gardens-forbidden-area-5
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=Tozan
+title=Besai Crystal Gardens Forbidden Area 5
+downloadUrl=https://opengameart.org/sites/default/files/darkforbbiden5_0.ogg
+sha256=548f203c07be3cedf2f7b01116d91a7ea6bd8a8a67ca3fefac7f3e66aa97b1db
+bytes=850688
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Favorites:&nbsp; 1 Preview:&nbsp; This is the background music for a certain area of the game. <div class="field fiel

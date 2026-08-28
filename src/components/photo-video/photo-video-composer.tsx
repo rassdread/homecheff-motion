@@ -106,12 +106,19 @@ import { withItemReturnResult } from "@/lib/photo-video/item-handoff";
 import { trackPhotoVideoFunnelEvent } from "@/lib/photo-video/funnel-analytics";
 import { revokePhotoVideoObjectUrl } from "@/lib/photo-video/object-url";
 import { nudgeOverlay } from "@/lib/photo-video/text-overlay";
-import type { PhotoVideoOwnMusic } from "@/lib/photo-video/audio";
-import { PHOTO_VIDEO_MUSIC_CATALOG_STATUS } from "@/lib/photo-video/music-catalog";
+import type { PhotoVideoCatalogMusic, PhotoVideoOwnMusic } from "@/lib/photo-video/audio";
 import type { TranslationKey } from "@/i18n";
 
 const PhotoVideoMusicPanel = dynamic(
   () => import("@/components/photo-video/photo-video-music-panel").then((mod) => mod.PhotoVideoMusicPanel),
+  { ssr: false }
+);
+
+const PhotoVideoFreeMusicBrowser = dynamic(
+  () =>
+    import("@/components/photo-video/photo-video-free-music-browser").then(
+      (mod) => mod.PhotoVideoFreeMusicBrowser
+    ),
   { ssr: false }
 );
 
@@ -270,6 +277,7 @@ export function PhotoVideoComposer({
   const previewSentinelRef = useRef<HTMLDivElement>(null);
   const [pickingMusic, setPickingMusic] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
+  const [catalogAvailable, setCatalogAvailable] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportStage, setExportStage] = useState<PhotoVideoExportStage>("prepare");
   const exportingRef = useRef(false);
@@ -309,6 +317,23 @@ export function PhotoVideoComposer({
     trackPhotoVideoFunnelEvent(itemJourney ? "photo_video_item_opened" : "photo_video_opened");
   }, [itemJourney]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/studio/free-music/catalog", { credentials: "include" });
+        if (!res.ok) return;
+        const data = (await res.json()) as { enabled?: boolean };
+        if (!cancelled) setCatalogAvailable(data.enabled === true);
+      } catch {
+        if (!cancelled) setCatalogAvailable(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const applyRestored = useCallback(
     (restored: Awaited<ReturnType<typeof restorePhotoVideoDraft>>) => {
       if (!restored) return false;
@@ -319,6 +344,7 @@ export function PhotoVideoComposer({
       setSelectedPhotoId(restored.composition.photos[0]?.id ?? null);
       setSelectedOverlayId(restored.composition.overlays[0]?.id ?? null);
       setPickingMusic(restored.composition.audio.kind === "ownMusic");
+      setCatalogOpen(false);
       setResumeOffer(false);
       trackPhotoVideoFunnelEvent("photo_video_draft_restored");
       void loadPhotoVideoDraftBlobs(restored.composition, draftContext).then((blobs) => {
@@ -412,7 +438,9 @@ export function PhotoVideoComposer({
     0,
     composition.photos.findIndex((photo) => photo.id === selectedPhotoId)
   );
-  const showMusic = pickingMusic || composition.audio.kind === "ownMusic";
+  const showOwnMusic = pickingMusic || composition.audio.kind === "ownMusic";
+  const showCatalogControls = composition.audio.kind === "catalog";
+  const showMusicPanel = showOwnMusic || showCatalogControls;
   const authenticated = auth.resolved && Boolean(auth.user);
 
   const selectPhoto = useCallback(
@@ -1459,40 +1487,75 @@ export function PhotoVideoComposer({
           <button
             type="button"
             data-testid="px4a-audio-own"
-            aria-pressed={showMusic}
+            aria-pressed={showOwnMusic}
             className={`min-h-11 rounded-full border px-4 text-sm font-medium ${
-              showMusic ? "border-[#006D52] bg-[#006D52] text-white" : "border-zinc-200 bg-white text-zinc-800"
+              showOwnMusic ? "border-[#006D52] bg-[#006D52] text-white" : "border-zinc-200 bg-white text-zinc-800"
             }`}
             onClick={() => {
               setCatalogOpen(false);
               setPickingMusic(true);
+              setComposition((current) => {
+                if (current.audio.kind === "catalog") return setAudio(current, { kind: "none" }, draftContext);
+                return current;
+              });
             }}
           >
             {t("px4a.audio.own")}
           </button>
-          {PHOTO_VIDEO_MUSIC_CATALOG_STATUS !== "empty" ?
+          {catalogAvailable ? (
             <button
               type="button"
               data-testid="px4a-audio-catalog"
-              aria-pressed={catalogOpen}
+              aria-pressed={catalogOpen || showCatalogControls}
               className={`min-h-11 rounded-full border px-4 text-sm font-medium ${
-                catalogOpen ? "border-[#006D52] bg-[#006D52] text-white" : "border-zinc-200 bg-white text-zinc-800"
+                catalogOpen || showCatalogControls
+                  ? "border-[#006D52] bg-[#006D52] text-white"
+                  : "border-zinc-200 bg-white text-zinc-800"
               }`}
               onClick={() => {
                 setPickingMusic(false);
                 setCatalogOpen(true);
+                setComposition((current) => {
+                  if (current.audio.kind === "ownMusic") {
+                    revokePhotoVideoObjectUrl(current.audio.objectUrl);
+                    audioBlobRef.current = null;
+                    return setAudio(current, { kind: "none" }, draftContext);
+                  }
+                  return current;
+                });
               }}
             >
               {t("px4a.audio.catalog")}
             </button>
-          : null}
+          ) : null}
         </div>
-        {catalogOpen && PHOTO_VIDEO_MUSIC_CATALOG_STATUS !== "empty" ? (
-          <p className="text-sm text-zinc-600" data-testid="px4a-audio-catalog-empty">
-            {t("px4a.audio.catalogEmpty")}
-          </p>
+        {catalogOpen && catalogAvailable ? (
+          <PhotoVideoFreeMusicBrowser
+            videoDurationSeconds={duration.totalSeconds}
+            locale={locale}
+            selectedTrackId={composition.audio.kind === "catalog" ? composition.audio.trackId : null}
+            labels={{
+              search: t("px4a.freeMusic.search"),
+              category: t("px4a.freeMusic.category"),
+              all: t("px4a.freeMusic.all"),
+              play: t("px4a.freeMusic.play"),
+              pause: t("px4a.freeMusic.pause"),
+              select: t("px4a.freeMusic.select"),
+              selected: t("px4a.freeMusic.selected"),
+              licence: t("px4a.freeMusic.licence"),
+              empty: t("px4a.freeMusic.empty"),
+              loading: t("px4a.freeMusic.loading"),
+              error: t("px4a.freeMusic.error"),
+            }}
+            onSelect={(next: PhotoVideoCatalogMusic) => {
+              setCatalogOpen(false);
+              audioBlobRef.current = null;
+              setComposition((current) => setAudio(current, next, draftContext));
+              trackPhotoVideoFunnelEvent("photo_video_music_added");
+            }}
+          />
         ) : null}
-        {showMusic ? (
+        {showMusicPanel ? (
           <PhotoVideoMusicPanel
             composition={composition}
             clockRef={clockRef}
@@ -1546,7 +1609,7 @@ export function PhotoVideoComposer({
       {exporting ? (
         <PhotoVideoExportProgress
           stage={exportStage}
-          includeMusic={composition.audio.kind === "ownMusic"}
+          includeMusic={composition.audio.kind === "ownMusic" || composition.audio.kind === "catalog"}
           includeAttach={itemJourney}
           title={t("px4a.export.progress")}
           stageLabel={(stage) =>

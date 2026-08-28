@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/emerge
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=SpiderDave
+title=Emerge
+downloadUrl=https://opengameart.org/sites/default/files/85%20Emerge.ogg
+sha256=614ebc1775a62bdc50bb26f74320dab7a75247bacbb0e2ec45058d90e5c79f48
+bytes=4537298
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; At the Last Abbey Audio Audio - Commercial use OK BlueDreams CC0 Music CC0 Music Free Music Music Favorites:&nbsp; 11 Preview:&nbsp; <div class='play-button' data-ogg-url='https://opengameart.org/sites/default/files/85%20Emerge_0.ogg' data-mp3-url='https://opengameart.org/sites/default/files/audio_pre

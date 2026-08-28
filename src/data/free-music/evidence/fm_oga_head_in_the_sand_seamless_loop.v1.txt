@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/head-in-the-sand-seamless-loop
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=congusbongus
+title=Head in the Sand (seamless loop)
+downloadUrl=https://opengameart.org/sites/default/files/headinthesand_0.ogg
+sha256=953a0a9e3d8d3ea6084d9a218bd99fba2c6ed20e1c0c6114d619cab2f8734971
+bytes=107822
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Famitracker Audio Heritage Inventory Manic Minutes Music My Game Music Pixelated Music Seamless Loops Favorites:&nbsp; 13 Preview:&nbsp; <div class='play-button' data-ogg-url='https://opengameart.org/sites/default/files/headinthe

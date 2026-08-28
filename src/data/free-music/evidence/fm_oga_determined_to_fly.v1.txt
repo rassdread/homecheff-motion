@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/determined-to-fly
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=OwlishMedia
+title=Determined to Fly
+downloadUrl=https://opengameart.org/sites/default/files/climax.wav
+sha256=ab3de3b142879d41b52cb7fba820d2834bfc77cfeb9cc7d19d97884955e3268f
+bytes=12417796
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music RPG::Music Favorites:&nbsp; 3 Preview:&nbsp; This is an extended piece from my animated short film Cat's Sky ,

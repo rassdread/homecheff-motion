@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/energetic-electro-tune
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=TinyWorlds
+title=Energetic Electro Tune
+downloadUrl=https://opengameart.org/sites/default/files/mixdown.ogg
+sha256=4a2360010627f1fc04eedb640285a032d6d4bdd3e1aed24b469a8b0c29f76dd4
+bytes=2091476
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Audio - Uploader: TinyWorlds CC0 Music CC0 Music Music RTE game art _Audio - A Catalogar Favorites:&nbsp; 6 Preview:&nbsp; <div class="field field-name-

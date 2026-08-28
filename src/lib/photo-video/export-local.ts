@@ -121,7 +121,10 @@ export async function encodePhotoVideoLocal(input: {
   });
   output.addVideoTrack(videoSource, { frameRate: settings.fps });
 
-  const wantsAudio = input.composition.audio.kind === "ownMusic" || compositionHasEnabledSourceAudio(input.composition);
+  const wantsAudio =
+    input.composition.audio.kind === "ownMusic" ||
+    input.composition.audio.kind === "catalog" ||
+    compositionHasEnabledSourceAudio(input.composition);
   let audioSource: InstanceType<typeof mediabunny.AudioBufferSource> | null = null;
   let mixed: AudioBuffer | null = null;
   if (wantsAudio) {
@@ -147,7 +150,7 @@ export async function encodePhotoVideoLocal(input: {
       return { ok: false, reason: "encode" };
     }
     if (!mixed) {
-      if (input.composition.audio.kind === "ownMusic") {
+      if (input.composition.audio.kind === "ownMusic" || input.composition.audio.kind === "catalog") {
         for (const video of videos.values()) releaseVideoElement(video);
         await output.cancel().catch(() => undefined);
         return { ok: false, reason: "encode" };
@@ -274,6 +277,25 @@ async function mixExportAudio(input: {
     layers.push({
       buffer: await decodeAndSliceOwnMusic(
         input.audioBlob,
+        musicWindow.startSeconds,
+        musicWindow.durationSeconds,
+        musicWindow.volume
+      ),
+      startSeconds: 0,
+      volume: 1,
+    });
+  } else if (input.composition.audio.kind === "catalog") {
+    if (!musicWindow) throw new Error("music");
+    const trackId = input.composition.audio.trackId;
+    // Server-authoritative path only — never accept client-supplied alternate audioUrl.
+    const res = await fetch(`/api/studio/free-music/asset/${encodeURIComponent(trackId)}?kind=master`, {
+      credentials: "include",
+    });
+    if (!res.ok) throw new Error("catalog-music");
+    const blob = await res.blob();
+    layers.push({
+      buffer: await decodeAndSliceOwnMusic(
+        blob,
         musicWindow.startSeconds,
         musicWindow.durationSeconds,
         musicWindow.volume

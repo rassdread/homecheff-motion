@@ -97,7 +97,7 @@ describe("Slice 1A — Unified Studio front door", () => {
   it("hides empty free-music catalog CTA while keeping own music", () => {
     assert.equal(PHOTO_VIDEO_MUSIC_CATALOG_STATUS, "empty");
     const composer = readFileSync("src/components/photo-video/photo-video-composer.tsx", "utf8");
-    assert.match(composer, /PHOTO_VIDEO_MUSIC_CATALOG_STATUS !== "empty"/);
+    assert.match(composer, /catalogAvailable/);
     assert.match(composer, /data-testid="px4a-audio-own"/);
   });
 

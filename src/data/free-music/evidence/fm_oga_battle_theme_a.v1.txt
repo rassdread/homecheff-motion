@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/battle-theme-a
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=cynicmusic
+title=Battle Theme A
+downloadUrl=https://opengameart.org/sites/default/files/battleThemeA.mp3
+sha256=6042399782e581d753d616bc703e66483d5eccb5fb687a20c9a552d68c49e620
+bytes=3289143
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; !Project::KISS Armored Battle 4j Action/Adventure/Battle/Fantasy music AK Game Audio AnyRPG Battle Music Art With (Open) Character CC0 - Cinematic Music CC0 Audio - Uploader: cynicmusic CC0 Fantasy Music &amp; Sounds CC0 Music CC0 Music CC0 Music CFJam2023 Cinematic Music CC0 Corsairs ! Dark Fantasy Epic Fantasy Music Fantasy_Music_Collection Fire Emblem Three Houses Free Music <a hr

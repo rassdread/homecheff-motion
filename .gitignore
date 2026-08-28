@@ -59,3 +59,7 @@ next-env.d.ts
 docs/audits/px4a4-human-cert/
 docs/audits/px4a5-human-cert/
 e2e/.generated/
+
+# Free Music Phase 2 local masters (not for git)
+tmp/free-music-masters/
+

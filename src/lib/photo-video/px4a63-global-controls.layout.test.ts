@@ -80,7 +80,8 @@ describe("PX.4A.6.3 whole-video settings", () => {
   });
 
   it("shows own-music controls only after Eigen muziek", () => {
-    assert.match(composer, /showMusic \? \(/);
+    assert.match(composer, /showMusicPanel \? \(/);
+    assert.match(composer, /showOwnMusic/);
     assert.match(composer, /<PhotoVideoMusicPanel/);
     assert.match(music, /px4a.audio.volume/);
     assert.match(music, /px4a.audio.window/);

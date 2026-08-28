@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/determination
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=artisticdude
+title=Determination
+downloadUrl=https://opengameart.org/sites/default/files/determination.mp3
+sha256=98542edc14912aa227b6e4f1ea820ab89d1efd8615fd442b56e0cf258adcd77b
+bytes=5291071
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Little Spy Music reverie lost RPG::Music The Best of OGA Music Tower Defense Sound Favorites:&nbsp; 27 Preview:&nbsp; <div class='play-button' data-ogg-url='https://opengameart.org/sites/default/files/audio_preview/determination.mp3.ogg' data-mp3-url='https://opengameart.org/sit

@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/alone
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=Sudocolon
+title=Alone
+downloadUrl=https://opengameart.org/sites/default/files/Alone.mp3
+sha256=84c87719d37726e85e2d0122f37bacf628ef97ef13f58756556d3a497f6de2ef
+bytes=1185958
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; Castle Game Engine Demos CC0 Music CC0 Music Music Music - Game Over Music I might use Favorites:&nbsp; 14 Preview:&nbsp; <div class="field field-name-body field-ty

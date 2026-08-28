@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/besai-crystal-gardens-zone-7-forbidden-transition-area
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=Tozan
+title=Besai Crystal Gardens Zone 7 Forbidden Transition Area
+downloadUrl=https://opengameart.org/sites/default/files/Besaiadrk7_0.ogg
+sha256=cdb73870ae37da6bc2a3aa39509b11f3e397cd60b26616685e887bcbdc8df29d
+bytes=704988
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music CheezeMaze Music Favorites:&nbsp; 3 Preview:&nbsp; Another tune for game i'm m

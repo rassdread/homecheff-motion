@@ -17,7 +17,7 @@ export function ownMusicExportWindow(
   audio: PhotoVideoAudio,
   videoDurationSeconds: number
 ): OwnMusicExportWindow | null {
-  if (audio.kind !== "ownMusic") return null;
+  if (audio.kind !== "ownMusic" && audio.kind !== "catalog") return null;
   const start = audio.startSeconds;
   const available = Math.max(0, audio.trackDurationSeconds - start);
   const duration = Math.min(videoDurationSeconds, available, audio.durationSeconds);

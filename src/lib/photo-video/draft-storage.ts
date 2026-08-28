@@ -55,6 +55,17 @@ export type PhotoVideoDraftAudioMeta =
       volume: number;
       fileName?: string;
       peaks?: number[];
+    }
+  | {
+      kind: "catalog";
+      trackId: string;
+      startSeconds: number;
+      durationSeconds: number;
+      trackDurationSeconds: number;
+      volume: number;
+      title?: string;
+      artist?: string;
+      peaks?: number[];
     };
 
 export type PhotoVideoDraftCompositionMeta = {
@@ -219,18 +230,32 @@ export function clearPhotoVideoDraftMeta(context: PhotoVideoDraftContext = "stud
 }
 
 export function toDraftCompositionMeta(composition: PhotoVideoComposition): PhotoVideoDraftCompositionMeta {
-  const audio: PhotoVideoDraftAudioMeta =
-    composition.audio.kind === "none"
-      ? { kind: "none" }
-      : {
-          kind: "ownMusic",
-          startSeconds: composition.audio.startSeconds,
-          durationSeconds: composition.audio.durationSeconds,
-          trackDurationSeconds: composition.audio.trackDurationSeconds,
-          volume: composition.audio.volume,
-          fileName: composition.audio.fileName,
-          peaks: composition.audio.peaks,
-        };
+  let audio: PhotoVideoDraftAudioMeta;
+  if (composition.audio.kind === "none") {
+    audio = { kind: "none" };
+  } else if (composition.audio.kind === "catalog") {
+    audio = {
+      kind: "catalog",
+      trackId: composition.audio.trackId,
+      startSeconds: composition.audio.startSeconds,
+      durationSeconds: composition.audio.durationSeconds,
+      trackDurationSeconds: composition.audio.trackDurationSeconds,
+      volume: composition.audio.volume,
+      title: composition.audio.title,
+      artist: composition.audio.artist,
+      peaks: composition.audio.peaks,
+    };
+  } else {
+    audio = {
+      kind: "ownMusic",
+      startSeconds: composition.audio.startSeconds,
+      durationSeconds: composition.audio.durationSeconds,
+      trackDurationSeconds: composition.audio.trackDurationSeconds,
+      volume: composition.audio.volume,
+      fileName: composition.audio.fileName,
+      peaks: composition.audio.peaks,
+    };
+  }
   return {
     photos: composition.photos.map((photo) => {
       const video = isVideoPhoto(photo) && photo.video
@@ -416,6 +441,19 @@ export async function restorePhotoVideoDraft(
       fileName: meta.composition.audio.fileName,
       peaks: meta.composition.audio.peaks,
       objectUrl,
+    };
+  } else if (meta.composition.audio.kind === "catalog") {
+    // Authoritative identity is trackId; bytes re-fetched on export/preview — no IDB master required.
+    audio = {
+      kind: "catalog",
+      trackId: meta.composition.audio.trackId,
+      startSeconds: meta.composition.audio.startSeconds,
+      durationSeconds: meta.composition.audio.durationSeconds,
+      trackDurationSeconds: meta.composition.audio.trackDurationSeconds,
+      volume: meta.composition.audio.volume,
+      title: meta.composition.audio.title,
+      artist: meta.composition.audio.artist,
+      peaks: meta.composition.audio.peaks,
     };
   }
 

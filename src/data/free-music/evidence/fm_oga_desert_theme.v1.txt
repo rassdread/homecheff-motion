@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/desert-theme
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=yd
+title=Desert theme
+downloadUrl=https://opengameart.org/sites/default/files/caravan.ogg.ogg
+sha256=086f52dc18e1db9a51831708295ae6e758f2f5edf79a0241b390d72bfb858c01
+bytes=1990821
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; # Arabian platform maybe All CC0 - Uploader: yd AnyRPG Background Music Atmospheric Game Music audio::music::space bleeding-tube CC0 Music CC0 Music Egyptian RPG Fishing Game Little One music Music Music - Platform &amp; Background Music collection Nawia Project: Zion RPG Música SFX for my Twitch stream SS: Catchy Music Stendhal Potential <a href="/content/the-best-of-oga-mus

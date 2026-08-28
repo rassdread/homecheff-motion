@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/besai-sky-city-dark-1
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=Tozan
+title=Besai Sky City Dark 1
+downloadUrl=https://opengameart.org/sites/default/files/Besaidark1_0.ogg
+sha256=7c90f3f41d6eac419ca565695f13b30c954839e0a5b74bb263619ec790b9cc76
+bytes=982725
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Music Favorites:&nbsp; 2 Preview:&nbsp; The Background Ambient Music for a game I'm doing. (haven't got the 3d modelers 

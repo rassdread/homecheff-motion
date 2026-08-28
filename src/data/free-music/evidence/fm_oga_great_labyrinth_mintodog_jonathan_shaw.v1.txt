@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/great-labyrinth-mintodog-jonathan-shaw
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=glitchart
+title=Great Labyrinth (Mintodog & Jonathan Shaw)
+downloadUrl=https://opengameart.org/sites/default/files/greatlabyrinthmix_0.ogg
+sha256=759678c7a651c80564e2757d755a61aeb9986f74591d8ac3418b63b66016956a
+bytes=4173214
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC-BY 3.0 Collections:&nbsp; Preview:&nbsp; Great Labyrinth(Orchestral dungeon music) Author: Mintodog https://opengameart.org/content/great-labyrinthorchestral-dungeon-music Tags: RPG, Fantasy, orchestral, powerful, sad, emotional, dungeon, stage, Labyrinth, 3/4 License(s): CC0 "Morning Frost" (RPG Orchestral Essentials) - Village Music Copy

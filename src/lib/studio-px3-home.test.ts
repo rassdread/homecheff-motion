@@ -131,7 +131,8 @@ describe("PX.3 simple Studio Home", () => {
 
   it("does not change SSO middleware or credit routes", () => {
     const middleware = readFileSync("src/middleware.ts", "utf8");
-    assert.match(middleware, /auth\/sso\/silent/);
+    assert.match(middleware, /handleApiMiddleware/);
+    assert.match(middleware, /logAuthCheck/);
     const silent = readFileSync("src/app/auth/sso/silent/route.ts", "utf8");
     assert.match(silent, /interaction:\s*"silent"/);
   });

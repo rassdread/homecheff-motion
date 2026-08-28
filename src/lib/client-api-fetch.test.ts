@@ -79,9 +79,9 @@ test("API middleware never redirects and logs auth-check", () => {
   assert.match(mw, /NextResponse\.next/);
   assert.match(mw, /originMatchesRequestHost/);
   const apiStart = mw.indexOf("function handleApiMiddleware");
-  const silentStart = mw.indexOf("function maybePublicSilentHydrate");
-  assert.ok(apiStart >= 0 && silentStart > apiStart);
-  const apiHandler = mw.slice(apiStart, silentStart);
+  const exportStart = mw.indexOf("export function middleware");
+  assert.ok(apiStart >= 0 && exportStart > apiStart);
+  const apiHandler = mw.slice(apiStart, exportStart);
   assert.doesNotMatch(apiHandler, /redirect\(/);
 });
 

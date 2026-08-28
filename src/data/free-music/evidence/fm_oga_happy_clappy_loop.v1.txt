@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/happy-clappy-loop
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=OwlishMedia
+title=Happy Clappy Loop
+downloadUrl=https://opengameart.org/sites/default/files/HappyClappyLoop.wav
+sha256=1ca66b4e4d41e14a4ccfcc3b758e061cf283b9d5e332c4ea8e00f94f4deb6554
+bytes=6162894
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music RPG::Music Favorites:&nbsp; 11 Preview:&nbsp; This is a piece from my animated short film <a href="https://www.youtube.com/watch?v=ShlKfO3clRU" target="_bla

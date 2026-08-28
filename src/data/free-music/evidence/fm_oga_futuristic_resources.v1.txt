@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/futuristic-resources
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=section31
+title=Futuristic-Resources
+downloadUrl=https://opengameart.org/sites/default/files/S31-Futuristic-Resources.ogg
+sha256=58a3d9fdd5bf76666e0bec747dab5045bfd5ca98ff45db77d5dfd36fa06f16f2
+bytes=4463503
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Music RTE game art Section 31&#039;s Game Music Favorites:&nbsp; 8 Preview:&nbsp; <div class="field field-name-body field-type-text-with-summ

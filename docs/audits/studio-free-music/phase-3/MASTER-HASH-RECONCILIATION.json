@@ -1,0 +1,448 @@
+{
+  "generatedAt": "2026-08-28T12:15:47.698Z",
+  "pilotOnly": true,
+  "mastersDir": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/tmp/free-music-masters",
+  "summary": {
+    "totalRightsApproved": 55,
+    "pilotTracksSelected": 5,
+    "activeReadyTracks": 5,
+    "draftTracks": 50,
+    "suspendedTracks": 0,
+    "retiredTracks": 0,
+    "cc0": 55,
+    "pdRecording": 0,
+    "ccBy": 0,
+    "contentIdLow": 0,
+    "contentIdKnown": 0,
+    "contentIdUnknown": 55,
+    "contentIdHigh": 0,
+    "hashMismatches": 0,
+    "orphanLocalMasters": [],
+    "missingLocalMasters": [],
+    "duplicateLocalMasterIds": [],
+    "provenance": [
+      {
+        "trackId": "fm_oga_adventure_time",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "8dc0aa25c1d29713bdb416f64eb4c27b1af86fa807d3ca39f3fdb1850b716cea",
+        "localHash": "8dc0aa25c1d29713bdb416f64eb4c27b1af86fa807d3ca39f3fdb1850b716cea"
+      },
+      {
+        "trackId": "fm_oga_alone",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "84c87719d37726e85e2d0122f37bacf628ef97ef13f58756556d3a497f6de2ef",
+        "localHash": "84c87719d37726e85e2d0122f37bacf628ef97ef13f58756556d3a497f6de2ef"
+      },
+      {
+        "trackId": "fm_oga_andys_report_8bit_and_piano_ver",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "d38382d79563628c7187690399ebba64e9de1df04db47096b0b0079574e0560e",
+        "localHash": "d38382d79563628c7187690399ebba64e9de1df04db47096b0b0079574e0560e"
+      },
+      {
+        "trackId": "fm_oga_battle_theme_0",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "dde7bd4f10bde031800ba8e22151fad591b7c13e1c9ae51920341b4e4ae37be5",
+        "localHash": "dde7bd4f10bde031800ba8e22151fad591b7c13e1c9ae51920341b4e4ae37be5"
+      },
+      {
+        "trackId": "fm_oga_battle_theme_a",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "6042399782e581d753d616bc703e66483d5eccb5fb687a20c9a552d68c49e620",
+        "localHash": "6042399782e581d753d616bc703e66483d5eccb5fb687a20c9a552d68c49e620"
+      },
+      {
+        "trackId": "fm_oga_besai_crystal_gardens_2_forbidden_pathway",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "816f7e3efe3667f7ebf67d9407a2bd78ac4c6eb7edd49ef5c45bfce7512e837c",
+        "localHash": "816f7e3efe3667f7ebf67d9407a2bd78ac4c6eb7edd49ef5c45bfce7512e837c"
+      },
+      {
+        "trackId": "fm_oga_besai_crystal_gardens_forbbiden_area_6",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "cc99b6628c3ac5e75f5d0719881f4d2335d914515f6c16cfa9eaaab7cfe8c606",
+        "localHash": "cc99b6628c3ac5e75f5d0719881f4d2335d914515f6c16cfa9eaaab7cfe8c606"
+      },
+      {
+        "trackId": "fm_oga_besai_crystal_gardens_forbidden_area_5",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "548f203c07be3cedf2f7b01116d91a7ea6bd8a8a67ca3fefac7f3e66aa97b1db",
+        "localHash": "548f203c07be3cedf2f7b01116d91a7ea6bd8a8a67ca3fefac7f3e66aa97b1db"
+      },
+      {
+        "trackId": "fm_oga_besai_crystal_gardens_zone_10_forbidden",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "571dcd5f82826688b1330e9ecbfb8f40269205675382afac1a65fbc3315faeb6",
+        "localHash": "571dcd5f82826688b1330e9ecbfb8f40269205675382afac1a65fbc3315faeb6"
+      },
+      {
+        "trackId": "fm_oga_besai_crystal_gardens_zone_11",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "e7cc0c9a72e1c1969ea458a2dd292584f6df5998177a34ea27b8d6e4c1490e12",
+        "localHash": "e7cc0c9a72e1c1969ea458a2dd292584f6df5998177a34ea27b8d6e4c1490e12"
+      },
+      {
+        "trackId": "fm_oga_besai_crystal_gardens_zone_7_forbidden_transitio",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "cdb73870ae37da6bc2a3aa39509b11f3e397cd60b26616685e887bcbdc8df29d",
+        "localHash": "cdb73870ae37da6bc2a3aa39509b11f3e397cd60b26616685e887bcbdc8df29d"
+      },
+      {
+        "trackId": "fm_oga_besai_crystal_last_zone",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "3a3faa8be9a2e94f51063ee66c86ff5c2ae0d7820d671e10475009f90413e9c0",
+        "localHash": "3a3faa8be9a2e94f51063ee66c86ff5c2ae0d7820d671e10475009f90413e9c0"
+      },
+      {
+        "trackId": "fm_oga_besai_sky_city_crystal_gardens_dark_lower_depths",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "6831b7146ee25e0f9ad1e2e18efaa7ec95b1c61bf661b4f24bd6dd5d89e564be",
+        "localHash": "6831b7146ee25e0f9ad1e2e18efaa7ec95b1c61bf661b4f24bd6dd5d89e564be"
+      },
+      {
+        "trackId": "fm_oga_besai_sky_city_dark_1",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "7c90f3f41d6eac419ca565695f13b30c954839e0a5b74bb263619ec790b9cc76",
+        "localHash": "7c90f3f41d6eac419ca565695f13b30c954839e0a5b74bb263619ec790b9cc76"
+      },
+      {
+        "trackId": "fm_oga_besailightend",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "255eaa72e9d208534147872c84b6d8128e1fc738e516be8fb268c6ba2367023a",
+        "localHash": "255eaa72e9d208534147872c84b6d8128e1fc738e516be8fb268c6ba2367023a"
+      },
+      {
+        "trackId": "fm_oga_bleeding_out",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "0f76d09dfff29f0cf615456d7a74cba6f5034428bf24a0bdda99ad52f7698fcd",
+        "localHash": "0f76d09dfff29f0cf615456d7a74cba6f5034428bf24a0bdda99ad52f7698fcd"
+      },
+      {
+        "trackId": "fm_oga_bossa_nova",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "0ee835fd279ac5fa15f9346744cbafc2ba800c1c0671b78ca9abe2b4353402f7",
+        "localHash": "0ee835fd279ac5fa15f9346744cbafc2ba800c1c0671b78ca9abe2b4353402f7"
+      },
+      {
+        "trackId": "fm_oga_build",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "800639fc23e4630d18e2622654d4b3e3366307da66f0f40d5206418dc160c954",
+        "localHash": "800639fc23e4630d18e2622654d4b3e3366307da66f0f40d5206418dc160c954"
+      },
+      {
+        "trackId": "fm_oga_cave_explorer",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "7815210480b7bdbbdfadd37b151554be8df114888a4667435733652b3c9f8e24",
+        "localHash": "7815210480b7bdbbdfadd37b151554be8df114888a4667435733652b3c9f8e24"
+      },
+      {
+        "trackId": "fm_oga_chippey",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "4a41e689f29ebd6107254d4e80834d879969f66365c0325fed603361f2193b12",
+        "localHash": "4a41e689f29ebd6107254d4e80834d879969f66365c0325fed603361f2193b12"
+      },
+      {
+        "trackId": "fm_oga_closing_in",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "b72b3572545401ddfa4ae058f5e0b427745c2ac5457318b15e881c531274f70f",
+        "localHash": "b72b3572545401ddfa4ae058f5e0b427745c2ac5457318b15e881c531274f70f"
+      },
+      {
+        "trackId": "fm_oga_continue",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "f8d68da03254980643f7a045ef879076a840741b0842125ec4702e8aa199cea6",
+        "localHash": "f8d68da03254980643f7a045ef879076a840741b0842125ec4702e8aa199cea6"
+      },
+      {
+        "trackId": "fm_oga_covert_operations",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "535c023b09f25fd32abcc7ec75d5e64f45d3c3f2393c295c8465ad686899e0c2",
+        "localHash": "535c023b09f25fd32abcc7ec75d5e64f45d3c3f2393c295c8465ad686899e0c2"
+      },
+      {
+        "trackId": "fm_oga_cracked_out_robot",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "1ccd57cc6803cd141632a7670dff49eae6f824bd8936ea2baa8dcf5957f2bf0a",
+        "localHash": "1ccd57cc6803cd141632a7670dff49eae6f824bd8936ea2baa8dcf5957f2bf0a"
+      },
+      {
+        "trackId": "fm_oga_crystal_cave_song18",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "42349d7c615fe947866100a90289d61a1e64620e11f2d041b37166eaaa4e5840",
+        "localHash": "42349d7c615fe947866100a90289d61a1e64620e11f2d041b37166eaaa4e5840"
+      },
+      {
+        "trackId": "fm_oga_cyberpunk_moonlight_sonata",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "75da0c212b36cab3556dfe2928d10d996fa4a6e4ad1e068e06a565389cc2c90c",
+        "localHash": "75da0c212b36cab3556dfe2928d10d996fa4a6e4ad1e068e06a565389cc2c90c"
+      },
+      {
+        "trackId": "fm_oga_dank_mistur_spooder",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "17f42f71af83a651b814188563022155ce1450bb3775fc356c728b435ff9b3b2",
+        "localHash": "17f42f71af83a651b814188563022155ce1450bb3775fc356c728b435ff9b3b2"
+      },
+      {
+        "trackId": "fm_oga_dark_alleys_dark_times",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "2dc627e46b531add8bdd5f5eae8813d364ef6918ce73cda3eb36590c51144dcd",
+        "localHash": "2dc627e46b531add8bdd5f5eae8813d364ef6918ce73cda3eb36590c51144dcd"
+      },
+      {
+        "trackId": "fm_oga_dark_theme",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "9a31b27f7db7e60e382345c9ec2127f3859efd730c3f640a7b2f2d5b24d91dc4",
+        "localHash": "9a31b27f7db7e60e382345c9ec2127f3859efd730c3f640a7b2f2d5b24d91dc4"
+      },
+      {
+        "trackId": "fm_oga_dark_untilted_remix",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "406854923b31445720712b7071d830365b3c027a3dab9a61ead9e1baa79d40be",
+        "localHash": "406854923b31445720712b7071d830365b3c027a3dab9a61ead9e1baa79d40be"
+      },
+      {
+        "trackId": "fm_oga_delusional_lies",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "615b6c59183288274d31e159ad8d0250b93dcefe081799421a88cc7da5e3058c",
+        "localHash": "615b6c59183288274d31e159ad8d0250b93dcefe081799421a88cc7da5e3058c"
+      },
+      {
+        "trackId": "fm_oga_desert_theme",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "086f52dc18e1db9a51831708295ae6e758f2f5edf79a0241b390d72bfb858c01",
+        "localHash": "086f52dc18e1db9a51831708295ae6e758f2f5edf79a0241b390d72bfb858c01"
+      },
+      {
+        "trackId": "fm_oga_determination",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "98542edc14912aa227b6e4f1ea820ab89d1efd8615fd442b56e0cf258adcd77b",
+        "localHash": "98542edc14912aa227b6e4f1ea820ab89d1efd8615fd442b56e0cf258adcd77b"
+      },
+      {
+        "trackId": "fm_oga_determined_to_fly",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "ab3de3b142879d41b52cb7fba820d2834bfc77cfeb9cc7d19d97884955e3268f",
+        "localHash": "ab3de3b142879d41b52cb7fba820d2834bfc77cfeb9cc7d19d97884955e3268f"
+      },
+      {
+        "trackId": "fm_oga_difference",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "6588293a83a4e6aa8ab9e24e3d855e9b7b812e0b75dc541dbe10a884c1521ba8",
+        "localHash": "6588293a83a4e6aa8ab9e24e3d855e9b7b812e0b75dc541dbe10a884c1521ba8"
+      },
+      {
+        "trackId": "fm_oga_doodle_menu_like_song",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "e74874295992900758cba8077f110024680bd7592e5c6103960f99d29ba8f13d",
+        "localHash": "e74874295992900758cba8077f110024680bd7592e5c6103960f99d29ba8f13d"
+      },
+      {
+        "trackId": "fm_oga_dungeon_ambience",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "18da6d6c4492d744f5ebde5bb128a636770df4197d2d4a0b5e8d65df6e27f57b",
+        "localHash": "18da6d6c4492d744f5ebde5bb128a636770df4197d2d4a0b5e8d65df6e27f57b"
+      },
+      {
+        "trackId": "fm_oga_emerge",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "614ebc1775a62bdc50bb26f74320dab7a75247bacbb0e2ec45058d90e5c79f48",
+        "localHash": "614ebc1775a62bdc50bb26f74320dab7a75247bacbb0e2ec45058d90e5c79f48"
+      },
+      {
+        "trackId": "fm_oga_energetic_electro_tune",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "4a2360010627f1fc04eedb640285a032d6d4bdd3e1aed24b469a8b0c29f76dd4",
+        "localHash": "4a2360010627f1fc04eedb640285a032d6d4bdd3e1aed24b469a8b0c29f76dd4"
+      },
+      {
+        "trackId": "fm_oga_eye_of_the_storm",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "3f25710090659287e3f184a2968af8c965b1480eb6d7665b0a0c43866eb8af85",
+        "localHash": "3f25710090659287e3f184a2968af8c965b1480eb6d7665b0a0c43866eb8af85"
+      },
+      {
+        "trackId": "fm_oga_fantasy_0",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "1bbf44b26b9cf298a4eabf4720aaabb6f2d6d75f7dd11552ab4b2cab6bbd775d",
+        "localHash": "1bbf44b26b9cf298a4eabf4720aaabb6f2d6d75f7dd11552ab4b2cab6bbd775d"
+      },
+      {
+        "trackId": "fm_oga_forest_ambience",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "9850aa1d0d5d66bd9c5daf8bb77c6d852e01f2f4de22f283bd5621e8bed13b75",
+        "localHash": "9850aa1d0d5d66bd9c5daf8bb77c6d852e01f2f4de22f283bd5621e8bed13b75"
+      },
+      {
+        "trackId": "fm_oga_forgoten_tomb_ambience",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "989b26d4c6ec9fb90da2c9c892a396920e1b2e14a426052574310e275ebd01d0",
+        "localHash": "989b26d4c6ec9fb90da2c9c892a396920e1b2e14a426052574310e275ebd01d0"
+      },
+      {
+        "trackId": "fm_oga_found_you_game_version_andynope",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "a0cc7733abfa15247344b7f3a2f6d966a593e5b9d98fb6916e3655cf2e1e8ae2",
+        "localHash": "a0cc7733abfa15247344b7f3a2f6d966a593e5b9d98fb6916e3655cf2e1e8ae2"
+      },
+      {
+        "trackId": "fm_oga_funked_up",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "57cd81254a0f4e068535c5421f93b586514332ad2377f81aea190dd91659fff3",
+        "localHash": "57cd81254a0f4e068535c5421f93b586514332ad2377f81aea190dd91659fff3"
+      },
+      {
+        "trackId": "fm_oga_futuristic_resources",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "58a3d9fdd5bf76666e0bec747dab5045bfd5ca98ff45db77d5dfd36fa06f16f2",
+        "localHash": "58a3d9fdd5bf76666e0bec747dab5045bfd5ca98ff45db77d5dfd36fa06f16f2"
+      },
+      {
+        "trackId": "fm_oga_glowsphere",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "7a31e7190e33e7620ab8ced6e3e71b8e74ab40e4168722c1b64e13d807effc24",
+        "localHash": "7a31e7190e33e7620ab8ced6e3e71b8e74ab40e4168722c1b64e13d807effc24"
+      },
+      {
+        "trackId": "fm_oga_go_lucky",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "818392502ed6cf76b18e9d80460e557d7fafaff65ee52c52a255234320be8b0e",
+        "localHash": "818392502ed6cf76b18e9d80460e557d7fafaff65ee52c52a255234320be8b0e"
+      },
+      {
+        "trackId": "fm_oga_great_labyrinth_mintodog_jonathan_shaw",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "759678c7a651c80564e2757d755a61aeb9986f74591d8ac3418b63b66016956a",
+        "localHash": "759678c7a651c80564e2757d755a61aeb9986f74591d8ac3418b63b66016956a"
+      },
+      {
+        "trackId": "fm_oga_happy_clappy_loop",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "1ca66b4e4d41e14a4ccfcc3b758e061cf283b9d5e332c4ea8e00f94f4deb6554",
+        "localHash": "1ca66b4e4d41e14a4ccfcc3b758e061cf283b9d5e332c4ea8e00f94f4deb6554"
+      },
+      {
+        "trackId": "fm_oga_har_3_1n",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "5a7f6e79cf321b73f99e4f78b15cfbc7ac8dec37bfe52984b66a4cdfc72f550b",
+        "localHash": "5a7f6e79cf321b73f99e4f78b15cfbc7ac8dec37bfe52984b66a4cdfc72f550b"
+      },
+      {
+        "trackId": "fm_oga_head_in_the_sand_seamless_loop",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "953a0a9e3d8d3ea6084d9a218bd99fba2c6ed20e1c0c6114d619cab2f8734971",
+        "localHash": "953a0a9e3d8d3ea6084d9a218bd99fba2c6ed20e1c0c6114d619cab2f8734971"
+      },
+      {
+        "trackId": "fm_oga_heavy_steroid_use",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "ecda687fe9fd7b562944ee27abcd1c13548ba4f8ed156d33f694eee5e4591738",
+        "localHash": "ecda687fe9fd7b562944ee27abcd1c13548ba4f8ed156d33f694eee5e4591738"
+      },
+      {
+        "trackId": "fm_oga_high_alert",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "8e07e7454c216acb9f89e25400cf2d4bfed2715dc08f52988065b9445981146c",
+        "localHash": "8e07e7454c216acb9f89e25400cf2d4bfed2715dc08f52988065b9445981146c"
+      },
+      {
+        "trackId": "fm_oga_hyoshi_shot",
+        "trackProvenanceMatch": "PASS",
+        "reasons": [],
+        "sourceHash": "0826aedad9160db4b942e7a6566eecb4c9efaea820c5914c947219df5f52e2de",
+        "localHash": "0826aedad9160db4b942e7a6566eecb4c9efaea820c5914c947219df5f52e2de"
+      }
+    ]
+  },
+  "pilotProvenance": [
+    {
+      "trackId": "fm_oga_adventure_time",
+      "trackProvenanceMatch": "PASS",
+      "reasons": [],
+      "sourceHash": "8dc0aa25c1d29713bdb416f64eb4c27b1af86fa807d3ca39f3fdb1850b716cea",
+      "localHash": "8dc0aa25c1d29713bdb416f64eb4c27b1af86fa807d3ca39f3fdb1850b716cea"
+    },
+    {
+      "trackId": "fm_oga_andys_report_8bit_and_piano_ver",
+      "trackProvenanceMatch": "PASS",
+      "reasons": [],
+      "sourceHash": "d38382d79563628c7187690399ebba64e9de1df04db47096b0b0079574e0560e",
+      "localHash": "d38382d79563628c7187690399ebba64e9de1df04db47096b0b0079574e0560e"
+    },
+    {
+      "trackId": "fm_oga_battle_theme_0",
+      "trackProvenanceMatch": "PASS",
+      "reasons": [],
+      "sourceHash": "dde7bd4f10bde031800ba8e22151fad591b7c13e1c9ae51920341b4e4ae37be5",
+      "localHash": "dde7bd4f10bde031800ba8e22151fad591b7c13e1c9ae51920341b4e4ae37be5"
+    },
+    {
+      "trackId": "fm_oga_besai_crystal_gardens_2_forbidden_pathway",
+      "trackProvenanceMatch": "PASS",
+      "reasons": [],
+      "sourceHash": "816f7e3efe3667f7ebf67d9407a2bd78ac4c6eb7edd49ef5c45bfce7512e837c",
+      "localHash": "816f7e3efe3667f7ebf67d9407a2bd78ac4c6eb7edd49ef5c45bfce7512e837c"
+    },
+    {
+      "trackId": "fm_oga_cave_explorer",
+      "trackProvenanceMatch": "PASS",
+      "reasons": [],
+      "sourceHash": "7815210480b7bdbbdfadd37b151554be8df114888a4667435733652b3c9f8e24",
+      "localHash": "7815210480b7bdbbdfadd37b151554be8df114888a4667435733652b3c9f8e24"
+    }
+  ]
+}

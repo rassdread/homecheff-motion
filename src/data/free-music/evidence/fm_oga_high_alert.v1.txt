@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/high-alert
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=section31
+title=High Alert
+downloadUrl=https://opengameart.org/sites/default/files/S31-High%20Alert.ogg
+sha256=8e07e7454c216acb9f89e25400cf2d4bfed2715dc08f52988065b9445981146c
+bytes=2233500
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Section 31&#039;s Game Music Favorites:&nbsp; 6 Preview:&nbsp; Just starting to me

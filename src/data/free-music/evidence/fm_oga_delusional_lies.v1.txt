@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/delusional-lies
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=megupets
+title=Delusional Lies
+downloadUrl=https://opengameart.org/sites/default/files/08%20-%20Delusional%20Lies_0.mp3
+sha256=615b6c59183288274d31e159ad8d0250b93dcefe081799421a88cc7da5e3058c
+bytes=3266540
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; Audio - Commercial use OK CC0 Music CC0 Music CC0 resources Music _Audio - A Catalogar Favorites:&nbsp; 12 Preview:&nbsp; 

@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/besai-crystal-gardens-zone-11
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=Tozan
+title=Besai Crystal Gardens Zone 11
+downloadUrl=https://opengameart.org/sites/default/files/Besaiark11_0.ogg
+sha256=e7cc0c9a72e1c1969ea458a2dd292584f6df5998177a34ea27b8d6e4c1490e12
+bytes=1246089
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; Art With (Open) Character CC0 Music CC0 Music Truly Truly Public Domain Favorites:&nbsp; 1 Preview:&nbsp; <div class="field-ite

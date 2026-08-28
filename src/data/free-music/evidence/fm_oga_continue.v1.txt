@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/continue
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=megupets
+title=Continue?
+downloadUrl=https://opengameart.org/sites/default/files/06%20-%20Continue.mp3
+sha256=f8d68da03254980643f7a045ef879076a840741b0842125ec4702e8aa199cea6
+bytes=11779826
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; 2d sci-fi platformer - scouting 8-bit Chiptune commercial ok A Simple Knight (considered graphics) Audio - CC0 - 8Bit -Chiptune CC0 Chiptunes CC0 Music CC0 Music Conduit Retro Game Jam 2026 Dungeon Cralwer Music Music Possible 8-Bit Tracks sounds _Audio - A Catalogar Favorites:&nbsp; 18 Preview:&nbsp; <div class="field-

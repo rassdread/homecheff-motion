@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/cracked-out-robot
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=section31
+title=Cracked Out Robot
+downloadUrl=https://opengameart.org/sites/default/files/S31-Cracked%20Out%20Robot_0.ogg
+sha256=1ccd57cc6803cd141632a7670dff49eae6f824bd8936ea2baa8dcf5957f2bf0a
+bytes=4683860
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; !Project::KISS Topdown Shooter CC0 Music CC0 Music DieselGate The Game[SoundTrack] Music Section 31&#039;s Game Music Truly Truly Public Domain Favorites:&nbsp; 4 Preview:&nbsp; <div class='play-button' data-ogg-url='https://opengameart.org/sites/default/files/S31-Cracked%20Out%20Robot.o

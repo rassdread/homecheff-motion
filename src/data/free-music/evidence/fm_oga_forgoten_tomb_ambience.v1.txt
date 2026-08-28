@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/forgoten-tomb-ambience
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=kindland
+title=Forgoten tomb ambience
+downloadUrl=https://opengameart.org/sites/default/files/Forgoten_tombs_1.mp3
+sha256=989b26d4c6ec9fb90da2c9c892a396920e1b2e14a426052574310e275ebd01d0
+bytes=5140968
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; ambient Atmospheric Game Music audio-ambiant audio::music::space CC0 Fantasy Music &amp; Sounds CC0 Music CC0 Music Dark Fantasy Dragon Booster Remake Egyptian RPG Fantasy_Music_Collection Good CC0 Music grav H_V_ KOLEKCJA MTGNexus Project Music Other Pyromance RPG::Audio::Ambiance SFX for my Twitch stream shattered realms music <a href="/content/torqu3d-rpg-

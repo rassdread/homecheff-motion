@@ -1,0 +1,10 @@
+verifiedAt=2026-08-27T16:00:00Z
+sourceUrl=https://opengameart.org/content/besai-crystal-gardens-zone-10-forbidden
+license=CC0 1.0
+licenseUrl=https://creativecommons.org/publicdomain/zero/1.0/
+artist=Tozan
+title=Besai Crystal Gardens Zone 10 Forbidden
+downloadUrl=https://opengameart.org/sites/default/files/Besaiark10_0.ogg
+sha256=571dcd5f82826688b1330e9ecbfb8f40269205675382afac1a65fbc3315faeb6
+bytes=699818
+licenseField= field-type-taxonomy-term-reference field-label-above"> License(s):&nbsp; CC0 Collections:&nbsp; CC0 Music CC0 Music Music Favorites:&nbsp; 2 Preview:&nbsp; Even more trouble down in the crystal gardens. Different variations of the same
