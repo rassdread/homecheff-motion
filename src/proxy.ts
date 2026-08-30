@@ -147,15 +147,23 @@ export function proxy(request: NextRequest) {
     return handleApiMiddleware(request);
   }
 
-  const acceptsHtml = request.headers.get("accept")?.includes("text/html") ?? false;
-  if (request.method === "GET" && acceptsHtml) {
+  // Seed locale for document navigations. Curl often sends Accept: */* — still seed.
+  const method = request.method;
+  const accept = request.headers.get("accept") ?? "";
+  const isDocumentGet =
+    method === "GET" &&
+    (accept.includes("text/html") || accept.includes("*/*") || accept === "");
+
+  if (isDocumentGet) {
     const lang = resolveRequestLocale(request);
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-hc-locale", lang);
     const response = NextResponse.next({
       request: { headers: requestHeaders },
     });
-    applySafariFaviconLinkHeader(response);
+    if (accept.includes("text/html")) {
+      applySafariFaviconLinkHeader(response);
+    }
     applyLocaleSeed(request, response, lang);
     return response;
   }
