@@ -1,0 +1,23 @@
+{
+  "phase": "KILL_SWITCH_OFF",
+  "generatedAt": "2026-08-30T11:03:06.592Z",
+  "productionBuild": {
+    "ok": true,
+    "commitSha": "da4871c7442c1bbc300d1d160f1a1d5a925e5946",
+    "deploymentId": "dpl_ENbASoEvwJHEXjR3ebVrnHbWW7Nj",
+    "buildTime": "2026-08-30T10:47:02.738Z",
+    "vercelEnv": "production",
+    "serverTime": "2026-08-30T11:02:55.933Z"
+  },
+  "anonymous": 401,
+  "pilotEnabled": true,
+  "pilotTracks": 55,
+  "nonPilotEnabled": false,
+  "nonPilotTracks": 0,
+  "security": {
+    "clientAudioUrlSpoofBlocked": "PASS",
+    "nonPilotAssetBlocked": "PASS"
+  },
+  "verdict": "PASS",
+  "note": "Public OFF; Steve pilot still ON \u2014 proves kill switch gates non-pilot without destroying pilot path or assets"
+}

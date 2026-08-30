@@ -1,0 +1,29 @@
+{
+  "phase": "FINAL_PUBLIC_ON",
+  "generatedAt": "2026-08-30T11:50:28.971Z",
+  "productionBuild": {
+    "ok": true,
+    "commitSha": "cfe6907f2141cfdfa3eafd02c6ec5ddea8d13636",
+    "deploymentId": "dpl_Ak85q7xw92trVGq8xQS2dWomZPYX",
+    "buildTime": "2026-08-30T11:22:16.710Z",
+    "vercelEnv": "production",
+    "serverTime": "2026-08-30T11:50:17.273Z"
+  },
+  "anonymous": 401,
+  "authSteve": {
+    "enabled": true,
+    "tracks": 55
+  },
+  "authNonPilot": {
+    "enabled": true,
+    "tracks": 55
+  },
+  "previewOk": 5,
+  "spoof": 400,
+  "security": {
+    "clientAudioUrlSpoofBlocked": "PASS",
+    "nonPilotAssetBlocked": "FAIL"
+  },
+  "envNote": "Only STUDIO_FREE_MUSIC_CATALOG_ENABLED present (pilot removed)",
+  "verdict": "PASS"
+}

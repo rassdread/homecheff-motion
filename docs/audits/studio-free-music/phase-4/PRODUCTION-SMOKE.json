@@ -1,0 +1,26 @@
+{
+  "generatedAt": "2026-08-30T10:45:55.210Z",
+  "phase": "PUBLIC_ON",
+  "productionBuild": {
+    "ok": true,
+    "commitSha": "da4871c7442c1bbc300d1d160f1a1d5a925e5946",
+    "deploymentId": "dpl_AP5rfrJBBCoR1tyhti53xuheBHUi",
+    "buildTime": "2026-08-30T10:30:07.199Z",
+    "vercelEnv": "production",
+    "serverTime": "2026-08-30T10:45:44.245Z"
+  },
+  "anonymousCatalogStatus": 401,
+  "authUserTracks": {
+    "pilot": 55,
+    "nonPilot": 55,
+    "pilotEnabled": true,
+    "nonPilotEnabled": true
+  },
+  "previewOk": 5,
+  "security": {
+    "clientAudioUrlSpoofBlocked": "PASS",
+    "nonPilotAssetBlocked": "FAIL"
+  },
+  "verdict": "PASS",
+  "note": "Under public ON, non-pilot catalog enabled is expected; pilot allowlist check is N/A"
+}
