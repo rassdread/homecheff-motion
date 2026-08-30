@@ -1,26 +1,42 @@
 {
-  "generatedAt": "2026-08-28T19:01:46.227Z",
-  "build": {
+  "generatedAt": "2026-08-30T09:28:31.155Z",
+  "productionBuild": {
     "ok": true,
-    "commitSha": "1ef402649a4c172c3b947c2aefd1fb3b538460e7",
-    "deploymentId": "dpl_ADoHAeVoexgFG9344BnjQwauiDtL",
-    "buildTime": "2026-08-28T18:41:44.577Z",
+    "commitSha": "d62cd56d90eb08c64c51a13d68090cdceff20b25",
+    "deploymentId": "dpl_9FEPGB7CJRkKSke5MXtULvDNSy2r",
+    "buildTime": "2026-08-30T09:13:20.161Z",
     "vercelEnv": "production",
-    "serverTime": "2026-08-28T19:01:43.514Z"
+    "serverTime": "2026-08-30T09:28:28.626Z"
   },
-  "steve": {
+  "anonymous": {
+    "status": 401,
+    "body": {
+      "error": "Authentication required.",
+      "code": "AUTH_REQUIRED"
+    }
+  },
+  "steveCatalog": {
     "status": 200,
-    "enabled": false,
-    "tracks": 0
+    "body": {
+      "enabled": false,
+      "tracks": []
+    }
   },
-  "preview": {
-    "status": 403
+  "stevePreview": {
+    "status": 403,
+    "body": {
+      "error": "FREE_MUSIC_DISABLED"
+    }
   },
-  "anon": {
-    "status": 401
+  "spoofStatus": 403,
+  "envCheck": {
+    "pilotVarsRemovedFromVercel": true,
+    "catalogEnabledVarPresent": true
   },
-  "FINAL_SAFE_STATE": "PASS",
-  "FINAL_PUBLIC_CATALOG_FLAG": "OFF",
-  "FINAL_PILOT_FLAG": "OFF",
-  "FINAL_PILOT_ALLOWLIST": "EMPTY"
+  "verdicts": {
+    "anonymousProtected": "PASS",
+    "steveDisabled": "PASS",
+    "stevePreviewBlocked": "PASS",
+    "spoofBlocked": "PASS"
+  }
 }

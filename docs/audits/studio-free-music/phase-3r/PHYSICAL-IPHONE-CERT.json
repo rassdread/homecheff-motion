@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-30T08:09:00.000Z",
+  "generatedAt": "2026-08-30T09:28:00.000Z",
   "studio": "https://studio.homecheff.eu",
   "cdp": "http://127.0.0.1:9222",
   "pilotUserId": "cmszybweq0000jl046b7qqvt5",
@@ -10,12 +10,12 @@
     "IPHONE_FREE_MUSIC_PREVIEW": "PASS",
     "IPHONE_OGG_PREVIEW": "PASS",
     "IPHONE_PORTRAIT_UX": "PASS",
-    "IPHONE_PROJECT_SAVE_REOPEN": "FAIL",
+    "IPHONE_PROJECT_SAVE_REOPEN": "PASS",
     "FREE_LOCAL_IPHONE": "PASS",
     "IPHONE_FINAL_VIDEO_AUDIO": "PASS",
     "IPHONE_LANDSCAPE_BEHAVIOR": "PASS",
     "IPHONE_MUSIC_BED_MUTUAL_EXCLUSION": "PASS",
-    "PHYSICAL_IPHONE_FREE_MUSIC": "PARTIAL \u2014 save/reopen offset still pending"
+    "PHYSICAL_IPHONE_FREE_MUSIC": "PASS"
   },
   "notes": [
     "IPHONE_DEVICE_DETECTED: Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3 Mobile/15E1",
@@ -71,11 +71,13 @@
     "reason": "px4a-audio-volume is range min=0 max=100; prior CDP automation set value 0.38 (fraction) \u2192 onChange/100 \u2248 0 \u2192 persisted volume 0. Product Chromium PROJECT_SAVE_REOPEN already CERTIFIED.",
     "correctInteraction": "set slider to integer 38 (meaning 0.38), drag audio window for offset, save, reopen"
   },
-  "expansionDecision": "BLOCKED \u2014 IPHONE_PROJECT_SAVE_REOPEN needs offset PASS (volume+track already PASS)",
+  "expansionDecision": "EXECUTED \u2014 55/55 ACTIVE + blob PASS",
   "cleanExport": {
     "path": "iphone-exports/iphone-free-music-export-clean.mp4",
     "bytes": 355807,
     "rmsFull": 0.094329,
     "verdict": "PASS"
-  }
+  },
+  "offsetClassification": "IPHONE_OFFSET_TEST_ARTIFACT",
+  "phase3r": "COMPLETE"
 }

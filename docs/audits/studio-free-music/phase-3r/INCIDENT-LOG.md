@@ -21,6 +21,8 @@
 | 2026-08-30 | Expansion still blocked pending offset persistence on save/reopen | Gate | Volume+track PASS on clean project |
 | 2026-08-30 ~08:25 | Offset gate PASS — prior fail classified IPHONE_OFFSET_TEST_ARTIFACT | Gate | Corrected drag startSeconds≈1.72 persisted; IPHONE_PROJECT_SAVE_REOPEN=PASS |
 | 2026-08-30 ~08:32 | 5→55 upload: created 50, reused 5, failed 0; blob verify 55/55; ACTIVE 55 / DRAFT 0 | Expansion | Reconcile PASS |
+| 2026-08-30 ~08:51 | Production SHA `d62cd56d` live; Steve catalog = 55 under pilot | Verify | Security PASS |
+| 2026-08-30 ~09:13 | Pilot env removed; redeploy `dpl_9FEPGB7CJRkKSke5MXtULvDNSy2r`; Steve disabled | Safe state | FINAL_SAFE_STATE=PASS |
 | 2026-08-30 | Save/reopen volume=0 linked to cert automation setting range 0–100 as fraction 0.38 | Info | Likely TEST_ARTIFACT; Chromium persistence already CERTIFIED |
 
 No safety incidents. No registry/evidence mutation. No public activation. No economic operations.
