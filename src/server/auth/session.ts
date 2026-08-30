@@ -230,6 +230,30 @@ export async function getAuthenticatedUser(): Promise<SessionUser | null> {
     return null;
   }
 
+  // Legacy studio_session without central bind is not ecosystem-authenticated.
+  // Returning null lets AuthGate start silent SSO (or login) instead of a
+  // product-only Studio identity while Marketplace stays anonymous.
+  try {
+    const { isCentralSsoLive } = await import("@/lib/identity/flags");
+    if (isCentralSsoLive() && !payload.centralUserId) {
+      console.info(
+        JSON.stringify({
+          event: "LEGACY_PRODUCT_SESSION_REJECTED",
+          product: "studio",
+          reason: "MISSING_CENTRAL_USER_ID",
+        }),
+      );
+      try {
+        clearLegacyAndCanonical(jar);
+      } catch {
+        /* ignore */
+      }
+      return null;
+    }
+  } catch {
+    /* flags import failure — keep prior behavior */
+  }
+
   if (source === "legacy") {
     try {
       clearLegacyAndCanonical(jar);
