@@ -56,8 +56,23 @@ Phase 3R closed the Production pilot + FREE_LOCAL certification path, including 
 
 ## Safe Production state
 
-Documented in `PRODUCTION-ENV-SAFE-STATE.md` after pilot env removal + deploy.
+| Field | Value |
+|---|---|
+| FINAL_PRODUCTION_SHA | `d62cd56d90eb08c64c51a13d68090cdceff20b25` |
+| FINAL_VERCEL_DEPLOYMENT_ID | `dpl_9FEPGB7CJRkKSke5MXtULvDNSy2r` |
+| PILOT env | removed |
+| Steve catalog | `{ enabled:false, tracks:[] }` |
+| Anonymous | 401 |
+| FINAL_SAFE_STATE | PASS |
+
+Documented in `PRODUCTION-ENV-SAFE-STATE.md` / `PRODUCTION-SAFE-END-CERT.json`.
 
 ## Phase 4
 
 **Not started.** Public catalog remains OFF. `PHASE_4_READINESS=READY` only means the catalog/masters foundation is ready for a future gated Phase 4.
+
+## Final classification
+
+- PHASE_3R = COMPLETE
+- PHASE_4_READINESS = READY
+- No P0/P1 blocker remaining for Phase 3R scope
