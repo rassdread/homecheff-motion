@@ -2,7 +2,7 @@
 
 | DOMAIN | CAPABILITY | TECHNICAL_STATUS | PRODUCT_STATUS | MOBILE_STATUS | DESKTOP_STATUS | COMMERCIAL_STATUS | CERTIFICATION | OPEN_ISSUE | PRIORITY | EFFORT | RECOMMENDED_ACTION |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| Ops/security | Test upload routes | BLOCKED | BLOCKED | N/A | N/A | BLOCKED | Live POST 200 | `/api/test-blob` open | P0 | XS | REPAIR |
+| Ops/security | Test upload routes | CERTIFIED | COMPLETE | N/A | N/A | COMPLETE | P0 closeout | `/api/test-blob` removed | — | — | KEEP |
 | Foundation | UPC / S2A–S2D | CERTIFIED | COMPLETE | CERTIFIED | COMPLETE | N/A | Full-studio | — | — | — | KEEP / FREEZE |
 | Audio timeline | S2E mix | CERTIFIED | COMPLETE_WITH_POLISH | CERTIFIED | COMPLETE | N/A | Audio cert | Dual panels | P2 | M | POLISH |
 | Story stages | S2F | CERTIFIED | COMPLETE_WITH_POLISH | CERTIFIED | COMPLETE_WITH_POLISH | PARTIAL cost UX | iPhone + S2 | Density | P1 | L | POLISH |

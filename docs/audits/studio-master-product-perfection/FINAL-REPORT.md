@@ -16,7 +16,7 @@ HomeCheff Studio’s **technical foundation is largely finished and certified**.
 | TECHNICALLY FINISHED | Largely yes (S2 stack, QV, Free Music launch, merge, billing safety, iPhone advanced) |
 | FUNCTIONALLY FINISHED | Core journeys work (esp. Quick Video ↔ HomeCheff) |
 | PRODUCT-POLISH REMAINING | Substantial IA/nav/terminology/commercial clarity |
-| ACTUAL BLOCKER | **P0:** unauthenticated `POST /api/test-blob` writes public blobs on Production (proven 2026-08-30). Plus **P1** product/commercial clarity. |
+| ACTUAL BLOCKER | **P0-1 CLOSED** (`/api/test-blob` removed; Production POST/GET **404**). Remaining freeze blockers are **P1** product/commercial clarity (see backlog). |
 
 ### Scores (/10)
 
@@ -76,11 +76,11 @@ HomeCheff Studio’s **technical foundation is largely finished and certified**.
 
 ## 5. P0 findings
 
-| ID | Issue | Type | Effort | Action | Class | Evidence |
-|---|---|---|---|---|---|---|
-| P0-1 | `POST /api/test-blob` has **no auth** and uploads to **public** Vercel Blob on Production | SECURITY | XS | REPAIR (disable/remove/gate) | FUNCTIONAL_BLOCKER | Live POST → `200` + public blob URL (`src/app/api/test-blob/route.ts`). Found via route inventory ([Inventory Studio routes](6e8a6065-6204-41af-b301-1034fbb79498)). |
+| ID | Issue | Status |
+|---|---|---|
+| P0-1 | Unauthenticated `POST /api/test-blob` public blob upload | **CLOSED** — route removed; Production POST/GET **404** (`989bd093` / `dpl_A7fkyLxvxJ21gtaZckihRHsizPtw`). See `P0-TEST-BLOB-CLOSEOUT.md`. |
 
-This is **not** a Free Music / S2 regression; it is an ops test route left exposed. It must be closed before commercial freeze (and ideally immediately).
+No other P0 proven in the bounded similar-route scan.
 
 ## 6. P1 findings
 

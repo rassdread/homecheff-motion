@@ -2,7 +2,7 @@
 
 ## A. MUST FIX BEFORE COMMERCIAL FREEZE
 
-0. **`POST /api/test-blob` unauthenticated public blob upload on Production** — P0 SECURITY · XS · REPAIR (remove or admin-only). Proven live 200 + public URL.  
+0. ~~**`POST /api/test-blob`**~~ — **CLOSED** (`P0-TEST-BLOB-CLOSEOUT.md`)  
 1. **Unify commercial pricing/HC story** (one source of truth: prices + what subscription includes) — P1 COMMERCIAL · M · REPAIR  
 2. **Hide `/studio/providers` from normal users** — P1 IA/TRUST · S · HIDE  
 3. **Resolve Create/Maak vs Studio home intent dual map** — P1 IA · M · MERGE  

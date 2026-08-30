@@ -1,7 +1,7 @@
 # P0 — `/api/test-blob` Security Closeout
 
 **Date:** 2026-08-30  
-**Status:** Remediation shipped locally; Production probe recorded after deploy  
+**Verdict:** `P0_1_TEST_BLOB = CLOSED`
 
 ## Root cause
 
@@ -16,11 +16,10 @@ Development / ops smoke only. Not part of Quick Video, Free Music, Studio, Motio
 | Location | Result |
 |---|---|
 | App source (`src/`) | Only the route file itself (removed) |
-| Tests / scripts / package.json | No callers |
+| Tests / scripts | No callers |
 | Docs | Audit mentions only |
-| Deploy logs | Historical build listings of `/api/test-blob` |
 
-**Conclusion:** Safe to **REMOVE** (preferred remediation).
+**Conclusion:** Safe to **REMOVE**.
 
 ## Remediation
 
@@ -30,48 +29,56 @@ Development / ops smoke only. Not part of Quick Video, Free Music, Studio, Motio
 
 | Path | Auth | Mutating upload? | Prod note |
 |---|---|---|---|
-| `/api/test-blob` | none | yes (public blob) | **CLOSED** (removed) |
+| `/api/test-blob` | none | yes (public blob) | **CLOSED** |
 | `/api/admin/.../playback-debug` | admin | no | OK |
 | `/api/admin/.../assembly-diagnostics` | admin | no | OK |
-| `/api/admin/.../brand-qa-diagnostics` | admin (POST → 401 anon) | no upload | OK |
-| `/api/instant-premium/preview-text-mask` | admin or test/dev mode | yes | Auth gated — not equivalent P0 |
+| `/api/admin/.../brand-qa-diagnostics` | admin (anon POST 401) | no | OK |
+| `/api/instant-premium/preview-text-mask` | admin or test/dev | yes | Auth gated — not P0 |
 | `/api/uploads/images` | `requireActiveUser` | yes | OK |
 | `/api/health`, `/api/meta/build` | public read | no | OK |
 
-No second unauthenticated Production mutating test-upload route proven.
+No second equivalent unauthenticated Production mutating test-upload route proven.
 
 ## Audit-created blob cleanup
 
 | Field | Value |
 |---|---|
-| Identified URL | `https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/test/homecheff-motion-1788096842045-UULs39UB42NciMifKCD2jkZKgmagRd.txt` |
-| Action | `del()` via `BLOB_READ_WRITE_TOKEN` |
+| Identified URL | `…/test/homecheff-motion-1788096842045-UULs39UB42NciMifKCD2jkZKgmagRd.txt` |
+| Action | `del()` with `BLOB_READ_WRITE_TOKEN` |
 | Result | **DELETED** |
-| Other blobs | Not bulk-scanned / not deleted |
 
-`AUDIT_TEST_BLOB_CLEANUP = DONE` (single known probe object only)
+`AUDIT_TEST_BLOB_CLEANUP = DONE` (only the known probe object).
 
 ## Files changed
 
 - DELETE `src/app/api/test-blob/route.ts`
 - ADD `src/lib/security/p0-test-blob-close.test.ts`
-- UPDATE `package.json` (include regression test)
-- UPDATE audit docs (this file + `SECURITY-EXPOSED-TEST-ROUTES.md`)
+- UPDATE `package.json`
+- UPDATE this closeout + `SECURITY-EXPOSED-TEST-ROUTES.md`
 
-## Tests
+## Tests / quality
 
-- `npx tsx --test src/lib/security/p0-test-blob-close.test.ts` → **2/2 PASS**
-- `npx next typegen` → regenerates validators without test-blob
-- `npx tsc --noEmit` → **PASS**
-- `npm run build` → (recorded below)
+| Gate | Result |
+|---|---|
+| `p0-test-blob-close.test.ts` | 2/2 PASS |
+| `npx next typegen` | PASS (no test-blob validators) |
+| `npx tsc --noEmit` | PASS |
+| `npm run build` | PASS |
 
 ## Production verification
 
-Filled after deploy:
-
 | Field | Value |
 |---|---|
-| SHA | _pending_ |
-| Deployment ID | _pending_ |
-| POST `/api/test-blob` | _pending_ |
-| Storage mutation | _pending_ |
+| SHA | `989bd0935d6a6c6607a0f9ec4324b7372957d40c` |
+| Deployment ID | `dpl_A7fkyLxvxJ21gtaZckihRHsizPtw` |
+| POST `/api/test-blob` | **404** |
+| GET `/api/test-blob` | **404** |
+| Storage mutation | **None** (no 200, no blob URL) |
+
+## Remaining P0 security issues
+
+None proven in the bounded similar-route scan.
+
+## Commercial-freeze blocker
+
+**P0-1 CLOSED.** Broader Product Perfection Sprint is still required for P1 IA/commercial items — not started here.
