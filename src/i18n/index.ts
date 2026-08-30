@@ -1,7 +1,21 @@
+/**
+ * Studio UI locale — client dictionaries + ecosystem IP/cookie preference.
+ * Parity with Marketplace/Growth: NL/BE/SR → nl, else en; preference wins.
+ */
+
 import { en } from "./locales/en";
 import { nl } from "./locales/nl";
+import {
+  ECOSYSTEM_LOCALE_COOKIE,
+  ECOSYSTEM_LOCALE_PREF_COOKIE,
+  MARKETPLACE_LEGACY_LOCALE_COOKIE,
+  formatEcosystemLocaleDocumentCookies,
+  parseEcosystemLanguage,
+  shouldUseSharedHomecheffLocaleDomain,
+  type EcosystemLanguage,
+} from "@/lib/ecosystem-locale";
 
-export const DEFAULT_LOCALE = "nl" as const;
+export const DEFAULT_LOCALE = "en" as const;
 export const SUPPORTED_LOCALES = ["nl", "en"] as const;
 
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
@@ -26,18 +40,70 @@ function isDevEnvironment(): boolean {
   return process.env.NODE_ENV === "development";
 }
 
-/** Call once after client mount so SSR and first paint both use DEFAULT_LOCALE. */
+function readBrowserLocaleCookie(): Locale | null {
+  if (typeof document === "undefined") return null;
+  const parts = document.cookie.split("; ");
+  let eco: Locale | null = null;
+  let legacy: Locale | null = null;
+  for (const p of parts) {
+    const idx = p.indexOf("=");
+    if (idx === -1) continue;
+    const name = p.slice(0, idx).trim();
+    const raw = decodeURIComponent(p.slice(idx + 1).trim());
+    const parsed = parseEcosystemLanguage(raw);
+    if (!parsed) continue;
+    if (name === ECOSYSTEM_LOCALE_COOKIE) eco = parsed;
+    if (name === MARKETPLACE_LEGACY_LOCALE_COOKIE || name === "hc_locale") {
+      legacy = parsed;
+    }
+  }
+  return eco ?? legacy;
+}
+
+function writeBrowserLocaleCookie(locale: Locale, explicit: boolean): void {
+  if (typeof document === "undefined") return;
+  const host = window.location.hostname;
+  const domain = shouldUseSharedHomecheffLocaleDomain(host)
+    ? ".homecheff.eu"
+    : undefined;
+  const secure = window.location.protocol === "https:";
+  for (const line of formatEcosystemLocaleDocumentCookies({
+    language: locale as EcosystemLanguage,
+    explicit,
+    domain,
+    secure,
+  })) {
+    document.cookie = line;
+  }
+  const maxAge = 60 * 60 * 24 * 400;
+  const expires = new Date(Date.now() + maxAge * 1000).toUTCString();
+  const domainPart = domain ? `; Domain=${domain}` : "";
+  const securePart = secure ? "; Secure" : "";
+  document.cookie = `${MARKETPLACE_LEGACY_LOCALE_COOKIE}=${locale}; Path=/; Max-Age=${maxAge}; Expires=${expires}; SameSite=Lax${securePart}${domainPart}`;
+}
+
+/** Call once after client mount so SSR and first paint both use DEFAULT_LOCALE / cookie. */
 export function markI18nHydrated(): void {
   if (typeof window === "undefined" || i18nHydrated) {
     return;
   }
   i18nHydrated = true;
   const saved = window.localStorage.getItem(LOCALE_STORAGE_KEY);
+  const fromCookie = readBrowserLocaleCookie();
+  const prefExplicit = document.cookie
+    .split("; ")
+    .some((r) => r.startsWith(`${ECOSYSTEM_LOCALE_PREF_COOKIE}=1`));
+
   if (saved === "nl" || saved === "en") {
     activeLocale = saved;
+    writeBrowserLocaleCookie(saved, true);
+  } else if (fromCookie) {
+    activeLocale = fromCookie;
+    writeBrowserLocaleCookie(fromCookie, prefExplicit);
   } else {
-    const navigatorLocale = window.navigator.language.toLowerCase();
-    activeLocale = navigatorLocale.startsWith("nl") ? "nl" : DEFAULT_LOCALE;
+    // Fail-safe English (middleware should have seeded cookie from IP already)
+    activeLocale = DEFAULT_LOCALE;
+    writeBrowserLocaleCookie(DEFAULT_LOCALE, false);
   }
   localeInitialized = true;
   localeListeners.forEach((listener) => listener());
@@ -105,6 +171,7 @@ export function setActiveLocale(locale: Locale): void {
   activeLocale = locale;
   if (typeof window !== "undefined") {
     window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+    writeBrowserLocaleCookie(locale, true);
   }
   localeListeners.forEach((listener) => listener());
 }
