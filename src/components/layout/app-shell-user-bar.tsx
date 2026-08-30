@@ -60,10 +60,31 @@ export function AppShellUserBar({ compact = false }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = useCallback(async () => {
+    let idpLogoutUrl = "https://homecheff.eu/api/auth/ecosystem-logout";
     try {
-      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+      const res = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ecosystem: true }),
+      });
+      const j = (await res.json().catch(() => null)) as { idpLogoutUrl?: string } | null;
+      if (typeof j?.idpLogoutUrl === "string" && j.idpLogoutUrl.startsWith("https://")) {
+        idpLogoutUrl = j.idpLogoutUrl;
+      }
     } catch {
-      /* still navigate */
+      /* still continue */
+    }
+    try {
+      await fetch(idpLogoutUrl, {
+        method: "POST",
+        credentials: "include",
+        mode: "cors",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+      });
+    } catch {
+      /* product session already cleared */
     }
     clearStudioIdentityBoundClientResidue();
     invalidateAuthSessionCache();

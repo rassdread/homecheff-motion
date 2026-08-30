@@ -41,7 +41,14 @@ function sessionCookieSecure(): boolean {
   return false;
 }
 
-type SessionPayload = { userId: string; nonce: string };
+type SessionPayload = {
+  userId: string;
+  nonce: string;
+  /** Marketplace central User.id (U5). */
+  centralUserId?: string;
+  /** Opaque ecosystem identity epoch (U5). */
+  ecoEpoch?: string;
+};
 
 function sign(value: string): string {
   return createHmac("sha256", AUTH_SECRET).update(value).digest("hex");
@@ -122,15 +129,27 @@ export function verifyPassword(password: string, stored: string): boolean {
   return verifyHash.length === hashBuf.length && timingSafeEqual(verifyHash, hashBuf);
 }
 
-export async function createSession(userId: string): Promise<void> {
-  const value = encode({ userId, nonce: randomBytes(8).toString("hex") });
+export async function createSession(
+  userId: string,
+  opts?: { centralUserId?: string; ecoEpoch?: string },
+): Promise<void> {
+  const value = encode({
+    userId,
+    nonce: randomBytes(8).toString("hex"),
+    centralUserId: opts?.centralUserId,
+    ecoEpoch: opts?.ecoEpoch,
+  });
   const jar = await cookies();
   clearLegacyAndCanonical(jar);
   jar.set(AUTH_COOKIE_NAMES.studio, value, baseCookieOptions(60 * 60 * 24 * 30));
 }
 
 /** Set host-only studio_session on a redirect/response (SSO callback). */
-export function applyStudioSessionToResponse(res: NextResponse, userId: string): void {
+export function applyStudioSessionToResponse(
+  res: NextResponse,
+  userId: string,
+  opts?: { centralUserId?: string; ecoEpoch?: string },
+): void {
   const expire = baseCookieOptions(0);
   res.cookies.set(AUTH_COOKIE_NAMES.studio, "", expire);
   res.cookies.set(AUTH_COOKIE_NAMES.legacy, "", expire);
@@ -138,7 +157,12 @@ export function applyStudioSessionToResponse(res: NextResponse, userId: string):
     ...expire,
     domain: LEGACY_SHARED_COOKIE_DOMAIN,
   });
-  const value = encode({ userId, nonce: randomBytes(8).toString("hex") });
+  const value = encode({
+    userId,
+    nonce: randomBytes(8).toString("hex"),
+    centralUserId: opts?.centralUserId,
+    ecoEpoch: opts?.ecoEpoch,
+  });
   res.cookies.set(AUTH_COOKIE_NAMES.studio, value, baseCookieOptions(60 * 60 * 24 * 30));
 }
 
@@ -181,6 +205,28 @@ export async function getAuthenticatedUser(): Promise<SessionUser | null> {
   }
   const payload = decode(token);
   if (!payload) {
+    return null;
+  }
+
+  const {
+    checkProductEpochBinding,
+    HC_ECO_EPOCH_COOKIE,
+  } = await import("@/lib/ecosystem-session/epoch");
+  const cookieEpoch = jar.get(HC_ECO_EPOCH_COOKIE)?.value ?? null;
+  const epochCheck = checkProductEpochBinding(payload.ecoEpoch, cookieEpoch);
+  if (!epochCheck.ok) {
+    console.info(
+      JSON.stringify({
+        event: "PRODUCT_SESSION_MISMATCH",
+        product: "studio",
+        reason: epochCheck.reason,
+      }),
+    );
+    try {
+      clearLegacyAndCanonical(jar);
+    } catch {
+      /* ignore */
+    }
     return null;
   }
 

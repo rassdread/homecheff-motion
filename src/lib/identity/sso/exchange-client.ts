@@ -16,6 +16,7 @@ export type SsoIdentityClaims = {
   image: string | null;
   accountStatus: string;
   issuedAt: string;
+  ecoEpoch?: string;
 };
 
 const UUID_RE =
@@ -90,6 +91,9 @@ export function validateSsoClaims(raw: unknown): SsoIdentityClaims {
     image: typeof o.image === "string" ? o.image : null,
     accountStatus,
     issuedAt,
+    ...(typeof o.ecoEpoch === "string" && UUID_RE.test(o.ecoEpoch)
+      ? { ecoEpoch: o.ecoEpoch }
+      : {}),
   };
 }
 

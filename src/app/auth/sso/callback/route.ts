@@ -174,7 +174,10 @@ export async function GET(req: Request) {
     clearSsoPendingCookie(res);
     clearSilentSsoAttemptCookie(res);
     clearSkipSilentSsoCookie(res);
-    applyStudioSessionToResponse(res, user.id);
+    applyStudioSessionToResponse(res, user.id, {
+      centralUserId: claims.centralUserId,
+      ecoEpoch: claims.ecoEpoch,
+    });
     logStudioSsoEvent(
       user.firstProductVisit ? "product_session_created" : "product_session_reused",
       { phase: "callback" },
