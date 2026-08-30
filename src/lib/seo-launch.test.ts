@@ -135,11 +135,13 @@ describe("SEO launch readiness", () => {
     assert.doesNotMatch(sitemap, /HELP_ARTICLES/);
   });
 
-  it("anonymous homepage does not silent-SSO redirect", () => {
+  it("anonymous homepage does not unconditional silent-SSO redirect", () => {
     const page = read("src/app/page.tsx");
     const middleware = read("src/middleware.ts");
     assert.doesNotMatch(page, /maybeSilentHydratePublicStudio/);
     assert.doesNotMatch(middleware, /maybePublicSilentHydrate/);
+    // Epoch-gated hydrate is allowed (crawlers have no hc_eco_epoch).
+    assert.match(page, /maybeSilentHydrateWhenEcosystemSessionLikely/);
   });
 
   it("major public routes have dedicated metadata layouts", () => {

@@ -166,8 +166,14 @@ export async function GET(req: Request) {
     });
 
     let nextPath = pending.returnTo;
-    if (user.firstProductVisit && !hasStudioWelcomeCookie(cookieHeader)) {
-      nextPath = `/welcome?next=${encodeURIComponent(pending.returnTo)}`;
+    // First-visit Studio prefs are optional product onboarding — never re-auth.
+    // Defer welcome wizard; enter requested surface immediately when session is minted.
+    if (
+      user.firstProductVisit &&
+      !hasStudioWelcomeCookie(cookieHeader) &&
+      (nextPath === "/" || nextPath === "/welcome")
+    ) {
+      nextPath = `/welcome?next=${encodeURIComponent("/studio")}`;
     }
 
     const res = NextResponse.redirect(new URL(nextPath, appOrigin(req)), 302);

@@ -12040,7 +12040,7 @@ export const nl = {
   "auth.welcome.workspace.studio": "Kies een Experience Pack",
   "auth.welcome.workspace.editor": "Creëren met AI",
   "auth.welcome.workspace.motion": "Studio openen",
-  "auth.welcome.skip": "Overslaan en Studio openen",
+  "auth.welcome.skip": "Later — Studio openen",
   "auth.welcome.company": "Bedrijf (optioneel)",
   "auth.welcome.companyPlaceholder": "Bedrijfsnaam",
   "auth.welcome.continue": "Verder naar Studio",

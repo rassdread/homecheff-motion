@@ -12037,7 +12037,7 @@ export const en: LocaleSchema = {
   "auth.welcome.workspace.studio": "Choose an Experience Pack",
   "auth.welcome.workspace.editor": "Create with AI",
   "auth.welcome.workspace.motion": "Open Studio",
-  "auth.welcome.skip": "Skip and open Studio",
+  "auth.welcome.skip": "Later — start Studio",
   "auth.welcome.company": "Company (optional)",
   "auth.welcome.companyPlaceholder": "Company name",
   "auth.welcome.continue": "Continue to Studio",
