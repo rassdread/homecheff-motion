@@ -15,8 +15,8 @@ export function StudioSiteFooter() {
             Part of HomeCheff · CREATE layer · Arrias Beheer B.V.
           </p>
           <p className="mt-2 max-w-md text-xs text-zinc-500">
-            “Everyone gets to eat” / “Iedereen eet mee” describes opportunity across CREATE · SELL ·
-            GROW · PROMOTE — not guaranteed income.
+            HomeCheff — Everybody Eats. Opportunity across CREATE · SELL · GROW · PROMOTE — not
+            guaranteed income. (NL: Iedereen eet mee.)
           </p>
         </div>
         <nav aria-label="Legal" className="grid grid-cols-2 gap-x-8 gap-y-2 sm:text-right">

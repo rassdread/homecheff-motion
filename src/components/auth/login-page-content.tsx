@@ -58,8 +58,12 @@ export function LoginPageContent({ ssoEnabled, legacyEnabled, returnTo }: Props)
           <p className="text-sm font-semibold tracking-wide text-emerald-800">
             {t("auth.login.brandStudio")}
           </p>
+          <p className="mt-1 text-xs font-medium tracking-wide text-emerald-700">
+            {t("auth.login.brandSlogan")}
+          </p>
           <h1 className="mt-2 text-2xl font-semibold text-zinc-900">{t("auth.login.welcomeBack")}</h1>
           <p className="mt-2 text-sm text-zinc-600">{t("auth.login.nativeSubtitle")}</p>
+          <p className="mt-1 text-xs text-zinc-500">{t("auth.login.oneAccountLine")}</p>
 
           {ssoEnabled ? (
             <div className="mt-6 space-y-4">
