@@ -4,10 +4,14 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from
 import { createPortal } from "react-dom";
 import {
   ECOSYSTEM_BRAND_MARK_URL,
+  ECOSYSTEM_HUB_HREF,
+  ECOSYSTEM_HUB_LABEL,
+  ECOSYSTEM_MASTER_SLOGAN,
   ECOSYSTEM_NAV_LABEL,
   ECOSYSTEM_PANEL_HEADING,
   ECOSYSTEM_PANEL_SUPPORT,
   ECOSYSTEM_PRODUCTS,
+  ecosystemCurrentModuleLabel,
   ecosystemProductHref,
   type EcosystemNavSurface,
   type EcosystemProductId,
@@ -26,7 +30,7 @@ type Props = {
 };
 
 const PANEL_WIDTH = 320;
-const PANEL_EST_HEIGHT = 360;
+const PANEL_EST_HEIGHT = 520;
 const VIEWPORT_PAD = 8;
 
 function computePanelStyle(trigger: DOMRect): { top: number; left: number } {
@@ -137,9 +141,27 @@ export function OntdekHomeCheffMenu({
           />
           <div className="min-w-0">
             <p className="text-sm font-semibold">{ECOSYSTEM_PANEL_HEADING}</p>
-            <p className="text-[11px] leading-snug text-white/60">{ECOSYSTEM_PANEL_SUPPORT}</p>
+            <p className="text-[11px] font-medium tracking-wide text-emerald-300">
+              {ECOSYSTEM_MASTER_SLOGAN}
+            </p>
+            <p className="mt-0.5 text-[11px] leading-snug text-white/60">
+              {ECOSYSTEM_PANEL_SUPPORT}
+            </p>
+            <p className="mt-1 text-[10px] font-medium uppercase tracking-wide text-white/40">
+              Nu: {ecosystemCurrentModuleLabel(currentProduct ?? "studio")}
+            </p>
           </div>
         </div>
+        {authenticated ? (
+          <a
+            href={ECOSYSTEM_HUB_HREF}
+            className="mb-2 flex items-center justify-between rounded-lg border border-emerald-400/25 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/50"
+            onClick={() => close()}
+          >
+            <span>{ECOSYSTEM_HUB_LABEL}</span>
+            <span className="text-[11px] font-medium text-emerald-300">Open →</span>
+          </a>
+        ) : null}
         <ul className="flex flex-col gap-1" role="list">
           {ECOSYSTEM_PRODUCTS.map((product) => {
             const isCurrent = product.id === currentProduct;
@@ -208,7 +230,12 @@ export function OntdekHomeCheffMenu({
           height={18}
           className="h-[18px] w-[18px] shrink-0 rounded"
         />
-        <span>{ECOSYSTEM_NAV_LABEL}</span>
+        <span className="min-w-0 truncate">
+          {ECOSYSTEM_NAV_LABEL}
+          <span className="ml-1 font-normal text-white/50">
+            · {ecosystemCurrentModuleLabel(currentProduct ?? "studio")}
+          </span>
+        </span>
       </button>
       {panel && createPortal(panel, document.body)}
     </div>

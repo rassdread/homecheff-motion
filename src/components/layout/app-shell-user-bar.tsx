@@ -158,6 +158,22 @@ export function AppShellUserBar({ compact = false }: Props) {
           <div className="px-3 pb-2 lg:hidden">
             <GlobalCreditIndicator variant="compact" />
           </div>
+          <a
+            href="https://homecheff.eu/mijn-homecheff"
+            className={studioVisual.userDropdownItem}
+            onClick={() => setOpen(false)}
+            role="menuitem"
+          >
+            Mijn HomeCheff
+          </a>
+          <a
+            href="https://homecheff.eu/affiliate"
+            className={studioVisual.userDropdownItem}
+            onClick={() => setOpen(false)}
+            role="menuitem"
+          >
+            HomeCheff Affiliate
+          </a>
           {ACCOUNT_MENU_ITEMS.map((item) => {
             if (item.adminOnly && normalizedRole !== "admin") {
               return null;
