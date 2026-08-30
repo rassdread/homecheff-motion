@@ -20,6 +20,18 @@ export async function POST(request: Request) {
     );
   }
 
+  // Belt: even if legacy flag is on, central SSO live ⇒ no product-only sessions.
+  const { isCentralSsoLive } = await import("@/lib/identity/flags");
+  if (isCentralSsoLive()) {
+    return NextResponse.json(
+      {
+        error: "Use HomeCheff login (Google or email). Studio cannot mint a product-only session.",
+        code: "CANONICAL_LOGIN_REQUIRED",
+      },
+      { status: 409 },
+    );
+  }
+
   let payload: LoginPayload;
   try {
     payload = (await request.json()) as LoginPayload;
