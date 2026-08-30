@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { AppShellChrome } from "@/components/layout/app-shell-chrome";
 import { I18nHtmlLangSync } from "@/components/layout/i18n-html-lang-sync";
 import { I18nHydrationSync } from "@/components/layout/i18n-hydration-sync";
+import { StudioSessionIdentityGuard } from "@/components/identity/studio-session-identity-guard";
 
 type AppShellProps = {
   children: ReactNode;
@@ -9,12 +10,14 @@ type AppShellProps = {
 
 export function AppShell({ children }: AppShellProps) {
   return (
-    <div data-route-shell="app-shell" className="hc-viewport-width min-w-0 overflow-x-clip">
-      <I18nHydrationSync />
-      <I18nHtmlLangSync />
-      <div className="flex min-w-0 w-full flex-col overflow-visible">
-        <AppShellChrome>{children}</AppShellChrome>
+    <StudioSessionIdentityGuard>
+      <div data-route-shell="app-shell" className="hc-viewport-width min-w-0 overflow-x-clip">
+        <I18nHydrationSync />
+        <I18nHtmlLangSync />
+        <div className="flex min-w-0 w-full flex-col overflow-visible">
+          <AppShellChrome>{children}</AppShellChrome>
+        </div>
       </div>
-    </div>
+    </StudioSessionIdentityGuard>
   );
 }

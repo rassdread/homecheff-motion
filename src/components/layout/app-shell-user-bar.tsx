@@ -7,6 +7,10 @@ import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { invalidateAuthSessionCache } from "@/lib/auth-session-client";
+import {
+  clearStudioIdentityBoundClientResidue,
+  postStudioAuthChannel,
+} from "@/lib/identity/studio-session-identity-channel";
 import { isHomeCheffProductSuiteNavEnabled } from "@/lib/homecheff-product-suite-flag";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 
@@ -57,11 +61,13 @@ export function AppShellUserBar({ compact = false }: Props) {
 
   const handleLogout = useCallback(async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     } catch {
       /* still navigate */
     }
+    clearStudioIdentityBoundClientResidue();
     invalidateAuthSessionCache();
+    postStudioAuthChannel({ type: "logout" });
     window.location.href = "/login";
   }, []);
 
