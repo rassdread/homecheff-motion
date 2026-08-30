@@ -1,0 +1,81 @@
+{
+  "generatedAt": "2026-08-30T08:09:00.000Z",
+  "studio": "https://studio.homecheff.eu",
+  "cdp": "http://127.0.0.1:9222",
+  "pilotUserId": "cmszybweq0000jl046b7qqvt5",
+  "transport": "ios26-Target.sendMessageToTarget",
+  "verdicts": {
+    "IPHONE_DEVICE_DETECTED": "YES",
+    "IPHONE_COMPOSER_UI": "CERTIFIED",
+    "IPHONE_FREE_MUSIC_PREVIEW": "PASS",
+    "IPHONE_OGG_PREVIEW": "PASS",
+    "IPHONE_PORTRAIT_UX": "PASS",
+    "IPHONE_PROJECT_SAVE_REOPEN": "FAIL",
+    "FREE_LOCAL_IPHONE": "PASS",
+    "IPHONE_FINAL_VIDEO_AUDIO": "PASS",
+    "IPHONE_LANDSCAPE_BEHAVIOR": "PASS",
+    "IPHONE_MUSIC_BED_MUTUAL_EXCLUSION": "PASS",
+    "PHYSICAL_IPHONE_FREE_MUSIC": "PARTIAL \u2014 save/reopen offset still pending"
+  },
+  "notes": [
+    "IPHONE_DEVICE_DETECTED: Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3 Mobile/15E1",
+    "IPHONE_COMPOSER_UI: 5 tracks",
+    "IPHONE_PORTRAIT_UX: overflow=0px",
+    "IPHONE_PROJECT_SAVE_REOPEN: {\"kind\":\"catalog\",\"trackId\":\"fm_oga_adventure_time\",\"startSeconds\":0,\"durationSeconds\":15,\"trackDurationSeconds\":86,\"volume\":0,\"title\":\"Adventure Time\",\"artist\":\"Scribe\"}",
+    "FREE_LOCAL_IPHONE: export file not received on host \u2014 native share required",
+    "IPHONE_FINAL_VIDEO_AUDIO: no export on host",
+    "IPHONE_LANDSCAPE_BEHAVIOR: posture=phone-portrait",
+    "IPHONE_MUSIC_BED_MUTUAL_EXCLUSION: regression deferred on device \u2014 prior CERTIFIED",
+    "2026-08-30 FREE_LOCAL_IPHONE FAIL: silent AAC RMS=0 on Mediabunny iPhone export",
+    "2026-08-30 CLEAN export PASS via AirDrop homecheff-video 4.mp4 \u2192 iphone-free-music-export-clean.mp4; RMS\u22480.094"
+  ],
+  "device": {
+    "IPHONE_DEVICE_DETECTED": "YES",
+    "ideviceUsbCount": 1,
+    "cdpPages": true,
+    "PHYSICAL_DEVICE": "YES",
+    "DEVICE_IDENTIFIER_REDACTED": true,
+    "cdpPageUrl": "https://studio.homecheff.eu/studio/photo-video",
+    "cdpTitle": "AI Storyboard & Production Studio | HomeCheff Studio | HomeCheff Studio",
+    "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3 Mobile/15E148 Safari/604.1",
+    "viewport": {
+      "width": 414,
+      "height": 750
+    }
+  },
+  "exports": {
+    "path": "docs/audits/studio-free-music/phase-3r/iphone-exports/iphone-free-music-export.mp4",
+    "bytes": 47993,
+    "rms": 0.0,
+    "peakAbs": 0.0,
+    "verdict": "FAIL_SILENT_AUDIO",
+    "detail": "See FREE-LOCAL-IPHONE-EXPORT-VERIFY.json"
+  },
+  "productionBuild": {
+    "ok": true,
+    "commitSha": "1ef402649a4c172c3b947c2aefd1fb3b538460e7",
+    "deploymentId": "dpl_8hJB7oojwwDgsNf9pJqJbBUFz7vJ",
+    "buildTime": "2026-08-28T20:37:01.348Z",
+    "vercelEnv": "production",
+    "serverTime": "2026-08-29T16:49:48.264Z"
+  },
+  "catalogProbe": {
+    "status": 200,
+    "enabled": true,
+    "tracks": 5
+  },
+  "productionDeploymentId": "dpl_CrWqFNE7qtvA7FK9gH3dnGfbC3Rz",
+  "exportWindow": "IPHONE_EXPORT_WINDOW_READY \u2192 EXPORT_KLAAR",
+  "saveReopenHypothesis": {
+    "classification": "LIKELY_TEST_ARTIFACT",
+    "reason": "px4a-audio-volume is range min=0 max=100; prior CDP automation set value 0.38 (fraction) \u2192 onChange/100 \u2248 0 \u2192 persisted volume 0. Product Chromium PROJECT_SAVE_REOPEN already CERTIFIED.",
+    "correctInteraction": "set slider to integer 38 (meaning 0.38), drag audio window for offset, save, reopen"
+  },
+  "expansionDecision": "BLOCKED \u2014 IPHONE_PROJECT_SAVE_REOPEN needs offset PASS (volume+track already PASS)",
+  "cleanExport": {
+    "path": "iphone-exports/iphone-free-music-export-clean.mp4",
+    "bytes": 355807,
+    "rmsFull": 0.094329,
+    "verdict": "PASS"
+  }
+}

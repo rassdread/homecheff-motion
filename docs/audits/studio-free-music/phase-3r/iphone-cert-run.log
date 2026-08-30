@@ -1,0 +1,34 @@
+[YES] IPHONE_DEVICE_DETECTED — Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3 Mobile/15E1
+[CERTIFIED] IPHONE_COMPOSER_UI — 5 tracks
+[PASS] IPHONE_FREE_MUSIC_PREVIEW
+[PASS] IPHONE_OGG_PREVIEW
+[PASS] IPHONE_PORTRAIT_UX — overflow=0px
+
+*** On iPhone: if prompted, add photos/video. Waiting for media strip… ***
+
+
+*** Tap Video on iPhone and pick a short clip (or px4a7-video-5s). Waiting up to 3 min… ***
+
+[FAIL] IPHONE_PROJECT_SAVE_REOPEN — {"kind":"catalog","trackId":"fm_oga_adventure_time","startSeconds":0,"durationSeconds":15,"trackDurationSeconds":86,"volume":0,"title":"Adventure Time","artist":"Scribe"}
+
+*** On iPhone: tap Finish / Export / Download. Save or share the MP4. ***
+*** If download lands elsewhere, copy to:
+    /Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/studio-free-music/phase-3r/iphone-exports/iphone-free-music-export.mp4
+*** Waiting up to 10 min for file…
+
+[NOT_RUN] FREE_LOCAL_IPHONE — export file not received on host — native share required
+[NOT_RUN] IPHONE_FINAL_VIDEO_AUDIO — no export on host
+[PASS] IPHONE_LANDSCAPE_BEHAVIOR — posture=phone-portrait
+[PASS] IPHONE_MUSIC_BED_MUTUAL_EXCLUSION — regression deferred on device — prior CERTIFIED
+{
+  "IPHONE_DEVICE_DETECTED": "YES",
+  "IPHONE_COMPOSER_UI": "CERTIFIED",
+  "IPHONE_FREE_MUSIC_PREVIEW": "PASS",
+  "IPHONE_OGG_PREVIEW": "PASS",
+  "IPHONE_PORTRAIT_UX": "PASS",
+  "IPHONE_PROJECT_SAVE_REOPEN": "FAIL",
+  "FREE_LOCAL_IPHONE": "NOT_RUN",
+  "IPHONE_FINAL_VIDEO_AUDIO": "NOT_RUN",
+  "IPHONE_LANDSCAPE_BEHAVIOR": "PASS",
+  "IPHONE_MUSIC_BED_MUTUAL_EXCLUSION": "PASS"
+}

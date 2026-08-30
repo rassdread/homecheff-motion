@@ -1,0 +1,9 @@
+{
+  "classification": "INVALID_FOR_AUDIO_CERTIFICATION",
+  "reason": "CERT_AUTOMATION_VOLUME_SCALE_ERROR",
+  "detail": "Prior CDP automation set range(0-100) to 0.38 (fraction) \u2192 effective ~0 volume; silent AAC is test-contaminated, not product defect evidence.",
+  "markedAt": "2026-08-30T08:02:11.430017+00:00",
+  "file": "iphone-exports/iphone-free-music-export.mp4",
+  "rms": 0.0,
+  "reuseForFinalPass": false
+}

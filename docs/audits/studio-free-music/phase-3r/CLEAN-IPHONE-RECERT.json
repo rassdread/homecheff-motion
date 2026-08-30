@@ -1,0 +1,104 @@
+{
+  "generatedAt": "2026-08-30T08:04:21.462Z",
+  "kind": "CLEAN_IPHONE_FREE_MUSIC_RECERT",
+  "studio": "https://studio.homecheff.eu",
+  "productionExpected": "dpl_CrWqFNE7qtvA7FK9gH3dnGfbC3Rz",
+  "priorSilentExport": "INVALID_FOR_AUDIO_CERTIFICATION / CERT_AUTOMATION_VOLUME_SCALE_ERROR",
+  "verdicts": {
+    "PHYSICAL_IPHONE_DEVICE": "PASS",
+    "IPHONE_MP3_PREVIEW_CLEAN": "PASS",
+    "VOLUME_SCALE_CORRECT": "PASS",
+    "OFFSET_SET": "FAIL",
+    "IPHONE_PROJECT_SAVE_REOPEN": "FAIL",
+    "PRE_EXPORT_IPHONE_MUSIC_AUDIBLE": "PENDING_USER",
+    "CLEAN_IPHONE_EXPORT": "PENDING_USER"
+  },
+  "notes": [
+    "PHYSICAL_IPHONE_DEVICE: Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Vers",
+    "VOLUME_SCALE_CORRECT: ui=80 expected≈80 draft={\"kind\":\"none\"}",
+    "OFFSET_SET: startSeconds=0",
+    "IPHONE_PROJECT_SAVE_REOPEN: {\"trackOk\":true,\"volOk\":true,\"offOk\":false,\"after\":{\"kind\":\"catalog\",\"trackId\":\"fm_oga_adventure_time\",\"startSeconds\":0,\"durationSeconds\":15,\"trackDurationSeconds\":86,\"volume\":0.8,\"title\":\"Adventure Time\",\"artist\":\"Scribe\"},\"uiVolAfter\":80}",
+    "PRE_EXPORT_IPHONE_MUSIC_AUDIBLE: UI/state ready for audible check — user must confirm hearing music. ui=80 draftVol=0.8",
+    "CLEAN_IPHONE_EXPORT: AirDrop as ~/Downloads/iphone-free-music-export-clean.mp4"
+  ],
+  "volumeContract": {
+    "tag": "INPUT",
+    "type": "range",
+    "min": "0",
+    "max": "100",
+    "step": "1",
+    "valueAttr": "85",
+    "valueAsNumber": 85
+  },
+  "saveReopen": {
+    "beforeLeave": {
+      "kind": "catalog",
+      "trackId": "fm_oga_adventure_time",
+      "startSeconds": 0,
+      "durationSeconds": 15,
+      "trackDurationSeconds": 86,
+      "volume": 0.8,
+      "title": "Adventure Time",
+      "artist": "Scribe"
+    },
+    "after": {
+      "kind": "catalog",
+      "trackId": "fm_oga_adventure_time",
+      "startSeconds": 0,
+      "durationSeconds": 15,
+      "trackDurationSeconds": 86,
+      "volume": 0.8,
+      "title": "Adventure Time",
+      "artist": "Scribe"
+    },
+    "uiVolAfter": 80
+  },
+  "preExport": {
+    "uiVolume": 80,
+    "audioElVolume": 1,
+    "audioPaused": true,
+    "audioCurrentTime": 4.0679999999999055,
+    "draftVolume": 0.8,
+    "draftTrack": "fm_oga_adventure_time",
+    "draftStart": 0
+  },
+  "productionBuild": {
+    "ok": true,
+    "commitSha": "1ef402649a4c172c3b947c2aefd1fb3b538460e7",
+    "deploymentId": "dpl_CrWqFNE7qtvA7FK9gH3dnGfbC3Rz",
+    "buildTime": "2026-08-30T05:40:24.784Z",
+    "vercelEnv": "production",
+    "serverTime": "2026-08-30T08:04:21.643Z"
+  },
+  "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3 Mobile/15E148 Safari/604.1",
+  "volumeSet": {
+    "ok": true,
+    "valueAfter": "80",
+    "valueAsNumber": 80,
+    "setValue": "80",
+    "scale": "0-100"
+  },
+  "offsetGesture": {
+    "ok": true,
+    "x": 37.27906976744186,
+    "y": 2648.1875,
+    "ratio": 0.023255813953488372,
+    "targetOffset": 2
+  },
+  "expectedBeforeSave": {
+    "trackId": "fm_oga_adventure_time",
+    "volumeApprox": 0.8,
+    "startSecondsMin": 0.5,
+    "uiVolume": 80
+  },
+  "audioBeforeLeave": {
+    "kind": "catalog",
+    "trackId": "fm_oga_adventure_time",
+    "startSeconds": 0,
+    "durationSeconds": 15,
+    "trackDurationSeconds": 86,
+    "volume": 0.8,
+    "title": "Adventure Time",
+    "artist": "Scribe"
+  }
+}

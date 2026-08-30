@@ -1,0 +1,80 @@
+[PASS] PHYSICAL_IPHONE_DEVICE — Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Vers
+
+*** Injecting fresh photos into NEW project… ***
+
+[PASS] IPHONE_MP3_PREVIEW_CLEAN
+VOLUME_CONTRACT {
+  tag: 'INPUT',
+  type: 'range',
+  min: '0',
+  max: '100',
+  step: '1',
+  valueAttr: '85',
+  valueAsNumber: 85
+}
+VOLUME_SET {
+  ok: true,
+  valueAfter: '80',
+  valueAsNumber: 80,
+  setValue: '80',
+  scale: '0-100'
+}
+[PASS] VOLUME_SCALE_CORRECT — ui=80 expected≈80 draft={"kind":"none"}
+[FAIL] OFFSET_SET — startSeconds=0
+[FAIL] IPHONE_PROJECT_SAVE_REOPEN — {"trackOk":true,"volOk":true,"offOk":false,"after":{"kind":"catalog","trackId":"fm_oga_adventure_time","startSeconds":0,"durationSeconds":15,"trackDurationSeconds":86,"volume":0.8,"title":"Adventure Time","artist":"Scribe"},"uiVolAfter":80}
+
+════════════════════════════════════════════════════════════
+  PRE_EXPORT — confirm music is AUDIBLE on the physical iPhone
+  UI volume control value: 80 (expect ~80)
+  Draft volume: 0.8 (expect ~0.80)
+════════════════════════════════════════════════════════════
+
+[PENDING_USER] PRE_EXPORT_IPHONE_MUSIC_AUDIBLE — UI/state ready for audible check — user must confirm hearing music. ui=80 draftVol=0.8
+[PENDING_USER] CLEAN_IPHONE_EXPORT — AirDrop as ~/Downloads/iphone-free-music-export-clean.mp4
+
+CLEAN_IPHONE_EXPORT_READY_FOR_AIRDROP
+
+{
+  "IPHONE_PROJECT_SAVE_REOPEN": "FAIL",
+  "VOLUME_CONTRACT": {
+    "tag": "INPUT",
+    "type": "range",
+    "min": "0",
+    "max": "100",
+    "step": "1",
+    "valueAttr": "85",
+    "valueAsNumber": 85
+  },
+  "PRE_EXPORT": {
+    "uiVolume": 80,
+    "audioElVolume": 1,
+    "audioPaused": true,
+    "audioCurrentTime": 4.0679999999999055,
+    "draftVolume": 0.8,
+    "draftTrack": "fm_oga_adventure_time",
+    "draftStart": 0
+  },
+  "SAVE_REOPEN": {
+    "beforeLeave": {
+      "kind": "catalog",
+      "trackId": "fm_oga_adventure_time",
+      "startSeconds": 0,
+      "durationSeconds": 15,
+      "trackDurationSeconds": 86,
+      "volume": 0.8,
+      "title": "Adventure Time",
+      "artist": "Scribe"
+    },
+    "after": {
+      "kind": "catalog",
+      "trackId": "fm_oga_adventure_time",
+      "startSeconds": 0,
+      "durationSeconds": 15,
+      "trackDurationSeconds": 86,
+      "volume": 0.8,
+      "title": "Adventure Time",
+      "artist": "Scribe"
+    },
+    "uiVolAfter": 80
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "generatedAt": "2026-08-28T17:24:30.000Z",
+  "SOURCE_AUDIO_WITH_CATALOG_MUSIC": "PASS",
+  "maxDelta": 0.10223865731240976,
+  "fixture": {
+    "SOURCE_FIXTURE_HAS_AUDIO_STREAM": "YES",
+    "SOURCE_FIXTURE_AUDIO_NON_SILENT": "YES",
+    "SOURCE_FIXTURE_AUDIO_DURATION": "5.000000",
+    "SOURCE_FIXTURE_AUDIO_RMS": 0.08851077783718875
+  },
+  "firstDivergencePreviousPartial": {
+    "symptom": "RMS identical for source ON/OFF",
+    "cause": "Sample window 0.5–3.5s fell on photo-only timeline region; video clip later; prior toggle also used wrong volume scale",
+    "fix": "Sample multiple timeline windows; use px4a-video-audio-on/off; volume range 0–1; ensure ≥2 photos for ready"
+  },
+  "deploymentId": "dpl_FTVQ7F3hCKseCwzRHZkypi1j25pn"
+}

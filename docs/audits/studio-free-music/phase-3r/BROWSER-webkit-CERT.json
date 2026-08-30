@@ -1,0 +1,100 @@
+{
+  "generatedAt": "2026-08-28T15:14:00.831Z",
+  "browser": "webkit",
+  "studio": "https://studio.homecheff.eu",
+  "pilotUserId": "cmszybweq0000jl046b7qqvt5",
+  "verdicts": {
+    "PRODUCTION_COMPOSER_UI": "CERTIFIED",
+    "MUSIC_BED_MUTUAL_EXCLUSION": "PASS",
+    "PROJECT_SAVE_REOPEN": "FAIL",
+    "FREE_LOCAL_SAFARI": "CERTIFIED",
+    "CATALOG_VOLUME_RENDER_CONNECTION": "PASS",
+    "CATALOG_OFFSET_RENDER_CONNECTION": "PASS",
+    "SOURCE_AUDIO_WITH_CATALOG_MUSIC": "PARTIAL",
+    "FINAL_VIDEO_AUDIO": "CERTIFIED",
+    "FREE_LOCAL_IPHONE": "NOT_RUN",
+    "SERVER_RENDER": "NOT_RUN",
+    "AUTOMATIC_FINALIZATION": "NOT_RUN",
+    "OGG_SAFARI_PREVIEW": "PASS"
+  },
+  "notes": [
+    "PRODUCTION_COMPOSER_UI: 5 tracks, search/category/preview/select OK",
+    "MUSIC_BED_MUTUAL_EXCLUSION: bidirectional exclusion OK",
+    "PROJECT_SAVE_REOPEN: {\"audioBefore\":null,\"audioAfter\":null}",
+    "FREE_LOCAL_SAFARI: /Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/studio-free-music/phase-3r/browser-exports/webkit-export-normal.mp4",
+    "CATALOG_VOLUME_RENDER_CONNECTION: audible=0.13008578286347908 muted=0",
+    "CATALOG_OFFSET_RENDER_CONNECTION: non-zero offset applied before export",
+    "SOURCE_AUDIO_WITH_CATALOG_MUSIC: rmsOn=0.10658293807264775 rmsOff=0.10658293807264775",
+    "FINAL_VIDEO_AUDIO: /Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/studio-free-music/phase-3r/browser-exports/webkit-export-normal.mp4",
+    "FREE_LOCAL_IPHONE: no physical iPhone in cert environment",
+    "SERVER_RENDER: Quick Video uses FREE_LOCAL; no server ffmpeg render path",
+    "AUTOMATIC_FINALIZATION: N/A for FREE_LOCAL export path",
+    "OGG_SAFARI_PREVIEW: preview clicked without error"
+  ],
+  "exports": {
+    "export-normal": {
+      "path": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/studio-free-music/phase-3r/browser-exports/webkit-export-normal.mp4",
+      "bytes": 1623400,
+      "probe": {
+        "duration": 15.081333,
+        "hasVideo": true,
+        "hasAudio": true,
+        "audioCodec": "aac"
+      },
+      "rms": 0.13008578286347908
+    },
+    "export-vol0": {
+      "path": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/studio-free-music/phase-3r/browser-exports/webkit-export-vol0.mp4",
+      "bytes": 1766356,
+      "probe": {
+        "duration": 15.081333,
+        "hasVideo": true,
+        "hasAudio": true,
+        "audioCodec": "aac"
+      },
+      "rms": 0
+    },
+    "export-vol60": {
+      "path": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/studio-free-music/phase-3r/browser-exports/webkit-export-vol60.mp4",
+      "bytes": 2000532,
+      "probe": {
+        "duration": 15.081333,
+        "hasVideo": true,
+        "hasAudio": true,
+        "audioCodec": "aac"
+      },
+      "rms": 0.13008578286347908
+    },
+    "export-source-on": {
+      "path": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/studio-free-music/phase-3r/browser-exports/webkit-export-source-on.mp4",
+      "bytes": 2003913,
+      "probe": {
+        "duration": 15.081333,
+        "hasVideo": true,
+        "hasAudio": true,
+        "audioCodec": "aac"
+      },
+      "rms": 0.10658293807264775
+    },
+    "export-source-off": {
+      "path": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/studio-free-music/phase-3r/browser-exports/webkit-export-source-off.mp4",
+      "bytes": 1845163,
+      "probe": {
+        "duration": 15.081333,
+        "hasVideo": true,
+        "hasAudio": true,
+        "audioCodec": "aac"
+      },
+      "rms": 0.10658293807264775
+    }
+  },
+  "productionBuild": {
+    "ok": true,
+    "commitSha": "1ef402649a4c172c3b947c2aefd1fb3b538460e7",
+    "deploymentId": "dpl_3AYZ89c7n6Y2mxnVDb2NG68u3Znx",
+    "buildTime": "2026-08-28T14:53:26.424Z",
+    "vercelEnv": "production",
+    "serverTime": "2026-08-28T15:14:01.026Z"
+  },
+  "forbiddenRepairPostCount": 0
+}

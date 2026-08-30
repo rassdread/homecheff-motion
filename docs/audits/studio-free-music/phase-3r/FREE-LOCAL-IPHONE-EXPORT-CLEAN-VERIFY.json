@@ -1,0 +1,70 @@
+{
+  "generatedAt": "2026-08-30T08:08:00.000Z",
+  "gate": "FREE_LOCAL_IPHONE",
+  "verdict": "PASS",
+  "productionDeploymentId": "dpl_CrWqFNE7qtvA7FK9gH3dnGfbC3Rz",
+  "sourceFile": {
+    "airDropPathAsReceived": "/Users/sergioarrias/Downloads/homecheff-video 4.mp4",
+    "canonicalDownloadsPath": "/Users/sergioarrias/Downloads/iphone-free-music-export-clean.mp4",
+    "evidencePath": "docs/audits/studio-free-music/phase-3r/iphone-exports/iphone-free-music-export-clean.mp4",
+    "bytes": 355807,
+    "mtimeLocal": "2026-08-30 10:06",
+    "creationTimeInMp4": "2026-08-30T08:04:43.000000Z",
+    "note": "AirDrop used default name homecheff-video 4.mp4; copied to clean canonical name. Prior silent 47993-byte export NOT reused."
+  },
+  "priorSilentExport": {
+    "classification": "INVALID_FOR_AUDIO_CERTIFICATION",
+    "reason": "CERT_AUTOMATION_VOLUME_SCALE_ERROR",
+    "path": "iphone-exports/iphone-free-music-export.mp4",
+    "bytes": 47993,
+    "rms": 0.0
+  },
+  "ffprobe": {
+    "formatDurationSec": 15.081333,
+    "sizeBytes": 355807,
+    "video": {
+      "codec": "h264",
+      "width": 404,
+      "height": 720,
+      "durationSec": 15.0,
+      "bitRate": 69161,
+      "encoderHandler": "MediabunnyVideoHandler"
+    },
+    "audio": {
+      "codec": "aac",
+      "sampleRate": 48000,
+      "channels": 2,
+      "durationSec": 15.081333,
+      "bitRate": 116709,
+      "handler": "MediabunnySoundHandler"
+    }
+  },
+  "audioEnergy": {
+    "methodology": "ffmpeg → f32le mono 16kHz; RMS windows; peak; nonzero ratio",
+    "acceptance": "rms > 0.001 (Chromium/Safari catalog-music baseline ≈ 0.13)",
+    "windows": {
+      "0.5+3s": 0.083385,
+      "3+3s": 0.088586,
+      "6+3s": 0.069232,
+      "9+3s": 0.113535,
+      "12+2.5s": 0.1049,
+      "0.5+14s": 0.094329
+    },
+    "peakAbs": 0.699647,
+    "nonzeroRatio": 0.9947
+  },
+  "checks": {
+    "validMp4": "PASS",
+    "playableMedia": "PASS",
+    "videoStreamPresent": "PASS",
+    "audioStreamPresent": "PASS",
+    "nonZeroDuration": "PASS",
+    "durationSensible": "PASS (15s)",
+    "freeLocalEncoder": "PASS (Mediabunny)",
+    "physicalIphoneExportEvidence": "PASS (creation_time + AirDrop today, distinct from silent file)",
+    "audioActuallyPresent": "PASS",
+    "freeMusicAudiblyRepresented": "PASS",
+    "noSilentBrokenFinalMix": "PASS",
+    "notReusingSilentExport": "PASS"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "generatedAt": "2026-08-28T13:28:19.151Z",
+  "phase": "3R",
+  "pilotOnly": true,
+  "pilotTracksRequested": 5,
+  "created": 5,
+  "reused": 0,
+  "failed": 0,
+  "idempotencyRecheck": {
+    "generatedAt": "2026-08-28T13:28:58.681Z",
+    "created": 0,
+    "reused": 5,
+    "failed": 0
+  },
+  "productionBlobVerified": true,
+  "hashReconciliation": "PASS — all storedHash match registry sourceFileHash"
+}

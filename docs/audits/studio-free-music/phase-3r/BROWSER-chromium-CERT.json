@@ -1,0 +1,69 @@
+{
+  "generatedAt": "2026-08-28T15:15:00.000Z",
+  "browser": "chromium",
+  "studio": "https://studio.homecheff.eu",
+  "pilotUserId": "cmszybweq0000jl046b7qqvt5",
+  "productionBuild": {
+    "commitSha": "1ef402649a4c172c3b947c2aefd1fb3b538460e7",
+    "deploymentId": "dpl_3AYZ89c7n6Y2mxnVDb2NG68u3Znx"
+  },
+  "verdicts": {
+    "PRODUCTION_COMPOSER_UI": "CERTIFIED",
+    "MUSIC_BED_MUTUAL_EXCLUSION": "PASS",
+    "PROJECT_SAVE_REOPEN": "CERTIFIED",
+    "FREE_LOCAL_CHROMIUM": "CERTIFIED",
+    "CATALOG_VOLUME_RENDER_CONNECTION": "PASS",
+    "CATALOG_OFFSET_RENDER_CONNECTION": "PASS",
+    "SOURCE_AUDIO_WITH_CATALOG_MUSIC": "PARTIAL",
+    "FINAL_VIDEO_AUDIO": "CERTIFIED",
+    "FREE_LOCAL_IPHONE": "NOT_RUN",
+    "SERVER_RENDER": "NOT_RUN",
+    "AUTOMATIC_FINALIZATION": "NOT_RUN"
+  },
+  "notes": [
+    "Composer UI: 5 tracks, search/category/preview/select OK",
+    "Mutual exclusion: My Music ↔ Free Music bidirectional PASS",
+    "Persistence: trackId=fm_oga_adventure_time start≈41.45s volume=0.45 after reload",
+    "Export MP4s: h264+aac, duration≈15.08s",
+    "Volume proof: vol0 rms=0.0 ; vol60 rms≈0.130",
+    "Offset: non-zero start persisted and used in export project",
+    "Source audio ON vs OFF: identical RMS on fixture (PARTIAL — catalog music present; source-audio delta not proven on this clip)",
+    "iPhone: NOT_RUN (no physical device in cert environment)",
+    "Server render: NOT_RUN — Quick Video authoritative path is FREE_LOCAL (server resolves catalog master via asset API)"
+  ],
+  "exports": {
+    "export-normal": {
+      "path": "docs/audits/studio-free-music/phase-3r/browser-exports/chromium-export-normal.mp4",
+      "bytes": 4352841,
+      "duration": 15.082667,
+      "video": "h264",
+      "audio": "aac",
+      "rms": 0.13047117236507175
+    },
+    "export-vol0": {
+      "path": "docs/audits/studio-free-music/phase-3r/browser-exports/chromium-export-vol0.mp4",
+      "bytes": 4122901,
+      "duration": 15.082667,
+      "video": "h264",
+      "audio": "aac",
+      "rms": 0.0
+    },
+    "export-vol60": {
+      "path": "docs/audits/studio-free-music/phase-3r/browser-exports/chromium-export-vol60.mp4",
+      "bytes": 4353039,
+      "duration": 15.082667,
+      "video": "h264",
+      "audio": "aac",
+      "rms": 0.13047117236507175
+    },
+    "export-source-on": {
+      "bytes": 4355293,
+      "rms": 0.10623074759344328
+    },
+    "export-source-off": {
+      "bytes": 4355577,
+      "rms": 0.10623074759344328
+    }
+  },
+  "forbiddenRepairPostCount": 0
+}

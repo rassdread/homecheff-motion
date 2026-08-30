@@ -1,0 +1,64 @@
+{
+  "generatedAt": "2026-08-30T07:48:00.000Z",
+  "gate": "FREE_LOCAL_IPHONE",
+  "verdict": "FAIL",
+  "productionDeploymentId": "dpl_CrWqFNE7qtvA7FK9gH3dnGfbC3Rz",
+  "sourceFile": {
+    "airDropPath": "/Users/sergioarrias/Downloads/iphone-free-music-export.mp4.mp4",
+    "canonicalDownloadsPath": "/Users/sergioarrias/Downloads/iphone-free-music-export.mp4",
+    "evidencePath": "docs/audits/studio-free-music/phase-3r/iphone-exports/iphone-free-music-export.mp4",
+    "bytes": 47993,
+    "note": "AirDrop arrived as double-extension .mp4.mp4; original preserved; copied to canonical names"
+  },
+  "ffprobe": {
+    "formatDurationSec": 15.081333,
+    "sizeBytes": 47993,
+    "video": {
+      "codec": "h264",
+      "width": 404,
+      "height": 720,
+      "durationSec": 15.0,
+      "bitRate": 20077,
+      "encoderHandler": "MediabunnyVideoHandler",
+      "creationTime": "2026-08-30T07:42:35.000000Z"
+    },
+    "audio": {
+      "codec": "aac",
+      "sampleRate": 48000,
+      "channels": 2,
+      "durationSec": 15.081333,
+      "bitRate": 2247
+    }
+  },
+  "audioEnergy": {
+    "methodology": "ffmpeg \u2192 f32le mono 16kHz; RMS over windows; peak absolute; nonzero ratio",
+    "acceptance": "rms > 0.001 (Phase 3R Chromium/Safari FREE_LOCAL baseline ~0.13 for catalog music)",
+    "windows": {
+      "0.5+3s": 0.0,
+      "3+3s": 0.0,
+      "6+3s": 0.0,
+      "9+3s": 0.0,
+      "12+2.5s": 0.0,
+      "0.5+14s": 0.0
+    },
+    "peakAbs": 0.0,
+    "nonzeroRatio": 0.0
+  },
+  "checks": {
+    "validMp4": "PASS",
+    "playableMedia": "PASS",
+    "videoStreamPresent": "PASS",
+    "audioStreamPresent": "PASS",
+    "nonZeroDuration": "PASS",
+    "durationSensible": "PASS (15s)",
+    "freeLocalEncoder": "PASS (Mediabunny)",
+    "physicalIphoneExportEvidence": "PASS (creation_time + AirDrop today)",
+    "audioActuallyPresent": "FAIL (RMS=0 / peak=0)",
+    "freeMusicAudiblyRepresented": "FAIL (silent AAC)",
+    "noSilentBrokenFinalMix": "FAIL"
+  },
+  "reason": "Container has AAC audio track but decoded PCM is entirely silent. Free Music is not audibly represented in the final export. Matches prior draft observation volume=0 on device.",
+  "classification": "INVALID_FOR_AUDIO_CERTIFICATION",
+  "reasonCode": "CERT_AUTOMATION_VOLUME_SCALE_ERROR",
+  "reuseForFinalPass": false
+}

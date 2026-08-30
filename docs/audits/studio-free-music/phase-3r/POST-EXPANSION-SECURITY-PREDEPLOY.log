@@ -1,0 +1,206 @@
+{
+  "generatedAt": "2026-08-30T08:34:08.504Z",
+  "baseUrl": "https://studio.homecheff.eu",
+  "productionBuild": {
+    "ok": true,
+    "commitSha": "1ef402649a4c172c3b947c2aefd1fb3b538460e7",
+    "deploymentId": "dpl_CrWqFNE7qtvA7FK9gH3dnGfbC3Rz",
+    "buildTime": "2026-08-30T05:40:24.784Z",
+    "vercelEnv": "production",
+    "serverTime": "2026-08-30T08:34:02.899Z"
+  },
+  "pilotUserResolution": {
+    "displayNameRequested": "Steve Brown",
+    "authoritativeAllowlistField": "Studio User.id (proven: catalog route uses user.id)",
+    "centralUserIdNotUsedForAllowlist": true,
+    "steve": {
+      "id": "cmszybweq0000jl046b7qqvt5",
+      "email": "steve@homecheff.eu",
+      "centralUserId": "c54bbbcf-1323-4539-8e30-c2a6b7f95662",
+      "invitedById": null,
+      "role": "user"
+    },
+    "allowlistValue": "cmszybweq0000jl046b7qqvt5",
+    "hierarchyMutations": "none"
+  },
+  "allowlist": {
+    "anonymousCatalog": {
+      "status": 401,
+      "contentType": "application/json",
+      "headers": {
+        "age": "0",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "content-type": "application/json",
+        "date": "Sun, 30 Aug 2026 08:34:03 GMT",
+        "server": "Vercel",
+        "strict-transport-security": "max-age=63072000",
+        "transfer-encoding": "chunked",
+        "x-matched-path": "/api/studio/free-music/catalog",
+        "x-vercel-cache": "MISS",
+        "x-vercel-id": "fra1::fra1::8v2qx-1788078842938-895986374c99"
+      },
+      "body": {
+        "error": "Authentication required.",
+        "code": "AUTH_REQUIRED"
+      }
+    },
+    "pilotCatalog": {
+      "status": 200,
+      "contentType": "application/json",
+      "headers": {
+        "age": "0",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "content-encoding": "br",
+        "content-type": "application/json",
+        "date": "Sun, 30 Aug 2026 08:34:03 GMT",
+        "server": "Vercel",
+        "strict-transport-security": "max-age=63072000",
+        "transfer-encoding": "chunked",
+        "x-matched-path": "/api/studio/free-music/catalog",
+        "x-vercel-cache": "MISS",
+        "x-vercel-id": "fra1::fra1::5fdr7-1788078843153-c7a8bcf51558"
+      },
+      "body": {
+        "enabled": true,
+        "tracks": [
+          {
+            "id": "fm_oga_adventure_time",
+            "title": "Adventure Time",
+            "artist": "Scribe",
+            "category": "CINEMATIC",
+            "mood": "neutral",
+            "durationSeconds": 86,
+            "previewUrl": "/api/studio/free-music/asset/fm_oga_adventure_time?kind=preview",
+            "licenseDisplay": "CC0 1.0",
+            "attributionRequired": false,
+            "contentIdNotice": "Automated platform claims are still possible despite verified open licence evidence."
+          },
+          {
+            "id": "fm_oga_andys_report_8bit_and_piano_ver",
+            "title": "Andy's report (8bit and piano ver)",
+            "artist": "megupets",
+            "category": "SOCIAL",
+            "mood": "neutral",
+            "durationSeconds": 218,
+            "previewUrl": "/api/studio/free-music/asset/fm_oga_andys_report_8bit_and_piano_ver?kind=preview",
+            "licenseDisplay": "CC0 1.0",
+            "attributionRequired": false,
+            "contentIdNotice": "Automated platform claims are still possible despite verified open licence evidence."
+          },
+          {
+            "id": "fm_oga_battle_theme_0",
+            "title": "Battle Theme",
+            "artist": "Wolfgang_",
+            "category": "UPBEAT",
+            "mood": "neutral",
+            "durationSeconds": 290,
+            "previewUrl": "/api/studio/free-music/asset/fm_oga_battle_theme_0?kind=preview",
+            "licenseDisplay": "CC0 1.0",
+            "attributionRequired": false,
+            "contentIdNotice": "Automated platform claims are still possible despite verified open licence evidence."
+          },
+          {
+            "id": "fm_oga_besai_crystal_gardens_2_forbidden_pathway",
+            "title": "Besai Crystal Gardens 2 Forbidden Pathway",
+            "artist": "Tozan",
+            "category": "LIFESTYLE",
+            "mood": "neutral",
+            "durationSeconds": 76,
+            "previewUrl": "/api/studio/free-music/asset/fm_oga_besai_crystal_gardens_2_forbidden_pathway?kind=preview",
+            "licenseDisplay": "CC0 1.0",
+            "attributionRequired": false,
+            "contentIdNotice": "Automated platform claims are still possible despite verified open licence evidence."
+          },
+          {
+            "id": "fm_oga_cave_explorer",
+            "title": "Cave explorer",
+            "artist": "mutantleg",
+            "category": "AMBIENT",
+            "mood": "neutral",
+            "durationSeconds": 74,
+            "previewUrl": "/api/studio/free-music/asset/fm_oga_cave_explorer?kind=preview",
+            "licenseDisplay": "CC0 1.0",
+            "attributionRequired": false,
+            "contentIdNotice": "Automated platform claims are still possible despite verified open licence evidence."
+          }
+        ]
+      }
+    },
+    "nonPilotCatalog": {
+      "status": 200,
+      "contentType": "application/json",
+      "headers": {
+        "age": "0",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "content-encoding": "br",
+        "content-type": "application/json",
+        "date": "Sun, 30 Aug 2026 08:34:03 GMT",
+        "server": "Vercel",
+        "strict-transport-security": "max-age=63072000",
+        "transfer-encoding": "chunked",
+        "x-matched-path": "/api/studio/free-music/catalog",
+        "x-vercel-cache": "MISS",
+        "x-vercel-id": "fra1::fra1::v5mq6-1788078843274-b020be6725fa"
+      },
+      "body": {
+        "enabled": false,
+        "tracks": []
+      }
+    },
+    "pilotAllowlistEnforcement": "PASS"
+  },
+  "preview": {
+    "previews": {
+      "fm_oga_adventure_time": {
+        "status": 200,
+        "bytes": 1381272,
+        "contentType": "audio/mpeg"
+      },
+      "fm_oga_andys_report_8bit_and_piano_ver": {
+        "status": 200,
+        "bytes": 3493037,
+        "contentType": "audio/mpeg"
+      },
+      "fm_oga_battle_theme_0": {
+        "status": 200,
+        "bytes": 4646747,
+        "contentType": "audio/mpeg"
+      },
+      "fm_oga_besai_crystal_gardens_2_forbidden_pathway": {
+        "status": 200,
+        "bytes": 1210193,
+        "contentType": "audio/ogg"
+      },
+      "fm_oga_cave_explorer": {
+        "status": 200,
+        "bytes": 1177289,
+        "contentType": "audio/mpeg"
+      }
+    },
+    "nonPilotPreview": {
+      "status": 403,
+      "contentType": "application/json",
+      "headers": {
+        "age": "0",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "content-encoding": "br",
+        "content-type": "application/json",
+        "date": "Sun, 30 Aug 2026 08:34:08 GMT",
+        "server": "Vercel",
+        "strict-transport-security": "max-age=63072000",
+        "transfer-encoding": "chunked",
+        "x-matched-path": "/api/studio/free-music/asset/[trackId]",
+        "x-vercel-cache": "MISS",
+        "x-vercel-id": "fra1::fra1::62bnt-1788078848464-b6e919f6fdb8"
+      },
+      "body": {
+        "error": "FREE_MUSIC_DISABLED"
+      }
+    },
+    "spoofStatus": 400
+  },
+  "security": {
+    "clientAudioUrlSpoofBlocked": "PASS",
+    "nonPilotAssetBlocked": "PASS"
+  }
+}

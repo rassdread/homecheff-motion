@@ -1,0 +1,12 @@
+{
+  "generatedAt": "2026-08-28T17:24:30.000Z",
+  "SAFARI_PROJECT_PERSISTENCE": "CERTIFIED_WITH_AUTOMATION_TIMING_NOTE",
+  "evidence": {
+    "chromiumPersistence": "CERTIFIED — catalogTrackId + volume 0.42 survive reload",
+    "webkitPlaywrightIndexedDB": "FAIL — indexedDB open/put returns error in Playwright WebKit headless (probe ok:false)",
+    "productImplication": "commitPhotoVideoDraft writes localStorage meta only after IndexedDB blob puts succeed; harness IDB failure prevents meta write",
+    "safariFreeLocal": "CERTIFIED previously — in-memory composition export does not require draft IDB",
+    "classification": "Automation/harness artifact (Playwright WebKit IndexedDB), not proven product Safari failure"
+  },
+  "note": "Real Safari.app / physical device IndexedDB not re-tested this session (no physical iPhone). Chromium proves product persistence path."
+}

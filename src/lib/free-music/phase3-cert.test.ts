@@ -22,17 +22,18 @@ describe("Free Music Phase 3 registry baseline", () => {
     assert.equal(tracks.filter((t) => t.contentIdRisk === "UNKNOWN").length, 55);
   });
 
-  it("selects 5 representative pilot tracks as ACTIVE", () => {
+  it("activates all 55 approved tracks after Phase 3R expansion", () => {
     const tracks = loadFreeMusicRegistry(true);
     const active = tracks.filter((t) => t.catalogStatus === "ACTIVE");
-    assert.equal(active.length, 5);
+    assert.equal(active.length, 55);
     for (const id of PILOT_TRACK_IDS) {
       const t = tracks.find((x) => x.trackId === id);
       assert.ok(t, id);
       assert.equal(t!.catalogStatus, "ACTIVE");
       assert.equal(canSelectCatalogTrack(t!), true);
     }
-    assert.equal(tracks.filter((t) => t.catalogStatus === "DRAFT").length, 50);
+    assert.equal(tracks.filter((t) => t.catalogStatus === "DRAFT").length, 0);
+    assert.equal(tracks.filter((t) => canSelectCatalogTrack(t)).length, 55);
   });
 
   it("public catalog API fields exclude secrets", () => {
@@ -70,7 +71,7 @@ describe("Free Music Phase 3 pilot gating", () => {
     process.env.STUDIO_FREE_MUSIC_PILOT_ENABLED = "true";
     process.env.STUDIO_FREE_MUSIC_PILOT_USER_IDS = "cert-pilot-user";
     const list = listPublicFreeMusicCatalog("cert-pilot-user");
-    assert.equal(list.length, 5);
+    assert.equal(list.length, 55);
     assert.equal(listPublicFreeMusicCatalog("other-user").length, 0);
     process.env.STUDIO_FREE_MUSIC_CATALOG_ENABLED = prevC;
     process.env.STUDIO_FREE_MUSIC_PILOT_ENABLED = prevP;
@@ -138,7 +139,7 @@ describe("Free Music Phase 3 suspension + security", () => {
   it("reconciler reports registry shape", () => {
     const r = reconcileFreeMusicCatalog();
     assert.equal(r.totalRightsApproved, 55);
-    assert.equal(r.pilotTracksSelected, 5);
+    assert.equal(r.pilotTracksSelected, 55);
     assert.equal(r.cc0, 55);
     assert.equal(r.contentIdUnknown, 55);
   });

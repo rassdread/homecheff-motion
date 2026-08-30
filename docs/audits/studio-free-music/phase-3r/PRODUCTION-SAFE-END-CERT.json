@@ -1,0 +1,26 @@
+{
+  "generatedAt": "2026-08-28T19:01:46.227Z",
+  "build": {
+    "ok": true,
+    "commitSha": "1ef402649a4c172c3b947c2aefd1fb3b538460e7",
+    "deploymentId": "dpl_ADoHAeVoexgFG9344BnjQwauiDtL",
+    "buildTime": "2026-08-28T18:41:44.577Z",
+    "vercelEnv": "production",
+    "serverTime": "2026-08-28T19:01:43.514Z"
+  },
+  "steve": {
+    "status": 200,
+    "enabled": false,
+    "tracks": 0
+  },
+  "preview": {
+    "status": 403
+  },
+  "anon": {
+    "status": 401
+  },
+  "FINAL_SAFE_STATE": "PASS",
+  "FINAL_PUBLIC_CATALOG_FLAG": "OFF",
+  "FINAL_PILOT_FLAG": "OFF",
+  "FINAL_PILOT_ALLOWLIST": "EMPTY"
+}
