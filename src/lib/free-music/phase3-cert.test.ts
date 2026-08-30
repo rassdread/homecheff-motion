@@ -43,6 +43,8 @@ describe("Free Music Phase 3 registry baseline", () => {
     assert.equal("masterStorageKey" in pub, false);
     assert.equal("licenseEvidenceStorageKey" in pub, false);
     assert.equal("reviewedBy" in pub, false);
+    assert.equal(pub.contentIdNotice, null);
+    assert.equal(pub.contentIdNoticeKey, "unknown");
   });
 });
 

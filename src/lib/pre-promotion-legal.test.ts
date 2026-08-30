@@ -40,6 +40,9 @@ const REQUIRED = [
   "refunds",
   "own-music",
   "music-library",
+  "free-music-commercial",
+  "free-music-content-id",
+  "free-music-credit",
   "watermark",
   "free-local",
   "affiliate",
@@ -57,13 +60,19 @@ describe("Studio final legal closeout", () => {
     assert.ok(existsSync(join(root, "src/app/faq/page.tsx")));
   });
 
-  it("2: no licensed music library claim while catalog empty", () => {
+  it("2: Free Music FAQ matches CC0 catalog truth (no Content ID guarantees)", () => {
     assert.equal(PHOTO_VIDEO_CATALOG_TRACKS.length, 0);
     const music = STUDIO_PUBLIC_FAQ.find((f) => f.id === "music-library")!;
-    assert.match(music.answer, /No\.|empty/i);
+    assert.match(music.answer, /Free Music|CC0/i);
+    assert.ok(!/catalog is currently empty/i.test(music.answer));
+    const cid = STUDIO_PUBLIC_FAQ.find((f) => f.id === "free-music-content-id")!;
+    assert.match(cid.answer, /No\./);
+    assert.ok(!/Content ID safe|claim-free|copyright-proof/i.test(cid.answer));
+    const all = STUDIO_PUBLIC_FAQ.map((f) => f.answer).join(" ");
+    assert.ok(!/Content ID safe|claim free|copyright free forever/i.test(all));
     const en = readFileSync(join(root, "src/i18n/locales/en.ts"), "utf8");
-    assert.ok(!en.includes('"px4a.audio.catalog": "Free music"'));
-    assert.match(en, /No HomeCheff music library is included yet/);
+    assert.match(en, /"px4a.audio.catalog": "Free music"/);
+    assert.match(en, /px4a\.freeMusic\.contentIdNotice\.unknown/);
   });
 
   it("3: AI output does not claim guaranteed exclusivity", () => {
@@ -91,9 +100,10 @@ describe("Studio final legal closeout", () => {
     assert.ok(!blob.includes("subscriptions add monthly credits"));
   });
 
-  it("terms state empty music catalog", () => {
+  it("terms describe Free Music without Content ID guarantees", () => {
     const terms = readFileSync(join(root, "src/app/terms/page.tsx"), "utf8");
-    assert.match(terms, /empty/i);
+    assert.match(terms, /Free Music|CC0/i);
+    assert.ok(!/catalog is currently\s*<strong>empty<\/strong>/i.test(terms));
     assert.match(terms, /AI_IP_COUNSEL_REVIEW_REQUIRED/);
   });
 });

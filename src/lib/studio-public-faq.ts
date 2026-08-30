@@ -1,6 +1,7 @@
 /**
  * Canonical Studio public FAQ — Production-aligned.
- * monthlyCredits = 0 on live plans; music catalog empty; no Studio affiliate payouts.
+ * Free Music: curated CC0 catalog (Quick Video) when feature flag enabled.
+ * monthlyCredits = 0 on live plans; no Studio affiliate payouts.
  */
 
 export type StudioFaqItem = {
@@ -188,13 +189,31 @@ export const STUDIO_PUBLIC_FAQ: StudioFaqItem[] = [
     id: "own-music",
     question: "Can users upload their own music?",
     answer:
-      "Yes, where the editor supports own-audio upload. Only upload music you have the right to use. HomeCheff does not licence your upload for you.",
+      "Yes, where the editor supports own-audio upload (Quick Video: My music). Only upload music you have the right to use. HomeCheff does not licence your upload for you.",
   },
   {
     id: "music-library",
-    question: "Does Studio currently provide an included licensed music library?",
+    question: "Does Studio currently provide an included Free Music catalog?",
     answer:
-      "No. The built-in catalog is currently empty. Studio does not promise a royalty-free or HomeCheff-licensed music library until tracks with documented provenance are published.",
+      "Yes, when Free Music is enabled for your account. HomeCheff Studio offers a curated Free Music catalog of CC0 tracks for use inside Studio audiovisual creation (Quick Video). Tracks are admitted under stored licence evidence. HomeCheff does not own the music. Attribution is not required for the current CC0 catalog. Free Music is not a standalone download library and is not for use outside Studio exports.",
+  },
+  {
+    id: "free-music-commercial",
+    question: "Can Free Music be used in commercial Studio exports?",
+    answer:
+      "Yes for the current CC0 catalog when included in a Studio export under the track’s stored licence evidence. That does not guarantee third-party platform Content ID systems will never raise automated claims.",
+  },
+  {
+    id: "free-music-content-id",
+    question: "Is Free Music Content ID safe / claim-free?",
+    answer:
+      "No. HomeCheff verifies the licence and provenance used to admit catalog tracks, but third-party platforms can still make automated copyright claims. Studio does not promise Content ID immunity.",
+  },
+  {
+    id: "free-music-credit",
+    question: "Do Free Music previews or selections consume generation credits?",
+    answer:
+      "No. Opening the Free Music catalog, previewing, selecting, adjusting volume/offset, and saving do not reserve generation credits. Paid AI/provider generation is separate.",
   },
   {
     id: "watermark",
@@ -206,7 +225,7 @@ export const STUDIO_PUBLIC_FAQ: StudioFaqItem[] = [
     id: "free-local",
     question: "What does FREE_LOCAL mean?",
     answer:
-      "Some Studio paths can run local/free rendering without paid provider generation. Paid AI/provider actions still consume credits when used.",
+      "Some Studio paths (including Quick Video export) can run local/free rendering without paid provider generation. Paid AI/provider actions still consume credits when used.",
   },
   {
     id: "affiliate",
@@ -233,7 +252,8 @@ export const STUDIO_PUBLIC_FAQ: StudioFaqItem[] = [
   {
     id: "copyright-abuse",
     question: "How can copyright or abuse be reported?",
-    answer: "Email support@homecheff.eu with details and URLs. Marketplace also publishes safety/community routes on homecheff.eu.",
+    answer:
+      "Email support@homecheff.eu with details and URLs. For Free Music Content ID or claim reports, include track title/id, platform, date, and optional claim reference — see the Free Music Content ID runbook for operators.",
   },
   {
     id: "support",

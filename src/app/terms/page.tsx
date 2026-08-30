@@ -72,8 +72,10 @@ export default function StudioTermsPage() {
             job; cancelled work that already started may still consume credits.
           </li>
           <li>
-            Built-in music catalog is currently <strong>empty</strong>. Upload only music you have
-            rights to. Studio does not currently provide a HomeCheff-licensed royalty-free library.
+            Free Music (when enabled) is a curated CC0 catalog for Studio audiovisual creation
+            (Quick Video). HomeCheff does not own the tracks and does not promise Content ID
+            immunity. Upload only music you have rights to under My music when using your own
+            audio.
           </li>
           <li>
             Affiliate creatives in Studio are creative templates — Studio does not currently host a

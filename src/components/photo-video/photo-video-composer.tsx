@@ -104,6 +104,7 @@ import type { PhotoVideoExportStage } from "@/lib/photo-video/export-settings";
 import type { PhotoVideoExportFailReason } from "@/lib/photo-video/export-validate";
 import { withItemReturnResult } from "@/lib/photo-video/item-handoff";
 import { trackPhotoVideoFunnelEvent } from "@/lib/photo-video/funnel-analytics";
+import { trackFreeMusicEvent } from "@/lib/free-music/analytics";
 import { revokePhotoVideoObjectUrl } from "@/lib/photo-video/object-url";
 import { nudgeOverlay } from "@/lib/photo-video/text-overlay";
 import type { PhotoVideoCatalogMusic, PhotoVideoOwnMusic } from "@/lib/photo-video/audio";
@@ -652,6 +653,11 @@ export function PhotoVideoComposer({
     await persistDraft().catch(() => undefined);
     const abort = new AbortController();
     exportAbortRef.current = abort;
+    const catalogTrackId =
+      compositionRef.current.audio.kind === "catalog" ? compositionRef.current.audio.trackId : undefined;
+    if (catalogTrackId) {
+      trackFreeMusicEvent("free_music_export_started", { trackId: catalogTrackId });
+    }
     let wake: WakeLockSentinel | null = null;
     try {
       wake = (await navigator.wakeLock?.request("screen")) ?? null;
@@ -676,11 +682,22 @@ export function PhotoVideoComposer({
       if (!encoded.ok) {
         exportingRef.current = false;
         setExporting(false);
+        if (catalogTrackId) {
+          trackFreeMusicEvent("free_music_export_failed", {
+            trackId: catalogTrackId,
+            reason: encoded.reason,
+          });
+        }
+      } else if (catalogTrackId) {
+        trackFreeMusicEvent("free_music_export_completed", { trackId: catalogTrackId });
       }
       return encoded;
     } catch {
       exportingRef.current = false;
       setExporting(false);
+      if (catalogTrackId) {
+        trackFreeMusicEvent("free_music_export_failed", { trackId: catalogTrackId, reason: "encode" });
+      }
       return { ok: false as const, reason: "encode" as const };
     } finally {
       await wake?.release().catch(() => undefined);
@@ -1495,7 +1512,10 @@ export function PhotoVideoComposer({
               setCatalogOpen(false);
               setPickingMusic(true);
               setComposition((current) => {
-                if (current.audio.kind === "catalog") return setAudio(current, { kind: "none" }, draftContext);
+                if (current.audio.kind === "catalog") {
+                  trackFreeMusicEvent("free_music_track_removed", { trackId: current.audio.trackId });
+                  return setAudio(current, { kind: "none" }, draftContext);
+                }
                 return current;
               });
             }}
@@ -1546,6 +1566,8 @@ export function PhotoVideoComposer({
               empty: t("px4a.freeMusic.empty"),
               loading: t("px4a.freeMusic.loading"),
               error: t("px4a.freeMusic.error"),
+              contentIdUnknown: t("px4a.freeMusic.contentIdNotice.unknown"),
+              contentIdKnown: t("px4a.freeMusic.contentIdNotice.known"),
             }}
             onSelect={(next: PhotoVideoCatalogMusic) => {
               setCatalogOpen(false);

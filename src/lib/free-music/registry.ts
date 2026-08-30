@@ -48,11 +48,13 @@ export function toPublicCatalogTrack(track: FreeMusicTrackRights): FreeMusicPubl
           ? "Public domain recording"
           : track.licenseType,
     attributionRequired: track.attributionRequired === true,
-    contentIdNotice:
+    // Locale text is rendered client-side from contentIdNoticeKey (Phase 4 i18n).
+    contentIdNotice: null,
+    contentIdNoticeKey:
       track.contentIdRisk === "UNKNOWN"
-        ? "Automated platform claims are still possible despite verified open licence evidence."
+        ? "unknown"
         : track.contentIdRisk === "KNOWN"
-          ? "This recording has known Content ID friction history."
+          ? "known"
           : null,
   };
 }

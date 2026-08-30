@@ -255,6 +255,9 @@ export const nl = {
   "px4a.freeMusic.empty": "Geen nummers voor deze filters.",
   "px4a.freeMusic.loading": "Gratis muziek laden…",
   "px4a.freeMusic.error": "Gratis muziek laden mislukt. Probeer het later opnieuw.",
+  "px4a.freeMusic.contentIdNotice.unknown":
+    "Automatische claims van platforms blijven mogelijk, ondanks geverifieerd open-licentiebewijs.",
+  "px4a.freeMusic.contentIdNotice.known": "Deze opname heeft bekende Content ID-frictie.",
   "px4a.audio.legal": "Gebruik alleen muziek die je zelf mag gebruiken.",
   "px4a.audio.choose": "Kies een muziekbestand",
   "px4a.audio.volume": "Volume",

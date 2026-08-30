@@ -4,12 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { PhotoVideoCatalogMusic } from "@/lib/photo-video/audio";
 import { PHOTO_VIDEO_DEFAULT_VOLUME } from "@/lib/photo-video/audio";
 import type { FreeMusicPublicCatalogTrack } from "@/lib/free-music/types";
+import { trackFreeMusicEvent } from "@/lib/free-music/analytics";
 
 type Props = {
   videoDurationSeconds: number;
   locale: string;
   selectedTrackId?: string | null;
   onSelect: (audio: PhotoVideoCatalogMusic) => void;
+  onOpened?: () => void;
   labels: {
     search: string;
     category: string;
@@ -22,6 +24,8 @@ type Props = {
     empty: string;
     loading: string;
     error: string;
+    contentIdUnknown: string;
+    contentIdKnown: string;
   };
 };
 
@@ -33,8 +37,14 @@ export function PhotoVideoFreeMusicBrowser(props: Props) {
   const [category, setCategory] = useState("ALL");
   const [playingId, setPlayingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const openedRef = useRef(false);
 
   useEffect(() => {
+    if (!openedRef.current) {
+      openedRef.current = true;
+      trackFreeMusicEvent("free_music_catalog_opened");
+      props.onOpened?.();
+    }
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -44,9 +54,14 @@ export function PhotoVideoFreeMusicBrowser(props: Props) {
         if (!res.ok) throw new Error("catalog");
         const data = (await res.json()) as { enabled?: boolean; tracks?: FreeMusicPublicCatalogTrack[] };
         if (cancelled) return;
-        setTracks(Array.isArray(data.tracks) ? data.tracks : []);
+        const list = Array.isArray(data.tracks) ? data.tracks : [];
+        setTracks(list);
+        trackFreeMusicEvent("free_music_catalog_loaded", { trackCount: list.length });
       } catch {
-        if (!cancelled) setError(props.labels.error);
+        if (!cancelled) {
+          setError(props.labels.error);
+          trackFreeMusicEvent("free_music_catalog_failed", { reason: "fetch" });
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -55,6 +70,7 @@ export function PhotoVideoFreeMusicBrowser(props: Props) {
       cancelled = true;
       audioRef.current?.pause();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open once per mount; labels.error is stable enough
   }, [props.labels.error]);
 
   const categories = useMemo(() => {
@@ -88,11 +104,13 @@ export function PhotoVideoFreeMusicBrowser(props: Props) {
     el.preload = "none";
     audioRef.current = el;
     setPlayingId(track.id);
+    trackFreeMusicEvent("free_music_preview_started", { trackId: track.id });
     try {
       await el.play();
       el.onended = () => setPlayingId(null);
     } catch {
       setPlayingId(null);
+      trackFreeMusicEvent("free_music_preview_failed", { trackId: track.id, reason: "play" });
     }
   }
 
@@ -101,6 +119,12 @@ export function PhotoVideoFreeMusicBrowser(props: Props) {
     setPlayingId(null);
     const trackDurationSeconds = Math.max(1, track.durationSeconds || 1);
     const windowSeconds = Math.min(props.videoDurationSeconds, trackDurationSeconds);
+    const previousId = props.selectedTrackId ?? null;
+    if (previousId && previousId !== track.id) {
+      trackFreeMusicEvent("free_music_track_replaced", { trackId: track.id, reason: previousId });
+    } else {
+      trackFreeMusicEvent("free_music_track_selected", { trackId: track.id });
+    }
     props.onSelect({
       kind: "catalog",
       trackId: track.id,
@@ -167,6 +191,12 @@ export function PhotoVideoFreeMusicBrowser(props: Props) {
       <ul className="max-h-72 space-y-2 overflow-y-auto" role="list">
         {filtered.map((track) => {
           const selected = props.selectedTrackId === track.id;
+          const notice =
+            track.contentIdNoticeKey === "known"
+              ? props.labels.contentIdKnown
+              : track.contentIdNoticeKey === "unknown"
+                ? props.labels.contentIdUnknown
+                : null;
           return (
             <li
               key={track.id}
@@ -178,8 +208,14 @@ export function PhotoVideoFreeMusicBrowser(props: Props) {
                   <p className="truncate text-sm font-semibold text-zinc-900">{track.title}</p>
                   <p className="truncate text-xs text-zinc-600">{track.artist}</p>
                   <p className="mt-1 text-xs text-zinc-500">
-                    {track.durationSeconds}s · {track.category ?? "—"} · {props.labels.licence}: {track.licenseDisplay}
+                    {track.durationSeconds}s · {track.category ?? "—"} · {props.labels.licence}:{" "}
+                    {track.licenseDisplay}
                   </p>
+                  {notice ? (
+                    <p className="mt-1 text-xs text-zinc-500" data-testid={`px4a-free-music-notice-${track.id}`}>
+                      {notice}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex gap-2">
                   <button

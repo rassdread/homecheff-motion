@@ -1,0 +1,8 @@
+{
+  "registryJsonBytes": 174413,
+  "publicCatalogJsonBytes": 19721,
+  "trackCount": 55,
+  "avgBytesPerTrack": 359,
+  "preloadPolicy": "Audio.preload=none; one element at a time",
+  "verdict": "PASS_NO_PRELOAD_OF_55"
+}

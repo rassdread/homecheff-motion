@@ -128,6 +128,9 @@ export type FreeMusicTrackRights = {
   updatedAt: string;
 };
 
+/** Client translates via `px4a.freeMusic.contentIdNotice.{key}` — never hardcode locale text in API. */
+export type FreeMusicContentIdNoticeKey = "unknown" | "known";
+
 export type FreeMusicPublicCatalogTrack = {
   id: string;
   title: string;
@@ -138,5 +141,7 @@ export type FreeMusicPublicCatalogTrack = {
   previewUrl: string | null;
   licenseDisplay: string;
   attributionRequired: boolean;
+  /** @deprecated Prefer contentIdNoticeKey + client i18n. Kept null for Phase 4. */
   contentIdNotice: string | null;
+  contentIdNoticeKey: FreeMusicContentIdNoticeKey | null;
 };

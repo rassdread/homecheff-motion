@@ -259,6 +259,9 @@ export const en: LocaleSchema = {
   "px4a.freeMusic.empty": "No tracks match your filters.",
   "px4a.freeMusic.loading": "Loading Free Music…",
   "px4a.freeMusic.error": "Could not load Free Music. Try again later.",
+  "px4a.freeMusic.contentIdNotice.unknown":
+    "Automated platform claims are still possible despite verified open licence evidence.",
+  "px4a.freeMusic.contentIdNotice.known": "This recording has known Content ID friction history.",
   "px4a.audio.legal": "Only use music you have the right to use.",
   "px4a.audio.choose": "Choose a music file",
   "px4a.audio.volume": "Volume",
