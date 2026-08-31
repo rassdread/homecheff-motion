@@ -72,9 +72,38 @@ export function AuthForm({ mode, inviteToken = "" }: AuthFormProps) {
         });
       }
 
+      const data = (await response.json().catch(() => null)) as {
+        ok?: boolean;
+        code?: string;
+        error?: string;
+        migrateUrl?: string;
+        requiresCanonicalLogin?: boolean;
+        idpLoginUrl?: string;
+      } | null;
+
+      if (
+        mode === "login" &&
+        response.ok &&
+        data?.ok &&
+        data.code === "LEGACY_MIGRATION_CONTINUE" &&
+        data.migrateUrl
+      ) {
+        window.location.assign(data.migrateUrl);
+        return;
+      }
+
       if (!response.ok) {
-        const errJson = await parseErrorJson(response);
-        const code = errJson.code;
+        const code = data?.code;
+
+        if (
+          mode === "login" &&
+          response.status === 409 &&
+          data?.requiresCanonicalLogin &&
+          data.idpLoginUrl
+        ) {
+          window.location.assign(data.idpLoginUrl);
+          return;
+        }
 
         if (mode === "signup") {
           if (code === "INVITE_INVALID") {
@@ -87,11 +116,11 @@ export function AuthForm({ mode, inviteToken = "" }: AuthFormProps) {
           }
         }
 
-        if (response.status === 409) {
+        if (response.status === 409 && code !== "CANONICAL_LOGIN_REQUIRED") {
           setError(t("auth.form.errorEmailInUse"));
           return;
         }
-        if (response.status === 403 && errJson.code === "USER_INACTIVE") {
+        if (response.status === 403 && code === "USER_INACTIVE") {
           setError(t("animate.auth.inactiveAccount"));
           return;
         }
@@ -100,7 +129,7 @@ export function AuthForm({ mode, inviteToken = "" }: AuthFormProps) {
           return;
         }
         if (response.status === 400) {
-          const bodyHint = errJson.error ?? "";
+          const bodyHint = data?.error ?? "";
           if (bodyHint.toLowerCase().includes("already")) {
             setError(t("auth.form.errorEmailInUse"));
             return;
@@ -113,7 +142,6 @@ export function AuthForm({ mode, inviteToken = "" }: AuthFormProps) {
       }
 
       invalidateAuthSessionCache();
-      // Full navigation so the browser reliably applies Set-Cookie before the next request.
       window.location.assign(resolvePostAuthRedirect());
     } catch {
       setError(t("auth.form.errorNetwork"));

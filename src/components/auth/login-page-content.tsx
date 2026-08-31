@@ -92,28 +92,7 @@ export function LoginPageContent({ ssoEnabled, legacyEnabled, returnTo }: Props)
                   {t("auth.login.continueEmail")}
                 </button>
               ) : (
-                <form onSubmit={startEmail} className="space-y-3">
-                  <p className="text-sm text-zinc-600">{t("auth.login.continueEmailHint")}</p>
-                  <label className="block text-sm text-zinc-700">
-                    <span className="mb-1 block">{t("auth.form.email")}</span>
-                    <input
-                      type="email"
-                      name="email"
-                      autoComplete="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder={t("auth.login.emailHintPlaceholder")}
-                      className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-                    />
-                  </label>
-                  <button
-                    type="submit"
-                    disabled={busy !== null}
-                    className="flex w-full items-center justify-center rounded-md bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
-                  >
-                    {busy === "email" ? t("auth.login.continuing") : t("auth.login.continueEmail")}
-                  </button>
-                </form>
+                <AuthForm mode="login" />
               )}
 
               <button
