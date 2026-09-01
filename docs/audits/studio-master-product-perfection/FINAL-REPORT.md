@@ -16,7 +16,7 @@ HomeCheff Studio’s **technical foundation is largely finished and certified**.
 | TECHNICALLY FINISHED | Largely yes (S2 stack, QV, Free Music launch, merge, billing safety, iPhone advanced) |
 | FUNCTIONALLY FINISHED | Core journeys work (esp. Quick Video ↔ HomeCheff) |
 | PRODUCT-POLISH REMAINING | Substantial IA/nav/terminology/commercial clarity |
-| ACTUAL BLOCKER | **P0-1 CLOSED** (`/api/test-blob` removed; Production POST/GET **404**). Remaining freeze blockers are **P1** product/commercial clarity (see backlog). |
+| ACTUAL BLOCKER | **None** — P0 closed; P1 product coherence closed in Product Perfection Sprint (`PERFECTION-SPRINT-FINAL-REPORT.md`). |
 
 ### Scores (/10)
 

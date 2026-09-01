@@ -1,5 +1,6 @@
-import { MaakChoicePage } from "@/components/maak/maak-choice-page";
+import { redirect } from "next/navigation";
 
+/** Legacy create chooser — unified Studio home is canonical. */
 export default function CreatePage() {
-  return <MaakChoicePage />;
+  redirect("/studio");
 }

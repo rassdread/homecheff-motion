@@ -18,11 +18,6 @@ export type PrimaryNavItem = {
 export function buildLegacyPrimaryNavItems(): PrimaryNavItem[] {
   return [
     {
-      href: "/",
-      labelKey: "nav.create",
-      match: (pathname) => pathname === "/" || pathname === "/maak" || pathname.startsWith("/maak/"),
-    },
-    {
       href: "/studio",
       labelKey: "nav.studio",
       match: (pathname) =>
@@ -57,12 +52,6 @@ export function buildLegacyPrimaryNavItems(): PrimaryNavItem[] {
             pathname === "/animate" ||
             pathname.startsWith("/animate/"),
       productId: "motion",
-    },
-    {
-      href: "/videos",
-      labelKey: "nav.myVideos",
-      match: (pathname) => pathname === "/videos" || pathname.startsWith("/videos/"),
-      authOnly: true,
     },
     {
       href: "/pricing",

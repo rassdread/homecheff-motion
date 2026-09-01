@@ -210,7 +210,7 @@ export function PhotoVideoTransitionPicker({
             ))}
           </div>
         </div>
-        <div data-testid="px4a-transition-group-signature" className="space-y-2">
+        <div data-testid="px4a-transition-group-signature" className="hidden space-y-2 sm:block">
           <p className="text-xs font-semibold uppercase tracking-wide text-[#006D52]">
             {t("px4a.slice1b.transition.signatureBrand")}
           </p>
@@ -227,6 +227,23 @@ export function PhotoVideoTransitionPicker({
             ))}
           </div>
         </div>
+        <details data-testid="px4a-transition-group-signature-mobile" className="space-y-2 sm:hidden">
+          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-[#006D52]">
+            {t("px4a.slice1b.transition.signatureBrand")}
+          </summary>
+          <p className="text-sm text-zinc-600">{t("px4a.transition.signatureHint")}</p>
+          <div className="flex flex-wrap gap-2">
+            {PHOTO_VIDEO_SIGNATURE_TRANSITIONS.map((kind) => (
+              <ChoiceButton
+                key={kind}
+                kind={kind}
+                label={t(SIGNATURE_LABEL[kind])}
+                selected={value === kind}
+                onSelect={onChange}
+              />
+            ))}
+          </div>
+        </details>
       </div>
       <button
         type="button"

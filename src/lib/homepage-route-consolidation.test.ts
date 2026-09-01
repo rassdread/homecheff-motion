@@ -68,10 +68,12 @@ describe("homepage route consolidation", () => {
     assert.ok(showcaseIdx > 0 && afterHeroIdx > showcaseIdx);
   });
 
-  it("nav home links point to / not /maak", () => {
+  it("legacy nav creation entry points to /studio not /maak", () => {
     const nav = read("src/lib/homecheff-primary-nav-config.ts");
-    assert.match(nav, /href: "\/"/);
-    assert.doesNotMatch(nav, /href: "\/maak"/);
+    assert.match(nav, /href: "\/studio"/);
+    assert.doesNotMatch(nav, /labelKey: "nav\.create"/);
+    const chrome = read("src/components/layout/app-shell-chrome.tsx");
+    assert.match(chrome, /href="\/"/);
   });
 
   it("legacy alias path is documented", () => {

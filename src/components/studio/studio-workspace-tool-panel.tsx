@@ -36,6 +36,7 @@ import {
 } from "@/components/studio/studio-workspace-production-panels";
 import { useStoryboardMotionProjects } from "@/hooks/use-studio-workspace-motion";
 import { useActiveTranslator } from "@/i18n/client";
+import { useStudioAdvancedFeatures } from "@/lib/studio-advanced-features";
 import { collectStoryboardCharacters } from "@/lib/studio-character-voice";
 import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
@@ -97,6 +98,7 @@ function StudioWorkspaceVoicePanel({
   isAdmin?: boolean;
 }) {
   const t = useActiveTranslator();
+  const [advancedFeatures] = useStudioAdvancedFeatures();
   const storyLanguage = storyboard.voiceLanguage ?? "en";
   const storyCharacters = collectStoryboardCharacters(storyboard).map(
     (c) => characters.find((lib) => lib.id === c.id) ?? c
@@ -134,16 +136,20 @@ function StudioWorkspaceVoicePanel({
         onStoryboardUpdated={onStoryboardUpdated}
         onCharacterUpdated={onCharacterUpdated}
       />
-      <StudioWorkspaceAudioProductionPanel
-        storyboard={storyboard}
-        characters={characters}
-        canModify={canModify}
-      />
-      <StudioVoiceDirectorPanel
-        storyboard={storyboard}
-        canModify={canModify}
-        onStoryboardUpdated={onStoryboardUpdated}
-      />
+      {advancedFeatures ?
+        <>
+          <StudioWorkspaceAudioProductionPanel
+            storyboard={storyboard}
+            characters={characters}
+            canModify={canModify}
+          />
+          <StudioVoiceDirectorPanel
+            storyboard={storyboard}
+            canModify={canModify}
+            onStoryboardUpdated={onStoryboardUpdated}
+          />
+        </>
+      : null}
       <StudioStoryboardVoiceIdentityPanel storyboard={storyboard} />
       <section className="rounded-2xl border border-violet-200 bg-violet-50/30 p-4">
         <StudioVoiceCastOverviewPanel
@@ -309,6 +315,7 @@ export function StudioWorkspaceToolPanel({
   isAdmin = false,
 }: Props) {
   const t = useActiveTranslator();
+  const [advancedFeatures] = useStudioAdvancedFeatures();
   const needsMotionProjects = PRODUCTION_TOOLS.has(tool) || tool === "text";
   const { projects, loading } = useStoryboardMotionProjects(storyboardId, needsMotionProjects);
 
@@ -532,7 +539,9 @@ export function StudioWorkspaceToolPanel({
           activeSceneIndex={activeSceneIndex}
           canModify={canModify}
         />
-        <StudioMusicDirectorPanel storyboard={storyboard} onUpdated={onStoryboardUpdated} />
+        {advancedFeatures ?
+          <StudioMusicDirectorPanel storyboard={storyboard} onUpdated={onStoryboardUpdated} />
+        : null}
       </div>
     );
   }
@@ -556,7 +565,9 @@ export function StudioWorkspaceToolPanel({
           activeSceneIndex={activeSceneIndex}
           canModify={canModify}
         />
-        <StudioSoundDirectorPanel storyboard={storyboard} onUpdated={onStoryboardUpdated} />
+        {advancedFeatures ?
+          <StudioSoundDirectorPanel storyboard={storyboard} onUpdated={onStoryboardUpdated} />
+        : null}
       </div>
     );
   }

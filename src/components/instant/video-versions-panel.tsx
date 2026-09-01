@@ -7,7 +7,7 @@ import {
   emptySceneTextDraft,
   type InstantSceneTextDraft,
 } from "@/components/instant/instant-mode-panel";
-import { LanguageExportPanel } from "@/components/instant/language-export-panel";
+import { LanguageExportBetaSection } from "@/components/instant/language-export-beta-section";
 import { TextLanguageRenderProgressPanel } from "@/components/instant/text-language-render-progress-panel";
 import type { LanguageExportPreparePhase } from "@/lib/language-export-prepare";
 import type { LanguageExportRenderPhase } from "@/lib/language-export-render";
@@ -710,12 +710,11 @@ export function VideoVersionsPanel({
       </div>
     </div>
   : (
-    <LanguageExportPanel
+    <LanguageExportBetaSection
       projectId={projectId}
       hasCompletedFinal={Boolean(finalVideoUrl)}
       languageExports={languageExports}
       onLanguageExportsChange={onLanguageExportsChange}
-      bundleCatalog={bundleCatalog}
     />
   );
 

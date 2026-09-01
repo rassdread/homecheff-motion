@@ -22,6 +22,7 @@ import { StudioStoryboardTimeline } from "@/components/studio/studio-storyboard-
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { brand } from "@/lib/brand";
+import { useStudioAdvancedFeatures } from "@/lib/studio-advanced-features";
 import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
 import { reorderSceneIds } from "@/lib/studio-scene-order";
 import { fetchStudioCharacters } from "@/lib/studio-characters-client";
@@ -108,6 +109,7 @@ type StudioStoryboardEditorProps = {
 
 export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorProps) {
   const t = useActiveTranslator();
+  const [advancedFeatures] = useStudioAdvancedFeatures();
   const session = useAuthSession();
   const [storyboard, setStoryboard] = useState<StudioStoryboardDetail | null>(null);
   const [locations, setLocations] = useState<StudioLocationListItem[]>([]);
@@ -735,27 +737,31 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                       styleProfile={styleProfile}
                       directorProfile={directorProfile}
                     />
-                    <StudioVoiceDirectorPanel
-                      storyboard={storyboard}
-                      canModify={canModify}
-                      onStoryboardUpdated={(sb) => setStoryboard(sb)}
-                    />
-                    <StudioMusicDirectorPanel
-                      storyboard={storyboard}
-                      onUpdated={(sb) => setStoryboard(sb)}
-                    />
-                    <StudioSoundDirectorPanel
-                      storyboard={storyboard}
-                      onUpdated={(sb) => setStoryboard(sb)}
-                    />
-                    <StudioAudioProductionDirectorPanel
-                      storyboard={storyboard}
-                      onUpdated={(sb) => setStoryboard(sb)}
-                    />
-                    <StudioAudioAssetDirectorPanel
-                      storyboard={storyboard}
-                      onUpdated={(sb) => setStoryboard(sb)}
-                    />
+                    {advancedFeatures ?
+                      <>
+                        <StudioVoiceDirectorPanel
+                          storyboard={storyboard}
+                          canModify={canModify}
+                          onStoryboardUpdated={(sb) => setStoryboard(sb)}
+                        />
+                        <StudioMusicDirectorPanel
+                          storyboard={storyboard}
+                          onUpdated={(sb) => setStoryboard(sb)}
+                        />
+                        <StudioSoundDirectorPanel
+                          storyboard={storyboard}
+                          onUpdated={(sb) => setStoryboard(sb)}
+                        />
+                        <StudioAudioProductionDirectorPanel
+                          storyboard={storyboard}
+                          onUpdated={(sb) => setStoryboard(sb)}
+                        />
+                        <StudioAudioAssetDirectorPanel
+                          storyboard={storyboard}
+                          onUpdated={(sb) => setStoryboard(sb)}
+                        />
+                      </>
+                    : null}
                     <StudioStoryboardVoiceIdentityPanel storyboard={storyboard} />
                     <StudioStoryboardMediaAssetPanel storyboard={storyboard} />
                     <StudioSceneCompositionPanel storyboard={storyboard} />

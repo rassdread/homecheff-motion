@@ -5235,7 +5235,8 @@ export const nl = {
     "Plan hier projectmuziek. Die wordt toegepast wanneer je je video maakt in Motion.",
   "studio.workspace.sound.planningHint":
     "Plan hier scènegeluidseffecten. Die worden toegepast wanneer je je video maakt in Motion.",
-  "studio.workspace.translate.hint": "Maak taalversies van een voltooide video gekoppeld aan dit verhaal.",
+  "studio.workspace.translate.hint":
+    "Beta: vertaal alleen overlay-tekst in een voltooide video — geen nieuwe AI-video. Tekst in beelden zelf verandert niet.",
   "studio.workspace.translate.waitForVideo": "Rond eerst je eerste video-export af voordat je vertalingen start.",
   "studio.workspace.export.hint": "Download je huidige video en taalversies — zonder Studio te verlaten.",
   "studio.workspace.export.embeddedHint": "Download je huidige video en beschikbare taalversies.",
@@ -11632,7 +11633,7 @@ export const nl = {
   "pricing.yearlySeo": "Betaal jaarlijks en bespaar ongeveer {percent}%.",
   "pricing.plans.sectionTitle": "Abonnementen",
   "pricing.plans.sectionIntro":
-    "Kies maandelijks of jaarlijks. Jaarlijks betaal je voor 10 maanden en krijg je 2 maanden gratis (≈17% korting).",
+    "Kies maandelijks of jaarlijks. Abonnementen geven opslag en korting op credit packs — geen gratis maandelijkse credits. Jaarlijks betaal je voor 10 maanden en krijg je 2 maanden gratis (≈17% korting).",
   "pricing.inclusiveVat": "Inclusief btw",
   "pricing.monthlyHcGrant": "{hc} HC / maand",
   "billing.acquisition.notAvailable": "Binnenkort beschikbaar",

@@ -6,7 +6,7 @@ import { InstantFinalProgressPanel } from "@/components/instant/instant-final-pr
 import { VideoVersionsPanel } from "@/components/instant/video-versions-panel";
 import { TextRerenderEditorModal } from "@/components/instant/text-rerender-editor-modal";
 import { FullRerenderEditorModal } from "@/components/instant/full-rerender-editor-modal";
-import { LanguageExportPanel } from "@/components/instant/language-export-panel";
+import { LanguageExportBetaSection } from "@/components/instant/language-export-beta-section";
 import { ProjectRerenderChoices } from "@/components/videos/project-rerender-choices";
 import { RenderActivityStatusCard } from "@/components/videos/render-activity-status-card";
 import { VideoVersionDownloadTrigger } from "@/components/videos/project-storage-usage-card";
@@ -491,12 +491,11 @@ export function StudioWorkspaceTranslatePanelEmbedded({
             return <p className="text-sm text-zinc-600">{t("studio.workspace.translate.waitForVideo")}</p>;
           }
           return (
-            <LanguageExportPanel
+            <LanguageExportBetaSection
               projectId={projectId}
               hasCompletedFinal={videoState.hasCompletedFinal}
               languageExports={languageExports}
               onLanguageExportsChange={setLanguageExports}
-              bundleCatalog={videoState.motionCatalog}
             />
           );
         }}

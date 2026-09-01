@@ -57,7 +57,7 @@ describe("editor navigation source of truth audit", () => {
     const next = read("next.config.ts");
     assert.match(next, /\/library.*\/studio\/assets/);
     assert.match(next, /\/presentation.*\/publish/);
-    assert.match(next, /\/create.*\/maak/);
+    assert.match(next, /\/create.*\/studio/);
   });
 
   it("studio handoff links pass editorSession query param", () => {

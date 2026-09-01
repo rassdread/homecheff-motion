@@ -5240,7 +5240,8 @@ export const en: LocaleSchema = {
     "Plan project music here. It is applied when you make your video in Motion.",
   "studio.workspace.sound.planningHint":
     "Plan scene sound effects here. They are applied when you make your video in Motion.",
-  "studio.workspace.translate.hint": "Create language versions from a completed video linked to this story.",
+  "studio.workspace.translate.hint":
+    "Beta: translate overlay text only in a completed video — not a new AI video. Text baked into imagery does not change.",
   "studio.workspace.translate.waitForVideo": "Finish your first video export before starting translations.",
   "studio.workspace.export.hint": "Download your current video and language versions — without leaving Studio.",
   "studio.workspace.export.embeddedHint": "Download your current video and available language versions.",
@@ -11632,7 +11633,7 @@ export const en: LocaleSchema = {
   "pricing.yearlySeo": "Pay yearly and save about {percent}%.",
   "pricing.plans.sectionTitle": "Subscriptions",
   "pricing.plans.sectionIntro":
-    "Choose monthly or yearly billing. Yearly is priced at 10 months — 2 months free (≈17% savings).",
+    "Choose monthly or yearly billing. Subscriptions include storage and credit-pack discounts — not free monthly credits. Yearly is priced at 10 months — 2 months free (≈17% savings).",
   "pricing.inclusiveVat": "Including VAT",
   "pricing.monthlyHcGrant": "{hc} HC / month",
   "billing.acquisition.notAvailable": "Coming soon",

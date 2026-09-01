@@ -3,12 +3,12 @@
 ## A. MUST FIX BEFORE COMMERCIAL FREEZE
 
 0. ~~**`POST /api/test-blob`**~~ — **CLOSED** (`P0-TEST-BLOB-CLOSEOUT.md`)  
-1. **Unify commercial pricing/HC story** (one source of truth: prices + what subscription includes) — P1 COMMERCIAL · M · REPAIR  
-2. **Hide `/studio/providers` from normal users** — P1 IA/TRUST · S · HIDE  
-3. **Resolve Create/Maak vs Studio home intent dual map** — P1 IA · M · MERGE  
-4. **Projects vs Videos nav story** (one “My work”) — P1 IA · M · MERGE/DE-EMPHASIZE  
-5. **De-emphasize language features that overpromise** — P1 TRUST · S · DE-EMPHASIZE  
-6. **Reduce Story/audio control duplication visible by default** — P1 UX · M · POLISH  
+1. ~~**Unify commercial pricing/HC story**~~ — **CLOSED** sprint (`PERFECTION-SPRINT-FINAL-REPORT.md`)  
+2. ~~**Hide `/studio/providers` from normal users**~~ — **CLOSED** admin gate  
+3. ~~**Resolve Create/Maak vs Studio home intent dual map**~~ — **CLOSED** `/create` → `/studio`  
+4. ~~**Projects vs Videos nav story**~~ — **CLOSED** legacy nav + `/videos` redirect  
+5. ~~**De-emphasize language features that overpromise**~~ — **CLOSED** beta wrapper + honest copy  
+6. ~~**Reduce Story/audio control duplication visible by default**~~ — **CLOSED** advanced-gated Director panels  
 
 ## B. HIGH-VALUE PRODUCT POLISH
 
