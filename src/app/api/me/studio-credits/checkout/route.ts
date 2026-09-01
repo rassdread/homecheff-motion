@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { requireActiveUser } from "@/server/auth/permissions";
 import {
   createCreditPackCheckout,
@@ -8,6 +9,12 @@ import {
 import { getStudioSubscriptionPlanBySlug } from "@/server/studio-account/studio-subscription-plan-service";
 import { getStudioCreditPackBySlug } from "@/server/studio-account/studio-credit-pack-service";
 import type { StudioPlanId } from "@/server/studio-account/studio-plan-config";
+import { assertStudioNlSelfServiceCheckout } from "@/lib/billing/studio-nl-eligibility";
+import {
+  isCentralStudioPaidCheckoutEnabled,
+  useLegacyMotionStripeCheckout,
+} from "@/lib/studio-central-billing-flags";
+import { createCentralStudioCheckout } from "@/lib/studio-homecheff-hc-fetch";
 
 export async function POST(request: Request) {
   const user = await requireActiveUser();
@@ -15,18 +22,12 @@ export async function POST(request: Request) {
     return user;
   }
 
-  if (!(await isStripeCheckoutAvailable())) {
-    return NextResponse.json(
-      { error: "Stripe checkout is not configured.", code: "STRIPE_NOT_CONFIGURED" },
-      { status: 503 }
-    );
-  }
-
   let body: {
     type?: string;
     planId?: string;
     packId?: string;
     billingInterval?: string;
+    billingCountry?: string;
     returnPath?: string;
     promoCode?: string;
     locale?: "nl" | "en";
@@ -49,6 +50,68 @@ export async function POST(request: Request) {
     if (!plan || !plan.isActive || planId === "free") {
       return NextResponse.json({ error: "Invalid plan.", code: "INVALID_PLAN" }, { status: 400 });
     }
+
+    const billingCountry = (body.billingCountry ?? "NL").trim().toUpperCase();
+    const nlGate = assertStudioNlSelfServiceCheckout({ billingCountry });
+    if (!nlGate.ok) {
+      return NextResponse.json(
+        { error: nlGate.message, code: nlGate.code },
+        { status: 403 },
+      );
+    }
+
+    if (isCentralStudioPaidCheckoutEnabled()) {
+      const linked = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { centralUserId: true },
+      });
+      const centralUserId = linked?.centralUserId?.trim() ?? "";
+      if (!centralUserId) {
+        return NextResponse.json(
+          { error: "Central identity required.", code: "CENTRAL_USER_REQUIRED" },
+          { status: 400 },
+        );
+      }
+      if (planId !== "creator" && planId !== "pro" && planId !== "studio") {
+        return NextResponse.json({ error: "Invalid plan.", code: "INVALID_PLAN" }, { status: 400 });
+      }
+      const central = await createCentralStudioCheckout({
+        centralUserId,
+        studioUserId: user.id,
+        email: user.email,
+        planKey: planId,
+        billingCountry: nlGate.billingCountry,
+        successUrl,
+        cancelUrl,
+      });
+      if (!central.ok || !central.json || !(central.json as { ok?: boolean }).ok) {
+        const err = central.json as { code?: string; message?: string };
+        return NextResponse.json(
+          { error: err.message ?? "Checkout blocked.", code: err.code ?? "CHECKOUT_BLOCKED" },
+          { status: central.status === 403 ? 403 : 503 },
+        );
+      }
+      const data = central.json as { checkoutUrl: string; checkoutSessionId: string };
+      return NextResponse.json({ ok: true, url: data.checkoutUrl, sessionId: data.checkoutSessionId, central: true });
+    }
+
+    if (!useLegacyMotionStripeCheckout() && !(await isStripeCheckoutAvailable())) {
+      return NextResponse.json(
+        {
+          error: "Paid Studio checkout is not available yet.",
+          code: "PUBLIC_ACQUISITION_OFF",
+        },
+        { status: 503 },
+      );
+    }
+
+    if (!(await isStripeCheckoutAvailable())) {
+      return NextResponse.json(
+        { error: "Stripe checkout is not configured.", code: "STRIPE_NOT_CONFIGURED" },
+        { status: 503 },
+      );
+    }
+
     const billingInterval = body.billingInterval === "yearly" ? "yearly" : "monthly";
     const result = await createSubscriptionCheckout({
       userId: user.id,
@@ -63,10 +126,16 @@ export async function POST(request: Request) {
     if ("error" in result) {
       return NextResponse.json({ error: result.error, code: "CHECKOUT_FAILED" }, { status: 503 });
     }
-    return NextResponse.json({ ok: true, ...result }, { status: 200 });
+    return NextResponse.json({ ok: true, ...result, central: false }, { status: 200 });
   }
 
   if (body.type === "credit_pack") {
+    if (!(await isStripeCheckoutAvailable())) {
+      return NextResponse.json(
+        { error: "Stripe checkout is not configured.", code: "STRIPE_NOT_CONFIGURED" },
+        { status: 503 },
+      );
+    }
     const pack = await getStudioCreditPackBySlug(body.packId ?? "");
     if (!pack || !pack.active) {
       return NextResponse.json({ error: "Invalid pack.", code: "INVALID_PACK" }, { status: 400 });

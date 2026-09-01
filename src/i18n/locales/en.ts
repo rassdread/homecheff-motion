@@ -11633,6 +11633,9 @@ export const en: LocaleSchema = {
   "pricing.plans.sectionTitle": "Subscriptions",
   "pricing.plans.sectionIntro":
     "Choose monthly or yearly billing. Yearly is priced at 10 months — 2 months free (≈17% savings).",
+  "pricing.inclusiveVat": "Including VAT",
+  "pricing.monthlyHcGrant": "{hc} HC / month",
+  "billing.acquisition.notAvailable": "Coming soon",
   "pricing.credits.title": "How Studio Credits work",
   "pricing.credits.body":
     "Credits are your balance for AI generation in Studio and Motion. Each action uses a clear credit amount. Your available balance updates after purchases and when work completes.",

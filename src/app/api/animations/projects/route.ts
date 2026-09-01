@@ -6,6 +6,7 @@ import {
   validateAdvancedSettingsForUser,
 } from "@/lib/animation-advanced-settings";
 import { normalizeAnimationIntent } from "@/lib/animation-intents";
+import { motionRenderAuthoritativeCredits } from "@/lib/studio-video-hc-pricing";
 import {
   type AnimationPresetId,
   estimateProjectCredits,
@@ -318,6 +319,8 @@ export async function POST(request: Request) {
     viduDurationSeconds = preset.durationSeconds;
     advancedSettingsEnabled = false;
   }
+
+  estimatedCredits = motionRenderAuthoritativeCredits(estimatedCredits);
 
   const storedIntent = normalizeAnimationIntent(payload.intent);
 

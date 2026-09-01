@@ -24,6 +24,21 @@ export type SubscriptionPlanCardData = {
   storageLimitGb?: number | null;
   discountPercent: number;
   yearlyCheckoutAvailable?: boolean;
+  monthlyHcGrant?: number | null;
+  vatInclusive?: boolean;
+};
+
+type NlB2cTargetPlan = {
+  planKey: string;
+  grossConsumerPriceEur: number;
+  monthlyHcGrant: number;
+  checkoutEnabled: boolean;
+};
+
+type CatalogAcquisition = {
+  technicalReady: boolean;
+  publicAcquisitionEnabled: boolean;
+  paidCheckoutEnabled: boolean;
 };
 
 type Props = {
@@ -68,14 +83,26 @@ export function SubscriptionPlanCards({
   const [locale] = useLocale();
   const [interval, setInterval] = useState<SubscriptionBillingInterval>(defaultInterval);
   const [plans, setPlans] = useState<SubscriptionPlanCardData[]>([]);
+  const [acquisition, setAcquisition] = useState<CatalogAcquisition | null>(null);
+  const [nlB2cTarget, setNlB2cTarget] = useState<NlB2cTargetPlan[] | null>(null);
 
   useEffect(() => {
     void fetch("/api/billing/catalog")
       .then(async (res) => {
         if (!res.ok) return;
-        const data = (await res.json()) as { plans: SubscriptionPlanCardData[] };
+        const data = (await res.json()) as {
+          plans: SubscriptionPlanCardData[];
+          acquisition?: CatalogAcquisition;
+          nlB2cTarget?: NlB2cTargetPlan[] | null;
+        };
         if (data.plans?.length) {
           setPlans(data.plans);
+        }
+        if (data.acquisition) {
+          setAcquisition(data.acquisition);
+        }
+        if (data.nlB2cTarget) {
+          setNlB2cTarget(data.nlB2cTarget);
         }
       })
       .catch(() => {
@@ -83,10 +110,26 @@ export function SubscriptionPlanCards({
       });
   }, []);
 
-  const displayPlans = useMemo(
-    () => (plans.length > 0 ? plans : buildFallbackPlans(t)),
-    [plans, t]
-  );
+  const showNlB2cTarget = Boolean(acquisition?.technicalReady && nlB2cTarget?.length);
+  const paidCheckoutEnabled = acquisition?.paidCheckoutEnabled === true;
+
+  const displayPlans = useMemo(() => {
+    const base = plans.length > 0 ? plans : buildFallbackPlans(t);
+    if (!showNlB2cTarget || !nlB2cTarget) return base;
+    const targetById = new Map(nlB2cTarget.map((p) => [p.planKey, p]));
+    return base.map((plan) => {
+      const target = targetById.get(plan.id);
+      if (!target) return plan;
+      return {
+        ...plan,
+        monthlyPriceEur: target.grossConsumerPriceEur,
+        yearlyPriceEur: null,
+        yearlyCheckoutAvailable: false,
+        monthlyHcGrant: target.monthlyHcGrant,
+        vatInclusive: true,
+      };
+    });
+  }, [plans, t, showNlB2cTarget, nlB2cTarget]);
 
   const cardClass =
     theme === "dark"
@@ -108,7 +151,7 @@ export function SubscriptionPlanCards({
 
   return (
     <div className="space-y-4">
-      {showIntervalToggle ? (
+      {showIntervalToggle && !showNlB2cTarget ? (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <BillingIntervalToggle value={interval} onChange={setInterval} theme={theme} />
           <p
@@ -128,7 +171,8 @@ export function SubscriptionPlanCards({
               : SUBSCRIPTION_YEARLY_SAVINGS_PERCENT;
           const yearlyAvailable = plan.yearlyCheckoutAvailable !== false && yearly != null;
           const checkoutDisabled =
-            interval === "yearly" ? !yearlyAvailable : plan.monthlyPriceEur == null;
+            !paidCheckoutEnabled ||
+            (interval === "yearly" ? !yearlyAvailable : plan.monthlyPriceEur == null);
 
           return (
             <div key={plan.id} className={cardClass} data-testid={`subscription-plan-card-${plan.id}`}>
@@ -174,9 +218,20 @@ export function SubscriptionPlanCards({
                 </p>
               )}
 
-              <p className={`mt-2 text-sm ${theme === "dark" ? "text-white/70" : "text-zinc-600"}`}>
-                {plan.discountPercent}% {t("account.billing.creditDiscount" as never)}
-              </p>
+              {plan.vatInclusive ? (
+                <p className={`mt-2 text-sm font-medium ${theme === "dark" ? "text-emerald-300" : "text-emerald-800"}`}>
+                  {t("pricing.inclusiveVat" as never)}
+                </p>
+              ) : null}
+              {plan.monthlyHcGrant != null ? (
+                <p className={`mt-1 text-sm ${theme === "dark" ? "text-white/70" : "text-zinc-600"}`}>
+                  {t("pricing.monthlyHcGrant" as never, { hc: plan.monthlyHcGrant.toLocaleString(locale) })}
+                </p>
+              ) : (
+                <p className={`mt-2 text-sm ${theme === "dark" ? "text-white/70" : "text-zinc-600"}`}>
+                  {plan.discountPercent}% {t("account.billing.creditDiscount" as never)}
+                </p>
+              )}
               {plan.storageLimitGb != null ? (
                 <p className={`mt-1 text-sm ${theme === "dark" ? "text-white/60" : "text-zinc-500"}`}>
                   {t("account.billing.storageLimit" as never, { gb: plan.storageLimitGb })}
@@ -196,7 +251,9 @@ export function SubscriptionPlanCards({
                 >
                   {loadingPlanId === plan.id
                     ? t(loadingLabelKey)
-                    : t(subscribeLabelKey)}
+                    : !paidCheckoutEnabled
+                      ? t("billing.acquisition.notAvailable" as never)
+                      : t(subscribeLabelKey)}
                 </button>
               ) : null}
             </div>

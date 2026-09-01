@@ -11633,6 +11633,9 @@ export const nl = {
   "pricing.plans.sectionTitle": "Abonnementen",
   "pricing.plans.sectionIntro":
     "Kies maandelijks of jaarlijks. Jaarlijks betaal je voor 10 maanden en krijg je 2 maanden gratis (≈17% korting).",
+  "pricing.inclusiveVat": "Inclusief btw",
+  "pricing.monthlyHcGrant": "{hc} HC / maand",
+  "billing.acquisition.notAvailable": "Binnenkort beschikbaar",
   "pricing.credits.title": "Hoe Studio Credits werken",
   "pricing.credits.body":
     "Credits zijn je saldo voor AI-generatie in Studio en Motion. Elke actie kost een vast aantal credits. Je beschikbare saldo wordt bijgewerkt na aankopen en wanneer werk is afgerond.",

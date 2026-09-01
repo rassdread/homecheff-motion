@@ -1,8 +1,21 @@
 /** Premium editor vision analysis — credit pricing and billing action key. */
+import { resolveAuthoritativeHcForAction } from "@/server/studio-account/hc-central-adapter";
 
 export const PREMIUM_VISION_ANALYSIS_ACTION = "premium_vision_analysis" as const;
 
-export const PREMIUM_VISION_ANALYSIS_CREDITS = 5;
+/** Legacy Studio Credits meter (live). */
+export const PREMIUM_VISION_ANALYSIS_CREDITS_LEGACY = 5;
+
+/** Certified central HC target when CENTRAL_STUDIO_TECHNICAL_READY. */
+export const PREMIUM_VISION_ANALYSIS_HC_TARGET = 8;
+
+export function premiumVisionAnalysisCredits(): number {
+  const hc = resolveAuthoritativeHcForAction(PREMIUM_VISION_ANALYSIS_ACTION);
+  return hc ?? PREMIUM_VISION_ANALYSIS_CREDITS_LEGACY;
+}
+
+/** @deprecated use premiumVisionAnalysisCredits() — returns live or target meter. */
+export const PREMIUM_VISION_ANALYSIS_CREDITS = PREMIUM_VISION_ANALYSIS_CREDITS_LEGACY;
 
 export type PremiumVisionCreditStatus =
   | "pending"
