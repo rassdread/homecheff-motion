@@ -5,6 +5,8 @@ import { STUDIO_NL_TARGET_CATALOG, STUDIO_NL_HC_ACTION_TARGETS } from "@/lib/stu
 import {
   isCentralStudioPaidCheckoutEnabled,
   isCentralStudioTechnicalReady,
+  isLegacyStudioCheckoutRetired,
+  useLegacyMotionStripeCheckout,
 } from "@/lib/studio-central-billing-flags";
 import { motionRenderAuthoritativeCredits } from "@/lib/studio-video-hc-pricing";
 import {
@@ -37,11 +39,13 @@ describe("Studio NL B2C technical blocker closeout (motion)", () => {
     assert.equal(typeof isHcCentralAdapterReady(), "boolean");
   });
 
-  it("legacy video meter when central off", () => {
+  it("legacy checkout retired when central technical ready", () => {
     const prev = process.env.CENTRAL_STUDIO_TECHNICAL_READY;
-    delete process.env.CENTRAL_STUDIO_TECHNICAL_READY;
-    assert.equal(motionRenderAuthoritativeCredits(60), 60);
-    assert.equal(premiumVisionAnalysisCredits(), 5);
+    process.env.CENTRAL_STUDIO_TECHNICAL_READY = "1";
+    delete process.env.CENTRAL_STUDIO_PUBLIC_ACQUISITION_ENABLED;
+    assert.equal(isLegacyStudioCheckoutRetired(), true);
+    assert.equal(useLegacyMotionStripeCheckout(), false);
     if (prev) process.env.CENTRAL_STUDIO_TECHNICAL_READY = prev;
+    else delete process.env.CENTRAL_STUDIO_TECHNICAL_READY;
   });
 });

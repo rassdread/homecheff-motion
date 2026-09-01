@@ -12,6 +12,7 @@ import type { StudioPlanId } from "@/server/studio-account/studio-plan-config";
 import { assertStudioNlSelfServiceCheckout } from "@/lib/billing/studio-nl-eligibility";
 import {
   isCentralStudioPaidCheckoutEnabled,
+  isCentralStudioTechnicalReady,
   useLegacyMotionStripeCheckout,
 } from "@/lib/studio-central-billing-flags";
 import { createCentralStudioCheckout } from "@/lib/studio-homecheff-hc-fetch";
@@ -60,6 +61,16 @@ export async function POST(request: Request) {
       );
     }
 
+    if (isCentralStudioTechnicalReady() && !isCentralStudioPaidCheckoutEnabled()) {
+      return NextResponse.json(
+        {
+          error: "Paid Studio checkout is not available yet.",
+          code: "PUBLIC_ACQUISITION_OFF",
+        },
+        { status: 503 },
+      );
+    }
+
     if (isCentralStudioPaidCheckoutEnabled()) {
       const linked = await prisma.user.findUnique({
         where: { id: user.id },
@@ -95,11 +106,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, url: data.checkoutUrl, sessionId: data.checkoutSessionId, central: true });
     }
 
-    if (!useLegacyMotionStripeCheckout() && !(await isStripeCheckoutAvailable())) {
+    if (!useLegacyMotionStripeCheckout()) {
       return NextResponse.json(
         {
-          error: "Paid Studio checkout is not available yet.",
-          code: "PUBLIC_ACQUISITION_OFF",
+          error: "Legacy Studio checkout is retired.",
+          code: "LEGACY_STUDIO_CHECKOUT_RETIRED",
         },
         { status: 503 },
       );

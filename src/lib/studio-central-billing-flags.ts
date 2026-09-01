@@ -15,7 +15,12 @@ export function isCentralStudioPaidCheckoutEnabled(): boolean {
   return isCentralStudioTechnicalReady() && isCentralStudioPublicAcquisitionEnabled();
 }
 
-/** Legacy Motion Stripe checkout — default when central not public. */
+/** Legacy Motion Stripe checkout — retired once central technical prep is live. */
+export function isLegacyStudioCheckoutRetired(): boolean {
+  return isCentralStudioTechnicalReady();
+}
+
+/** Legacy Motion Stripe checkout — only when central prep is not deployed. */
 export function useLegacyMotionStripeCheckout(): boolean {
-  return !isCentralStudioPaidCheckoutEnabled();
+  return !isCentralStudioTechnicalReady() && !isCentralStudioPaidCheckoutEnabled();
 }
