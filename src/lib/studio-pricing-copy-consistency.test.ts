@@ -33,11 +33,11 @@ describe("studio pricing copy consistency", () => {
   it("customer-facing catalog matches certified €15/€29/€79 + HC grants", () => {
     assert.equal(LOWEST_PAID_SUBSCRIPTION_MONTHLY_EUR, 15);
     assert.equal(CUSTOMER_FACING_STUDIO_PLANS.creator.grossConsumerPriceEur, 15);
-    assert.equal(CUSTOMER_FACING_STUDIO_PLANS.creator.monthlyHcGrant, 750);
+    assert.equal(CUSTOMER_FACING_STUDIO_PLANS.creator.monthlyHcGrant, 900);
     assert.equal(CUSTOMER_FACING_STUDIO_PLANS.pro.grossConsumerPriceEur, 29);
-    assert.equal(CUSTOMER_FACING_STUDIO_PLANS.pro.monthlyHcGrant, 1500);
+    assert.equal(CUSTOMER_FACING_STUDIO_PLANS.pro.monthlyHcGrant, 1800);
     assert.equal(CUSTOMER_FACING_STUDIO_PLANS.studio.grossConsumerPriceEur, 79);
-    assert.equal(CUSTOMER_FACING_STUDIO_PLANS.studio.monthlyHcGrant, 4000);
+    assert.equal(CUSTOMER_FACING_STUDIO_PLANS.studio.monthlyHcGrant, 5000);
   });
 
   it("customer-facing sources do not advertise legacy subscription prices", () => {

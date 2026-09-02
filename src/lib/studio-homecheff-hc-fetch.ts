@@ -114,6 +114,24 @@ export async function releaseHcOnGrowth(input: {
   });
 }
 
+export async function grantPackHcOnGrowth(input: {
+  centralUserId: string;
+  studioUserId: string;
+  packId: string;
+  stripeCheckoutSessionId: string;
+  stripePaymentIntentId?: string | null;
+  stripePriceId?: string | null;
+  grossPriceCents: number;
+  currency?: string;
+  purchasePaidAtIso?: string;
+}) {
+  return growthFetch("/api/internal/studio/hc/grant-pack", {
+    method: "POST",
+    centralUserId: input.centralUserId,
+    body: JSON.stringify(input),
+  });
+}
+
 export async function createCentralStudioCheckout(input: {
   centralUserId: string;
   studioUserId: string;

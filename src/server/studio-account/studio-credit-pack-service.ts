@@ -6,7 +6,17 @@ import {
 } from "@/server/studio-account/studio-credit-packs";
 import type { StudioCreditPackSnapshot } from "@/types/studio-billing";
 import { resolveStripeSecretKeyMode } from "@/lib/stripe-mode";
+import { studioPackHcGrant } from "@/lib/studio-hc-pack-catalog";
 
+function applyCatalogHcGrant(pack: StudioCreditPackSnapshot): StudioCreditPackSnapshot {
+  const hcGrant = studioPackHcGrant(pack.slug);
+  if (hcGrant == null) return pack;
+  return {
+    ...pack,
+    credits: hcGrant,
+    name: `${hcGrant.toLocaleString("nl-NL")} HC`,
+  };
+}
 function mapDbPack(row: {
   id: string;
   slug: string;
@@ -18,7 +28,7 @@ function mapDbPack(row: {
   displayOrder: number;
   stripePriceId: string | null;
 }): StudioCreditPackSnapshot {
-  return {
+  return applyCatalogHcGrant({
     id: row.id,
     slug: row.slug,
     name: row.name,
@@ -29,15 +39,15 @@ function mapDbPack(row: {
     displayOrder: row.displayOrder,
     stripePriceId: row.stripePriceId,
     source: "database",
-  };
+  });
 }
 
 function fallbackPack(id: StudioCreditPackId, order: number): StudioCreditPackSnapshot {
   const pack = STUDIO_CREDIT_PACKS.find((row) => row.id === id)!;
-  return {
+  return applyCatalogHcGrant({
     id: `fallback_${id}`,
     slug: id,
-    name: id.replace("pack_", "").concat(" credits"),
+    name: `${pack.credits} HC`,
     credits: pack.credits,
     priceEur: pack.priceEur,
     bonusCredits: 0,
@@ -45,7 +55,7 @@ function fallbackPack(id: StudioCreditPackId, order: number): StudioCreditPackSn
     displayOrder: order,
     stripePriceId: resolveCreditPackStripePriceId(id),
     source: "fallback",
-  };
+  });
 }
 
 const FALLBACK_PACK_IDS: StudioCreditPackId[] = [

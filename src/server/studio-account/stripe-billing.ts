@@ -28,6 +28,9 @@ import {
   validatePromoCode,
 } from "@/server/studio-account/studio-promo-code-service";
 import { grantStudioCredits } from "@/server/studio-account/studio-wallet-service";
+import { grantCentralPackHc, isHcCentralAdapterReady } from "@/server/studio-account/hc-central-adapter";
+import { isStudioCentralHcSpendEnabled } from "@/server/studio-account/studio-central-hc-spend-policy";
+import { studioPackHcGrant } from "@/lib/studio-hc-pack-catalog";
 import { updateStudioAccountPlan } from "@/server/studio-account/ensure-studio-account";
 import { applySubscriptionCancellationPolicy } from "@/server/studio-account/studio-credit-policy";
 import type Stripe from "stripe";
@@ -223,7 +226,7 @@ export async function createCreditPackCheckout(input: {
   const customerId = await ensureStripeCustomer(input.userId, input.email);
   const stripe = getStripeClient();
   const keyMode = getStripeSecretKeyMode();
-  const totalCredits = totalPackCredits(pack);
+  const totalCredits = studioPackHcGrant(pack.slug) ?? totalPackCredits(pack);
 
   if (priceId) {
     try {
@@ -329,8 +332,26 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
   if (!userId) return;
 
   if (type === "credit_pack") {
-    const credits = Number(session.metadata?.totalCredits ?? session.metadata?.credits ?? 0);
-    if (credits > 0) {
+    const packSlug = session.metadata?.packSlug ?? session.metadata?.packId ?? "";
+    const catalogHc = studioPackHcGrant(packSlug);
+    const credits = catalogHc ?? Number(session.metadata?.totalCredits ?? session.metadata?.credits ?? 0);
+    const amountTotalCents =
+      typeof session.amount_total === "number" && Number.isFinite(session.amount_total)
+        ? session.amount_total
+        : null;
+    const amountEur =
+      amountTotalCents != null ? Math.round(amountTotalCents) / 100 : null;
+    const paymentIntentId =
+      typeof session.payment_intent === "string"
+        ? session.payment_intent
+        : session.payment_intent?.id ?? null;
+    const useCentralGrant =
+      isStudioCentralHcSpendEnabled() &&
+      isHcCentralAdapterReady() &&
+      catalogHc != null &&
+      credits > 0;
+
+    if (useCentralGrant) {
       const alreadyGranted = await prisma.studioLedgerEntry.findFirst({
         where: {
           userId,
@@ -347,12 +368,68 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
         select: { id: true },
       });
       if (!alreadyGranted) {
-        const amountTotalCents =
-          typeof session.amount_total === "number" && Number.isFinite(session.amount_total)
-            ? session.amount_total
-            : null;
-        const amountEur =
-          amountTotalCents != null ? Math.round(amountTotalCents) / 100 : null;
+        const userRow = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { centralUserId: true },
+        });
+        const centralUserId = userRow?.centralUserId?.trim() || null;
+        if (!centralUserId) {
+          throw new Error("CENTRAL_IDENTITY_REQUIRED_FOR_PACK_GRANT");
+        }
+        await grantCentralPackHc({
+          centralUserId,
+          studioUserId: userId,
+          packId: packSlug,
+          stripeCheckoutSessionId: session.id,
+          stripePaymentIntentId: paymentIntentId,
+          stripePriceId: session.metadata?.stripePriceId ?? null,
+          grossPriceCents: amountTotalCents ?? 0,
+          currency: session.currency ?? "eur",
+          purchasePaidAtIso: new Date().toISOString(),
+        });
+        const wallet = await prisma.studioWallet.findUnique({
+          where: { userId },
+          select: { balance: true },
+        });
+        await prisma.studioLedgerEntry.create({
+          data: {
+            userId,
+            service: "billing",
+            actionType: "credit_purchase",
+            creditsDelta: 0,
+            balanceAfter: wallet?.balance ?? 0,
+            metadataJson: {
+              stripeSessionId: session.id,
+              packId: packSlug,
+              packSlug,
+              centralHcGrant: credits,
+              grantAuthority: "CENTRAL_HCWALLET",
+              informationalOnly: true,
+              amountTotalCents,
+              amountEur,
+              currency: session.currency ?? "eur",
+              financialCorrelationId: `stripe_pack:${session.id}`,
+            },
+          },
+        });
+      }
+    } else if (credits > 0) {
+      const alreadyGranted = await prisma.studioLedgerEntry.findFirst({
+        where: {
+          userId,
+          actionType: "credit_purchase",
+          AND: [
+            {
+              metadataJson: {
+                path: ["stripeSessionId"],
+                equals: session.id,
+              },
+            },
+          ],
+        },
+        select: { id: true },
+      });
+      if (!alreadyGranted) {
         await grantStudioCredits({
           userId,
           credits,
@@ -367,10 +444,13 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
             amountEur,
             currency: session.currency ?? "eur",
             financialCorrelationId: `stripe_pack:${session.id}`,
+            legacyGrantAuthority: true,
           },
           lifetimeField: "lifetimePurchased",
         });
       }
+    }
+    if (credits > 0) {
       await prisma.studioAutoTopUpAttempt.updateMany({
         where: {
           userId,
@@ -379,7 +459,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
         },
         data: {
           status: "succeeded",
-          creditsGranted: credits > 0 ? credits : 0,
+          creditsGranted: credits,
         },
       });
       await prisma.studioAccount.updateMany({

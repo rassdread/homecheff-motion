@@ -22,10 +22,10 @@ type Props = {
 };
 
 const FALLBACK_PACKS: CatalogPack[] = [
-  { id: "pack_500", name: "500", credits: 500, bonusCredits: 0, totalCredits: 500, priceEur: 4.99 },
-  { id: "pack_1250", name: "1250", credits: 1250, bonusCredits: 0, totalCredits: 1250, priceEur: 9.99 },
-  { id: "pack_3000", name: "3000", credits: 3000, bonusCredits: 0, totalCredits: 3000, priceEur: 19.99 },
-  { id: "pack_8000", name: "8000", credits: 8000, bonusCredits: 0, totalCredits: 8000, priceEur: 49.99 },
+  { id: "pack_500", name: "250", credits: 250, bonusCredits: 0, totalCredits: 250, priceEur: 4.99 },
+  { id: "pack_1250", name: "500", credits: 500, bonusCredits: 0, totalCredits: 500, priceEur: 9.99 },
+  { id: "pack_3000", name: "1000", credits: 1000, bonusCredits: 0, totalCredits: 1000, priceEur: 19.99 },
+  { id: "pack_8000", name: "2500", credits: 2500, bonusCredits: 0, totalCredits: 2500, priceEur: 49.99 },
 ];
 
 export function CreditPackPromoGrid({ onBuyPack, loadingPackId, compact = false }: Props) {
@@ -64,7 +64,7 @@ export function CreditPackPromoGrid({ onBuyPack, loadingPackId, compact = false 
               </span>
             ) : null}
             <p className="font-semibold text-white">
-              {total.toLocaleString(locale)} {t("account.credits.unit")}
+              {total.toLocaleString(locale)} HC
             </p>
             <p className="mt-1 text-xl font-bold text-white">€{pack.priceEur.toFixed(2)}</p>
             <p className="mt-1 text-xs text-white/60">

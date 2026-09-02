@@ -19,9 +19,11 @@ import type { StudioActionType } from "@/server/studio-account/studio-action-cos
 import type { SessionUser } from "@/server/auth/session";
 import {
   captureCentralHc,
+  getCentralHcWallet,
   isHcCentralAdapterReady,
   releaseCentralHc,
   reserveCentralHc,
+  resolveAuthoritativeHcForAction,
 } from "@/server/studio-account/hc-central-adapter";
 import {
   isStudioCentralHcSpendEnabled,
@@ -46,6 +48,25 @@ async function buildPolicyEvaluation(input: {
   const account = await ensureStudioAccount(input.user.id, input.user.email);
   const wallet = await ensureStudioWallet(input.user.id);
 
+  let balance = wallet.balance;
+  let reservedBalance = wallet.reservedBalance;
+  if (isStudioCentralHcSpendEnabled() && isHcCentralAdapterReady()) {
+    const userRow = await prisma.user.findUnique({
+      where: { id: input.user.id },
+      select: { centralUserId: true },
+    });
+    const centralUserId = userRow?.centralUserId?.trim() || null;
+    if (centralUserId) {
+      try {
+        const central = await getCentralHcWallet(centralUserId);
+        balance = Number(central.availableHc ?? 0);
+        reservedBalance = Number(central.reservedHc ?? 0);
+      } catch {
+        // Fail closed to local wallet if central read fails (auth will still require central reserve).
+      }
+    }
+  }
+
   const dbRule = await prisma.studioPricingRule.findUnique({
     where: { actionType: input.actionType },
   });
@@ -65,8 +86,8 @@ async function buildPolicyEvaluation(input: {
       resolvedReservedCostUsd: registry?.reservedCostUsd,
       resolvedService: registry?.service,
       resolvedProvider: registry?.provider,
-      balance: wallet.balance,
-      reservedBalance: wallet.reservedBalance,
+      balance,
+      reservedBalance,
       autoChargeSmallActions: account.autoChargeSmallActions,
       confirmAboveCredits: account.confirmAboveCredits,
     });
@@ -88,6 +109,14 @@ async function buildPolicyEvaluation(input: {
   });
   const registry = getActionCost(input.actionType);
 
+  // When central spend is on, authoritative HC cost comes from Growth catalog (80 video / 8 vision).
+  const hcAction = studioActionToCentralHcAction(String(input.actionType));
+  let resolvedCreditCost = resolved?.creditCost;
+  if (isStudioCentralHcSpendEnabled() && isHcCentralAdapterReady() && hcAction) {
+    const catalogHc = resolveAuthoritativeHcForAction(hcAction);
+    if (catalogHc != null) resolvedCreditCost = catalogHc;
+  }
+
   const policy = evaluateCreditPolicy({
     userId: input.user.id,
     role: input.user.role,
@@ -98,12 +127,12 @@ async function buildPolicyEvaluation(input: {
     billingStatus: account.billingStatus,
     actionType: input.actionType,
     overrideCredits: input.overrideCredits,
-    resolvedCreditCost: resolved?.creditCost,
+    resolvedCreditCost,
     resolvedReservedCostUsd: resolved?.reservedCostUsd,
     resolvedService: registry?.service,
     resolvedProvider: registry?.provider,
-    balance: wallet.balance,
-    reservedBalance: wallet.reservedBalance,
+    balance,
+    reservedBalance,
     autoChargeSmallActions: account.autoChargeSmallActions,
     confirmAboveCredits: account.confirmAboveCredits,
   });

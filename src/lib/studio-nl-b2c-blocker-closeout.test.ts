@@ -20,7 +20,7 @@ describe("Studio NL B2C technical blocker closeout (motion)", () => {
     assert.equal(STUDIO_NL_TARGET_CATALOG.creator.grossConsumerPriceEur, 15);
     assert.equal(STUDIO_NL_TARGET_CATALOG.pro.grossConsumerPriceEur, 29);
     assert.equal(STUDIO_NL_TARGET_CATALOG.studio.grossConsumerPriceEur, 79);
-    assert.equal(STUDIO_NL_TARGET_CATALOG.creator.monthlyHcGrant, 750);
+    assert.equal(STUDIO_NL_TARGET_CATALOG.creator.monthlyHcGrant, 900);
     assert.equal(STUDIO_NL_HC_ACTION_TARGETS.motion_render_5s_720p_turbo, 80);
     assert.equal(PREMIUM_VISION_ANALYSIS_HC_TARGET, 8);
   });

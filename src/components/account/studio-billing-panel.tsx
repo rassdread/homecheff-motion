@@ -119,10 +119,10 @@ export function StudioBillingPanel() {
       ? packs
       : STUDIO_CREDIT_PACK_DISPLAY.map((pack) => ({
           id: pack.id,
-          name: String(pack.credits),
-          credits: pack.credits,
+          name: String(pack.hcGrant),
+          credits: pack.hcGrant,
           bonusCredits: 0,
-          totalCredits: pack.credits,
+          totalCredits: pack.hcGrant,
           priceEur: pack.priceEur,
         }));
 
@@ -186,7 +186,7 @@ export function StudioBillingPanel() {
           {displayPacks.map((pack) => (
             <div key={pack.id} className={`${studioVisual.cardOnDark} flex flex-col p-5`}>
               <p className="font-semibold text-white">
-                {(pack.totalCredits ?? pack.credits).toLocaleString()} {t("account.credits.unit")}
+                {(pack.totalCredits ?? pack.credits).toLocaleString()} HC
               </p>
               {pack.bonusCredits > 0 ? (
                 <p className="text-xs text-emerald-300">

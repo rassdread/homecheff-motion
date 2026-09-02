@@ -122,14 +122,14 @@ export const STUDIO_PUBLIC_FAQ: StudioFaqItem[] = [
     id: "plans",
     question: "What are Creator / Pro / Studio plans?",
     answer:
-      "Paid subscriptions: Creator €15/mo (750 HC), Pro €29/mo (1,500 HC), Studio €79/mo (4,000 HC). See Pricing for VAT-inclusive NL B2C presentation.",
+      "Paid subscriptions: Creator €15/mo (900 HC), Pro €29/mo (1,800 HC), Studio €79/mo (5,000 HC). See Pricing for VAT-inclusive NL B2C presentation.",
     legalSource: "studio-nl-b2c-catalog",
   },
   {
     id: "plan-hc",
     question: "How much HC does each plan provide each month?",
     answer:
-      "Creator includes 750 HC/month, Pro 1,500 HC/month, and Studio 4,000 HC/month under the certified NL B2C catalog. HC is granted via central billing on each paid invoice.",
+      "Creator includes 900 HC/month, Pro 1,800 HC/month, and Studio 5,000 HC/month under the certified NL B2C catalog. HC is granted via central billing on each paid invoice.",
   },
   {
     id: "hc-accumulate",

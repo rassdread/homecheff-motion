@@ -5,6 +5,7 @@ import {
   customerFacingMonthlyHcGrant,
   customerFacingMonthlyPriceEur,
 } from "@/lib/studio-customer-facing-pricing";
+import { STUDIO_HC_PACK_CATALOG } from "@/lib/studio-hc-pack-catalog";
 import { PAID_STUDIO_PLAN_IDS, type PaidStudioPlanId } from "@/lib/studio-subscription-prices";
 import { OFFICIAL_PLAN_STORAGE_GB } from "@/lib/studio-subscription-storage";
 
@@ -19,7 +20,7 @@ export type StudioPlanDisplay = {
 
 export type StudioCreditPackDisplay = {
   id: string;
-  credits: number;
+  hcGrant: number;
   priceEur: number;
 };
 
@@ -46,9 +47,10 @@ export const STUDIO_PLAN_DISPLAY: StudioPlanDisplay[] = PAID_PLAN_IDS.map((id) =
   creditDiscountPercent: PLAN_DISCOUNTS[id],
 }));
 
-export const STUDIO_CREDIT_PACK_DISPLAY: StudioCreditPackDisplay[] = [
-  { id: "pack_500", credits: 500, priceEur: 4.99 },
-  { id: "pack_1250", credits: 1250, priceEur: 9.99 },
-  { id: "pack_3000", credits: 3000, priceEur: 19.99 },
-  { id: "pack_8000", credits: 8000, priceEur: 49.99 },
-];
+export const STUDIO_CREDIT_PACK_DISPLAY: StudioCreditPackDisplay[] = STUDIO_HC_PACK_CATALOG.map(
+  (pack) => ({
+    id: pack.slug,
+    hcGrant: pack.hcGrant,
+    priceEur: pack.priceEur,
+  }),
+);

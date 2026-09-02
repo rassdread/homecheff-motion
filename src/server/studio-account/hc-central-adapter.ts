@@ -6,6 +6,7 @@ import {
   captureHcOnGrowth,
   fetchHcQuoteFromGrowth,
   fetchHcWalletFromGrowth,
+  grantPackHcOnGrowth,
   releaseHcOnGrowth,
   reserveHcOnGrowth,
 } from "@/lib/studio-homecheff-hc-fetch";
@@ -84,6 +85,29 @@ export async function releaseCentralHc(input: {
   if (!isHcCentralAdapterReady()) throw new HcCentralAdapterNotReadyError();
   const res = await releaseHcOnGrowth(input);
   if (!res.ok) throw new Error("RELEASE_FAILED");
+  return res.json;
+}
+
+export async function grantCentralPackHc(input: {
+  centralUserId: string;
+  studioUserId: string;
+  packId: string;
+  stripeCheckoutSessionId: string;
+  stripePaymentIntentId?: string | null;
+  stripePriceId?: string | null;
+  grossPriceCents: number;
+  currency?: string;
+  purchasePaidAtIso?: string;
+}) {
+  if (!isHcCentralAdapterReady()) throw new HcCentralAdapterNotReadyError();
+  const res = await grantPackHcOnGrowth(input);
+  if (!res.ok) {
+    const code =
+      res.json && typeof res.json === "object" && "code" in res.json
+        ? String((res.json as { code: string }).code)
+        : "PACK_GRANT_FAILED";
+    throw new Error(code);
+  }
   return res.json;
 }
 

@@ -63,7 +63,7 @@ export default function StudioTermsPage() {
         <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed">
           <li>
             Certified NL B2C subscription prices: Creator €15 / Pro €29 / Studio €79 per month
-            (VAT-inclusive presentation on Pricing), with monthly HC grants of 750 / 1,500 / 4,000
+            (VAT-inclusive presentation on Pricing), with monthly HC grants of 900 / 1,800 / 5,000
             respectively. Prepaid credit packs remain available separately.
           </li>
           <li>
