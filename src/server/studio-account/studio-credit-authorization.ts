@@ -17,6 +17,16 @@ import {
 } from "@/server/studio-account/studio-wallet-service";
 import type { StudioActionType } from "@/server/studio-account/studio-action-cost-registry";
 import type { SessionUser } from "@/server/auth/session";
+import {
+  captureCentralHc,
+  isHcCentralAdapterReady,
+  releaseCentralHc,
+  reserveCentralHc,
+} from "@/server/studio-account/hc-central-adapter";
+import {
+  isStudioCentralHcSpendEnabled,
+  studioActionToCentralHcAction,
+} from "@/server/studio-account/studio-central-hc-spend-policy";
 
 export type CreditAuthorizationPreview = {
   allowed: boolean;
@@ -186,6 +196,63 @@ export async function authorizeStudioAction(input: {
   }
 
   try {
+    const hcAction = studioActionToCentralHcAction(String(policy.actionType));
+    const useCentralHc =
+      isStudioCentralHcSpendEnabled() &&
+      isHcCentralAdapterReady() &&
+      hcAction != null;
+
+    if (useCentralHc) {
+      const userRow = await prisma.user.findUnique({
+        where: { id: input.user.id },
+        select: { centralUserId: true },
+      });
+      const centralUserId = userRow?.centralUserId?.trim() || null;
+      if (!centralUserId) {
+        return {
+          ok: false,
+          code: "central_identity_required",
+          message: "Central identity required for Studio HC spend.",
+          preview,
+        };
+      }
+
+      const idempotencyKey = `studio-hc-reserve:${input.user.id}:${hcAction}:${input.projectId ?? "none"}:${Date.now()}`;
+      const reserved = await reserveCentralHc({
+        centralUserId,
+        action: hcAction,
+        operation: "STUDIO_ACTION",
+        provider: policy.provider,
+        jobId: input.projectId,
+        idempotencyKey,
+        legacyStudioCredits: policy.requiredCredits,
+      });
+      const reservationId =
+        reserved && typeof reserved === "object" && "reservationId" in reserved
+          ? String((reserved as { reservationId: string }).reservationId)
+          : null;
+      if (!reservationId) {
+        return {
+          ok: false,
+          code: "reservation_failed",
+          message: "Central HC reservation missing id",
+          preview,
+        };
+      }
+
+      return {
+        ok: true,
+        reservation: {
+          reservationId: `central-hc:${centralUserId}:${reservationId}`,
+          requiredCredits: policy.requiredCredits,
+          service: policy.service,
+          provider: policy.provider,
+          reservedCostUsd: policy.reservedCostUsd,
+          marginEstimate: policy.marginEstimateUsd,
+        },
+      };
+    }
+
     const { reservationId } = await reserveStudioCredits({
       userId: input.user.id,
       credits: policy.requiredCredits,
@@ -215,11 +282,24 @@ export async function authorizeStudioAction(input: {
     const message = error instanceof Error ? error.message : "Reservation failed";
     return {
       ok: false,
-      code: message === "INSUFFICIENT_CREDITS" ? "insufficient_credits" : "reservation_failed",
+      code:
+        message === "INSUFFICIENT_CREDITS" || message.includes("INSUFFICIENT")
+          ? "insufficient_credits"
+          : "reservation_failed",
       message,
       preview,
     };
   }
+}
+
+function parseCentralHcReservation(reservationId: string): {
+  centralUserId: string;
+  reservationId: string;
+} | null {
+  if (!reservationId.startsWith("central-hc:")) return null;
+  const parts = reservationId.split(":");
+  if (parts.length < 3) return null;
+  return { centralUserId: parts[1]!, reservationId: parts.slice(2).join(":") };
 }
 
 export async function captureStudioActionReservation(input: {
@@ -234,6 +314,16 @@ export async function captureStudioActionReservation(input: {
     return;
   }
   if (input.reservation.requiredCredits <= 0) {
+    return;
+  }
+
+  const central = parseCentralHcReservation(input.reservation.reservationId);
+  if (central) {
+    await captureCentralHc({
+      centralUserId: central.centralUserId,
+      reservationId: central.reservationId,
+      idempotencyKey: `studio-hc-capture:${central.reservationId}`,
+    });
     return;
   }
 
@@ -265,6 +355,16 @@ export async function refundStudioActionReservation(input: {
     return;
   }
   if (input.reservation.requiredCredits <= 0) {
+    return;
+  }
+
+  const central = parseCentralHcReservation(input.reservation.reservationId);
+  if (central) {
+    await releaseCentralHc({
+      centralUserId: central.centralUserId,
+      reservationId: central.reservationId,
+      idempotencyKey: `studio-hc-release:${central.reservationId}`,
+    });
     return;
   }
 
