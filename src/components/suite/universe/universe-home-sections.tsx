@@ -50,53 +50,90 @@ export function UniverseHomeSections() {
 
   return (
     <div className="universe-home-sections space-y-10">
-      <section className="home-row" data-testid="universe-home-recent-projects">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/70">
-          {t("universe.home.recentProjects.title" as never)}
-        </h2>
-        {recentProjects.length === 0 ? (
-          <p className="mt-3 text-sm text-white/55">{t("universe.home.recentProjects.empty" as never)}</p>
-        ) : (
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-            {recentProjects.map((project) => (
-              <li key={project.id}>
-                <Link
-                  href={`/projects?hcProject=${project.id}`}
-                  className="block rounded-xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white/85 hover:bg-white/10"
-                >
-                  <span className="font-medium">{project.title}</span>
-                  <span className="mt-1 block text-xs text-white/50">
-                    {readHcProjectWorkflowStatus(project)}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {isAuthenticated ? (
+        <>
+          <section className="home-row" data-testid="universe-home-recent-projects">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-white/70">
+              {t("universe.home.recentProjects.title" as never)}
+            </h2>
+            {recentProjects.length === 0 ? (
+              <p className="mt-3 text-sm text-white/55">
+                {t("universe.home.recentProjects.empty" as never)}
+              </p>
+            ) : (
+              <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                {recentProjects.map((project) => (
+                  <li key={project.id}>
+                    <Link
+                      href={`/projects?hcProject=${project.id}`}
+                      className="block rounded-xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white/85 hover:bg-white/10"
+                    >
+                      <span className="font-medium">{project.title}</span>
+                      <span className="mt-1 block text-xs text-white/50">
+                        {readHcProjectWorkflowStatus(project)}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
-      <section className="home-row" data-testid="universe-home-recent-assets">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/70">
-          {t("universe.home.recentAssets.title" as never)}
-        </h2>
-        {recentAssets.length === 0 ? (
-          <p className="mt-3 text-sm text-white/55">{t("universe.home.recentAssets.empty" as never)}</p>
-        ) : (
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-            {recentAssets.map((asset) => (
-              <li key={asset.id}>
-                <Link
-                  href="/library"
-                  className="block rounded-xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white/85 hover:bg-white/10"
-                >
-                  <span className="font-medium">{asset.assetName}</span>
-                  <span className="mt-1 block text-xs text-white/50">{asset.category}</span>
-                </Link>
-              </li>
-            ))}
+          <section className="home-row" data-testid="universe-home-recent-assets">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-white/70">
+              {t("universe.home.recentAssets.title" as never)}
+            </h2>
+            {recentAssets.length === 0 ? (
+              <p className="mt-3 text-sm text-white/55">
+                {t("universe.home.recentAssets.empty" as never)}
+              </p>
+            ) : (
+              <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                {recentAssets.map((asset) => (
+                  <li key={asset.id}>
+                    <Link
+                      href="/library"
+                      className="block rounded-xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white/85 hover:bg-white/10"
+                    >
+                      <span className="font-medium">{asset.assetName}</span>
+                      <span className="mt-1 block text-xs text-white/50">
+                        {asset.category}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </>
+      ) : (
+        <section className="home-row" data-testid="universe-home-guest-outcomes">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-white/70">
+            {t("landing.showcase.title" as never)}
+          </h2>
+          <p className="mt-3 text-sm text-white/65">
+            {t("landing.showcase.subtext" as never)}
+          </p>
+          <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+            <li className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/78">
+              <span className="font-medium text-white/90">
+                {t("landing.showcase.motion.title" as never)}
+              </span>
+              <span className="mt-1 block text-xs text-white/55">
+                {t("landing.showcase.motion.body" as never)}
+              </span>
+            </li>
+            <li className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/78">
+              <span className="font-medium text-white/90">
+                {t("landing.showcase.studio.title" as never)}
+              </span>
+              <span className="mt-1 block text-xs text-white/55">
+                {t("landing.showcase.studio.body" as never)}
+              </span>
+            </li>
           </ul>
-        )}
-      </section>
+        </section>
+      )}
 
       <section className="home-row" data-testid="universe-home-capabilities">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/70">
