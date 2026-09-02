@@ -11633,7 +11633,7 @@ export const nl = {
   "pricing.yearlySeo": "Betaal jaarlijks en bespaar ongeveer {percent}%.",
   "pricing.plans.sectionTitle": "Abonnementen",
   "pricing.plans.sectionIntro":
-    "Kies maandelijks of jaarlijks. Abonnementen geven opslag en korting op credit packs — geen gratis maandelijkse credits. Jaarlijks betaal je voor 10 maanden en krijg je 2 maanden gratis (≈17% korting).",
+    "Kies maandelijks of jaarlijks. Elk abonnement bevat maandelijkse HC voor Studio-acties (beelden, voice, motion), opslag en korting op HC-pakketten. Jaarlijks betaal je voor 10 maanden en krijg je 2 maanden gratis (≈17% korting).",
   "pricing.inclusiveVat": "Inclusief btw",
   "pricing.monthlyHcGrant": "{hc} HC / maand",
   "billing.acquisition.notAvailable": "Binnenkort beschikbaar",
@@ -11685,7 +11685,7 @@ export const nl = {
   "help.articles.whatAreStudioCredits.body1": "Je besteedt credits bij provider-acties zoals Motion-renders, stemgeneratie, beeldgeneratie of exports.",
   "help.articles.whatAreStudioCredits.body2": "Koop credit packs wanneer je wilt of upgrade je plan voor korting. Je saldo staat in de header en op het billing-dashboard.",
   "help.articles.howSubscriptionsWork.title": "Hoe werken abonnementen?",
-  "help.articles.howSubscriptionsWork.description": "Plannen geven kortingen en voordelen — niet op elk niveau automatisch maandelijkse credits.",
+  "help.articles.howSubscriptionsWork.description": "Abonnementen bevatten maandelijkse HC voor Studio-acties, plus pakketkorting en opslag.",
   "help.articles.howSubscriptionsWork.body1": "Creator-, Pro- en Studio-plannen verlagen creditprijzen en ontgrendelen workflow-voordelen.",
   "help.articles.howSubscriptionsWork.body2": "Abonnementen worden via Stripe beheerd. Upgrade, downgrade of annuleer via Account → Billing.",
   "help.articles.doCreditsExpire.title": "Verlopen credits?",
@@ -11747,7 +11747,7 @@ export const nl = {
     "Gekochte credits verlopen standaard niet. Bonus credits uit campagnes kunnen eigen regels hebben — die zie je bij het toepassen van een code.",
   "pricing.faq.q2": "Wat zit er in een abonnement?",
   "pricing.faq.a2":
-    "Abonnementen geven goedkopere credit packs, meer opslag en premium functies. Er komen geen gratis maandelijkse credits bij.",
+    "Creator, Pro en Studio bevatten maandelijkse HC (900 / 1.800 / 5.000). Je kunt ook altijd HC-pakketten kopen. Abonnementen geven ook pakketkorting en meer opslag.",
   "pricing.faq.q3": "Wat gebeurt er als ik mijn abonnement opzeg?",
   "pricing.faq.a3":
     "Je houdt elk credit dat al op je account staat. Planvoordelen stoppen, maar je saldo blijft beschikbaar als prepaid tegoed.",
@@ -14626,7 +14626,7 @@ export const nl = {
   "account.billing.refresh": "Vernieuwen",
   "account.billing.manageSubscription": "Abonnement beheren",
   "account.billing.subscriptionIntro":
-    "Abonnementen geven goedkopere credit packs, meer opslag en premium functies — geen gratis maandelijkse credits.",
+    "Abonnementen bevatten maandelijkse HC plus pakketkorting en meer opslag.",
   "account.billing.statusLabel": "Abonnementsstatus",
   "account.billing.usageIntro":
     "EUR-verbruik voor legacy Motion-facturatie staat onder Verbruik. Studio Credits saldo en transactiegeschiedenis staan op deze pagina.",
@@ -14634,7 +14634,7 @@ export const nl = {
   "account.billing.checkoutSuccess": "Betaling ontvangen. Je credits of abonnement worden zo bijgewerkt.",
   "account.billing.checkoutCancel": "Checkout geannuleerd. Er is niets afgeschreven.",
   "account.billing.plansTitle": "Abonnementen",
-  "account.billing.plansIntro": "Goedkopere credits, opslag en functies — abonnementen geven geen gratis maandelijkse credits.",
+  "account.billing.plansIntro": "Maandelijkse HC, opslag en pakketkorting — kies Creator, Pro of Studio.",
   "account.billing.creditDiscount": "korting op credit packs",
   "account.billing.storageLimit": "{gb} GB opslag",
   "account.billing.promoTitle": "Campagnecode",

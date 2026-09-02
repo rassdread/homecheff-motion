@@ -11633,7 +11633,7 @@ export const en: LocaleSchema = {
   "pricing.yearlySeo": "Pay yearly and save about {percent}%.",
   "pricing.plans.sectionTitle": "Subscriptions",
   "pricing.plans.sectionIntro":
-    "Choose monthly or yearly billing. Subscriptions include storage and credit-pack discounts — not free monthly credits. Yearly is priced at 10 months — 2 months free (≈17% savings).",
+    "Choose monthly or yearly billing. Each plan includes monthly HC for Studio actions (images, voice, motion), storage, and credit-pack discounts. Yearly is priced at 10 months — 2 months free (≈17% savings).",
   "pricing.inclusiveVat": "Including VAT",
   "pricing.monthlyHcGrant": "{hc} HC / month",
   "billing.acquisition.notAvailable": "Coming soon",
@@ -11685,8 +11685,8 @@ export const en: LocaleSchema = {
   "help.articles.whatAreStudioCredits.body1": "You spend credits when you run provider-backed actions such as Motion renders, voice generation, image generation or exports.",
   "help.articles.whatAreStudioCredits.body2": "Buy credit packs anytime or upgrade your plan for discounts. Your balance is shown in the header and on the billing dashboard.",
   "help.articles.howSubscriptionsWork.title": "How do subscriptions work?",
-  "help.articles.howSubscriptionsWork.description": "Plans unlock discounts and benefits — not automatic monthly credit grants on every tier.",
-  "help.articles.howSubscriptionsWork.body1": "Creator, Pro and Studio plans reduce credit prices on paid actions and unlock workflow benefits.",
+  "help.articles.howSubscriptionsWork.description": "Plans include monthly HC for Studio actions, plus pack discounts and storage.",
+  "help.articles.howSubscriptionsWork.body1": "Creator, Pro and Studio plans grant monthly HC (900 / 1,800 / 5,000), reduce pack prices, and unlock workflow benefits.",
   "help.articles.howSubscriptionsWork.body2": "Subscriptions are managed through Stripe. You can upgrade, downgrade or cancel from Account → Billing.",
   "help.articles.doCreditsExpire.title": "Do credits expire?",
   "help.articles.doCreditsExpire.description": "Purchased credits follow your account billing policy.",
@@ -11747,7 +11747,7 @@ export const en: LocaleSchema = {
     "Purchased credits do not expire by default. Bonus credits from campaigns may have their own rules, shown when you apply a code.",
   "pricing.faq.q2": "What does a subscription include?",
   "pricing.faq.a2":
-    "Subscriptions unlock cheaper credit packs, more storage, and premium features. They do not add free monthly credit drops.",
+    "Creator, Pro and Studio include monthly HC (900 / 1,800 / 5,000). You can also buy HC packs anytime. Subscriptions also unlock pack discounts and more storage.",
   "pricing.faq.q3": "What happens if I cancel my subscription?",
   "pricing.faq.a3":
     "You keep every credit already in your account. Your plan benefits end, but your balance stays available as prepaid credits.",
@@ -14609,7 +14609,7 @@ export const en: LocaleSchema = {
   "account.billing.refresh": "Refresh",
   "account.billing.manageSubscription": "Manage subscription",
   "account.billing.subscriptionIntro":
-    "Subscriptions unlock cheaper credit packs, more storage, and premium features — not free monthly credit drops.",
+    "Subscriptions include monthly HC plus pack discounts and more storage.",
   "account.billing.statusLabel": "Subscription status",
   "account.billing.usageIntro":
     "EUR usage history for legacy Motion billing lives in Usage. Studio Credits balance and transaction history are on this page.",

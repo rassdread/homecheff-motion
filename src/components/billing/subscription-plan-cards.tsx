@@ -13,7 +13,7 @@ import {
   type SubscriptionBillingInterval,
 } from "@/lib/studio-subscription-billing";
 import { STUDIO_PLAN_DISPLAY } from "@/lib/studio-account-display-config";
-import { OFFICIAL_SUBSCRIPTION_YEARLY_EUR, subscriptionYearlyPriceEur } from "@/lib/studio-subscription-prices";
+import { subscriptionYearlyPriceEur } from "@/lib/studio-subscription-prices";
 import { trackBillingConversionEvent } from "@/lib/billing-conversion-analytics";
 
 export type SubscriptionPlanCardData = {
@@ -51,11 +51,10 @@ type Props = {
   loadingLabelKey?: TranslationKey;
 };
 
+/** Always derive yearly from the customer-facing monthly (NL B2C), never legacy €7.99 list. */
 function resolveFallbackYearlyPrice(plan: (typeof STUDIO_PLAN_DISPLAY)[number]): number | null {
-  if (plan.id in OFFICIAL_SUBSCRIPTION_YEARLY_EUR) {
-    return OFFICIAL_SUBSCRIPTION_YEARLY_EUR[plan.id as keyof typeof OFFICIAL_SUBSCRIPTION_YEARLY_EUR];
-  }
-  return plan.monthlyPriceEur != null ? subscriptionYearlyPriceEur(plan.monthlyPriceEur) : null;
+  if (plan.monthlyPriceEur == null) return null;
+  return subscriptionYearlyPriceEur(plan.monthlyPriceEur);
 }
 
 function buildFallbackPlans(t: (key: TranslationKey) => string): SubscriptionPlanCardData[] {
@@ -226,9 +225,24 @@ export function SubscriptionPlanCards({
                 </p>
               ) : null}
               {plan.monthlyHcGrant != null ? (
-                <p className={`mt-1 text-sm ${theme === "dark" ? "text-white/70" : "text-zinc-600"}`}>
-                  {t("pricing.monthlyHcGrant" as never, { hc: plan.monthlyHcGrant.toLocaleString(locale) })}
-                </p>
+                <div className="mt-1 space-y-0.5">
+                  <p className={`text-sm ${theme === "dark" ? "text-white/70" : "text-zinc-600"}`}>
+                    {t("pricing.monthlyHcGrant" as never, { hc: plan.monthlyHcGrant.toLocaleString(locale) })}
+                  </p>
+                  <p className={`text-xs ${theme === "dark" ? "text-white/50" : "text-zinc-500"}`}>
+                    {plan.monthlyHcGrant >= 5000
+                      ? locale.startsWith("nl")
+                        ? "Richtlijn: ≈11 Motion-renders of ≈160 scènebeelden / maand"
+                        : "Approx. ≈11 Motion renders or ≈160 scene images / month"
+                      : plan.monthlyHcGrant >= 1800
+                        ? locale.startsWith("nl")
+                          ? "Richtlijn: ≈4 Motion-renders of ≈60 scènebeelden / maand"
+                          : "Approx. ≈4 Motion renders or ≈60 scene images / month"
+                        : locale.startsWith("nl")
+                          ? "Richtlijn: ≈2 Motion-renders of ≈30 scènebeelden / maand"
+                          : "Approx. ≈2 Motion renders or ≈30 scene images / month"}
+                  </p>
+                </div>
               ) : (
                 <p className={`mt-2 text-sm ${theme === "dark" ? "text-white/70" : "text-zinc-600"}`}>
                   {plan.discountPercent}% {t("account.billing.creditDiscount" as never)}

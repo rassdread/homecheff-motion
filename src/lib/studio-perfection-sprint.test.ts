@@ -59,10 +59,12 @@ describe("studio perfection sprint IA", () => {
     assert.match(picker, /<details/);
   });
 
-  it("pricing copy states subscriptions do not include monthly credits", () => {
+  it("pricing copy states subscriptions include monthly HC grants", () => {
     const nl = read("src/i18n/locales/nl.ts");
     const en = read("src/i18n/locales/en.ts");
-    assert.match(nl, /geen gratis maandelijkse credits/);
-    assert.match(en, /not free monthly credits/);
+    assert.match(nl, /maandelijkse HC voor Studio-acties/);
+    assert.match(en, /monthly HC for Studio actions/);
+    assert.doesNotMatch(nl, /geen gratis maandelijkse credits/);
+    assert.doesNotMatch(en, /not free monthly credits/);
   });
 });
