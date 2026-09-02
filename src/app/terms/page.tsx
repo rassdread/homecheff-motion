@@ -78,7 +78,12 @@ export default function StudioTermsPage() {
           </li>
           <li>
             Affiliate creatives in Studio are creative templates — Studio does not currently host a
-            separate Studio affiliate payout program. Marketplace and Growth affiliate rules are
+            Studio hosts an affiliate explanation at{" "}
+            <a href="/affiliate" className="underline">
+              /affiliate
+            </a>
+            . Live Studio commission payouts (including HC packs) stay gated until certified.
+            Marketplace and Growth affiliate rules are
             product-specific.
           </li>
         </ul>

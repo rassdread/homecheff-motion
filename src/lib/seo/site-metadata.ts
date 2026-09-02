@@ -181,6 +181,7 @@ export const SEO_SITEMAP_PATHS = [
   PUBLIC_PAGE_SEO.help.path,
   PUBLIC_PAGE_SEO.studio.path,
   PUBLIC_PAGE_SEO.motion.path,
+  "/affiliate",
   ...HELP_SITEMAP_PATHS,
   ...SEO_CONTENT_PATHS,
 ] as const;

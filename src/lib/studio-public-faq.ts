@@ -1,7 +1,7 @@
 /**
  * Canonical Studio public FAQ — Production-aligned.
  * Free Music: curated CC0 catalog (Quick Video) when feature flag enabled.
- * monthlyCredits = 0 on live plans; no Studio affiliate payouts.
+ * monthlyCredits = 0 on live plans; Studio affiliate explanation at /affiliate (pack residual payout ON).
  */
 
 export type StudioFaqItem = {
@@ -231,7 +231,7 @@ export const STUDIO_PUBLIC_FAQ: StudioFaqItem[] = [
     id: "affiliate",
     question: "Is affiliate available for Studio?",
     answer:
-      "Studio does not currently host a Studio-specific affiliate payout programme. Marketplace and Growth have their own affiliate rules. Creative templates named “affiliate” are not a commission product.",
+      "Yes — see studio.homecheff.eu/affiliate. You earn 50% of eligible Studio platform revenue for 12 months per referred user. Commission is never calculated over HC itself, VAT, or seller proceeds. Eligible platform revenue from HC-pack purchases can also generate commission; HC face value never does. Creative templates named “affiliate” are not a commission product.",
   },
   {
     id: "international",
