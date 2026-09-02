@@ -16,6 +16,9 @@ import {
   useLegacyMotionStripeCheckout,
 } from "@/lib/studio-central-billing-flags";
 import { createCentralStudioCheckout } from "@/lib/studio-homecheff-hc-fetch";
+import { readStudioUtmFromCookies } from "@/server/acquisition/read-studio-utm-cookie";
+import { upsertStudioAcquisitionFirstTouch } from "@/server/acquisition/studio-acquisition";
+import { ensureStudioAccount } from "@/server/studio-account/ensure-studio-account";
 
 export async function POST(request: Request) {
   const user = await requireActiveUser();
@@ -44,6 +47,11 @@ export async function POST(request: Request) {
   const successUrl = `${baseUrl}${returnPath}?checkout=success`;
   const cancelUrl = `${baseUrl}${returnPath}?checkout=cancel`;
   const locale = body.locale === "en" ? "en" : "nl";
+  const acquisitionUtm = await readStudioUtmFromCookies();
+  if (acquisitionUtm) {
+    await ensureStudioAccount(user.id, user.email).catch(() => undefined);
+    await upsertStudioAcquisitionFirstTouch(user.id, acquisitionUtm).catch(() => undefined);
+  }
 
   if (body.type === "subscription") {
     const planId = body.planId as StudioPlanId;
@@ -133,6 +141,7 @@ export async function POST(request: Request) {
       cancelUrl,
       promoCode: body.promoCode,
       locale,
+      acquisitionUtm,
     });
     if ("error" in result) {
       return NextResponse.json({ error: result.error, code: "CHECKOUT_FAILED" }, { status: 503 });
@@ -159,6 +168,7 @@ export async function POST(request: Request) {
       cancelUrl,
       promoCode: body.promoCode,
       locale,
+      acquisitionUtm,
     });
     if ("error" in result) {
       return NextResponse.json({ error: result.error, code: "CHECKOUT_FAILED" }, { status: 503 });

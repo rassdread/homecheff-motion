@@ -34,6 +34,10 @@ import { studioPackHcGrant } from "@/lib/studio-hc-pack-catalog";
 import { updateStudioAccountPlan } from "@/server/studio-account/ensure-studio-account";
 import { applySubscriptionCancellationPolicy } from "@/server/studio-account/studio-credit-policy";
 import type Stripe from "stripe";
+import {
+  studioUtmToStripeMetadata,
+  type StudioUtmCapture,
+} from "@/lib/acquisition/utm-persistence";
 
 export function isStripeConfigured(): boolean {
   return Boolean(process.env.STRIPE_SECRET_KEY?.trim());
@@ -80,6 +84,8 @@ export async function createSubscriptionCheckout(input: {
   cancelUrl: string;
   promoCode?: string;
   locale?: "nl" | "en";
+  /** First-touch marketing UTMs (separate from affiliate). */
+  acquisitionUtm?: StudioUtmCapture | null;
 }): Promise<{ sessionId: string; url: string; promoPreview?: unknown } | { error: string }> {
   if (!isStripeConfigured()) {
     return { error: "Stripe is not configured." };
@@ -171,6 +177,7 @@ export async function createSubscriptionCheckout(input: {
       type: "subscription",
       ...(input.promoCode ? { promoCode: input.promoCode.trim().toUpperCase() } : {}),
       ...(stripePromotionCodeId ? { stripePromotionCodeId } : {}),
+      ...studioUtmToStripeMetadata(input.acquisitionUtm),
     },
   });
 
@@ -189,6 +196,8 @@ export async function createCreditPackCheckout(input: {
   cancelUrl: string;
   promoCode?: string;
   locale?: "nl" | "en";
+  /** First-touch marketing UTMs (separate from affiliate). */
+  acquisitionUtm?: StudioUtmCapture | null;
 }): Promise<{ sessionId: string; url: string; promoPreview?: unknown } | { error: string }> {
   if (!isStripeConfigured()) {
     return { error: "Stripe is not configured." };
@@ -287,6 +296,7 @@ export async function createCreditPackCheckout(input: {
       type: "credit_pack",
       ...(input.promoCode ? { promoCode: input.promoCode.trim().toUpperCase() } : {}),
       ...(stripePromotionCodeId ? { stripePromotionCodeId } : {}),
+      ...studioUtmToStripeMetadata(input.acquisitionUtm),
     },
   });
 

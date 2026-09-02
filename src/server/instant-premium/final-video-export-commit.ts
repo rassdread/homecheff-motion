@@ -36,6 +36,10 @@ import {
   resolveLatestExportPlaybackUrl,
 } from "@/lib/playback-url-resolution";
 import { recordTextRerenderCostEvent } from "@/server/provider-cost/provider-cost-event";
+import {
+  recordStudioAcquisitionActivationForProject,
+  STUDIO_ACTIVATION_KIND_EXPORT,
+} from "@/server/acquisition/studio-acquisition";
 
 export function logFinalVideoRebuildAudit(event: FinalVideoRebuildAuditEvent): void {
   console.info("[final-video-rebuild-audit]", event);
@@ -94,6 +98,11 @@ export async function commitInstantPremiumFinalVideoExport(params: {
         lockedLayers.length > 0 ? (textValidation.records as object) : undefined,
     },
   });
+
+  await recordStudioAcquisitionActivationForProject(
+    projectId,
+    STUDIO_ACTIVATION_KIND_EXPORT,
+  ).catch(() => undefined);
 
   await prisma.animationProject.update({
     where: { id: projectId },

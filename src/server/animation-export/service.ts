@@ -68,6 +68,14 @@ async function registerMotionExportInLibrarySafe(input: {
   outputVideoUrl: string;
 }): Promise<void> {
   try {
+    const { recordStudioAcquisitionActivation, STUDIO_ACTIVATION_KIND_EXPORT } = await import(
+      "@/server/acquisition/studio-acquisition"
+    );
+    await recordStudioAcquisitionActivation(input.project.ownerId, STUDIO_ACTIVATION_KIND_EXPORT);
+  } catch {
+    /* non-blocking */
+  }
+  try {
     await syncCompletedMotionExportToLibrary({
       project: input.project,
       exportId: input.exportId,

@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { createSession, hashPassword } from "@/server/auth/session";
 import { hashInviteToken } from "@/server/auth/invite-token";
 import { normalizeInviteRole } from "@/server/auth/permissions";
+import { readStudioUtmFromCookies } from "@/server/acquisition/read-studio-utm-cookie";
+import { upsertStudioAcquisitionFirstTouch } from "@/server/acquisition/studio-acquisition";
+import { ensureStudioAccount } from "@/server/studio-account/ensure-studio-account";
 
 type SignupPayload = {
   email?: string;
@@ -66,6 +69,7 @@ export async function POST(request: Request) {
       select: { id: true, email: true, role: true },
     });
     await createSession(user.id);
+    await persistSignupAcquisition(user.id, user.email);
     return NextResponse.json({ user, bootstrapAdmin: true }, { status: 201 });
   }
 
@@ -121,6 +125,7 @@ export async function POST(request: Request) {
     });
 
     await createSession(user.id);
+    await persistSignupAcquisition(user.id, user.email);
     return NextResponse.json({ user }, { status: 201 });
   }
 
@@ -134,5 +139,16 @@ export async function POST(request: Request) {
     select: { id: true, email: true, role: true },
   });
   await createSession(user.id);
+  await persistSignupAcquisition(user.id, user.email);
   return NextResponse.json({ user }, { status: 201 });
+}
+
+async function persistSignupAcquisition(userId: string, email: string): Promise<void> {
+  try {
+    await ensureStudioAccount(userId, email);
+    const utm = await readStudioUtmFromCookies();
+    await upsertStudioAcquisitionFirstTouch(userId, utm);
+  } catch {
+    /* non-blocking — signup must succeed even if attribution fails */
+  }
 }

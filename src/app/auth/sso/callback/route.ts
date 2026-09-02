@@ -32,8 +32,19 @@ import {
   clearSkipSilentSsoCookie,
 } from "@/lib/identity/sso/silent-guard";
 import { applyStudioSessionToResponse, getAuthenticatedUser } from "@/server/auth/session";
+import { readStudioUtmFromCookies } from "@/server/acquisition/read-studio-utm-cookie";
+import { upsertStudioAcquisitionFirstTouch } from "@/server/acquisition/studio-acquisition";
 
 export const dynamic = "force-dynamic";
+
+async function persistSsoAcquisition(userId: string): Promise<void> {
+  try {
+    const utm = await readStudioUtmFromCookies();
+    await upsertStudioAcquisitionFirstTouch(userId, utm);
+  } catch {
+    /* non-blocking */
+  }
+}
 
 function appOrigin(req: Request): string {
   const env =
@@ -164,6 +175,8 @@ export async function GET(req: Request) {
       centralUserId: claims.centralUserId,
       email: claims.email,
     });
+    // ensureStudioAccount already ran in resolve; persist first-touch UTMs once when present.
+    await persistSsoAcquisition(user.id);
 
     let nextPath = pending.returnTo;
     // First-visit Studio prefs are optional product onboarding — never re-auth.

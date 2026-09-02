@@ -351,6 +351,12 @@ model StudioAccount {
   /** none | active | past_due | canceled | prepaid */
   billingStatus         String    @default("none")
   activatedAt           DateTime?
+  /** First-touch marketing UTMs (JSON StudioUtmCapture). Never overwrite once set. */
+  acquisitionFirstTouch Json?
+  /** First successful export / render version (STUDIO_ACTIVATED). */
+  acquisitionActivatedAt DateTime?
+  /** animation_export | project_render_version */
+  acquisitionActivationKind String?
   autoChargeSmallActions Boolean  @default(true)
   confirmAboveCredits   Int       @default(100)
   /** S.8B Auto Top-Up — explicit opt-in; never silent */

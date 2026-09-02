@@ -4,6 +4,7 @@ import { I18nHtmlLangSync } from "@/components/layout/i18n-html-lang-sync";
 import { I18nHydrationSync } from "@/components/layout/i18n-hydration-sync";
 import { StudioSessionIdentityGuard } from "@/components/identity/studio-session-identity-guard";
 import { StudioAffiliateReferralBinder } from "@/components/affiliate/studio-affiliate-referral-binder";
+import { StudioUtmCapture } from "@/components/acquisition/studio-utm-capture";
 
 type AppShellProps = {
   children: ReactNode;
@@ -17,6 +18,7 @@ export function AppShell({ children }: AppShellProps) {
         <I18nHtmlLangSync />
         <Suspense fallback={null}>
           <StudioAffiliateReferralBinder />
+          <StudioUtmCapture />
         </Suspense>
         <div className="flex min-w-0 w-full flex-col overflow-visible">
           <AppShellChrome>{children}</AppShellChrome>

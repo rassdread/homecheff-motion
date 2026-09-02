@@ -434,6 +434,18 @@ export async function completePendingFullRerenderVersion(params: {
         : {}),
     },
   });
+  try {
+    const {
+      recordStudioAcquisitionActivationForProject,
+      STUDIO_ACTIVATION_KIND_RENDER_VERSION,
+    } = await import("@/server/acquisition/studio-acquisition");
+    await recordStudioAcquisitionActivationForProject(
+      params.projectId,
+      STUDIO_ACTIVATION_KIND_RENDER_VERSION,
+    );
+  } catch {
+    /* non-blocking */
+  }
 }
 
 /**
