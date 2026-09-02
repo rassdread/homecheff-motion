@@ -67,6 +67,8 @@ function buildFallbackPlans(t: (key: TranslationKey) => string): SubscriptionPla
     storageLimitGb: plan.storageLimitGb,
     discountPercent: plan.creditDiscountPercent,
     yearlyCheckoutAvailable: true,
+    monthlyHcGrant: plan.monthlyCredits > 0 ? plan.monthlyCredits : null,
+    vatInclusive: plan.monthlyCredits > 0,
   }));
 }
 

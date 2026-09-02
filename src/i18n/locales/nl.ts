@@ -11712,9 +11712,9 @@ export const nl = {
   "help.articles.monthlyVsYearly.description":
     "Beide opties geven dezelfde planvoordelen — jaarlijks is goedkoper per jaar.",
   "help.articles.monthlyVsYearly.body1":
-    "Maandelijks betaal je elke maand (bijv. Creator €7,99/maand). Je kunt op elk moment opzeggen via Account → Billing.",
+    "Maandelijks betaal je elke maand (bijv. Creator €15/maand). Je kunt op elk moment opzeggen via Account → Billing.",
   "help.articles.monthlyVsYearly.body2":
-    "Jaarlijks betaal je één keer per jaar (bijv. Creator €79,90/jaar). Dat is ongeveer 17% goedkoper dan 12 maandelijkse betalingen — vergelijkbaar met 2 maanden gratis.",
+    "Jaarlijks betaal je één keer per jaar (bijv. Creator €150/jaar). Dat is ongeveer 17% goedkoper dan 12 maandelijkse betalingen — vergelijkbaar met 2 maanden gratis.",
   "help.articles.gettingStarted.title": "Aan de slag met Studio",
   "help.articles.gettingStarted.description": "Van account naar eerste render in minder dan drie minuten.",
   "help.articles.gettingStarted.body1": "Maak een storyboard of personage, open Motion, upload frames en genereer je eerste clip.",
@@ -14712,14 +14712,16 @@ export const nl = {
   "billing.conversion.upgradeBenefit.storage": "Meer opslag voor je projecten",
   "billing.conversion.upgradeBenefit.features": "Meer Studio-functies",
   "billing.conversion.guest.headline": "Begin vandaag met creëren",
-  "billing.conversion.guest.body": "Credits vanaf €{price}. Prepaid pakketten verlopen nooit.",
-  "billing.conversion.guest.createAccount": "Account aanmaken",
+  "billing.conversion.guest.body":
+    "Gratis starten in Studio. Betaalde abonnementen vanaf €{price} per maand.",
+  "billing.conversion.guest.createAccount": "Gratis starten",
   "billing.conversion.surface.creditsRemaining": "Credits over",
   "billing.conversion.surface.topUpCredits": "Credits bijvullen",
   "billing.conversion.surface.readyToCreate": "Klaar om te creëren?",
-  "billing.conversion.surface.homeEyebrow": "Prepaid credits",
-  "billing.conversion.surface.homeTitle": "Koop credits vanaf €{price}",
-  "billing.conversion.surface.homeSubtitle": "Credits verlopen nooit — gebruik ze wanneer inspiratie toeslaat.",
+  "billing.conversion.surface.homeEyebrow": "HomeCheff Studio",
+  "billing.conversion.surface.homeTitle": "Gratis starten",
+  "billing.conversion.surface.homeSubtitle":
+    "Betaalde abonnementen vanaf €{price} per maand — inclusief maandelijkse HC.",
   "billing.conversion.surface.prepaidAfterCancel": "Prepaid credits blijven beschikbaar na opzegging van je abonnement",
   "billing.conversion.surface.stickyBuyCredits": "Meer credits nodig? Vul op wanneer je wilt.",
   "billing.conversion.surface.usageRecommendationTitle": "Aanbeveling op basis van je verbruik",

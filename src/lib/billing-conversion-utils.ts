@@ -43,6 +43,9 @@ export function pricePerCredit(priceEur: number, totalCredits: number): number {
 /** Lowest prepaid pack price (EUR) — keep in sync with STUDIO_CREDIT_PACKS. */
 export const LOWEST_CREDIT_PACK_PRICE_EUR = 4.99;
 
+/** Lowest paid subscription monthly price (EUR) — STUDIO_NL_TARGET_CATALOG SSOT. */
+export { LOWEST_PAID_SUBSCRIPTION_MONTHLY_EUR } from "@/lib/studio-customer-facing-pricing";
+
 export const PACK_BADGES: Record<string, "mostPopular" | "bestValue" | null> = {
   pack_500: null,
   pack_1250: "mostPopular",

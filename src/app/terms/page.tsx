@@ -62,10 +62,9 @@ export default function StudioTermsPage() {
         <h2 className="text-xl font-semibold">Studio product notes (Production)</h2>
         <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed">
           <li>
-            Live subscription prices: Creator €7.99 / Pro €24.99 / Studio €79.99 per month (yearly
-            options on Pricing). Subscriptions currently grant <strong>0 monthly Studio Credits</strong>{" "}
-            in the Studio plan SSOT; credit packs are purchased separately. Pack discounts apply for
-            subscribers.
+            Certified NL B2C subscription prices: Creator €15 / Pro €29 / Studio €79 per month
+            (VAT-inclusive presentation on Pricing), with monthly HC grants of 750 / 1,500 / 4,000
+            respectively. Prepaid credit packs remain available separately.
           </li>
           <li>
             Failed generations are typically refunded automatically when the product marks a failed

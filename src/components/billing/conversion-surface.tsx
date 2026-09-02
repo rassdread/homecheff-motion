@@ -7,7 +7,7 @@ import { InsufficientCreditsPanel } from "@/components/billing/insufficient-cred
 import { useConversionSurface } from "@/hooks/use-conversion-surface";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
 import { trackBillingConversionEvent } from "@/lib/billing-conversion-analytics";
-import { LOWEST_CREDIT_PACK_PRICE_EUR } from "@/lib/billing-conversion-utils";
+import { LOWEST_PAID_SUBSCRIPTION_MONTHLY_EUR } from "@/lib/billing-conversion-utils";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import type { ConversionPageType, ConversionSurfaceVariant } from "@/types/conversion-surface";
 
@@ -137,9 +137,12 @@ export function ConversionSurface({
           {t("billing.conversion.surface.homeEyebrow")}
         </p>
         <h2 className="mt-2 text-xl font-bold text-white sm:text-2xl">
-          {t("billing.conversion.surface.homeTitle", { price: LOWEST_CREDIT_PACK_PRICE_EUR.toFixed(2) })}
+          {t("billing.conversion.surface.homeTitle")}
         </h2>
-        <p className="mt-2 text-sm text-white/75">{t("billing.conversion.surface.homeSubtitle")}</p>
+        <p className="mt-2 text-sm text-white/75">
+          {t("billing.conversion.surface.homeSubtitle", {
+            price: LOWEST_PAID_SUBSCRIPTION_MONTHLY_EUR.toFixed(0),
+          })}</p>
         <ul className="mt-4 space-y-1 text-sm text-white/80">
           <li>• {t("billing.conversion.upgradeBenefit.carryOver")}</li>
           <li>• {t("billing.conversion.surface.prepaidAfterCancel")}</li>
@@ -282,7 +285,9 @@ export function GuestConversionStrip({
     <>
       <p className={`text-sm font-semibold ${titleClass}`}>{t("billing.conversion.guest.headline")}</p>
       <p className={`mt-1 text-sm ${bodyClass}`}>
-        {t("billing.conversion.guest.body", { price: LOWEST_CREDIT_PACK_PRICE_EUR.toFixed(2) })}
+        {t("billing.conversion.guest.body", {
+          price: LOWEST_PAID_SUBSCRIPTION_MONTHLY_EUR.toFixed(0),
+        })}
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         <Link

@@ -2,10 +2,10 @@
 
 import type { TranslationKey } from "@/i18n";
 import {
-  OFFICIAL_SUBSCRIPTION_MONTHLY_EUR,
-  PAID_STUDIO_PLAN_IDS,
-  type PaidStudioPlanId,
-} from "@/lib/studio-subscription-prices";
+  customerFacingMonthlyHcGrant,
+  customerFacingMonthlyPriceEur,
+} from "@/lib/studio-customer-facing-pricing";
+import { PAID_STUDIO_PLAN_IDS, type PaidStudioPlanId } from "@/lib/studio-subscription-prices";
 import { OFFICIAL_PLAN_STORAGE_GB } from "@/lib/studio-subscription-storage";
 
 export type StudioPlanDisplay = {
@@ -40,9 +40,9 @@ const PLAN_DISCOUNTS: Record<PaidStudioPlanId, number> = {
 export const STUDIO_PLAN_DISPLAY: StudioPlanDisplay[] = PAID_PLAN_IDS.map((id) => ({
   id,
   labelKey: PLAN_LABEL_KEYS[id],
-  monthlyPriceEur: OFFICIAL_SUBSCRIPTION_MONTHLY_EUR[id],
+  monthlyPriceEur: customerFacingMonthlyPriceEur(id),
   storageLimitGb: OFFICIAL_PLAN_STORAGE_GB[id],
-  monthlyCredits: 0,
+  monthlyCredits: customerFacingMonthlyHcGrant(id),
   creditDiscountPercent: PLAN_DISCOUNTS[id],
 }));
 

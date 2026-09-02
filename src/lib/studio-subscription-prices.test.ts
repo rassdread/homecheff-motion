@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { STUDIO_PLAN_DISPLAY } from "@/lib/studio-account-display-config";
+import { STUDIO_NL_TARGET_CATALOG } from "@/lib/studio-nl-b2c-catalog";
 import {
   OFFICIAL_SUBSCRIPTION_MONTHLY_EUR,
   OFFICIAL_SUBSCRIPTION_YEARLY_EUR,
@@ -33,10 +34,11 @@ describe("official subscription prices", () => {
     }
   });
 
-  it("client display config matches official prices", () => {
+  it("client display config matches customer-facing NL B2C catalog", () => {
     for (const row of STUDIO_PLAN_DISPLAY) {
-      const official = OFFICIAL_SUBSCRIPTION_MONTHLY_EUR[row.id as keyof typeof OFFICIAL_SUBSCRIPTION_MONTHLY_EUR];
-      assert.equal(row.monthlyPriceEur, official);
+      const target = STUDIO_NL_TARGET_CATALOG[row.id as keyof typeof STUDIO_NL_TARGET_CATALOG];
+      assert.equal(row.monthlyPriceEur, target.grossConsumerPriceEur);
+      assert.equal(row.monthlyCredits, target.monthlyHcGrant);
     }
   });
 

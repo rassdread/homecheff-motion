@@ -11712,9 +11712,9 @@ export const en: LocaleSchema = {
   "help.articles.monthlyVsYearly.description":
     "Both options include the same plan benefits — yearly costs less per year.",
   "help.articles.monthlyVsYearly.body1":
-    "Monthly billing charges each month (e.g. Creator €7.99/month). You can cancel anytime from Account → Billing.",
+    "Monthly billing charges each month (e.g. Creator €15/month). You can cancel anytime from Account → Billing.",
   "help.articles.monthlyVsYearly.body2":
-    "Yearly billing charges once per year (e.g. Creator €79.90/year). That is about 17% less than 12 monthly payments — roughly 2 months free.",
+    "Yearly billing charges once per year (e.g. Creator €150/year). That is about 17% less than 12 monthly payments — roughly 2 months free.",
   "help.articles.gettingStarted.title": "Getting started with Studio",
   "help.articles.gettingStarted.description": "From account to first render in under three minutes.",
   "help.articles.gettingStarted.body1": "Create a storyboard or character, open Motion, upload frames and generate your first clip.",
@@ -14695,14 +14695,16 @@ export const en: LocaleSchema = {
   "billing.conversion.upgradeBenefit.storage": "More storage for your projects",
   "billing.conversion.upgradeBenefit.features": "More Studio features unlocked",
   "billing.conversion.guest.headline": "Start creating today",
-  "billing.conversion.guest.body": "Credits from €{price}. Prepaid packs never expire.",
-  "billing.conversion.guest.createAccount": "Create account",
+  "billing.conversion.guest.body":
+    "Start free in Studio. Paid subscriptions from €{price} per month.",
+  "billing.conversion.guest.createAccount": "Start for free",
   "billing.conversion.surface.creditsRemaining": "Credits remaining",
   "billing.conversion.surface.topUpCredits": "Top up credits",
   "billing.conversion.surface.readyToCreate": "Ready to create?",
-  "billing.conversion.surface.homeEyebrow": "Prepaid credits",
-  "billing.conversion.surface.homeTitle": "Buy credits from €{price}",
-  "billing.conversion.surface.homeSubtitle": "Credits never expire — use them whenever inspiration strikes.",
+  "billing.conversion.surface.homeEyebrow": "HomeCheff Studio",
+  "billing.conversion.surface.homeTitle": "Start for free",
+  "billing.conversion.surface.homeSubtitle":
+    "Paid subscriptions from €{price} per month — including monthly HC.",
   "billing.conversion.surface.prepaidAfterCancel": "Prepaid credits stay available after subscription cancellation",
   "billing.conversion.surface.stickyBuyCredits": "Need more credits? Top up anytime.",
   "billing.conversion.surface.usageRecommendationTitle": "Recommendation based on your usage",
