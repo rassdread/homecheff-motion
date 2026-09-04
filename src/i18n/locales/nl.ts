@@ -13656,9 +13656,12 @@ export const nl = {
     "Veilige Stripe-checkout. Na betaling kom je hier terug en openen we de voortgang.",
   "instant.step7.testModeHelp":
     "Als testmodus op de server actief is, wordt betaling automatisch overgeslagen.",
+  "instant.step7.comingSoonHelp":
+    "Instant Premium-betaling wordt binnenkort geopend. Abonnementen en creditpacks werken al.",
   "instant.step7.preparing": "Voorbereiden…",
   "instant.step7.ctaPaid": "Betaal {price} → Genereer video",
   "instant.step7.ctaTest": "Genereer video (testmodus)",
+  "instant.step7.ctaComingSoon": "Binnenkort beschikbaar",
   "instant.step7.ctaAdminTest": "Genereer video (gratis · admin)",
   "instant.errors.maxImages": "Je kunt maximaal {max} afbeeldingen toevoegen.",
   "instant.errors.fileTooLarge": "Een of meer afbeeldingen zijn te groot.",

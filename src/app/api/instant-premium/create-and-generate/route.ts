@@ -21,6 +21,18 @@ export async function POST(request: Request) {
   }
 
   const mode = getInstantPremiumMode();
+  // Production hygiene: test mode is admin-only. Customers must not free-generate
+  // (or see a public "test" path) until INSTANT_PREMIUM_MODE=paid is certified safe.
+  if (mode === "test" && user.role !== "admin") {
+    return NextResponse.json(
+      {
+        ok: false as const,
+        error: "Instant Premium is not available yet.",
+        code: "FEATURE_NOT_AVAILABLE",
+      },
+      { status: 403 }
+    );
+  }
   if (mode !== "test" && user.role !== "admin") {
     return NextResponse.json(
       {

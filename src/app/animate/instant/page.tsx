@@ -701,8 +701,12 @@ export default function InstantPremiumPage() {
     [instantMode, transitionSeconds]
   );
 
-  const usesFreeGeneration = premiumMode === "test" || isAdmin;
+  // Only admins may free-generate while Instant Premium stays in test mode.
+  // Normal customers wait until paid mode is certified (VAT/webhook/refunds).
+  const usesFreeGeneration = isAdmin;
+  const instantCustomerCheckoutReady = premiumMode === "paid";
   const insufficientCreditsForRender =
+    instantCustomerCheckoutReady &&
     !usesFreeGeneration &&
     !pricingSummary.isAdminFree &&
     wallet.resolved &&
@@ -1332,6 +1336,10 @@ export default function InstantPremiumPage() {
       setError(t("instant.errors.previewExpiredReupload"));
       return;
     }
+    if (!isAdmin && !instantCustomerCheckoutReady) {
+      setError(t("instant.step7.comingSoonHelp"));
+      return;
+    }
     if (
       hcActionPresetWithEngine?.engineSnapshot?.qualityValidation.blockRender
     ) {
@@ -1776,11 +1784,13 @@ export default function InstantPremiumPage() {
     const continueLabel = t("instant.common.continue");
     const generateLabel = checkoutBusy
       ? t("instant.step7.preparing")
-      : usesFreeGeneration
-        ? isAdmin
+      : isAdmin
+        ? premiumMode === "test"
           ? t("instant.step7.ctaAdminTest")
-          : t("instant.step7.ctaTest")
-        : t("instant.step7.ctaPaid", { price: estimatedPriceLabel });
+          : t("instant.step7.ctaPaid", { price: estimatedPriceLabel })
+        : instantCustomerCheckoutReady
+          ? t("instant.step7.ctaPaid", { price: estimatedPriceLabel })
+          : t("instant.step7.ctaComingSoon");
     const clamped = clampWizardStep(wizardMode, step, wizardFlowOptions);
     const maxStep = wizardStepCount(wizardMode, wizardFlowOptions);
     const canContinueFromUpload = sceneCount >= MIN_IMAGES && imagesHaveValidSources;
@@ -1795,6 +1805,7 @@ export default function InstantPremiumPage() {
           checkoutBusy ||
           !imagesHaveValidSources ||
           insufficientCreditsForRender ||
+          (!isAdmin && !instantCustomerCheckoutReady) ||
           (Boolean(hcActionPresetWithEngine) && motionPresetEngine.canRender === false),
         stackButtons: true,
       };
@@ -1827,6 +1838,7 @@ export default function InstantPremiumPage() {
     hcActionPresetWithEngine,
     motionPresetEngine.canRender,
     isAdmin,
+    instantCustomerCheckoutReady,
     sceneCount,
     startCheckoutWithQa,
     step,
@@ -2703,11 +2715,11 @@ export default function InstantPremiumPage() {
                   </li>
                 </ul>
                 <p className="text-xs text-zinc-500">
-                  {usesFreeGeneration
-                    ? isAdmin
-                      ? t("instant.pricing.adminTestMode")
-                      : t("instant.step7.testModeHelp")
-                    : t("instant.step7.checkoutHelp")}
+                  {isAdmin
+                    ? t("instant.pricing.adminTestMode")
+                    : instantCustomerCheckoutReady
+                      ? t("instant.step7.checkoutHelp")
+                      : t("instant.step7.comingSoonHelp")}
                 </p>
                 {hasStudioImportedScenes && studioIntelligence ?
                   <MotionFirstRenderConfidencePanel

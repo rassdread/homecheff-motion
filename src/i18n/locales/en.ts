@@ -13644,9 +13644,12 @@ export const en: LocaleSchema = {
     "Secure checkout with Stripe. After payment you’ll return here, then we open the progress screen.",
   "instant.step7.testModeHelp":
     "If test mode is enabled on the server, payment is skipped automatically.",
+  "instant.step7.comingSoonHelp":
+    "Instant Premium checkout opens soon. Subscriptions and credit packs already work.",
   "instant.step7.preparing": "Preparing…",
   "instant.step7.ctaPaid": "Pay {price} → Generate video",
   "instant.step7.ctaTest": "Generate video (test mode)",
+  "instant.step7.ctaComingSoon": "Coming soon",
   "instant.step7.ctaAdminTest": "Generate video (free · admin)",
   "instant.errors.maxImages": "You can add at most {max} images.",
   "instant.errors.fileTooLarge": "One or more images are too large.",
