@@ -1727,6 +1727,7 @@ export default function InstantPremiumPage() {
       uploadToBlob,
       waitForPendingScans,
       usesFreeGeneration,
+      instantCustomerCheckoutReady,
       imagesHaveValidSources,
       hcActionPresetWithEngine,
       wallet.availableCredits,
