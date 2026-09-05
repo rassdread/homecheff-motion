@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { readStudioAffiliateRefFromSearch } from "./studio-affiliate-referral";
+import {
+  readStudioAffiliateRefFromSearch,
+  readStudioCompanyTrackFromSearch,
+} from "./studio-affiliate-referral";
 
 describe("studio affiliate referral parse", () => {
   it("parses long ref as centralUserId", () => {
@@ -16,5 +19,11 @@ describe("studio affiliate referral parse", () => {
   it("parses affslug explicitly", () => {
     const r = readStudioAffiliateRefFromSearch("?affslug=AcmeCo");
     assert.equal(r?.affiliateSlug, "acmeco");
+  });
+
+  it("parses company aff_track slug", () => {
+    assert.equal(readStudioCompanyTrackFromSearch("?aff_track=camp-abc"), "camp-abc");
+    assert.equal(readStudioCompanyTrackFromSearch("?hc_aff_track=X"), "x");
+    assert.equal(readStudioCompanyTrackFromSearch("?ref=only"), null);
   });
 });
