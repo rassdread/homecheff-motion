@@ -2,8 +2,8 @@
  * HomeCheff ecosystem IP → default language (Marketplace / Growth / Studio parity).
  *
  * Rule (when no saved preference):
- *   NL | BE | SR → nl
- *   all other / unknown → en
+ *   NL | BE → nl
+ *   all other / unknown (incl. SR / Suriname) → en
  *
  * Preference priority:
  *   1. Explicit preference (switcher / hc_locale_pref)
@@ -27,7 +27,8 @@ export const ECOSYSTEM_LOCALE_PREF_COOKIE = 'hc_locale_pref';
 /** Legacy Marketplace cookie — still read/written for compatibility. */
 export const MARKETPLACE_LEGACY_LOCALE_COOKIE = 'homecheff-language';
 
-export const DUTCH_DEFAULT_COUNTRIES = new Set(['NL', 'BE', 'SR']);
+/** Country defaults: NL/BE Dutch; everything else English (incl. SR). */
+export const DUTCH_DEFAULT_COUNTRIES = new Set(['NL', 'BE']);
 
 export function normalizeCountryCode(raw: string | null | undefined): string | null {
   if (!raw || typeof raw !== 'string') return null;
