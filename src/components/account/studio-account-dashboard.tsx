@@ -121,6 +121,45 @@ export function StudioAccountDashboard({
         </div>
       )}
 
+      <div className={`${studioVisual.cardOnDark} p-5`}>
+        <h2 className="text-lg font-semibold text-white">Deel Studio</h2>
+        <p className="mt-1 text-sm text-white/60">
+          Nodig iemand uit voor HomeCheff Studio (niet het delen van je content).
+        </p>
+        <button
+          type="button"
+          className="mt-3 rounded-lg bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20"
+          onClick={async () => {
+            const url = "https://studio.homecheff.eu/signup";
+            try {
+              if (navigator.share) {
+                await navigator.share({
+                  title: "HomeCheff Studio",
+                  text: "Bekijk HomeCheff Studio voor het maken van content.",
+                  url,
+                });
+              } else {
+                await navigator.clipboard.writeText(url);
+              }
+            } catch {
+              try {
+                await navigator.clipboard.writeText(url);
+              } catch {
+                /* ignore */
+              }
+            }
+          }}
+        >
+          Deel Studio
+        </button>
+        <a
+          href="https://homecheff.eu/werken-bij"
+          className="mt-2 inline-block text-sm text-white/70 underline hover:text-white"
+        >
+          Verdien met HomeCheff
+        </a>
+      </div>
+
       {showSettings && (
         <div className={`${studioVisual.cardOnDark} p-5`}>
           <h2 className="text-lg font-semibold text-white">{t("account.settings.chargesTitle")}</h2>
