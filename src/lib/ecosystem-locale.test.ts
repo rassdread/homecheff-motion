@@ -6,10 +6,10 @@ import {
 } from "./ecosystem-locale";
 
 describe("studio ecosystem IP default language", () => {
-  it("NL BE SR → nl; else en", () => {
+  it("NL BE → nl; SR and else → en", () => {
     assert.equal(languageFromCountryCode("NL"), "nl");
     assert.equal(languageFromCountryCode("BE"), "nl");
-    assert.equal(languageFromCountryCode("SR"), "nl");
+    assert.equal(languageFromCountryCode("SR"), "en");
     assert.equal(languageFromCountryCode("DE"), "en");
     assert.equal(languageFromCountryCode(null), "en");
   });
