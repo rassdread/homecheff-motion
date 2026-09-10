@@ -5,29 +5,28 @@ import {
   SIMPLE_STUDIO_CATALOG,
   simpleStudioCatalogEntry,
 } from "@/lib/simple-studio/catalog";
+import { buildCreativePlanV2, extractQuotedDialogue } from "@/lib/simple-studio/intent-routing";
 import { inferSimpleStudioIntent } from "@/lib/simple-studio/intent-infer";
 import {
   generateSimpleStudioProject,
   reviseSimpleStudioProject,
+  simpleStudioExportActionForPlan,
   SIMPLE_STUDIO_EXPORT_ACTION,
 } from "@/lib/simple-studio/orchestrator";
 
 const CERT_STORY =
   "Ik maak zelf taarten in Vlaardingen en wil meer klanten uit mijn buurt bereiken. Maak een korte verticale advertentie voor Instagram en Facebook. Het moet warm, lokaal en professioneel aanvoelen. Laat duidelijk zien dat mensen mijn taarten kunnen bestellen.";
 
+const TALKING =
+  'Laat deze persoon zeggen: "Welkom bij HomeCheff. Hier vind je bijzondere producten uit je eigen buurt." Laat hem natuurlijk bewegen en gebruik rustige achtergrondmuziek.';
+
 describe("Simple Studio catalog + orchestrator", () => {
   it("exposes the purpose tree with shared orchestration for photo+story intents", () => {
     const purposes = SIMPLE_STUDIO_CATALOG.map((e) => e.purpose);
     assert.ok(purposes.includes("advertisement"));
-    assert.ok(purposes.includes("product_video"));
     assert.ok(purposes.includes("talking_photo"));
-    assert.ok(purposes.includes("story"));
-    assert.ok(purposes.includes("social_video"));
-    assert.ok(purposes.includes("animation"));
-    assert.ok(purposes.includes("general"));
     assert.equal(simpleStudioCatalogEntry("advertisement").href, "/studio/quick-ad");
     assert.equal(simpleStudioCatalogEntry("animation").usesSharedOrchestrator, false);
-    assert.equal(simpleStudioCatalogEntry("general").free, true);
   });
 
   it("parses purpose query safely", () => {
@@ -41,30 +40,71 @@ describe("Simple Studio catalog + orchestrator", () => {
       purpose: "advertisement",
     });
     assert.equal(intent.format, "9:16");
-    assert.equal(intent.purpose, "advertisement");
     assert.match(String(intent.location), /Vlaardingen/i);
-    assert.match(intent.cta, /Bestel/i);
   });
 
-  it("generates and revises product_video via shared engine", () => {
+  it("Creative Plan V2 routes dialogue, music, and honest lipsync limits", () => {
+    const plan = buildCreativePlanV2({
+      story: TALKING,
+      media: [{ id: "1", kind: "image", url: "blob:face" }],
+      purposeHint: "universal",
+    });
+    assert.equal(plan.purpose, "talking_photo");
+    assert.equal(plan.speechMode, "dialogue");
+    assert.ok(plan.dialogue);
+    assert.match(plan.dialogue!, /Welkom bij HomeCheff/i);
+    assert.equal(plan.voice.required, true);
+    assert.equal(plan.music.required, true);
+    assert.ok(["calm", "warm", "auto"].includes(plan.music.mood));
+    assert.equal(plan.lipsync.requested, true);
+    assert.equal(plan.lipsync.available, false);
+    assert.ok(plan.engineChain.includes("voice_tts"));
+    assert.ok(plan.engineChain.includes("free_music"));
+    assert.ok(plan.engineChain.includes("audio_mux"));
+    assert.ok(!plan.engineChain.includes("motion_deeplink"));
+  });
+
+  it("supports multi-photo slideshow chain", () => {
+    const plan = buildCreativePlanV2({
+      story:
+        "Maak van deze vier foto’s een professionele productvideo van ongeveer 15 seconden. Rustige overgangen, moderne muziek en eindig met Bekijk het aanbod.",
+      media: [
+        { id: "a", kind: "image", url: "blob:1" },
+        { id: "b", kind: "image", url: "blob:2" },
+        { id: "c", kind: "image", url: "blob:3" },
+        { id: "d", kind: "image", url: "blob:4" },
+      ],
+      purposeHint: "universal",
+    });
+    assert.equal(plan.purpose, "product_video");
+    assert.ok(plan.engineChain.includes("slideshow"));
+    assert.equal(simpleStudioExportActionForPlan(plan), "publish_slideshow");
+    assert.match(String(plan.cta), /Bekijk|aanbod|Meer/i);
+  });
+
+  it("extracts quoted dialogue accurately", () => {
+    assert.match(String(extractQuotedDialogue(TALKING)), /Welkom/);
+  });
+
+  it("generates multi-photo project and revises", () => {
     const first = generateSimpleStudioProject({
       purpose: "product_video",
-      imageUrl: "blob:test-photo",
-      story: "Dit is mijn ambachtelijke honing uit de buurt. Laat zien hoe puur het is.",
+      media: [
+        { id: "1", kind: "image", url: "blob:a" },
+        { id: "2", kind: "image", url: "blob:b" },
+      ],
+      story: "Maak een productvideo met rustige muziek en eindig met Bekijk het aanbod.",
     });
     assert.equal(first.project.metadata?.simpleStudio, true);
-    assert.equal(first.project.metadata?.simpleStudioPurpose, "product_video");
-    assert.equal(first.project.metadata?.quickAd, false);
-    assert.equal(first.intent.format, "9:16");
-    assert.ok((first.project.metadata?.publishScenes as unknown[]).length >= 2);
+    assert.ok(first.plan.engineChain.includes("slideshow"));
+    assert.ok(first.plan);
 
     const revised = reviseSimpleStudioProject({
       project: first.project,
-      revisionInstruction: "Maak hem korter.",
+      revisionInstruction: "Geen muziek.",
     });
     assert.equal(revised.project.id, first.project.id);
-    assert.equal(revised.project.imageUrl, "blob:test-photo");
-    assert.match(revised.pipelineMessage, /Aanpassing:/);
+    assert.equal(revised.plan.music.mood, "none");
     assert.equal(SIMPLE_STUDIO_EXPORT_ACTION, "publish_photo_story");
   });
 

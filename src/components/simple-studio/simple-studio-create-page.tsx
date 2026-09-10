@@ -5,17 +5,18 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createTrackedObjectUrl } from "@/lib/blob-object-url-lifecycle";
 import { exportPublishProject } from "@/lib/publish-export-client";
 import {
-  parseSimpleStudioPurpose,
   SIMPLE_STUDIO_CATALOG,
   simpleStudioCatalogEntry,
-  type SimpleStudioIntent,
-  type SimpleStudioPlatform,
   type SimpleStudioPurpose,
 } from "@/lib/simple-studio/catalog";
+import type {
+  SimpleStudioCreativePlan,
+  SimpleStudioMediaItem,
+  SimpleStudioPlanSummaryNl,
+} from "@/lib/simple-studio/creative-plan";
 import {
   generateSimpleStudioProject,
   reviseSimpleStudioProject,
-  SIMPLE_STUDIO_EXPORT_ACTION,
   simpleStudioAdvancedEditorPath,
 } from "@/lib/simple-studio/orchestrator";
 import { studioVisual } from "@/lib/studio-visual-tokens";
@@ -23,69 +24,6 @@ import type { PublishProject } from "@/types/publish-overlay";
 import type { PublishStorySceneBlock } from "@/lib/publish-story-proposal";
 
 type Phase = "compose" | "confirm" | "generating" | "result" | "revising" | "exporting";
-
-type CreditPreview = {
-  allowed: boolean;
-  requiredCredits: number;
-  reason?: string | null;
-};
-
-const COPY: Record<
-  SimpleStudioPurpose,
-  { title: string; lead: string; cta: string; progress: string; placeholder: string }
-> = {
-  advertisement: {
-    title: "Maak je advertentie",
-    lead: "Eén foto + korte beschrijving → verticale social advertentie.",
-    cta: "Maak mijn advertentie",
-    progress: "Je advertentie wordt gemaakt…",
-    placeholder:
-      "Bijvoorbeeld: Ik maak zelf taarten in Vlaardingen en wil meer klanten uit mijn buurt bereiken. Maak een warme, professionele Instagram-advertentie waarmee mensen mijn taarten kunnen bestellen.",
-  },
-  product_video: {
-    title: "Maak je productvideo",
-    lead: "Eén productfoto + korte beschrijving → verticale productclip.",
-    cta: "Maak productvideo",
-    progress: "Je productvideo wordt gemaakt…",
-    placeholder:
-      "Bijvoorbeeld: Dit is mijn ambachtelijke honing. Laat zien hoe puur en lokaal het product is.",
-  },
-  talking_photo: {
-    title: "Pratende foto",
-    lead: "Eén foto + boodschap → bewegende vertical met tekst.",
-    cta: "Maak pratende foto",
-    progress: "Je pratende foto wordt gemaakt…",
-    placeholder: "Bijvoorbeeld: Vertel kort wie je bent en wat je aanbiedt.",
-  },
-  story: {
-    title: "Maak je verhaal",
-    lead: "Eén foto + verhaal → korte vertical story.",
-    cta: "Maak verhaal",
-    progress: "Je verhaal wordt gemaakt…",
-    placeholder: "Bijvoorbeeld: Vertel het verhaal achter je product of bedrijf.",
-  },
-  social_video: {
-    title: "Maak social video",
-    lead: "Eén foto + beschrijving → feed-klare vertical.",
-    cta: "Maak social video",
-    progress: "Je social video wordt gemaakt…",
-    placeholder: "Bijvoorbeeld: Korte post voor Instagram over mijn nieuwe aanbod.",
-  },
-  animation: {
-    title: "Animatie",
-    lead: "Gebruik Motion voor animatie.",
-    cta: "Open Motion",
-    progress: "…",
-    placeholder: "",
-  },
-  general: {
-    title: "Snelle video",
-    lead: "Gratis diashow op je apparaat.",
-    cta: "Open snelle video",
-    progress: "…",
-    placeholder: "",
-  },
-};
 
 function ScenePreview({
   imageUrl,
@@ -106,7 +44,6 @@ function ScenePreview({
     }, 2200);
     return () => window.clearInterval(id);
   }, [scenes.length]);
-
   const scene = scenes[active] ?? scenes[0];
   return (
     <div
@@ -136,27 +73,31 @@ export function SimpleStudioHub() {
       className="mx-auto min-h-[100dvh] w-full max-w-lg px-4 pb-28 pt-6 sm:pb-10"
       data-testid="simple-studio-hub"
     >
-      <div className="mb-6 flex items-center justify-between gap-3">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-[#006D52]">
             HomeCheff Studio
           </p>
-          <h1 className="text-2xl font-bold text-zinc-900">Eenvoudig maken</h1>
+          <h1 className="text-2xl font-bold text-zinc-900">Wat wil je maken?</h1>
           <p className="mt-1 text-sm text-zinc-600">
-            Kies wat je wilt — foto + beschrijving, zonder timeline-kennis.
+            Upload wat je hebt en vertel het in gewone taal — Studio kiest de rest.
           </p>
         </div>
         <Link href="/studio" className="text-sm font-medium text-[#006D52] underline">
           Terug
         </Link>
       </div>
-      <div className="space-y-3">
+
+      <SimpleStudioCreatePage purpose="universal" embedInHub />
+
+      <div className="mt-10 space-y-3">
+        <h2 className="text-sm font-semibold text-zinc-900">Of kies een snelkoppeling</h2>
         {SIMPLE_STUDIO_CATALOG.map((entry) => (
           <Link
             key={entry.purpose}
             href={entry.href}
             data-testid={`simple-studio-intent-${entry.purpose}`}
-            className={`block ${studioVisual.editorSurface} px-4 py-4 transition hover:border-[#006D52]/40`}
+            className={`block ${studioVisual.editorSurface} px-4 py-3 transition hover:border-[#006D52]/40`}
           >
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-semibold text-zinc-900">{entry.titleNl}</span>
@@ -164,11 +105,9 @@ export function SimpleStudioHub() {
                 <span className="rounded-full bg-[#006D52]/10 px-2 py-0.5 text-[10px] font-bold uppercase text-[#006D52]">
                   Gratis
                 </span>
-              ) : entry.usesCredits ? (
-                <span className="text-[10px] font-medium uppercase text-zinc-500">HC</span>
               ) : null}
             </div>
-            <p className="mt-1 text-sm text-zinc-600">{entry.descNl}</p>
+            <p className="mt-0.5 text-sm text-zinc-600">{entry.descNl}</p>
           </Link>
         ))}
       </div>
@@ -177,72 +116,129 @@ export function SimpleStudioHub() {
 }
 
 export function SimpleStudioCreatePage({
-  purpose: purposeProp = "advertisement",
+  purpose: purposeProp = "universal",
+  embedInHub = false,
 }: {
-  purpose?: SimpleStudioPurpose | string;
+  purpose?: SimpleStudioPurpose | "universal" | string;
+  embedInHub?: boolean;
 }) {
-  const purpose = parseSimpleStudioPurpose(
-    typeof purposeProp === "string" ? purposeProp : purposeProp,
-  );
-  const catalog = simpleStudioCatalogEntry(purpose);
-  const copy = COPY[purpose];
-  const shared = catalog.usesSharedOrchestrator;
+  const purpose =
+    purposeProp === "universal"
+      ? "universal"
+      : (String(purposeProp) as SimpleStudioPurpose | "universal");
+
+  const catalog =
+    purpose !== "universal" ? simpleStudioCatalogEntry(purpose as SimpleStudioPurpose) : null;
+  const shared = purpose === "universal" || catalog?.usesSharedOrchestrator === true;
 
   useEffect(() => {
-    if (!shared && typeof window !== "undefined") {
+    if (!shared && catalog && typeof window !== "undefined") {
       window.location.href = catalog.href;
     }
-  }, [shared, catalog.href]);
+  }, [shared, catalog]);
 
   const [phase, setPhase] = useState<Phase>("compose");
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [photoName, setPhotoName] = useState<string | null>(null);
+  const [media, setMedia] = useState<SimpleStudioMediaItem[]>([]);
   const [story, setStory] = useState("");
-  const [platforms, setPlatforms] = useState<SimpleStudioPlatform[]>([
-    "instagram",
-    "facebook",
-  ]);
   const [project, setProject] = useState<PublishProject | null>(null);
-  const [intent, setIntent] = useState<SimpleStudioIntent | null>(null);
-  const [creditPreview, setCreditPreview] = useState<CreditPreview | null>(null);
-  const [creditError, setCreditError] = useState<string | null>(null);
+  const [plan, setPlan] = useState<SimpleStudioCreativePlan | null>(null);
+  const [summary, setSummary] = useState<SimpleStudioPlanSummaryNl | null>(null);
+  const [quoteCredits, setQuoteCredits] = useState<number | null>(null);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
   const [revisionText, setRevisionText] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [progressLabel, setProgressLabel] = useState(copy.progress);
+  const [progressLabel, setProgressLabel] = useState("Bezig…");
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [preparedVoiceUrl, setPreparedVoiceUrl] = useState<string | null>(null);
+  const [preparedMusicUrl, setPreparedMusicUrl] = useState<string | null>(null);
+  const [preparedMusicId, setPreparedMusicId] = useState<string | null>(null);
+  const [preparedMusicLabel, setPreparedMusicLabel] = useState<string | null>(null);
 
   const scenes = useMemo(() => {
     const raw = project?.metadata?.publishScenes;
     return Array.isArray(raw) ? (raw as PublishStorySceneBlock[]) : [];
   }, [project]);
 
-  const loadExportQuote = useCallback(async () => {
-    setCreditError(null);
+  const previewImage =
+    media.find((m) => m.kind === "image")?.url ||
+    project?.imageUrl ||
+    media[0]?.url ||
+    null;
+
+  const onPickFiles = (files: FileList | null) => {
+    if (!files?.length) return;
+    setError(null);
+    const next: SimpleStudioMediaItem[] = [];
+    for (const file of Array.from(files)) {
+      if (file.type.startsWith("image/")) {
+        next.push({
+          id: `${file.name}-${file.size}-${file.lastModified}`,
+          kind: "image",
+          url: createTrackedObjectUrl(file),
+          name: file.name,
+        });
+      } else if (file.type.startsWith("video/")) {
+        next.push({
+          id: `${file.name}-${file.size}-${file.lastModified}`,
+          kind: "video",
+          url: createTrackedObjectUrl(file),
+          name: file.name,
+        });
+      }
+    }
+    if (!next.length) {
+      setError("Kies foto’s of video’s.");
+      return;
+    }
+    setMedia((prev) => [...prev, ...next].slice(0, 8));
+  };
+
+  const loadQuote = useCallback(async () => {
+    setQuoteError(null);
     try {
-      const res = await fetch("/api/me/studio-credits/preview", {
+      const res = await fetch("/api/studio/simple/quote", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actionType: SIMPLE_STUDIO_EXPORT_ACTION }),
+        body: JSON.stringify({
+          story,
+          purpose,
+          media: media.map(({ id, kind, url, name }) => ({ id, kind, url, name })),
+        }),
       });
       if (res.status === 401) {
-        setCreditPreview(null);
-        setCreditError("Log in om de exportkosten te zien. Voorvertoning maken kan wel.");
+        setQuoteCredits(null);
+        setQuoteError("Log in om de kosten te zien. Voorvertoning plannen kan wel.");
+        // Local plan fallback without quote
+        const { buildCreativePlanV2 } = await import("@/lib/simple-studio/intent-routing");
+        const { summarizeCreativePlanNl } = await import("@/lib/simple-studio/creative-plan");
+        const localPlan = buildCreativePlanV2({
+          story,
+          media,
+          purposeHint: purpose,
+        });
+        setPlan(localPlan);
+        setSummary(summarizeCreativePlanNl(localPlan, null));
         return;
       }
       if (!res.ok) {
-        setCreditPreview(null);
-        setCreditError("Kosten konden niet worden opgehaald.");
+        setQuoteError("Kosten konden niet worden opgehaald.");
         return;
       }
-      const json = (await res.json()) as { preview?: CreditPreview };
-      if (json.preview) setCreditPreview(json.preview);
+      const json = (await res.json()) as {
+        plan: SimpleStudioCreativePlan;
+        summary: SimpleStudioPlanSummaryNl;
+        quote: { requiredCredits: number; allowed: boolean };
+      };
+      setPlan(json.plan);
+      setSummary(json.summary);
+      setQuoteCredits(json.quote.requiredCredits);
     } catch {
-      setCreditError("Kosten konden niet worden opgehaald.");
+      setQuoteError("Kosten konden niet worden opgehaald.");
     }
-  }, []);
+  }, [story, purpose, media]);
 
-  if (!shared) {
+  if (!shared && catalog) {
     return (
       <div className="mx-auto max-w-lg p-6 text-sm text-zinc-700">
         Doorsturen naar {catalog.titleNl}…
@@ -253,31 +249,10 @@ export function SimpleStudioCreatePage({
     );
   }
 
-  const onPickPhoto = (file: File | null) => {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setError("Kies een afbeelding (foto).");
-      return;
-    }
-    setError(null);
-    setPhotoUrl(createTrackedObjectUrl(file));
-    setPhotoName(file.name);
-  };
-
-  const togglePlatform = (p: SimpleStudioPlatform) => {
-    setPlatforms((prev) => {
-      if (prev.includes(p)) {
-        const next = prev.filter((x) => x !== p);
-        return next.length ? next : prev;
-      }
-      return [...prev, p];
-    });
-  };
-
   const goConfirm = async () => {
     setError(null);
-    if (!photoUrl) {
-      setError("Voeg eerst een foto toe.");
+    if (!media.length) {
+      setError("Voeg minstens één foto of video toe.");
       return;
     }
     if (story.trim().length < 12) {
@@ -285,33 +260,120 @@ export function SimpleStudioCreatePage({
       return;
     }
     setPhase("confirm");
-    await loadExportQuote();
+    await loadQuote();
+  };
+
+  const prepareAudioIfNeeded = async (activePlan: SimpleStudioCreativePlan, projectId?: string) => {
+    if (!activePlan.voice.required && !activePlan.music.required) {
+      return {
+        voiceAudioUrl: null as string | null,
+        musicTrackUrl: null as string | null,
+        musicTrackId: null as string | null,
+        musicLabel: null as string | null,
+      };
+    }
+    setProgressLabel("Stem en muziek voorbereiden…");
+    const res = await fetch("/api/studio/simple/prepare-audio", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        script: activePlan.dialogue || activePlan.narration || story.slice(0, 500),
+        language: activePlan.voice.language,
+        voiceProfile: activePlan.voice.profile,
+        musicMood: activePlan.music.mood,
+        musicRequired: activePlan.music.required,
+        projectId,
+      }),
+    });
+    if (res.status === 401 || res.status === 402 || res.status === 403) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(
+        typeof err?.error === "string"
+          ? err.error
+          : "Stem/muziek voorbereiden vereist inloggen en voldoende HC.",
+      );
+    }
+    if (!res.ok) throw new Error("Stem of muziek voorbereiden mislukt.");
+    const json = (await res.json()) as {
+      voiceAudioUrl?: string | null;
+      musicTrackUrl?: string | null;
+      musicTrackId?: string | null;
+      musicLabel?: string | null;
+      musicSource?: string;
+    };
+    if (activePlan.music.required && json.musicSource === "unavailable") {
+      setError(
+        "Muziek gevraagd, maar de gratis muziekcatalogus is nu niet beschikbaar. We maken de video zonder muziekbed.",
+      );
+    }
+    return {
+      voiceAudioUrl: json.voiceAudioUrl ?? null,
+      musicTrackUrl: json.musicTrackUrl ?? null,
+      musicTrackId: json.musicTrackId ?? null,
+      musicLabel: json.musicLabel ?? null,
+    };
   };
 
   const runGenerate = async (revision?: string) => {
-    if (!photoUrl) return;
     setError(null);
     setDownloadUrl(null);
     setPhase(revision ? "revising" : "generating");
-    setProgressLabel("Beeld voorbereiden…");
-    await new Promise((r) => setTimeout(r, 280));
-    setProgressLabel(copy.progress);
+    setProgressLabel("Studio begrijpt je verzoek…");
     try {
+      const { buildCreativePlanV2 } = await import("@/lib/simple-studio/intent-routing");
+      const activePlan =
+        plan && !revision
+          ? plan
+          : buildCreativePlanV2({
+              story,
+              media,
+              purposeHint: purpose,
+              revisionInstruction: revision,
+            });
+      setPlan(activePlan);
+
+      if (activePlan.engineChain.includes("motion_deeplink")) {
+        window.location.href = "/motion/start";
+        return;
+      }
+      if (activePlan.engineChain.includes("photo_video_deeplink")) {
+        window.location.href = "/studio/photo-video";
+        return;
+      }
+
+      const audio = await prepareAudioIfNeeded(activePlan, project?.id);
+      setPreparedVoiceUrl(audio.voiceAudioUrl);
+      setPreparedMusicUrl(audio.musicTrackUrl);
+      setPreparedMusicId(audio.musicTrackId);
+      setPreparedMusicLabel(audio.musicLabel);
+
+      setProgressLabel("Video opbouwen…");
       const result =
         revision && project
-          ? reviseSimpleStudioProject({ project, revisionInstruction: revision })
+          ? reviseSimpleStudioProject({
+              project,
+              revisionInstruction: revision,
+              voiceAudioUrl: audio.voiceAudioUrl,
+              musicTrackUrl: audio.musicTrackUrl,
+              musicTrackId: audio.musicTrackId,
+              musicLabel: audio.musicLabel,
+            })
           : generateSimpleStudioProject({
               purpose,
-              imageUrl: photoUrl,
+              media,
               story,
-              platforms,
               revisionInstruction: revision,
               existingProjectId: project?.id,
+              voiceAudioUrl: audio.voiceAudioUrl,
+              musicTrackUrl: audio.musicTrackUrl,
+              musicTrackId: audio.musicTrackId,
+              musicLabel: audio.musicLabel,
             });
-      setProgressLabel("Video afronden…");
-      await new Promise((r) => setTimeout(r, 220));
+
       setProject(result.project);
-      setIntent(result.intent);
+      setPlan(result.plan);
+      setSummary(result.summaryNl);
       setRevisionText("");
       setPhase("result");
     } catch (e) {
@@ -321,105 +383,131 @@ export function SimpleStudioCreatePage({
   };
 
   const runExport = async () => {
-    if (!project) return;
+    if (!project || !plan) return;
     setError(null);
     setPhase("exporting");
+    setProgressLabel("Exporteren…");
+    // Ensure production audio still attached
+    const withAudio =
+      preparedVoiceUrl || preparedMusicUrl
+        ? {
+            ...project,
+            metadata: {
+              ...project.metadata,
+              publishProduction: {
+                ...(typeof project.metadata?.publishProduction === "object"
+                  ? project.metadata.publishProduction
+                  : {}),
+              },
+            },
+          }
+        : project;
+    void withAudio;
     const result = await exportPublishProject(project);
     if (!result.ok || !result.downloadUrl) {
-      setError(
-        result.errorKey === "publish.exportFallback"
-          ? "Export mislukt. Controleer je tegoed of probeer opnieuw."
-          : "Export mislukt.",
-      );
+      setError("Export mislukt. Controleer je tegoed of probeer opnieuw.");
       setPhase("result");
       return;
     }
     setDownloadUrl(result.downloadUrl);
     const a = document.createElement("a");
     a.href = result.downloadUrl;
-    a.download = `${project.name.replace(/\s+/g, "-").slice(0, 40) || catalog.titleNl}.mp4`;
+    a.download = `${project.name.replace(/\s+/g, "-").slice(0, 40) || "studio"}.mp4`;
     a.click();
     setPhase("result");
   };
 
+  const title =
+    purpose === "universal"
+      ? "Eenvoudig maken"
+      : catalog?.titleNl || "Eenvoudig maken";
+
   return (
     <div
-      className="mx-auto min-h-[100dvh] w-full max-w-lg px-4 pb-28 pt-6 sm:pb-10"
+      className={
+        embedInHub
+          ? "w-full"
+          : "mx-auto min-h-[100dvh] w-full max-w-lg px-4 pb-28 pt-6 sm:pb-10"
+      }
       data-testid="simple-studio-create"
       data-purpose={purpose}
     >
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-[#006D52]">
-            HomeCheff Studio
-          </p>
-          <h1 className="text-2xl font-bold text-zinc-900">{copy.title}</h1>
-          <p className="mt-1 text-sm text-zinc-600">{copy.lead}</p>
+      {!embedInHub ? (
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#006D52]">
+              HomeCheff Studio
+            </p>
+            <h1 className="text-2xl font-bold text-zinc-900">{title}</h1>
+          </div>
+          <Link href="/studio/simple" className="text-sm font-medium text-[#006D52] underline">
+            Overzicht
+          </Link>
         </div>
-        <Link href="/studio/simple" className="text-sm font-medium text-[#006D52] underline">
-          Overzicht
-        </Link>
-      </div>
+      ) : null}
 
       {(phase === "compose" || phase === "confirm") && (
-        <div className={`space-y-5 ${studioVisual.editorSurface} p-4 sm:p-5`}>
+        <div className={`space-y-5 ${studioVisual.editorSurface} p-4 sm:p-5`} data-testid="simple-studio-universal-box">
           <section>
-            <h2 className="text-sm font-semibold text-zinc-900">1. Voeg een foto toe</h2>
+            <h2 className="text-sm font-semibold text-zinc-900">Upload foto’s of video’s</h2>
             <label
               className="mt-2 flex min-h-[120px] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-6 text-center"
               data-testid="simple-studio-photo-drop"
             >
-              {photoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={photoUrl}
-                  alt={photoName ?? "Foto"}
-                  className="max-h-40 rounded-lg object-contain"
-                />
+              {media.length ? (
+                <div className="flex flex-wrap justify-center gap-2">
+                  {media.map((m) =>
+                    m.kind === "image" ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={m.id}
+                        src={m.url}
+                        alt={m.name ?? ""}
+                        className="h-20 w-16 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <span
+                        key={m.id}
+                        className="flex h-20 w-16 items-center justify-center rounded-lg bg-zinc-800 text-[10px] text-white"
+                      >
+                        Video
+                      </span>
+                    ),
+                  )}
+                </div>
               ) : (
-                <span className="text-sm font-medium text-zinc-700">+ Foto toevoegen</span>
+                <span className="text-sm font-medium text-zinc-700">+ Foto’s of video’s toevoegen</span>
               )}
               <input
                 type="file"
-                accept="image/*"
+                accept="image/*,video/*"
+                multiple
                 className="sr-only"
                 data-testid="simple-studio-photo-input"
-                onChange={(e) => onPickPhoto(e.target.files?.[0] ?? null)}
+                onChange={(e) => onPickFiles(e.target.files)}
               />
             </label>
+            {media.length > 0 ? (
+              <button
+                type="button"
+                className="mt-2 text-xs text-zinc-500 underline"
+                onClick={() => setMedia([])}
+              >
+                Wissen
+              </button>
+            ) : null}
           </section>
 
           <section>
-            <h2 className="text-sm font-semibold text-zinc-900">2. Vertel wat je wilt</h2>
+            <h2 className="text-sm font-semibold text-zinc-900">Vertel Studio wat je wilt maken</h2>
             <textarea
               value={story}
               onChange={(e) => setStory(e.target.value)}
               rows={5}
               data-testid="simple-studio-story"
-              placeholder={copy.placeholder}
+              placeholder='Bijvoorbeeld: “Laat deze persoon vertellen dat mijn winkel zaterdag open is. Laat hem natuurlijk bewegen en praten, gebruik vrolijke achtergrondmuziek en maak er een Instagram-video van.”'
               className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-900 outline-none ring-[#006D52] placeholder:text-zinc-400 focus:ring-2"
             />
-          </section>
-
-          <section>
-            <h2 className="text-sm font-semibold text-zinc-900">Platform (optioneel)</h2>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {(["instagram", "facebook"] as SimpleStudioPlatform[]).map((p) => {
-                const on = platforms.includes(p);
-                return (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => togglePlatform(p)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold capitalize ${
-                      on ? "bg-[#006D52] text-white" : "bg-zinc-100 text-zinc-700"
-                    }`}
-                  >
-                    {p}
-                  </button>
-                );
-              })}
-            </div>
           </section>
 
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
@@ -431,28 +519,28 @@ export function SimpleStudioCreatePage({
               onClick={() => void goConfirm()}
               className="w-full rounded-xl bg-[#006D52] px-4 py-3 text-sm font-semibold text-white shadow-sm"
             >
-              {copy.cta}
+              Maak het
             </button>
           ) : (
             <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4">
-              <p className="text-sm font-semibold text-zinc-900">Samenvatting</p>
+              <p className="text-sm font-semibold text-zinc-900">
+                {summary?.headline || "Studio gaat maken"}
+              </p>
               <ul className="space-y-1 text-sm text-zinc-700">
-                <li>
-                  {catalog.titleNl} ·{" "}
-                  {platforms.map((p) => p[0]!.toUpperCase() + p.slice(1)).join(" + ")}
-                </li>
-                <li>Verticaal 9:16 · ±{PURPOSE_DURATION_HINT[purpose]} sec</li>
-                <li>Voorvertoning: gratis (opbouw in Studio)</li>
-                <li>
-                  Exportkosten:{" "}
-                  {creditPreview
-                    ? `${creditPreview.requiredCredits} HC`
-                    : creditError
-                      ? "na inloggen zichtbaar"
-                      : "…"}
-                </li>
+                {(summary?.bullets ?? []).map((b) => (
+                  <li key={b}>• {b}</li>
+                ))}
               </ul>
-              {creditError ? <p className="text-xs text-amber-800">{creditError}</p> : null}
+              <p className="text-sm font-semibold text-zinc-900">
+                {summary?.costLabel ||
+                  (quoteCredits != null ? `Kosten: ${quoteCredits} HC` : "Kosten…")}
+              </p>
+              {quoteError ? <p className="text-xs text-amber-800">{quoteError}</p> : null}
+              {(summary?.warnings ?? []).map((w) => (
+                <p key={w} className="text-xs text-amber-900">
+                  {w}
+                </p>
+              ))}
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -467,7 +555,7 @@ export function SimpleStudioCreatePage({
                   className="flex-1 rounded-xl bg-[#006D52] px-3 py-2.5 text-sm font-semibold text-white"
                   onClick={() => void runGenerate()}
                 >
-                  {copy.cta}
+                  Maak video
                 </button>
               </div>
             </div>
@@ -485,26 +573,26 @@ export function SimpleStudioCreatePage({
         </div>
       )}
 
-      {phase === "result" && project && intent && photoUrl ? (
+      {phase === "result" && project && previewImage ? (
         <div className="space-y-5">
           <ScenePreview
-            imageUrl={photoUrl}
+            imageUrl={previewImage}
             scenes={scenes}
-            cta={intent.cta}
-            label={catalog.titleNl}
+            cta={plan?.cta || "Meer info"}
+            label={title}
           />
-          <div className={`${studioVisual.editorSurface} space-y-2 p-4 text-sm text-zinc-700`}>
-            <p>
-              <span className="font-semibold text-zinc-900">Toon:</span> {intent.tone}
-            </p>
-            <p>
-              <span className="font-semibold text-zinc-900">CTA:</span> {intent.cta}
-            </p>
-            <p>
-              <span className="font-semibold text-zinc-900">Formaat:</span> 9:16 · ±
-              {intent.durationSeconds}s
-            </p>
-          </div>
+          {plan ? (
+            <div className={`${studioVisual.editorSurface} space-y-1 p-4 text-sm text-zinc-700`}>
+              <p>
+                <span className="font-semibold">Intent:</span> {plan.purpose}
+              </p>
+              {plan.lipsync.requested ? (
+                <p className="text-amber-800">
+                  Lipsync gevraagd — niet beschikbaar; stem/tekst gebruikt waar mogelijk.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="space-y-2">
             <label className="text-sm font-semibold text-zinc-900">Pas aan</label>
@@ -513,18 +601,9 @@ export function SimpleStudioCreatePage({
               onChange={(e) => setRevisionText(e.target.value)}
               rows={3}
               data-testid="simple-studio-revision"
-              placeholder='Bijvoorbeeld: "Maak hem korter." of "Minder tekst."'
+              placeholder='Bijvoorbeeld: “Geen muziek.” of “Gebruik een vrouwelijke stem.”'
               className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
             />
-            <p className="text-xs text-zinc-500">
-              Deze aanpassing is gratis (voorvertoning). Exporteren kost{" "}
-              {creditPreview
-                ? creditPreview.requiredCredits === 0
-                  ? "niets (gratis)"
-                  : `${creditPreview.requiredCredits} HC`
-                : "HC volgens Studio-prijslijst"}
-              .
-            </p>
           </div>
 
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
@@ -545,7 +624,7 @@ export function SimpleStudioCreatePage({
               onClick={() => void runGenerate(revisionText.trim())}
               className="rounded-xl bg-zinc-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40"
             >
-              Pas aan · gratis
+              Pas aan
             </button>
             <button
               type="button"
@@ -553,7 +632,7 @@ export function SimpleStudioCreatePage({
               onClick={() => void runGenerate()}
               className="rounded-xl border border-zinc-300 px-4 py-3 text-sm font-semibold text-zinc-800"
             >
-              Opnieuw maken · gratis
+              Nieuwe variant
             </button>
             <button
               type="button"
@@ -562,18 +641,14 @@ export function SimpleStudioCreatePage({
               className="rounded-xl bg-[#006D52] px-4 py-3 text-sm font-semibold text-white sm:col-span-2"
             >
               Exporteren
-              {creditPreview
-                ? creditPreview.requiredCredits === 0
-                  ? " · gratis"
-                  : ` · ${creditPreview.requiredCredits} HC`
-                : ""}
+              {quoteCredits != null && quoteCredits > 0 ? ` · ${quoteCredits} HC` : ""}
             </button>
             <Link
               href={simpleStudioAdvancedEditorPath(project.id)}
               className="rounded-xl border border-zinc-200 px-4 py-3 text-center text-sm font-medium text-zinc-700 sm:col-span-2"
               data-testid="simple-studio-advanced"
             >
-              Open geavanceerde editor
+              Geavanceerd bewerken
             </Link>
           </div>
         </div>
@@ -581,13 +656,3 @@ export function SimpleStudioCreatePage({
     </div>
   );
 }
-
-const PURPOSE_DURATION_HINT: Record<SimpleStudioPurpose, number> = {
-  advertisement: 20,
-  product_video: 15,
-  talking_photo: 15,
-  story: 20,
-  animation: 15,
-  social_video: 15,
-  general: 15,
-};

@@ -45,28 +45,46 @@ export async function exportPublishProjectVideo(
       const basePath = path.join(tmpDir, `${project.id}-base.mp4`);
       await renderPublishStoryBaseVideo(project, tmpDir, basePath);
 
-      if (layers.length === 0) {
+      let storyPath = basePath;
+      if (layers.length > 0) {
+        try {
+          await applyLockedTextOverlay({
+            inputVideoPath: basePath,
+            outputVideoPath: outputPath,
+            layers,
+            aspectRatio: "9:16",
+            viduResolution: "720p",
+            totalDurationMs: Math.round(project.durationSeconds * 1000),
+          });
+          storyPath = outputPath;
+        } catch {
+          storyPath = basePath;
+        }
+      }
+
+      if (publishProjectNeedsAudioMux(project)) {
+        const audioMux = await applyPublishAudioMux({
+          project,
+          videoPath: storyPath,
+          tmpDir,
+        });
+        if (!audioMux.ok) {
+          return { ok: false, error: `Audio export failed: ${audioMux.error}` };
+        }
         return {
           ok: true,
-          outputPath: basePath,
-          layerCount: 0,
+          outputPath: audioMux.outputPath,
+          layerCount: layers.length,
           renderMode: "story_ffmpeg",
         };
       }
 
-      try {
-        await applyLockedTextOverlay({
-          inputVideoPath: basePath,
-          outputVideoPath: outputPath,
-          layers,
-          aspectRatio: "9:16",
-          viduResolution: "720p",
-          totalDurationMs: Math.round(project.durationSeconds * 1000),
-        });
-        return { ok: true, outputPath, layerCount: layers.length, renderMode: "story_ffmpeg" };
-      } catch {
-        return { ok: true, outputPath: basePath, layerCount: 0, renderMode: "story_ffmpeg" };
-      }
+      return {
+        ok: true,
+        outputPath: storyPath,
+        layerCount: layers.length > 0 && storyPath === outputPath ? layers.length : 0,
+        renderMode: "story_ffmpeg",
+      };
     } catch (error) {
       return {
         ok: false,
