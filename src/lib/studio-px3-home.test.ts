@@ -102,21 +102,15 @@ describe("PX.3 simple Studio Home", () => {
     assert.match(chooser, /PX3_INTENTS/);
   });
 
-  it("mobile Home uses planet product destinations instead of orbit", () => {
+  it("simplifies mobile Home chips away from five equal products", () => {
     const mobile = readFileSync(
       "src/components/suite/universe/universe-home-mobile-quick-actions.tsx",
       "utf8"
     );
-    assert.match(mobile, /UNIVERSE_PLANETS/);
-    assert.match(mobile, /home-mobile-product-nav/);
-    assert.match(mobile, /home-mobile-ctas/);
-    assert.match(mobile, /min-h-\[52px\]/);
-    assert.match(mobile, /lg:hidden/);
-    const hero = readFileSync(
-      "src/components/suite/universe/universe-hero-copy.tsx",
-      "utf8"
-    );
-    assert.match(hero, /hidden flex-wrap[\s\S]*lg:flex/);
+    assert.doesNotMatch(mobile, /href: "\/editor"/);
+    assert.doesNotMatch(mobile, /href: "\/animate\/instant"/);
+    assert.match(mobile, /href: "\/library"/);
+    assert.match(mobile, /min-h-\[44px\]/);
     const nav = readFileSync("src/components/layout/app-shell-primary-nav.tsx", "utf8");
     assert.match(nav, /data-testid="px3-nav-tools"/);
   });

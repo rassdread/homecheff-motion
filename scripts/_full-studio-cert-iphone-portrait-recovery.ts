@@ -4,11 +4,6 @@ import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, webkit, type Browser, type Page } from "playwright";
-import {
-  collectPhysicalOrientationProof,
-  formatOrientationProof,
-  type PhysicalOrientationProof,
-} from "./lib/full-studio-cert-orientation-proof";
 
 const CDP = process.env.PX4A7_IPHONE_CDP || "http://127.0.0.1:9222";
 const STUDIO = "https://studio.homecheff.eu";
@@ -40,11 +35,16 @@ async function connect(): Promise<Browser> {
   }
 }
 
-async function orient(page: Page): Promise<PhysicalOrientationProof> {
-  const navVisible = (await page.getByTestId("studio-production-stage-nav").count()) > 0;
-  return collectPhysicalOrientationProof(page, {
-    studioNavVisible: navVisible,
-    requireStudioLayout: true,
+async function orient(page: Page) {
+  return page.evaluate(() => {
+    const mm = window.matchMedia("(orientation: landscape)").matches;
+    return {
+      w: window.innerWidth,
+      h: window.innerHeight,
+      mmLandscape: mm,
+      so: String(screen.orientation?.type || ""),
+      orient: mm || window.innerWidth > window.innerHeight ? "landscape" : "portrait",
+    };
   });
 }
 
@@ -96,16 +96,15 @@ async function main() {
   }
 
   const start = await orient(page);
-  say(`current=${formatOrientationProof(start)}`);
+  say(`current=${start.orient} ${start.w}x${start.h}`);
   say("\n*** Rotate PHYSICAL iPhone back to PORTRAIT now. Waiting up to 3 min… ***\n");
 
   let port = start;
   const deadline = Date.now() + 180_000;
   while (Date.now() < deadline) {
     port = await orient(page);
-    say(`  ${formatOrientationProof(port)}`);
-    if (port.safariDiscrepancyNote) say(`    note: ${port.safariDiscrepancyNote}`);
-    if (port.portraitEvidencePass) break;
+    say(`  ${port.orient} ${port.w}x${port.h} so=${port.so}`);
+    if (port.orient === "portrait") break;
     await page.waitForTimeout(3000);
   }
 
@@ -116,10 +115,7 @@ async function main() {
   await page.screenshot({ path: shot, fullPage: false }).catch(() => undefined);
 
   const recoveryPass =
-    port.portraitEvidencePass &&
-    nav &&
-    !previewP.blackishSample &&
-    url.includes(STORYBOARD_ID);
+    port.orient === "portrait" && port.h >= port.w && nav && !previewP.blackishSample && url.includes(STORYBOARD_ID);
 
   const prev = existsSync(LIVE) ? JSON.parse(readFileSync(LIVE, "utf8")) : {};
   const gates = Array.isArray(prev.gates) ? [...prev.gates] : [];
@@ -129,20 +125,12 @@ async function main() {
     if (i >= 0) gates[i] = row;
     else gates.push(row);
   };
-  upsert("orientation_recovery", recoveryPass, {
-    port,
-    nav,
-    previewP,
-    url,
-    shot,
-    safariDiscrepancy: port.safariOrientationDiscrepancy,
-    safariDiscrepancyNote: port.safariDiscrepancyNote,
-  });
+  upsert("orientation_recovery", recoveryPass, { port, nav, previewP, url, shot });
   upsert("black_preview_after_rotation", !previewP.blackishSample, previewP);
 
   // Preserve landscape pass if already true
   const landGate = gates.find((g: { gate: string }) => g.gate === "landscape");
-  if (landGate && landGate.pass !== true && start.landscapeEvidencePass) {
+  if (landGate && landGate.pass !== true && start.orient === "landscape") {
     // keep prior landscape pass from last run in prev
   }
 

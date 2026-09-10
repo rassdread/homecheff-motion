@@ -1,6 +1,6 @@
 # Physical iPhone — Final Closeout
 
-**Updated:** 2026-08-26T18:58Z  
+**Updated:** 2026-08-24T22:56Z  
 **Evidence:** PHYSICAL Safari Web Inspector / CDP — not emulation  
 **Provider calls:** **0**
 
@@ -19,22 +19,32 @@
 
 | Gate | Status | Evidence |
 |------|--------|----------|
-| PHYSICAL_IPHONE_ADVANCED | **CERTIFIED** | all gates PASS including recovery |
+| PHYSICAL_IPHONE_ADVANCED | **PARTIAL** | recovery still FAIL on measured viewport |
 | PORTRAIT | **PASS** | Prior r2 (preserved) |
 | LANDSCAPE | **PASS** | Prior `800×301` landscape-primary (preserved) |
-| ORIENTATION_RECOVERY | **PASS** | Attempt 5: `414×750`, `portrait-primary`, matchMedia portrait, nav OK, preview not black |
-| BLACK_PREVIEW_REGRESSION | **PASS** | preserved + recovery sample not black |
-| STAGE_NAVIGATION | **PASS** | preserved |
+| ORIENTATION_RECOVERY | **FAIL** | USB reconnect measured **still landscape** `800×301` / `landscape-primary` for full 3 min wait |
+| BLACK_PREVIEW_REGRESSION | **PASS** | preview 1024×1024 not black during recovery attempt |
+| STAGE_NAVIGATION | **PASS** | preserved + Afronden reachable during attempt |
 | SCENE_PERSISTENCE | **PASS** | preserved |
-| FINISH_MOBILE | **PASS** | preserved |
+| FINISH_MOBILE | **PASS** | Afronden clickable on connected session |
 | PROJECT_LIBRARY_MOBILE | **PASS** | preserved |
 | SAFE_AREAS | **PASS** | preserved |
 | TOUCH_INTERACTION | **PASS** | preserved |
 
-Recovery log: `iphone-final/run-portrait-recovery-5.log`  
+Recovery attempt logs: `iphone-final/run-portrait-recovery-3.log`  
 Shot: `iphone-final/*-portrait-recovery-final.png`  
-Live: `IPHONE-FINAL-LIVE.json` → classification **CERTIFIED**, `recoveryPass: true`
+Live: `IPHONE-FINAL-LIVE.json`
 
-## Historical failed recovery (preserved)
+## Why recovery is not PASS
 
-Attempts 3–4: landscape viewport / USB+CDP loss — not invalidated by attempt 5 PASS.
+User reported portrait + USB reconnect. Device/Web Inspector session was live, but Safari viewport remained:
+
+- width 800 / height 301
+- `matchMedia(orientation: landscape) = true`
+- `screen.orientation = landscape-primary`
+
+Prior PORTRAIT + LANDSCAPE PASSes are **not** invalidated.
+
+## Action for CERTIFIED Target C
+
+Physically rotate until Safari reports portrait (`height >= width`, `portrait-primary`), keep Studio tab foreground, re-run recovery-only measurement.

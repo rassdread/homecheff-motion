@@ -11,7 +11,7 @@
 
 HomeCheff Studio’s **technical foundation remains certified**. This sprint closed **all reproducible P1 product-coherence blockers** from the Master Audit through bounded IA, trust, copy, and progressive-disclosure repairs—without touching certified engines (FREE_LOCAL, Free Music, S2 orchestration, billing guards, locale architecture).
 
-**Commercial freeze readiness:** **READY** — Production certified `ae9c4491` / `dpl_CvmkcGaEqbSyykMZozTqKpqDfxH3`.
+**Commercial freeze readiness:** **READY** pending Production deploy verification of sprint commit.
 
 ---
 
@@ -133,19 +133,14 @@ HomeCheff Studio’s **technical foundation remains certified**. This sprint clo
 
 ---
 
-## 38–40. Production (certified)
+## 38–40. Production (pending deploy)
 
-| Field | Value |
-|---|---|
-| COMMIT_SHA | `ae9c4491aebef17ff28664524f67a4ddba808d27` |
-| DEPLOYMENT_ID | `dpl_CvmkcGaEqbSyykMZozTqKpqDfxH3` |
-| BUILD_TIME | `2026-09-01T23:27:55.698Z` |
-| ALIAS | `https://studio.homecheff.eu` |
-| STATUS | **PRODUCTION_CERTIFIED** |
+Deploy after merge to Production branch. Verify:
 
-Verified: `/create`→`/studio`, `/videos`→`/projects`, pricing copy, test-blob 404, meta/build SHA match.
-
-See `COMMERCIAL-FREEZE-CERTIFICATION.md`.
+- `/studio/providers` → redirect for non-admin
+- `/create` → `/studio`
+- `/videos` → `/projects`
+- First-impression on `/studio`
 
 ---
 

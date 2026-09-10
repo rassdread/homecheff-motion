@@ -15,9 +15,6 @@
 |--------|------------------|-------|
 | Target B forensic + upload fix `32abbba2` | 0 | existing segments |
 | Automatic merge replays (runs 3–10) | 0 | |
-| Two-gate session (worker inspect + iPhone recovery) | 0 | no auto-merge replay |
-| Target B run-11 (post–Render redeploy) | 0 | automatic GET `/status`; `final-v5.mp4`; version missing |
-| Target B run-12 (version-persistence cert) | 0 | automatic GET `/status`; `final-v6.mp4` + ProjectRenderVersion v5 |
 | Diagnostic rebuild (historical) | 0 | forensic contrast only |
 | New Vidu | **0** | |
 | Promo grant | **0** | |
@@ -26,4 +23,4 @@
 
 | Gate | Status |
 |------|--------|
-| BILLING_SAFETY | **CERTIFIED** |
+| BILLING_SAFETY | CERTIFIED |

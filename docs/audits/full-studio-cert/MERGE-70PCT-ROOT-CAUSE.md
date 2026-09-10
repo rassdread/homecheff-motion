@@ -2,7 +2,7 @@
 
 **Updated:** 2026-08-24T23:50Z  
 **Project:** `cmt5hnj1s0003jh09hns3vu4v`  
-**Repair SHAs:** `45a66190` → … → `5ac94c7c` → **`32abbba2`**
+**Repair SHAs:** `45a66190` → `f23e644f` → `6bfe9849` → `fd1b317f` → `38b2d32e` → `5ac94c7c`
 
 ## Taxonomy (proven)
 
@@ -42,10 +42,9 @@ GET /status (maxDuration=300)
 |--|-------------------------|--------------|
 | Shared merge primitive | `runFinalExportToCompletion` | same |
 | Force | true | true |
-| Observed (pre-fix worker) | upload failed at progress 70 | completed ~20s, final URL |
-| Observed (post-fix Vercel only, run-9) | upload failed — worker parity gap | N/A (not cert path) |
+| Observed | upload failed / long poll timeout | completed ~20s, final URL |
 
-Orchestration handoff is aligned with rebuild in code; **Render worker must deploy `32abbba2+`** before automatic certification can pass.
+So orchestration handoff is aligned with rebuild in code; a remaining Production gap still prevents CERTIFIED automatic closure.
 
 ## Progress display
 

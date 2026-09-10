@@ -14,8 +14,10 @@ import {
   MAX_ANIMATION_USER_PROMPT_LENGTH,
   validateAnimationPresetId,
 } from "@/lib/animation-presets";
-import { refundStudioActionReservation } from "@/server/studio-account/studio-credit-authorization";
-import { attachMotionCreditHold } from "@/server/animation-jobs/motion-credit-settlement";
+import {
+  captureStudioActionReservation,
+  refundStudioActionReservation,
+} from "@/server/studio-account/studio-credit-authorization";
 import { recordCostEventLinked } from "@/server/provider-cost/provider-cost-event";
 import { COST_ACTION, COST_UNIT, UNIT_COST_USD } from "@/server/provider-cost/cost-event-types";
 import { requireStudioCredits } from "@/server/studio-account/with-studio-credit-gate";
@@ -465,45 +467,32 @@ export async function POST(request: Request) {
   }
 
   if (!usageCheck.adminBypass) {
-    await recordCostEventLinked({
+    const providerCostEventId = await recordCostEventLinked({
       provider: "vidu",
       actionType: COST_ACTION.VIDU_RENDER,
       projectId: result.projectId,
       userId: user.id,
       relatedJobId: result.projectId,
-      status: "pending",
+      status: "completed",
       unitType: COST_UNIT.CREDITS,
       unitsUsed: estimatedCredits,
       unitCostUsd: UNIT_COST_USD.vidu_credit,
       isEstimated: true,
-      estimateReason: "motion_project_create_hold",
+      estimateReason: "motion_project_create",
       metadataJson: {
-        studioWalletCaptured: false,
-        studioWalletHeld: true,
+        studioWalletCaptured: true,
         presetId: preset.id,
         estimatedCredits,
       },
     });
 
-    try {
-      await attachMotionCreditHold({
-        userId: user.id,
-        animationProjectId: result.projectId,
-        reservation,
-        adminBypass: usageCheck.adminBypass,
-      });
-    } catch (error) {
-      await refundStudioActionReservation({
-        userId: user.id,
-        reservation,
-        projectId: result.projectId,
-        failedGeneration: true,
-        metadataJson: {
-          error: error instanceof Error ? error.message : "motion_hold_attach_failed",
-        },
-      });
-      throw error;
-    }
+    await captureStudioActionReservation({
+      userId: user.id,
+      reservation,
+      projectId: result.projectId,
+      providerCostEventId,
+      metadataJson: { presetId: preset.id, estimatedCredits, studioActionType: "motion_render" },
+    });
   }
 
   return NextResponse.json(result, { status: 201 });

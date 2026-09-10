@@ -20,7 +20,6 @@ import {
   trackEcosystemMenuOpen,
   trackEcosystemProductClick,
 } from "@/lib/ecosystem-navigation/analytics";
-import { useActiveTranslator } from "@/i18n/client";
 
 type Props = {
   currentProduct?: EcosystemProductId;
@@ -60,7 +59,6 @@ export function OntdekHomeCheffMenu({
   variant = "compact",
   className = "",
 }: Props) {
-  const t = useActiveTranslator();
   const [open, setOpen] = useState(false);
   const [panelPos, setPanelPos] = useState({ top: 0, left: 0 });
   const rootRef = useRef<HTMLDivElement>(null);
@@ -120,10 +118,7 @@ export function OntdekHomeCheffMenu({
   const triggerClass =
     variant === "sidebar" || variant === "inline"
       ? "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-white/80 hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60"
-      : "inline-flex max-w-[min(100%,11.5rem)] items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2 py-1.5 text-xs font-medium text-white/85 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60 sm:max-w-[14rem] sm:gap-2 sm:px-3";
-
-  const moduleLabel = ecosystemCurrentModuleLabel(currentProduct ?? "studio");
-  const triggerAriaLabel = `${ECOSYSTEM_NAV_LABEL} · ${moduleLabel}`;
+      : "inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/85 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60";
 
   const panel =
     open && typeof document !== "undefined" ? (
@@ -225,7 +220,6 @@ export function OntdekHomeCheffMenu({
         aria-expanded={open}
         aria-controls={panelId}
         aria-haspopup="dialog"
-        aria-label={triggerAriaLabel}
         onClick={toggle}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -237,10 +231,9 @@ export function OntdekHomeCheffMenu({
           className="h-[18px] w-[18px] shrink-0 rounded"
         />
         <span className="min-w-0 truncate">
-          <span className="sm:hidden">{t("ecosystem.nav.labelShort")}</span>
-          <span className="hidden sm:inline">{ECOSYSTEM_NAV_LABEL}</span>
-          <span className="ml-1 hidden font-normal text-white/50 min-[480px]:inline">
-            · {moduleLabel}
+          {ECOSYSTEM_NAV_LABEL}
+          <span className="ml-1 font-normal text-white/50">
+            · {ecosystemCurrentModuleLabel(currentProduct ?? "studio")}
           </span>
         </span>
       </button>

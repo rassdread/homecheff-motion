@@ -7,8 +7,10 @@ import {
 } from "@/server/instant-premium/create-instant-premium-project";
 import { startProjectJobs } from "@/server/animation-jobs/service";
 import { requireActiveUser } from "@/server/auth/permissions";
-import { refundStudioActionReservation } from "@/server/studio-account/studio-credit-authorization";
-import { attachMotionCreditHold } from "@/server/animation-jobs/motion-credit-settlement";
+import {
+  captureStudioActionReservation,
+  refundStudioActionReservation,
+} from "@/server/studio-account/studio-credit-authorization";
 import { requireStudioCredits } from "@/server/studio-account/with-studio-credit-gate";
 import { readProductionTransactionIdFromRequest } from "@/lib/studio-production-request-headers";
 
@@ -102,14 +104,14 @@ export async function POST(request: Request) {
     transitionCount = 0;
   }
   try {
+    await startProjectJobs(created.projectId);
     if (!creditGate.productionBypass) {
-      await attachMotionCreditHold({
+      await captureStudioActionReservation({
         userId: user.id,
-        animationProjectId: created.projectId,
         reservation: creditGate.reservation,
+        projectId: created.projectId,
       });
     }
-    await startProjectJobs(created.projectId);
   } catch {
     jobTriggered = false;
     if (!creditGate.productionBypass) {

@@ -11,16 +11,10 @@ describe("mobile cross-browser polish", () => {
       join(ROOT, "src/components/suite/universe/universe-home-page.tsx"),
       "utf8"
     );
-    assert.match(home, /home-universe-zone hidden lg:flex/);
+    assert.match(home, /home-universe-zone hidden md:flex/);
     assert.match(home, /UniverseHomeMobileQuickActions/);
-    assert.match(home, /hidden lg:block[\s\S]*UniverseHomeSpaceShowcase/);
+    assert.match(home, /hidden md:block[\s\S]*UniverseHomeSpaceShowcase/);
     assert.doesNotMatch(home, /UniverseMobileStack/);
-    const css = readFileSync(
-      join(ROOT, "src/components/suite/universe/universe-home.css"),
-      "utf8"
-    );
-    assert.match(css, /display is controlled by Tailwind/);
-    assert.doesNotMatch(css, /\.home-universe-zone\s*\{\s*display:\s*flex/);
   });
 
   it("mobile nav drawer uses fixed positioning and help/billing links", () => {

@@ -17,8 +17,8 @@ type RouteContext = {
 /**
  * Accept video/motion generation quickly: create canonical GenerationJob, start provider, return job id.
  * Does not hold the HTTP request open for the full Vidu generation.
- * Credits for motion_render are held at Motion project create and captured only after Vidu success.
- * This job tracks execution only and must not create a second charge.
+ * Credits for motion_render are charged at Motion project create — this job tracks execution only
+ * and must not create a second charge.
  */
 export async function POST(request: Request, context: RouteContext) {
   const { id } = await context.params;
@@ -60,7 +60,7 @@ export async function POST(request: Request, context: RouteContext) {
       studioSourceStoryboardId: project.studioSourceStoryboardId ?? null,
       action: "video_generate",
       scope: "project",
-      billingNote: "motion_render held at project create; captured after Vidu success",
+      billingNote: "motion_render charged at project create; job tracks execution",
     },
   });
 

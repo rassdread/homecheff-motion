@@ -1,7 +1,7 @@
 {
-  "startedAt": "2026-08-19T21:55:12.354Z",
-  "studioBaseUrl": "https://studio.homecheff.eu",
-  "commit": "b9eaf7dff0ae87f4f65508e7e27663b800303b62",
+  "startedAt": "2026-08-19T21:08:26.054Z",
+  "studioBaseUrl": "http://localhost:3000",
+  "commit": "3be9654b6ddc7b024cdaffda35e6daaa3dd07445",
   "selectorMap": [
     {
       "old": "px4a-edit-toolbar",
@@ -245,5 +245,5 @@
   "blockers": [],
   "verdict": "SLICE1B_AUTOMATED_PASS",
   "status": "PASS",
-  "finishedAt": "2026-08-19T21:55:35.629Z"
+  "finishedAt": "2026-08-19T21:09:14.679Z"
 }
