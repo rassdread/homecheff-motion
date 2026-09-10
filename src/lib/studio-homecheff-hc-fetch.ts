@@ -24,8 +24,17 @@ function baseHeaders(centralUserId: string): Record<string, string> {
   };
 }
 
+function growthHcApiOrigin(): string {
+  const explicit = process.env.HOMECHEFF_GROWTH_ORIGIN?.trim();
+  if (explicit) return explicit.replace(/\/$/, "");
+  const identity = homecheffIdentityOrigin();
+  // SSO identity may live on Marketplace; HC ledger APIs are on Growth.
+  if (/growth\.homecheff\.eu/i.test(identity)) return identity;
+  return "https://growth.homecheff.eu";
+}
+
 async function growthFetch(path: string, init: RequestInit & { centralUserId?: string } = {}) {
-  const origin = homecheffIdentityOrigin();
+  const origin = growthHcApiOrigin();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {

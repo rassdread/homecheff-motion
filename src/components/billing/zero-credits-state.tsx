@@ -17,7 +17,6 @@ export function ZeroCreditsState({ source = "zero_credits" }: Props) {
   const wallet = useStudioWalletSummary(Boolean(session.user));
 
   const hcLabel = locale === "nl" ? "HC-tegoed" : "HC balance";
-  const studioCreditsLabel = locale === "nl" ? "Studio-tegoed" : "Studio credits";
 
   const showCentralCopy =
     wallet.resolved &&

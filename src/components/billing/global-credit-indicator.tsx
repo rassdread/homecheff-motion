@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useStudioWalletSummary } from "@/hooks/use-studio-wallet-summary";
-import { trackBillingConversionEvent } from "@/lib/billing-conversion-analytics";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 
 const PLAN_KEYS: Record<string, string> = {
