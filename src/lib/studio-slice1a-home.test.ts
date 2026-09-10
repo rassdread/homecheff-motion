@@ -19,13 +19,15 @@ import {
 } from "@/lib/studio-product-landing-routes";
 
 describe("Slice 1A — Unified Studio front door", () => {
-  it("exposes four primary creation intents with correct routes", () => {
-    assert.equal(STUDIO_HOME_INTENTS.length, 4);
+  it("exposes five primary creation intents including Advertentie quick-ad", () => {
+    assert.equal(STUDIO_HOME_INTENTS.length, 5);
     assert.equal(studioHomeIntent("quickVideo").href, "/studio/photo-video");
+    assert.equal(studioHomeIntent("socialAd").href, "/studio/quick-ad");
     assert.equal(studioHomeIntent("image").href, "/editor/start");
     assert.equal(studioHomeIntent("aiVideo").href, "/studio/experience");
     assert.equal(studioHomeIntent("animation").href, "/motion/start");
     assert.equal(studioHomeIntent("quickVideo").free, true);
+    assert.equal(studioHomeIntent("socialAd").usesCredits, true);
     assert.equal(studioHomeIntent("aiVideo").usesCredits, true);
   });
 
@@ -38,6 +40,8 @@ describe("Slice 1A — Unified Studio front door", () => {
     }
     assert.equal(nl["studio.slice1a.intent.quickVideo.title"], "Snelle video");
     assert.equal(en["studio.slice1a.intent.quickVideo.title"], "Quick video");
+    assert.equal(nl["studio.slice1a.intent.socialAd.title"], "Advertentie");
+    assert.match(nl["studio.slice1a.intent.socialAd.desc"], /foto en een korte beschrijving/);
     assert.match(nl["studio.slice1a.free.onDevice"], /Gratis op je apparaat/);
     assert.match(en["studio.slice1a.free.noCredits"], /No credits needed/);
   });
@@ -88,9 +92,10 @@ describe("Slice 1A — Unified Studio front door", () => {
     assert.equal(intents[0]?.id, "productVideo");
   });
 
-  it("hides Growth assistant on focused Photo Video routes", () => {
+  it("hides Growth assistant on focused Photo Video and Quick Ad routes", () => {
     assert.equal(isHomeCheffAssistantRoute("/studio/photo-video"), false);
     assert.equal(isHomeCheffAssistantRoute("/studio/photo-video/from-item"), false);
+    assert.equal(isHomeCheffAssistantRoute("/studio/quick-ad"), false);
     assert.equal(isHomeCheffAssistantRoute("/studio"), true);
   });
 

@@ -5,7 +5,12 @@
 
 import type { TranslationKey } from "@/i18n";
 
-export type StudioHomeIntentId = "quickVideo" | "image" | "aiVideo" | "animation";
+export type StudioHomeIntentId =
+  | "quickVideo"
+  | "socialAd"
+  | "image"
+  | "aiVideo"
+  | "animation";
 
 export type StudioHomeIntent = {
   id: StudioHomeIntentId;
@@ -18,7 +23,7 @@ export type StudioHomeIntent = {
   usesCredits?: boolean;
 };
 
-/** Four primary creation intents on /studio home. */
+/** Primary creation intents on /studio home. */
 export const STUDIO_HOME_INTENTS: readonly StudioHomeIntent[] = [
   {
     id: "quickVideo",
@@ -27,6 +32,14 @@ export const STUDIO_HOME_INTENTS: readonly StudioHomeIntent[] = [
     href: "/studio/photo-video",
     analyticsEvent: "studio_intent_quick_video",
     free: true,
+  },
+  {
+    id: "socialAd",
+    titleKey: "studio.slice1a.intent.socialAd.title",
+    descriptionKey: "studio.slice1a.intent.socialAd.desc",
+    href: "/studio/quick-ad",
+    analyticsEvent: "studio_intent_social_ad",
+    usesCredits: true,
   },
   {
     id: "image",
