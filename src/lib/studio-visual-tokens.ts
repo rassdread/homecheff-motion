@@ -15,10 +15,11 @@ export const studioVisual = {
   header:
     "studio-header-safe sticky top-0 z-30 border-b border-white/[0.085] bg-[#041428]/75 backdrop-blur-xl backface-hidden [transform:translateZ(0)] shadow-[0_6px_26px_-12px_rgba(0,103,177,0.28)] supports-[backdrop-filter]:bg-[#041428]/75 bg-[#041428]/95",
   headerInner:
-    "mx-auto grid w-full max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-1.5 px-2 py-2 min-h-[var(--studio-header-height)] sm:gap-2 sm:px-4 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:gap-2 lg:px-5 lg:py-2.5 lg:min-h-[72px]",
+    "mx-auto grid w-full max-w-7xl grid-cols-[auto_minmax(0,1fr)] items-center gap-1 px-2 py-2 min-h-[var(--studio-header-height)] sm:gap-2 sm:px-4 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:gap-2 lg:px-5 lg:py-2.5 lg:min-h-[72px]",
   logoMark:
     "relative h-7 w-7 shrink-0 overflow-hidden rounded-lg border border-white/[0.17] shadow-[0_0_10px_rgba(0,109,82,0.3)] sm:h-8 sm:w-8",
-  logoText: "hidden min-[400px]:inline text-xs font-semibold tracking-tight text-white sm:text-sm",
+  logoText:
+    "hidden min-[520px]:inline text-xs font-semibold tracking-tight text-white sm:text-sm",
   /** Nav pills */
   navInactive:
     "inline-flex h-9 shrink-0 items-center rounded-full border border-white/[0.10] bg-white/5 px-2.5 text-xs font-medium text-white/80 transition-all hover:border-white/[0.17] hover:bg-white/10 hover:text-white lg:px-3",

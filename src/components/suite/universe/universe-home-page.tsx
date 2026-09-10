@@ -174,7 +174,7 @@ export function UniverseHomePage() {
             />
           </div>
 
-          <div className="home-universe-zone hidden md:flex" data-testid="home-universe-zone">
+          <div className="home-universe-zone hidden lg:flex" data-testid="home-universe-zone">
             <div className="home-universe-canvas w-full">
               <UniverseOrbitSystem
                 hrefs={planetHrefs}
@@ -196,7 +196,7 @@ export function UniverseHomePage() {
 
         <UniverseHomeMobileQuickActions isAuthenticated={isAuthenticated} />
 
-        <div className="hidden md:block">
+        <div className="hidden lg:block">
           <UniverseHomeSpaceShowcase />
         </div>
 

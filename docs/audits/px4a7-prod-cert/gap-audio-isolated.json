@@ -1,0 +1,46 @@
+{
+  "at": "2026-08-19T12:04:30.462Z",
+  "B1": {
+    "file": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/px4a7-prod-cert/gap-b1-source-on-100.mp4",
+    "duration": 15.082667,
+    "bytes": 4932495,
+    "videoCodec": "h264",
+    "audioCodec": "aac"
+  },
+  "B2": {
+    "file": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/px4a7-prod-cert/gap-b2-source-off.mp4",
+    "duration": 15,
+    "bytes": 4762587,
+    "videoCodec": "h264",
+    "audioCodec": null
+  },
+  "B3": {
+    "file": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/px4a7-prod-cert/gap-b3-source-on-30.mp4",
+    "duration": 15.082667,
+    "bytes": 4865629,
+    "videoCodec": "h264",
+    "audioCodec": "aac"
+  },
+  "B3_rms": {
+    "window": "2-8s",
+    "vol100": null,
+    "vol30": null
+  },
+  "musicWindow15": "Geselecteerd fragment, 15 sec",
+  "B4": {
+    "file": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/px4a7-prod-cert/gap-b4-own-music-only.mp4",
+    "duration": 15.082667,
+    "bytes": 5032048,
+    "videoCodec": "h264",
+    "audioCodec": "aac"
+  },
+  "musicWindow30": "Geselecteerd fragment, 30 sec",
+  "B5": {
+    "file": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/px4a7-prod-cert/gap-b5-music-plus-sourceA.mp4",
+    "duration": 30.08,
+    "bytes": 5472846,
+    "videoCodec": "h264",
+    "audioCodec": "aac"
+  },
+  "musicWindowBack15": "Geselecteerd fragment, 15 sec"
+}

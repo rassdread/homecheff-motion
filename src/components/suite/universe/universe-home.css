@@ -289,8 +289,9 @@
   }
 }
 
+/* display is controlled by Tailwind (hidden lg:flex) — do not set display here or it
+   overrides utility visibility and forces the orbit to paint on mobile. */
 .home-universe-zone {
-  display: flex;
   align-items: center;
   justify-content: center;
   min-width: 0;

@@ -54,6 +54,7 @@ export function StudioAccountDashboard({
       account: data.account,
       wallet: data.wallet,
       recentLedger: data.recentLedger,
+      centralHc: (data as StudioAccountOverview).centralHc ?? null,
     });
   }, []);
 
@@ -81,7 +82,7 @@ export function StudioAccountDashboard({
     }
   };
 
-  const { account, wallet } = overview;
+  const { account, wallet, centralHc } = overview;
 
   return (
     <div className="space-y-6">
@@ -96,15 +97,37 @@ export function StudioAccountDashboard({
           </p>
         </div>
         <div className={`${studioVisual.cardOnDark} p-5`}>
-          <p className="text-xs uppercase tracking-wide text-white/50">{t("account.credits.label")}</p>
+          <p className="text-xs uppercase tracking-wide text-white/50">HC-tegoed</p>
           <p className="mt-1 text-xl font-semibold text-white">
-            {wallet.availableBalance.toLocaleString()} {t("account.credits.unit")}
+            {centralHc?.walletResolved
+              ? centralHc.availableHc.toLocaleString()
+              : "—"}{" "}
+            HC
           </p>
-          {wallet.reservedBalance > 0 && (
-            <p className="mt-1 text-sm text-white/60">
-              {t("account.credits.reserved", { count: wallet.reservedBalance })}
-            </p>
+          {centralHc?.walletResolved && centralHc.reservedHc > 0 && (
+            <p className="mt-1 text-sm text-white/60">{centralHc.reservedHc} gereserveerd</p>
           )}
+          {centralHc && !centralHc.walletResolved && centralHc.identityResolved && (
+            <p className="mt-1 text-sm text-white/60">{t("hc.studio.spendDisabled")}</p>
+          )}
+          {centralHc && !centralHc.identityResolved && (
+            <p className="mt-1 text-sm text-white/60">{t("hc.studio.identityUnresolved")}</p>
+          )}
+
+          <div className="mt-4 border-t border-white/10 pt-3">
+            <p className="text-xs uppercase tracking-wide text-white/50">{t("account.credits.label")}</p>
+            <p className="mt-1 text-lg font-semibold text-white">
+              {wallet.availableBalance.toLocaleString()} {t("account.credits.unit")}
+            </p>
+            {wallet.reservedBalance > 0 && (
+              <p className="mt-1 text-sm text-white/60">
+                {t("account.credits.reserved", { count: wallet.reservedBalance })}
+              </p>
+            )}
+            <p className="mt-2 text-[11px] leading-snug text-white/60">
+              Studio-tegoed blijft de legacy meter voor huidige Studio-acties.
+            </p>
+          </div>
         </div>
         <div className={`${studioVisual.cardOnDark} p-5`}>
           <p className="text-xs uppercase tracking-wide text-white/50">{t("account.policy.label")}</p>

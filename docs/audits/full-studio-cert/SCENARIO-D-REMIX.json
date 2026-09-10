@@ -1,0 +1,21 @@
+{
+  "status": "partial",
+  "mixer": "S2E-P1 mixStudioAudioLayers (voice-pad + duration=longest fix)",
+  "providerCallsDuringMix": 0,
+  "timelineHash": "05c705321ffc172d",
+  "mixDurationSeconds": 10,
+  "mp4DurationSeconds": 10,
+  "levelsDb": {
+    "before": null,
+    "sfx1": null,
+    "duringVoice": null,
+    "afterVoice": null,
+    "sfx2": null,
+    "afterSfx": null
+  },
+  "duckingOk": false,
+  "sfxOk": false,
+  "duckDeltaDb": null,
+  "finalMp4": "docs/audits/full-studio-cert/audio-final/final-export.mp4",
+  "note": "Local execution of Production mixer module. Deploy required for Production binary parity."
+}

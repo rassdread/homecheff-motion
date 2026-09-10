@@ -1,0 +1,28 @@
+{
+  "at": "2026-08-19T15:01:02.827041+00:00",
+  "device": {
+    "DeviceName": "Sergio\u2019s iPhone",
+    "ProductType": "iPhone12,1",
+    "ProductVersion": "26.3.1",
+    "BuildVersion": "23D8133",
+    "UniqueDeviceID": "00008030-000E38AE1EF8202E",
+    "HostAttached": "true",
+    "PasswordProtected": "false",
+    "ModelNumber": "MHDA3",
+    "HardwareModel": "N104AP"
+  },
+  "pairing": "SUCCESS: Validated pairing with device 00008030-000E38AE1EF8202E",
+  "iosWebKitDebugProxy": {
+    "port9222PageCount": 0,
+    "pages": {
+      "error": "<urlopen error [Errno 61] Connection refused>"
+    }
+  },
+  "tools": {
+    "xcode": "/Library/Developer/CommandLineTools",
+    "devicectl": "xcrun: error: unable to find utility \"devicectl\", not a developer tool or in PATH",
+    "safaridriverHelp": "available at /System/Cryptexes/App/usr/bin/safaridriver (enable requires admin password)",
+    "libimobiledevice": "00008030-000E38AE1EF8202E"
+  },
+  "automationLevel": "inspect-only-blocked-no-safari-pages"
+}

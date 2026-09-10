@@ -1,0 +1,153 @@
+{
+  "resumedAt": "2026-08-19T23:54:32.438Z",
+  "releaseHead": "b9eaf7df",
+  "mode": "resume-landscape-export-only",
+  "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3 Mobile/15E148 Safari/604.1",
+  "projectBefore": {
+    "text": "IPHONE SLICE1B",
+    "itemCount": 5,
+    "photos": 4,
+    "videos": 1,
+    "items": [
+      {
+        "id": "px4a-photo-0",
+        "video": false,
+        "selected": false
+      },
+      {
+        "id": "px4a-photo-1",
+        "video": false,
+        "selected": false
+      },
+      {
+        "id": "px4a-photo-2",
+        "video": false,
+        "selected": false
+      },
+      {
+        "id": "px4a-photo-3",
+        "video": true,
+        "selected": true
+      },
+      {
+        "id": "px4a-photo-4",
+        "video": false,
+        "selected": false
+      }
+    ],
+    "audioOff": false
+  },
+  "landscape": {
+    "posture": "phone-landscape",
+    "left": true,
+    "right": true,
+    "overflow": 0,
+    "finish": true,
+    "canvases": 1
+  },
+  "afterPortrait": {
+    "text": "IPHONE SLICE1B",
+    "itemCount": 5,
+    "photos": 4,
+    "videos": 1,
+    "items": [
+      {
+        "id": "px4a-photo-0",
+        "video": false,
+        "selected": false
+      },
+      {
+        "id": "px4a-photo-1",
+        "video": false,
+        "selected": false
+      },
+      {
+        "id": "px4a-photo-2",
+        "video": false,
+        "selected": false
+      },
+      {
+        "id": "px4a-photo-3",
+        "video": true,
+        "selected": true
+      },
+      {
+        "id": "px4a-photo-4",
+        "video": false,
+        "selected": false
+      }
+    ],
+    "audioOff": false
+  },
+  "export": {
+    "progressStarted": true,
+    "progressDone": true,
+    "wallMs": 11048,
+    "blob": {
+      "size": 1828591,
+      "type": "video/mp4"
+    },
+    "codec": "h264-local-blob",
+    "exportNetworkDelta": {
+      "providers": 0,
+      "credits": 0
+    }
+  },
+  "network": {
+    "providerHits": [],
+    "creditHits": []
+  },
+  "gates": [
+    {
+      "gate": "Physical iPhone connection",
+      "pass": true,
+      "evidence": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3 Mobile/15E148 Safari/604.1",
+      "source": "PHYSICAL IPHONE"
+    },
+    {
+      "gate": "Physical landscape",
+      "pass": true,
+      "evidence": "{\"posture\":\"phone-landscape\",\"left\":true,\"right\":true,\"overflow\":0,\"finish\":true,\"canvases\":1}",
+      "source": "PHYSICAL IPHONE + MANUAL"
+    },
+    {
+      "gate": "Landscape 55/45",
+      "pass": true,
+      "evidence": "{\"posture\":\"phone-landscape\",\"left\":true,\"right\":true,\"overflow\":0,\"finish\":true,\"canvases\":1}",
+      "source": "PHYSICAL IPHONE"
+    },
+    {
+      "gate": "Landscape state preservation",
+      "pass": true,
+      "evidence": "{\"before\":{\"text\":\"IPHONE SLICE1B\",\"itemCount\":5,\"photos\":4,\"videos\":1,\"items\":[{\"id\":\"px4a-photo-0\",\"video\":false,\"selected\":false},{\"id\":\"px4a-photo-1\",\"video\":false,\"selected\":false},{\"id\":\"px4a-photo-2\",\"video\":false,\"selected\":false},{\"id\":\"px4a-photo-3\",\"video\":true,\"selected\":true},{\"id\":\"px4a-photo-4\",\"video\":false,\"selected\":false}],\"audioOff\":false},\"inLandscape\":{\"text\":\"IPHONE SLICE1B\",\"itemCount\":5,\"photos\":4,\"videos\":1,\"items\":[{\"id\":\"px4a-photo-0\",\"video\":false,\"selected\":false},{\"id\":\"px4a-photo-1\",\"video\":false,\"selected\":false},{\"id\":\"px4a-photo-2\",\"video\":false,\"selected\":false},{\"id\":\"px4a-photo-3\",\"video\":true,\"selected\":true},{\"id\":\"px4a-photo-4\",\"video\":false,\"selected\":false}],\"audioOff\":false}}",
+      "source": "PHYSICAL IPHONE"
+    },
+    {
+      "gate": "Return to portrait",
+      "pass": true,
+      "evidence": "{\"afterPortrait\":{\"text\":\"IPHONE SLICE1B\",\"itemCount\":5,\"photos\":4,\"videos\":1,\"items\":[{\"id\":\"px4a-photo-0\",\"video\":false,\"selected\":false},{\"id\":\"px4a-photo-1\",\"video\":false,\"selected\":false},{\"id\":\"px4a-photo-2\",\"video\":false,\"selected\":false},{\"id\":\"px4a-photo-3\",\"video\":true,\"selected\":true},{\"id\":\"px4a-photo-4\",\"video\":false,\"selected\":false}],\"audioOff\":false},\"overflow\":0}",
+      "source": "PHYSICAL IPHONE + MANUAL"
+    },
+    {
+      "gate": "Physical MP4 export",
+      "pass": true,
+      "evidence": "{\"progressStarted\":true,\"progressDone\":true,\"wallMs\":11048,\"blob\":{\"size\":1828591,\"type\":\"video/mp4\"},\"codec\":\"h264-local-blob\",\"exportNetworkDelta\":{\"providers\":0,\"credits\":0}}",
+      "source": "PHYSICAL IPHONE"
+    },
+    {
+      "gate": "MP4 validity/playback",
+      "pass": true,
+      "evidence": "{\"size\":1828591,\"type\":\"video/mp4\"}",
+      "source": "PHYSICAL IPHONE"
+    },
+    {
+      "gate": "FREE_LOCAL physical export",
+      "pass": true,
+      "evidence": "session providers=0 credits=0; export delta={\"providers\":0,\"credits\":0}",
+      "source": "PHYSICAL IPHONE"
+    }
+  ],
+  "sliceVerdict": "STUDIO_SLICE_1B_PRODUCTION_CERTIFIED",
+  "pxVerdict": "PX.4A.7_RECERTIFIED",
+  "blockers": []
+}

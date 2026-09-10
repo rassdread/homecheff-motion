@@ -72,6 +72,24 @@ export type StudioWalletSnapshot = {
   lastTransactionAt: string | null;
 };
 
+/**
+ * Central HC wallet is ecosystem-wide and keyed by `centralUserId`.
+ * Studio continues to debit its own legacy Studio Wallet for actions (unless/ until flags enable central spend),
+ * but we must display central HC separately in the UX.
+ */
+export type CentralHcWalletSnapshot = {
+  /** Studio account is linked to central identity. */
+  identityResolved: boolean;
+  /** Central HC wallet row exists (ACTIVE/SUSPENDED/etc). */
+  walletResolved: boolean;
+  /** Spendable central HC. */
+  availableHc: number;
+  /** Reserved central HC (in-flight provider jobs). */
+  reservedHc: number;
+  /** HcWallet status string from the DB, if present. */
+  walletStatus: string | null;
+};
+
 export type StudioLedgerRow = {
   id: string;
   projectId: string | null;
@@ -92,6 +110,7 @@ export type StudioAccountOverview = {
   account: StudioAccountSnapshot;
   wallet: StudioWalletSnapshot;
   recentLedger: StudioLedgerRow[];
+  centralHc?: CentralHcWalletSnapshot | null;
 };
 
 export type StudioCreditSettingsPatch = {

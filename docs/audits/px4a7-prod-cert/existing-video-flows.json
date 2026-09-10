@@ -1,0 +1,92 @@
+{
+  "at": "2026-08-19T23:01:09.625Z",
+  "baseline": {
+    "title": "",
+    "photoCount": 5,
+    "photoUrls": [],
+    "videoUrl": "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/uploads/49e44245-3fc5-475e-916c-6b7631b559a4-px4a7-video-10s-p9zgFbik2b86KMFRvw0cBoubJdf5tQ.mp4",
+    "videoCount": 1,
+    "hasMakeFreeCta": false,
+    "hasReplaceCta": true,
+    "draftKeyPresent": false,
+    "url": "https://homecheff.eu/sell/new",
+    "unpublished": true,
+    "listingDraftIdentity": "",
+    "videoCountExpected": 1
+  },
+  "testA_cta": "make-free",
+  "afterCancel": {
+    "title": "PX4A7 existing 1787180475575",
+    "photoCount": 4,
+    "photoUrls": [
+      "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/uploads/b8ce76d2-846d-40c6-a65b-ea7e2e412962-px4a7-photo-red-akwNXRFXb4tGr8vv6SgwUtI71goLKc.png",
+      "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/uploads/7c96306b-0e68-4580-9ec4-06808ec3ae41-px4a7-photo-green-4bYEojGmhyMQ5K3Ryagchjg89IXUPW.png",
+      "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/uploads/db89a081-5990-4503-833b-8a7cb2f60f46-px4a7-photo-blue-4tORTHIzb7Sy9XsohmiE8kfvI3ByV3.png",
+      "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/uploads/59b08350-2523-412f-aa41-098c89655b29-px4a7-photo-orange-rdZki2gje5ztmYgl8484VNe7GIEsj1.png"
+    ],
+    "videoUrl": "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/uploads/49e44245-3fc5-475e-916c-6b7631b559a4-px4a7-video-10s-p9zgFbik2b86KMFRvw0cBoubJdf5tQ.mp4",
+    "videoCount": 1,
+    "hasMakeFreeCta": false,
+    "hasReplaceCta": true,
+    "draftKeyPresent": true,
+    "url": "https://homecheff.eu/sell/new?px4a=1&px4aResult=cancel",
+    "unpublished": true
+  },
+  "testA": {
+    "videoUrlUnchanged": true,
+    "videoCountStillOne": true,
+    "photosPreserved": true,
+    "unpublished": true,
+    "pass": true
+  },
+  "testB_cta": "make-free",
+  "afterReplace": {
+    "title": "PX4A7 existing 1787180475575",
+    "photoCount": 4,
+    "photoUrls": [
+      "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/uploads/b8ce76d2-846d-40c6-a65b-ea7e2e412962-px4a7-photo-red-akwNXRFXb4tGr8vv6SgwUtI71goLKc.png",
+      "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/uploads/7c96306b-0e68-4580-9ec4-06808ec3ae41-px4a7-photo-green-4bYEojGmhyMQ5K3Ryagchjg89IXUPW.png",
+      "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/uploads/db89a081-5990-4503-833b-8a7cb2f60f46-px4a7-photo-blue-4tORTHIzb7Sy9XsohmiE8kfvI3ByV3.png",
+      "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/uploads/59b08350-2523-412f-aa41-098c89655b29-px4a7-photo-orange-rdZki2gje5ztmYgl8484VNe7GIEsj1.png"
+    ],
+    "videoUrl": "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/uploads/41a389fc-5323-4786-8be7-639ac5a103fd-homecheff-video-jFDDO6Y83RuPmqjATmfiS8zMAQHgaS.mp4",
+    "videoCount": 1,
+    "hasMakeFreeCta": false,
+    "hasReplaceCta": true,
+    "draftKeyPresent": true,
+    "url": "https://homecheff.eu/sell/new?px4a=1&px4aResult=ready",
+    "unpublished": true
+  },
+  "testB": {
+    "videoCountExactlyOne": true,
+    "canonicalUrlChanged": true,
+    "oldVideoNotActive": true,
+    "photosPreserved": true,
+    "unpublished": true,
+    "pass": true
+  },
+  "testC_cta": "make-free",
+  "afterAbort": {
+    "title": "PX4A7 existing 1787180475575",
+    "photoCount": 4,
+    "photoUrls": [
+      "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/uploads/b8ce76d2-846d-40c6-a65b-ea7e2e412962-px4a7-photo-red-akwNXRFXb4tGr8vv6SgwUtI71goLKc.png",
+      "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/uploads/7c96306b-0e68-4580-9ec4-06808ec3ae41-px4a7-photo-green-4bYEojGmhyMQ5K3Ryagchjg89IXUPW.png",
+      "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/uploads/db89a081-5990-4503-833b-8a7cb2f60f46-px4a7-photo-blue-4tORTHIzb7Sy9XsohmiE8kfvI3ByV3.png",
+      "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/uploads/59b08350-2523-412f-aa41-098c89655b29-px4a7-photo-orange-rdZki2gje5ztmYgl8484VNe7GIEsj1.png"
+    ],
+    "videoUrl": "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/uploads/41a389fc-5323-4786-8be7-639ac5a103fd-homecheff-video-jFDDO6Y83RuPmqjATmfiS8zMAQHgaS.mp4",
+    "videoCount": 1,
+    "hasMakeFreeCta": false,
+    "hasReplaceCta": true,
+    "draftKeyPresent": true,
+    "url": "https://homecheff.eu/sell/new?px4a=1&px4aResult=cancel",
+    "unpublished": true
+  },
+  "testC": {
+    "attempted": true,
+    "videoUrlPreserved": true,
+    "pass": true
+  },
+  "verdict": "GAP2_PASS"
+}

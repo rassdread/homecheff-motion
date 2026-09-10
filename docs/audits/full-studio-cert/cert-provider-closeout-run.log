@@ -1,0 +1,9 @@
+
+=== Scenario A: Rode loper (API path) ===
+  uploading fixtures…
+  create-and-generate…
+  create status 200 cmt5hnj1s0003jh09hns3vu4v
+Error: timeout: vidu complete
+    at waitUntil (/Users/sergioarrias/HomeCheffProjects/homecheff video ai/scripts/_full-studio-cert-provider-closeout.ts:62:9)
+    at async runScenarioA (/Users/sergioarrias/HomeCheffProjects/homecheff video ai/scripts/_full-studio-cert-provider-closeout.ts:148:3)
+    at async main (/Users/sergioarrias/HomeCheffProjects/homecheff video ai/scripts/_full-studio-cert-provider-closeout.ts:582:5)

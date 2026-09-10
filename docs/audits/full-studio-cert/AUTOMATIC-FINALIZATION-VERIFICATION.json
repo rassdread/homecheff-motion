@@ -1,43 +1,18 @@
 {
-  "at": "2026-08-26T00:00:00.000Z",
+  "at": "2026-08-27T13:12:00.000Z",
   "projectId": "cmt5hnj1s0003jh09hns3vu4v",
-  "classification": "WORKING",
-  "certified": false,
-  "firstDivergence": {
-    "fact": "automatic upload targeted final.mp4 allowOverwrite=false; rebuild used final-vN.mp4 allowOverwrite=true",
-    "primaryRootCause": "H6_STORAGE_KEY_COLLISION",
-    "secondaryRootCause": "H3_STORAGE_REQUEST_REJECTED",
-    "doc": "TARGET-B-FIRST-DIVERGENCE.md"
-  },
-  "fixSha": "32abbba208666a8c37a0aa543c0210e7d4987935",
-  "repairShas": [
-    "45a66190",
-    "f23e644f",
-    "6bfe9849",
-    "fd1b317f",
-    "38b2d32e",
-    "5ac94c7c",
-    "32abbba2"
-  ],
-  "rebuildContrast": {
-    "ok": true,
-    "elapsedMsApprox": 20635,
-    "finalVideoUrlPresent": true,
-    "note": "Forensic only — not CERTIFIED proof"
-  },
-  "automaticPath": {
-    "viduNewJobs": 0,
-    "creditsDebited": 0,
-    "playableFinalViaGetStatusOnly": false,
-    "lastErrors": [
-      "Final video upload failed.",
-      "GET status client timeout while awaiting runFinalExportToCompletion"
-    ],
-    "workerSourceParity": "pending Render redeploy >= 32abbba2"
-  },
-  "gates": {
-    "AUTOMATIC_FINAL_VIDEO_MERGE": "WORKING",
-    "INSTANT_MERGE_RECOVERY": "WORKING",
-    "INSTANT_MERGE_IDEMPOTENCY": "WORKING"
-  }
+  "classification": "CERTIFIED",
+  "run": 12,
+  "evidence": "AUTOMATIC-FINALIZATION-RUN-12.json",
+  "deploymentRevisionGate": "PASS",
+  "vercelCommitSha": "374f9af295050a7d11e327a50c3ef7e42a38a0f7",
+  "renderSourceCommitSha": "374f9af295050a7d11e327a50c3ef7e42a38a0f7",
+  "vercelDeploymentId": "dpl_BBGJH3y7P5nm83AEoRnyxANdvUnr",
+  "finalBlobKey": "motion/final/cmt5hnj1s0003jh09hns3vu4v/final-v6.mp4",
+  "canonicalRenderVersionNumber": 5,
+  "rebuildCount": 6,
+  "viduNewJobs": 0,
+  "creditsDebited": 0,
+  "idempotencyOk": true,
+  "historicalRun11": "PARTIAL_CHAIN upload-only; version V1 gap closed by 374f9af2"
 }

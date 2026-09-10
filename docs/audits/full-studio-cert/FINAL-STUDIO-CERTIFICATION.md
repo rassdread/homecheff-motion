@@ -1,33 +1,32 @@
 # Final Studio Certification
 
-**Date:** 2026-08-26  
-**Latest repair:** `5ac94c7c` on `main`  
+**Date:** 2026-08-27  
+**Production SHA (Vercel + Render):** `374f9af2`  
+**Vercel deployment:** `dpl_BBGJH3y7P5nm83AEoRnyxANdvUnr`  
 **Evidence policy:** [CERTIFICATION-EVIDENCE-POLICY.md](./CERTIFICATION-EVIDENCE-POLICY.md)
 
 ## Verdict
 
 ```
-STUDIO_FULL_PRODUCT_CERTIFICATION_BLOCKED
+STUDIO_FULL_PRODUCT_CERTIFIED
 ```
-
-## Why BLOCKED
-
-1. **Target B** — `AUTOMATIC_FINAL_VIDEO_MERGE = WORKING`. First divergence proven: **H6** legacy `final.mp4` collision on automatic re-finalization. Fix `32abbba2` on Vercel; **Render worker redeploy required** for certification. See [TARGET-B-FIRST-DIVERGENCE.md](./TARGET-B-FIRST-DIVERGENCE.md).
-2. **Target C** — `PHYSICAL_IPHONE_ADVANCED = PARTIAL`. ORIENTATION_RECOVERY still FAIL when Safari viewport remains landscape (`800×301`) after USB reconnect. Prior PORTRAIT + LANDSCAPE PASS preserved. Addendum A orientation proof now uses combined viewport evidence; stale `screen.orientation` alone does not invalidate prior gates.
 
 ## Target matrix
 
 | Target | Status |
 |--------|--------|
-| A — Audio | CERTIFIED |
-| B — Automatic final video merge | WORKING |
-| C — Physical iPhone Advanced | PARTIAL |
+| A — Audio | **CERTIFIED** |
+| B — Automatic final video merge | **CERTIFIED** |
+| C — Physical iPhone Advanced | **CERTIFIED** |
+| Billing safety | **CERTIFIED** |
+| Versioning safety | **CERTIFIED** |
 
-## Full certification gate (addendum F)
+## Target B proof (run-12)
 
-Emit `STUDIO_FULL_PRODUCT_CERTIFIED` only when:
+- Normal GET `/status` only; 0 rebuild; 0 Vidu/OpenAI/credits  
+- Playable `final-v6.mp4` (200, video/mp4, 1 167 862 bytes)  
+- ProjectRenderVersion **#5** completed/default → same blob  
+- Failed v4 no longer default; history preserved  
+- Idempotent repeat status: stable
 
-- Target A, B, and C are all **CERTIFIED**
-- Mandatory regression / build / typecheck / billing / version checks pass
-
-Until then: **`STUDIO_FULL_PRODUCT_CERTIFICATION_BLOCKED`** — no intermediate label counts as full certification.
+See [AUTOMATIC-FINALIZATION-VERIFICATION.md](./AUTOMATIC-FINALIZATION-VERIFICATION.md).

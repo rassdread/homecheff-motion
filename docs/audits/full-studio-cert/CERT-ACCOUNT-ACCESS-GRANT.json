@@ -1,0 +1,36 @@
+{
+  "action": "grant",
+  "mechanism": "bounded_promotional_credits_via_adminAdjustCredits",
+  "reason": "FULL_STUDIO_CERTIFICATION",
+  "amount": 1505,
+  "breakdown": {
+    "A_rode_loper_motion": 450,
+    "A_retry_reserve": 450,
+    "C_scene_images": 150,
+    "C_scene5_rerender": 30,
+    "C_characters": 40,
+    "D_voice": 45,
+    "D_music": 80,
+    "D_sfx": 60,
+    "buffer": 200
+  },
+  "ledgerId": "cmt5003wi00012jlrcsfsmy10",
+  "balanceAfter": 1505,
+  "before": {
+    "balance": 0,
+    "promotionalBalance": 0,
+    "purchasedBalance": 0,
+    "reservedBalance": 0,
+    "available": 0,
+    "lifetimeGranted": 0
+  },
+  "after": {
+    "balance": 1505,
+    "promotionalBalance": 1505,
+    "purchasedBalance": 0,
+    "reservedBalance": 0,
+    "available": 1505,
+    "lifetimeGranted": 1505
+  },
+  "isolationNote": "role unchanged (user); accountType remains free; only promotional balance increased via ledger"
+}

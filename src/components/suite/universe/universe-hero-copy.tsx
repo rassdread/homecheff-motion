@@ -65,7 +65,10 @@ export function UniverseHeroCopy({ isAuthenticated, email, reducedMotion = false
         ))}
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center justify-start gap-2" data-testid="universe-hero-ctas">
+      <div
+        className="mt-6 hidden flex-wrap items-center justify-start gap-2 lg:flex"
+        data-testid="universe-hero-ctas"
+      >
         {isAuthenticated ? (
           <>
             <Link

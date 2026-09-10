@@ -65,13 +65,13 @@
     },
     {
       "gate": "orientation_recovery",
-      "pass": false,
-      "evidence": "{\"metrics\":{\"w\":800,\"h\":301,\"mmLandscape\":true,\"so\":\"landscape-primary\",\"orient\":\"landscape\",\"nav\":true,\"overflow\":false,\"preview\":{\"visibleImages\":1,\"blackishSample\":false,\"natural\":\"1024x1024\"},\"url\":\"https://studio.homecheff.eu/studio?storyboardId=cmt5izwgu0001gq0444v3ipil&stage=visuals&continueInStudio=1&hcProject=hcproj_1787585776673_b6lyqnmk\",\"bodyOverflow\":\"clip visible\"},\"afrondenOk\":true,\"scrollOk\":true,\"shot\":\"/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/full-studio-cert/iphone-final/1787612156943-portrait-recovery-final.png\",\"device\":\"PHYSICAL\"}"
+      "pass": true,
+      "evidence": "{\"port\":{\"innerWidth\":414,\"innerHeight\":750,\"visualViewportWidth\":414,\"visualViewportHeight\":750,\"matchMediaLandscape\":false,\"matchMediaPortrait\":true,\"screenOrientationType\":\"portrait-primary\",\"viewportOrientation\":\"portrait\",\"orient\":\"portrait\",\"safariOrientationDiscrepancy\":false,\"safariDiscrepancyNote\":null,\"portraitEvidencePass\":true,\"landscapeEvidencePass\":false},\"nav\":true,\"previewP\":{\"visibleImages\":1,\"blackishSample\":false},\"url\":\"https://studio.homecheff.eu/studio?storyboardId=cmt5izwgu0001gq0444v3ipil&stage=visuals&continueInStudio=1&hcProject=hcproj_1787585776673_b6lyqnmk\",\"shot\":\"/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/full-studio-cert/iphone-final/1787759926842-portrait-recovery-final.png\",\"safariDiscrepancy\":false,\"safariDiscrepancyNote\":null}"
     },
     {
       "gate": "black_preview_after_rotation",
       "pass": true,
-      "evidence": "{\"visibleImages\":1,\"blackishSample\":false,\"natural\":\"1024x1024\"}"
+      "evidence": "{\"visibleImages\":1,\"blackishSample\":false}"
     },
     {
       "gate": "finish_mobile",
@@ -96,10 +96,8 @@
   ],
   "providerHits": 0,
   "providerUrls": [],
-  "classification": "FAILED",
-  "failedGates": [
-    "orientation_recovery"
-  ],
+  "classification": "CERTIFIED",
+  "failedGates": [],
   "endedAt": "2026-08-24T04:49:09.389Z",
   "landscapeResumeAt": "2026-08-24T15:38:54.861Z",
   "before": {
@@ -117,12 +115,20 @@
     "orient": "landscape"
   },
   "port": {
-    "w": 800,
-    "h": 301,
-    "mmLandscape": true,
-    "so": "landscape-primary",
-    "orient": "landscape"
+    "innerWidth": 414,
+    "innerHeight": 750,
+    "visualViewportWidth": 414,
+    "visualViewportHeight": 750,
+    "matchMediaLandscape": false,
+    "matchMediaPortrait": true,
+    "screenOrientationType": "portrait-primary",
+    "viewportOrientation": "portrait",
+    "orient": "portrait",
+    "safariOrientationDiscrepancy": false,
+    "safariDiscrepancyNote": null,
+    "portraitEvidencePass": true,
+    "landscapeEvidencePass": false
   },
-  "portraitRecoveryAt": "2026-08-24T22:55:57.060Z",
-  "recoveryPass": false
+  "portraitRecoveryAt": "2026-08-26T15:58:46.942Z",
+  "recoveryPass": true
 }

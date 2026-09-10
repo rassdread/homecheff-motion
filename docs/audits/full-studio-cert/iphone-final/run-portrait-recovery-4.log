@@ -1,0 +1,11 @@
+browserType.connectOverCDP: connect ECONNREFUSED 127.0.0.1:9222
+Call log:
+  - <ws preparing> retrieving websocket url from http://127.0.0.1:9222
+
+    at connect (/Users/sergioarrias/HomeCheffProjects/homecheff video ai/scripts/_full-studio-cert-iphone-portrait-recovery.ts:34:27)
+    at async main (/Users/sergioarrias/HomeCheffProjects/homecheff video ai/scripts/_full-studio-cert-iphone-portrait-recovery.ts:82:19) {
+  log: [
+    '  - <ws preparing> retrieving websocket url from http://127.0.0.1:9222'
+  ],
+  name: 'Error'
+}

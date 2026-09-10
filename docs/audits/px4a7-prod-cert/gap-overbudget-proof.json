@@ -1,0 +1,91 @@
+{
+  "at": "2026-08-19T15:43:40.936Z",
+  "architecture": "OVER_BUDGET_REACHABLE",
+  "verdict": "GAP1_PASS",
+  "stripVideoIndices": [
+    1,
+    2
+  ],
+  "trimClip1": {
+    "sourceSeconds": 10,
+    "targetEndSeconds": 9,
+    "usedSeconds": 9,
+    "panelAfter": {
+      "paras": [
+        "Bron: 00:10",
+        "Gekozen: 00:00 – 00:09",
+        "In je video: 9,0 sec"
+      ],
+      "windowLabel": "9,0 sec"
+    }
+  },
+  "trimClip2": {
+    "sourceSeconds": 10,
+    "targetEndSeconds": 9,
+    "usedSeconds": 9,
+    "panelAfter": {
+      "paras": [
+        "Bron: 00:10",
+        "Gekozen: 00:00 – 00:09",
+        "In je video: 9,0 sec"
+      ],
+      "windowLabel": "9,0 sec"
+    }
+  },
+  "overBudgetPhase": {
+    "label": "over-budget",
+    "clipBadgeTexts": [
+      {
+        "idx": 1,
+        "text": "▶9,0 sec"
+      },
+      {
+        "idx": 2,
+        "text": "▶9,0 sec"
+      }
+    ],
+    "clipSeconds": [
+      9,
+      9
+    ],
+    "videoSecondsSum": 18,
+    "warningVisible": true,
+    "warningText": "Je videofragmenten gebruiken samen 18 seconden. Je video duurt 15 seconden. Maak één of meer fragmenten korter.",
+    "exportDownloadDisabled": true,
+    "itemFinishDisabled": null,
+    "durationText": "3 foto's · 18 sec",
+    "encodeRequestsWhileInvalid": 0,
+    "encodeBlocked": true,
+    "encodeAfterClickAttempt": 0
+  },
+  "trimmedBackPhase": {
+    "label": "trimmed-valid",
+    "clipBadgeTexts": [
+      {
+        "idx": 1,
+        "text": "▶6,0 sec"
+      },
+      {
+        "idx": 2,
+        "text": "▶5,0 sec"
+      }
+    ],
+    "clipSeconds": [
+      6,
+      5
+    ],
+    "videoSecondsSum": 11,
+    "warningVisible": false,
+    "warningText": null,
+    "exportDownloadDisabled": false,
+    "itemFinishDisabled": null,
+    "durationText": "3 foto's · 15 sec",
+    "encodeRequestsWhileInvalid": 0,
+    "recovered": true
+  },
+  "recoveredExport": {
+    "duration": 15.082667,
+    "path": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/px4a7-prod-cert/gap-overbudget-recovered.mp4",
+    "targetSeconds": 15
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "action": "revoke",
+  "revoked": 485,
+  "reason": "FULL_STUDIO_CERTIFICATION_REVOKE_UNUSED",
+  "ledgerId": "cmt6comqk00012j4e8bnhpwjs",
+  "balanceAfter": 0,
+  "before": {
+    "balance": 485,
+    "promotionalBalance": 485,
+    "purchasedBalance": 0,
+    "reservedBalance": 0,
+    "available": 485,
+    "lifetimeGranted": 1505
+  },
+  "after": {
+    "balance": 0,
+    "promotionalBalance": 0,
+    "purchasedBalance": 0,
+    "reservedBalance": 0,
+    "available": 0,
+    "lifetimeGranted": 1505
+  }
+}

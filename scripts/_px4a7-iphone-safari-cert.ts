@@ -13,6 +13,7 @@ import { webkit, type Page } from "playwright";
 const HC = "https://homecheff.eu";
 const STUDIO = "https://studio.homecheff.eu";
 const CDP = process.env.PX4A7_IPHONE_CDP || "http://127.0.0.1:9222";
+const STUDIO_DIRECT = process.env.PX4A7_IPHONE_MODE === "studio-direct";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "docs/audits/px4a7-prod-cert");
 const FIX = join(OUT, "fixtures");
@@ -345,6 +346,22 @@ async function main() {
   report.sellerAuth = session;
 
   try {
+    if (STUDIO_DIRECT) {
+      console.log("PX4A7_IPHONE_MODE=studio-direct — skipping HomeCheff listing photos");
+      if (!page.url().includes("/studio/photo-video")) {
+        await page.goto(`${STUDIO}/studio/photo-video`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+      }
+      await waitUntil("contextual studio", async () => {
+        return page.url().includes("/studio/photo-video") && (await page.getByTestId("px4a-composer").count()) > 0;
+      }, 90_000);
+      if (await page.getByTestId("px4a-resume-fresh").count()) await page.getByTestId("px4a-resume-fresh").click();
+      else if (await page.getByTestId("px4a-resume-continue").count()) {
+        await page.getByTestId("px4a-resume-continue").click();
+        await page.waitForTimeout(1500);
+      }
+      report.studioEntry = { url: page.url(), mode: "studio-direct", fromItem: false };
+      await shot(page, "studio-entry");
+    } else {
     // HomeCheff draft — reuse existing form or walk wizard
     if (!page.url().includes("/sell/new")) {
       await page.goto(`${HC}/sell/new`, { waitUntil: "domcontentloaded", timeout: 90_000 });
@@ -389,6 +406,7 @@ async function main() {
     }
 
     await shot(page, "studio-entry");
+    }
 
     // Native iPhone video import
     const existingVideos = (await stripItems(page)).filter((i) => i.isVideo).length;

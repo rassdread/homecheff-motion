@@ -1,0 +1,90 @@
+{
+  "at": "2026-08-23T22:50:58.323Z",
+  "certAccountId": "cmqj9b4rt0000lb04otsiu32e",
+  "role": "user",
+  "isActive": true,
+  "accountType": "free",
+  "studioPlan": "free",
+  "wallet": {
+    "balance": 0,
+    "promotionalBalance": 0,
+    "purchasedBalance": 0,
+    "reservedBalance": 0,
+    "available": 0,
+    "lifetimeGranted": 1505
+  },
+  "recentLedger": [
+    {
+      "id": "cmt6comqk00012j4e8bnhpwjs",
+      "actionType": "manual_adjustment",
+      "creditsDelta": -485,
+      "balanceAfter": 0,
+      "creditOrigin": "MANUAL_GRANT",
+      "createdAt": "2026-08-23T21:59:59.511Z",
+      "reason": "FULL_STUDIO_CERTIFICATION_REVOKE_UNUSED"
+    },
+    {
+      "id": "cmt5j7uta004tii04x8ideh2z",
+      "actionType": "usage_capture",
+      "creditsDelta": -30,
+      "balanceAfter": 485,
+      "creditOrigin": "PROMOTIONAL",
+      "createdAt": "2026-08-23T08:15:07.966Z",
+      "reason": null
+    },
+    {
+      "id": "cmt5j51jr0043ii04hqf8lcmq",
+      "actionType": "usage_capture",
+      "creditsDelta": -30,
+      "balanceAfter": 515,
+      "creditOrigin": "PROMOTIONAL",
+      "createdAt": "2026-08-23T08:12:56.728Z",
+      "reason": null
+    },
+    {
+      "id": "cmt5j4rrs003pii04xcd15jas",
+      "actionType": "usage_capture",
+      "creditsDelta": -30,
+      "balanceAfter": 545,
+      "creditOrigin": "PROMOTIONAL",
+      "createdAt": "2026-08-23T08:12:44.057Z",
+      "reason": null
+    },
+    {
+      "id": "cmt5j4ld7003hii042y5epy1t",
+      "actionType": "usage_capture",
+      "creditsDelta": -30,
+      "balanceAfter": 575,
+      "creditOrigin": "PROMOTIONAL",
+      "createdAt": "2026-08-23T08:12:35.756Z",
+      "reason": null
+    },
+    {
+      "id": "cmt5j3yvl002nii040g9ymim3",
+      "actionType": "usage_reservation",
+      "creditsDelta": 0,
+      "balanceAfter": 605,
+      "creditOrigin": null,
+      "createdAt": "2026-08-23T08:12:06.610Z",
+      "reason": null
+    },
+    {
+      "id": "cmt5j2ew0001hii0484agrncl",
+      "actionType": "usage_reservation",
+      "creditsDelta": 0,
+      "balanceAfter": 605,
+      "creditOrigin": null,
+      "createdAt": "2026-08-23T08:10:54.048Z",
+      "reason": null
+    },
+    {
+      "id": "cmt5izyww000bii04aodc1djp",
+      "actionType": "usage_reservation",
+      "creditsDelta": 0,
+      "balanceAfter": 605,
+      "creditOrigin": null,
+      "createdAt": "2026-08-23T08:09:00.033Z",
+      "reason": null
+    }
+  ]
+}

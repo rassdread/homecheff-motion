@@ -1,0 +1,11 @@
+{
+  "provider": "replicate_sadtalker",
+  "prediction_id": "da8vk2r2k5rne0d0hm3rnxtchw",
+  "status": "succeeded",
+  "output": "https://replicate.delivery/yhqm/RgEnXyU8uDLXEBRa5VhHDZowkgN6qls1objqiBebbDGaNGmLA/out.mp4",
+  "metrics": {
+    "predict_time": 18.149125901,
+    "total_time": 122.559223378
+  },
+  "note": "Direct Replicate API probe with sample face+audio; not full Simple Studio authenticated Production soak."
+}

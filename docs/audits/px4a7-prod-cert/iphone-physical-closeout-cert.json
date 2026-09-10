@@ -1,0 +1,200 @@
+{
+  "startedAt": "2026-08-19T23:37:30.160Z",
+  "releaseHead": "b9eaf7df",
+  "dpl": "dpl_EXXndFYMCDw2siVojLKUiQ72hicR",
+  "cdp": "http://127.0.0.1:9222",
+  "mode": "interactive-physical",
+  "initialUrl": "https://studio.homecheff.eu/studio/photo-video",
+  "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3 Mobile/15E148 Safari/604.1",
+  "videoImportRuns": [
+    {
+      "run": 1,
+      "pickerOpened": true,
+      "pass": false,
+      "pickerOpenedAtMs": 238,
+      "classification": "NATIVE_IOS_PICKER_LIMITATION"
+    },
+    {
+      "run": 2,
+      "pickerOpened": true,
+      "pass": true,
+      "pickerOpenedAtMs": 113,
+      "clipDetectedAtMs": 160489,
+      "duration": "6,0 sec",
+      "contextActions": {
+        "text": true,
+        "trim": true,
+        "fit": true,
+        "audio": true,
+        "order": true
+      },
+      "usableAtMs": 161808,
+      "classification": "PASS"
+    },
+    {
+      "run": 3,
+      "pickerOpened": true,
+      "pass": true,
+      "pickerOpenedAtMs": 96,
+      "clipDetectedAtMs": 66877,
+      "duration": "6,0 sec",
+      "contextActions": {
+        "text": true,
+        "trim": true,
+        "fit": true,
+        "audio": true,
+        "order": true
+      },
+      "usableAtMs": 68163,
+      "classification": "PASS"
+    }
+  ],
+  "videoImportReliability": "2/3",
+  "stateBeforeLandscape": {
+    "text": "IPHONE SLICE1B",
+    "items": [
+      {
+        "id": "px4a-photo-0",
+        "video": false,
+        "selected": false
+      },
+      {
+        "id": "px4a-photo-1",
+        "video": false,
+        "selected": false
+      },
+      {
+        "id": "px4a-photo-2",
+        "video": false,
+        "selected": false
+      },
+      {
+        "id": "px4a-photo-3",
+        "video": true,
+        "selected": true
+      },
+      {
+        "id": "px4a-photo-4",
+        "video": false,
+        "selected": false
+      }
+    ],
+    "fade": false,
+    "shards": false,
+    "audioOn": false,
+    "fitContain": false
+  },
+  "status": "FAIL",
+  "error": "page.getAttribute: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator('[data-testid=\"px4a-edit-zone\"]')\n",
+  "gates": [
+    {
+      "gate": "Physical iPhone connection",
+      "pass": true,
+      "evidence": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3 Mobile/15E148 Safari/604.1",
+      "source": "PHYSICAL IPHONE"
+    },
+    {
+      "gate": "Production Quick Video",
+      "pass": true,
+      "evidence": "https://studio.homecheff.eu/studio/photo-video",
+      "source": "PHYSICAL IPHONE"
+    },
+    {
+      "gate": "Photo import",
+      "pass": true,
+      "source": "PHYSICAL IPHONE"
+    },
+    {
+      "gate": "Video import RUN 1",
+      "pass": false,
+      "evidence": "{\"run\":1,\"pickerOpened\":true,\"pass\":false,\"pickerOpenedAtMs\":238,\"classification\":\"NATIVE_IOS_PICKER_LIMITATION\"}",
+      "classification": "NATIVE_IOS_PICKER_LIMITATION",
+      "source": "PHYSICAL IPHONE + MANUAL USER ACTION"
+    },
+    {
+      "gate": "Video import RUN 2",
+      "pass": true,
+      "evidence": "{\"run\":2,\"pickerOpened\":true,\"pass\":true,\"pickerOpenedAtMs\":113,\"clipDetectedAtMs\":160489,\"duration\":\"6,0 sec\",\"contextActions\":{\"text\":true,\"trim\":true,\"fit\":true,\"audio\":true,\"order\":true},\"usableAtMs\":161808,\"classification\":\"PASS\"}",
+      "classification": "PASS",
+      "source": "PHYSICAL IPHONE + MANUAL USER ACTION"
+    },
+    {
+      "gate": "Video import RUN 3",
+      "pass": true,
+      "evidence": "{\"run\":3,\"pickerOpened\":true,\"pass\":true,\"pickerOpenedAtMs\":96,\"clipDetectedAtMs\":66877,\"duration\":\"6,0 sec\",\"contextActions\":{\"text\":true,\"trim\":true,\"fit\":true,\"audio\":true,\"order\":true},\"usableAtMs\":68163,\"classification\":\"PASS\"}",
+      "classification": "PASS",
+      "source": "PHYSICAL IPHONE + MANUAL USER ACTION"
+    },
+    {
+      "gate": "Native video reliability",
+      "pass": true,
+      "evidence": "2/3",
+      "classification": "ACCEPTABLE",
+      "source": "PHYSICAL IPHONE"
+    },
+    {
+      "gate": "Video context bar",
+      "pass": true,
+      "evidence": "{\"text\":true,\"trim\":true,\"fit\":true,\"audio\":true,\"order\":true}",
+      "source": "PHYSICAL IPHONE"
+    },
+    {
+      "gate": "Photo context (no stale video)",
+      "pass": true,
+      "evidence": "{\"text\":true,\"trim\":false,\"fit\":false,\"audio\":false,\"order\":true}",
+      "source": "PHYSICAL IPHONE"
+    },
+    {
+      "gate": "Trim",
+      "pass": true,
+      "source": "PHYSICAL IPHONE"
+    },
+    {
+      "gate": "Fill/Fit",
+      "pass": true,
+      "source": "PHYSICAL IPHONE"
+    },
+    {
+      "gate": "Videogeluid",
+      "pass": true,
+      "source": "PHYSICAL IPHONE"
+    },
+    {
+      "gate": "Mixed media",
+      "pass": true,
+      "evidence": "[{\"index\":0,\"testId\":\"px4a-photo-0\",\"isVideo\":false,\"preparing\":false,\"selected\":false,\"duration\":null},{\"index\":1,\"testId\":\"px4a-photo-1\",\"isVideo\":false,\"preparing\":false,\"selected\":false,\"duration\":null},{\"index\":2,\"testId\":\"px4a-photo-2\",\"isVideo\":false,\"preparing\":false,\"selected\":false,\"duration\":null},{\"index\":3,\"testId\":\"px4a-photo-3\",\"isVideo\":true,\"preparing\":false,\"selected\":true,\"duration\":\"6,0 sec\"},{\"index\":4,\"testId\":\"px4a-photo-4\",\"isVideo\":false,\"preparing\":false,\"selected\":false,\"duration\":null}]",
+      "source": "PHYSICAL IPHONE"
+    },
+    {
+      "gate": "Text",
+      "pass": false,
+      "evidence": "IPHONE SLICE1B",
+      "source": "PHYSICAL IPHONE"
+    },
+    {
+      "gate": "Real iOS keyboard",
+      "pass": true,
+      "evidence": "{\"posture\":\"phone-portrait\",\"overflow\":0,\"textVisible\":true}",
+      "source": "PHYSICAL IPHONE"
+    },
+    {
+      "gate": "Portrait",
+      "pass": true,
+      "evidence": "0",
+      "source": "PHYSICAL IPHONE"
+    },
+    {
+      "gate": "Standard transition (Vervagen)",
+      "pass": false,
+      "source": "PHYSICAL IPHONE"
+    },
+    {
+      "gate": "Signature transition (Scherven)",
+      "pass": false,
+      "source": "PHYSICAL IPHONE"
+    }
+  ],
+  "sliceVerdict": "STUDIO_SLICE_1B_CERTIFICATION_BLOCKED",
+  "pxVerdict": "PX.4A.7_RECERT_BLOCKED",
+  "finishedAt": "2026-08-19T23:47:59.483Z"
+}

@@ -1,0 +1,201 @@
+{
+  "startedAt": "2026-08-19T22:56:24.730Z",
+  "mergeSha": "3be9654b6ddc7b024cdaffda35e6daaa3dd07445",
+  "deploymentId": "5980026965",
+  "auth": {
+    "meStatus": 200
+  },
+  "canvasCount": 1,
+  "addTiles": {
+    "photo": 1,
+    "video": 1
+  },
+  "mixed": {
+    "videoIdxs": [
+      2,
+      4
+    ],
+    "photoInspector": {
+      "movement": 1,
+      "trim": 0
+    },
+    "videoInspector": {
+      "movement": 0,
+      "trim": 1,
+      "audio": 1
+    }
+  },
+  "standaloneExport": {
+    "wallMs": 21460,
+    "path": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/px4a7-prod-cert/standalone-mixed.mp4",
+    "bytes": 5573692,
+    "ftyp": true,
+    "duration": 30.08,
+    "videoCodec": "h264",
+    "audioCodec": "aac",
+    "width": 404,
+    "height": 720,
+    "frames": [
+      {
+        "t": 0.5,
+        "r": 252,
+        "g": 0,
+        "b": 0,
+        "hash": "d5d72dc060bb36a4",
+        "path": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/px4a7-prod-cert/frames/t-0_5-1b7ffa.png"
+      },
+      {
+        "t": 4,
+        "r": 189,
+        "g": 30,
+        "b": 0,
+        "hash": "2276241bb47a54ad",
+        "path": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/px4a7-prod-cert/frames/t-4-c7626d.png"
+      },
+      {
+        "t": 8,
+        "r": 1,
+        "g": 73,
+        "b": 108,
+        "hash": "13966ac7246fa338",
+        "path": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/px4a7-prod-cert/frames/t-8-2acae7.png"
+      },
+      {
+        "t": 12,
+        "r": 2,
+        "g": 15,
+        "b": 219,
+        "hash": "f4a32bef15bc2dd4",
+        "path": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/px4a7-prod-cert/frames/t-12-ef5538.png"
+      },
+      {
+        "t": 20,
+        "r": 2,
+        "g": 15,
+        "b": 219,
+        "hash": "5f3526ee332a20d2",
+        "path": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/px4a7-prod-cert/frames/t-20-21bd4d.png"
+      },
+      {
+        "t": 25,
+        "r": 252,
+        "g": 164,
+        "b": 0,
+        "hash": "a64bb43f48e214fe",
+        "path": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/px4a7-prod-cert/frames/t-25-64990f.png"
+      },
+      {
+        "t": 28,
+        "r": 124,
+        "g": 0,
+        "b": 125,
+        "hash": "28627be0439f81d5",
+        "path": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/px4a7-prod-cert/frames/t-28-90a9e1.png"
+      }
+    ],
+    "movingPairs": [
+      {
+        "a": 0.5,
+        "b": 4,
+        "differ": true
+      },
+      {
+        "a": 4,
+        "b": 8,
+        "differ": true
+      },
+      {
+        "a": 8,
+        "b": 12,
+        "differ": true
+      },
+      {
+        "a": 12,
+        "b": 20,
+        "differ": true
+      },
+      {
+        "a": 20,
+        "b": 25,
+        "differ": true
+      },
+      {
+        "a": 25,
+        "b": 28,
+        "differ": true
+      }
+    ],
+    "framesDiffer": true
+  },
+  "signatureExport": {
+    "wallMs": 21330,
+    "path": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/px4a7-prod-cert/standalone-shards.mp4",
+    "bytes": 5490007,
+    "ftyp": true,
+    "duration": 30.08,
+    "videoCodec": "h264",
+    "audioCodec": "aac",
+    "width": 404,
+    "height": 720,
+    "frames": [
+      {
+        "t": 2,
+        "r": 252,
+        "g": 0,
+        "b": 0,
+        "hash": "dd6bc9c16fb11747",
+        "path": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/px4a7-prod-cert/frames/t-2-607968.png"
+      },
+      {
+        "t": 6,
+        "r": 0,
+        "g": 126,
+        "b": 0,
+        "hash": "b2422cad21b6329f",
+        "path": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/px4a7-prod-cert/frames/t-6-fd511a.png"
+      },
+      {
+        "t": 10,
+        "r": 2,
+        "g": 15,
+        "b": 219,
+        "hash": "6ef41edb900036a9",
+        "path": "/Users/sergioarrias/HomeCheffProjects/homecheff video ai/docs/audits/px4a7-prod-cert/frames/t-10-fb0d0a.png"
+      }
+    ],
+    "movingPairs": [
+      {
+        "a": 2,
+        "b": 6,
+        "differ": true
+      },
+      {
+        "a": 6,
+        "b": 10,
+        "differ": true
+      }
+    ],
+    "framesDiffer": true
+  },
+  "refresh": {
+    "beforeRefresh": {
+      "digits": 2,
+      "text": "MIXED VIDEO TEST"
+    },
+    "afterRefresh": {
+      "digits": 2,
+      "strip": 7
+    },
+    "restored": true
+  },
+  "afterRemoveCount": 7,
+  "mobile390": {
+    "overflow": 0,
+    "addPhoto": true,
+    "addVideo": true,
+    "canvas": 1
+  },
+  "status": "FAIL",
+  "error": "timeout: 4 listing photos",
+  "finishedAt": "2026-08-19T23:00:30.056Z"
+}

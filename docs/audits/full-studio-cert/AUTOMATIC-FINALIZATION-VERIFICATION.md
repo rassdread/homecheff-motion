@@ -1,47 +1,65 @@
 # Automatic Finalization — Verification
 
-**Updated:** 2026-08-26  
+**Updated:** 2026-08-27T13:12Z  
 **Project:** `cmt5hnj1s0003jh09hns3vu4v`  
-**Forensic:** [TARGET-B-FIRST-DIVERGENCE.md](./TARGET-B-FIRST-DIVERGENCE.md)
+**Worker + Vercel:** `374f9af2` (version-persistence fix)
 
 ## Classification
 
-`AUTOMATIC_FINAL_VIDEO_MERGE = WORKING` (not CERTIFIED)
+`AUTOMATIC_FINAL_VIDEO_MERGE = CERTIFIED`  
+`VERSIONING_SAFETY = CERTIFIED`
 
-## First divergence (proven 2026-08-26)
+Machine evidence: [AUTOMATIC-FINALIZATION-RUN-12.json](./AUTOMATIC-FINALIZATION-RUN-12.json)
 
-**H6 STORAGE_KEY_COLLISION** — automatic re-finalization on cert project (`instantFinalRebuildCount=4`) targeted legacy `final.mp4` with `allowOverwrite=false` while object existed; rebuild used `final-v{N}.mp4` with overwrite allowed.
+## Deployment revision gate
 
-**Fix:** `32abbba2` — version automatic upload after prior rebuilds.
+| Surface | SHA | Gate |
+|---------|-----|------|
+| Vercel Production | `374f9af2` / `dpl_BBGJH3y7P5nm83AEoRnyxANdvUnr` | PASS |
+| Render worker | `374f9af2` | PASS |
 
-**Blocker after Vercel deploy:** Render video worker must run same SHA (merge+upload executes on worker, not Vercel).
+## Run-12 (final cert replay)
 
-## Historical failed evidence (preserved)
+| Field | Result |
+|-------|--------|
+| Path | GET `/status` only |
+| Forbidden rebuild/repair | **0** |
+| Elapsed | **~24s** |
+| Export | `completed` / **100%** |
+| Blob | `…/final-v6.mp4` |
+| HEAD | **200** `video/mp4` |
+| Size | **1 167 862** bytes |
+| Project | `completed`, `instantFinalRebuildCount=6` |
+| Vidu / OpenAI / credits | **0** / **0** / **0** |
 
-1. Pre-repair: GET `/status` left export `pending`/0 + worker `running` for ~7 min.
-2. Post-orchestration repair (`auto-merge-cert-run-3`…`9`): `Final video upload failed.` at progress 70; rebuild succeeded (~20s, `final-v4.mp4`).
-3. Post-fix Vercel deploy (`32abbba2`, run-10): same upload failure — worker source parity gap.
+### ProjectRenderVersion (authoritative post-commit)
 
-## Repairs shipped
+| Field | Value |
+|-------|-------|
+| Canonical `renderVersionNumber` | **5** |
+| `rebuildCount` | **6** (blob key `final-v6`; not required to equal version number) |
+| Status | `completed` |
+| `isDefault` | **true** |
+| `finalVideoUrl` | matches export `final-v6.mp4` |
+| Prior v4 | `failed`, `isDefault=false`, URL null (not current) |
+| Historical | v1–v4 preserved; v5 added once |
 
-| SHA | Change |
-|-----|--------|
-| `45a66190` | claim queued; after() attempt; ack-before-running |
-| `f23e644f` | await dispatch + status `maxDuration=300` |
-| `6bfe9849` | worker process client timeout 180s |
-| `fd1b317f` | force merge on automatic path |
-| `38b2d32e` | use rebuild `trigger_and_poll` primitive |
-| `5ac94c7c` | `resetInstantRepairExportState` before poll |
-| **`32abbba2`** | **versioned blob + allowOverwrite for automatic re-finalization** |
+### Idempotency
 
-## Why not CERTIFIED
+Repeat GET `/status` after completion: still `completed`, same final URL, version count **5** unchanged, no forbidden POSTs.
 
-Normal Production GET `/status` replay has **not** produced playable persisted `finalVideoUrl` + completed version after fix deploy on **both** Vercel and Render worker.
+### Script note
 
-## Provider
+Cert harness briefly reported `PARTIAL_CHAIN` because `verifyAutomaticFinalChain` ran while export was already `completed` and the version row commit was still finishing (ordering inside `commitInstantPremiumFinalVideoExport`). Post-hoc DB + idempotency checks are authoritative and **PASS**.
 
-| Metric | Value |
-|--------|-------|
-| New Vidu | **0** |
-| Credits | **0** |
-| Rebuild during cert | forensic contrast only |
+## Historical evidence (preserved)
+
+1. Pre-repair fire-and-forget stall  
+2. Runs 3–10: upload H6 collision / worker lag  
+3. Run-11: upload PASS (`final-v5`), version missing → V1  
+4. Fix `374f9af2`: `persistFinalRenderVersionAfterExport`  
+5. Run-12: upload + version PASS → **CERTIFIED**
+
+## Root cause closed (V1)
+
+Automatic re-finalization set `isRebuild` without `pendingFullRerender`, so commit skipped version create. Repair reuses seal → createPending → completePending.

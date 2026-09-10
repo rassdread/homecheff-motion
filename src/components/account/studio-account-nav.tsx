@@ -6,6 +6,7 @@ import { useActiveTranslator } from "@/i18n/client";
 
 const LINKS = [
   { href: "/account", key: "account.nav.overview" },
+  { href: "/account/wallet", key: "account.nav.wallet" },
   { href: "/account/credits", key: "account.nav.credits" },
   { href: "/account/billing", key: "account.nav.billing" },
   { href: "/account/usage", key: "account.nav.usage" },

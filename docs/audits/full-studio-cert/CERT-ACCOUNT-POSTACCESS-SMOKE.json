@@ -1,0 +1,38 @@
+{
+  "at": "2026-08-22T23:17:44.848Z",
+  "freeUserIsolation": {
+    "allowed": false,
+    "reason": "free_account_provider_action",
+    "expectedBlocked": true,
+    "pass": true
+  },
+  "certAuthorizeSmoke": {
+    "ok": true,
+    "adminBypass": false,
+    "code": null,
+    "reservation": {
+      "credits": 5,
+      "id": "cmt500n4k00012jyixcw04plo"
+    }
+  },
+  "productionPreview": {
+    "status": 200,
+    "body": {
+      "ok": true,
+      "preview": {
+        "allowed": true,
+        "requiredCredits": 5,
+        "confirmationRequired": false,
+        "reason": null,
+        "balanceAfter": 1500,
+        "upgradeSuggestion": null,
+        "actionType": "vision_analysis"
+      }
+    }
+  },
+  "productionWallet": {
+    "available": 1505,
+    "promotional": 1505,
+    "balance": 1505
+  }
+}

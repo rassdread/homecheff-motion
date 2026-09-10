@@ -1,0 +1,168 @@
+{
+  "startedAt": "2026-08-23T07:31:07.059Z",
+  "budget": {
+    "MAX_VIDU": 2,
+    "MAX_SCENE_IMAGE": 6,
+    "MAX_IMAGE_EDIT": 2
+  },
+  "providerActual": {
+    "vidu": 1,
+    "sceneImage": 4,
+    "imageEdit": 1
+  },
+  "scenarioA": {
+    "status": "completed",
+    "projectId": "cmt5hnj1s0003jh09hns3vu4v",
+    "storyboardId": "cmt5iy6tq0001l7048cl7cnvv",
+    "finalVideoUrl": "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/motion/final/cmt5hnj1s0003jh09hns3vu4v/final-v1.mp4?…",
+    "sourceImageUrl": "https://it3xt8um5uqzpebe.public.blob.vercel-storage.com/motion/cert-1787470274243-c9dh/thumb-person.png.jpg?…",
+    "segmentCount": 1,
+    "materialize": {
+      "firstReused": true,
+      "secondReused": true,
+      "sameId": true
+    },
+    "finishOk": true,
+    "projectsCardCount": 3,
+    "humanVisual": "PENDING_REVIEW",
+    "authGateCleared": true,
+    "createHttp": 200
+  },
+  "scenarioC": {
+    "status": "completed",
+    "storyboardId": "cmt5izwgu0001gq0444v3ipil",
+    "realProviderOrders": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "realOrdersWithImages": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "fixtureOrders": [
+      1,
+      3,
+      5,
+      7
+    ],
+    "rerender": {
+      "status": 0,
+      "error": "Error: apiRequestContext.post: read ETIMEDOUT\nCall log:\n  - → POST https://studio.homecheff.eu/api/studio/storyboards/cmt5izwgu0001gq0444v3ipil/scenes/cmt5izxgc000bgq0446ghl6wj/images/cmt5j2u1p001tii0",
+      "beforeImageId": "cmt5j2u1p001tii046l2cojml",
+      "polledImageCount": 2
+    },
+    "scene5ImageCountAfter": 2,
+    "oldStillPreserved": true,
+    "sceneImageCounts": [
+      {
+        "order": 0,
+        "count": 2
+      },
+      {
+        "order": 1,
+        "count": 2
+      },
+      {
+        "order": 2,
+        "count": 2
+      },
+      {
+        "order": 3,
+        "count": 2
+      },
+      {
+        "order": 4,
+        "count": 2
+      },
+      {
+        "order": 5,
+        "count": 1
+      },
+      {
+        "order": 6,
+        "count": 1
+      },
+      {
+        "order": 7,
+        "count": 1
+      }
+    ],
+    "humanScores": {
+      "characterA": "WARN_REVIEW",
+      "characterB": "WARN_REVIEW",
+      "wardrobe": "WARN_REVIEW",
+      "location": "WARN_REVIEW",
+      "prop": "WARN_REVIEW",
+      "note": "API continuity proven; visual identity scores need human frame review"
+    }
+  },
+  "scenarioD": {
+    "status": "partial",
+    "mixer": "S2E-P1 mixStudioAudioLayers (voice-pad + duration=longest fix)",
+    "providerCallsDuringMix": 0,
+    "timelineHash": "05c705321ffc172d",
+    "voiceCueCount": 1,
+    "musicCueCount": 1,
+    "ambienceCueCount": 1,
+    "sfxCueCount": 2,
+    "duckingEnvelopeCount": 1,
+    "finalMp4": "docs/audits/full-studio-cert/audio-final/final-export.mp4",
+    "mix": {
+      "ok": true
+    },
+    "mux": {
+      "ok": true
+    },
+    "duckingLevelsDb": {
+      "before": null,
+      "during": null,
+      "after": null
+    },
+    "duckingAudible": "human_listen_required",
+    "mixDurationSeconds": 10,
+    "mp4DurationSeconds": 10,
+    "levelsDb": {
+      "before": null,
+      "sfx1": null,
+      "duringVoice": null,
+      "afterVoice": null,
+      "sfx2": null,
+      "afterSfx": null
+    },
+    "duckingOk": false,
+    "sfxOk": false,
+    "duckDeltaDb": null,
+    "note": "Local execution of Production mixer module. Deploy required for Production binary parity.",
+    "remixedAt": "2026-08-23T22:50:51.638Z"
+  },
+  "iphone": {
+    "status": "NOT_RUN",
+    "reason": "DEVICE_UNAVAILABLE"
+  },
+  "quickVideo": {
+    "status": "completed",
+    "freeLocalHints": true,
+    "providerPosts": 0
+  },
+  "walletBefore": {
+    "available": 1055,
+    "promotional": 1055
+  },
+  "updatedAt": "2026-08-23T22:50:51.642Z",
+  "error": "timeout: vidu complete",
+  "walletAfter": {
+    "available": 485,
+    "promotional": 545,
+    "reserved": 60,
+    "lifetimeSpent": 960
+  },
+  "freeUserGate": {
+    "status": "WORKING",
+    "note": "CERT_ACCOUNT remains role=user; free users without credits still hit free_account_provider_action (pre-access 403 preserved)",
+    "evidence": "CERT-ACCOUNT-PREACCESS-403.json + studio-credit-policy free path unchanged"
+  }
+}
