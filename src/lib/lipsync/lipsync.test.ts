@@ -66,4 +66,29 @@ describe("True lipsync config + routing", () => {
     assert.equal(plan.lipsync.requested, false);
     assert.ok(!plan.engineChain.includes("lipsync_avatar"));
   });
+
+  it("avoids lipsync when user forbids talking on photo", () => {
+    const plan = buildCreativePlanV2({
+      story:
+        "Maak hiervan een korte video met een voice-over die zegt dat HomeCheff mensen uit dezelfde buurt bij elkaar brengt. Laat de persoon op de foto niet praten.",
+      media: [{ id: "1", kind: "image", url: "https://example.com/face.jpg" }],
+      purposeHint: "universal",
+      lipsyncEngineAvailable: true,
+    });
+    assert.equal(plan.speechMode, "narration");
+    assert.equal(plan.lipsync.requested, false);
+    assert.ok(!plan.hcActions.includes("lipsync_talking_avatar"));
+  });
+
+  it("removes music on haal de muziek weg revision cue", () => {
+    const plan = buildCreativePlanV2({
+      story: 'Laat deze persoon zeggen: "Welkom bij HomeCheff." Gebruik rustige muziek.',
+      media: [{ id: "1", kind: "image", url: "https://example.com/face.jpg" }],
+      purposeHint: "universal",
+      lipsyncEngineAvailable: true,
+      revisionInstruction: "Haal de muziek weg.",
+    });
+    assert.equal(plan.music.mood, "none");
+    assert.equal(plan.music.required, false);
+  });
 });

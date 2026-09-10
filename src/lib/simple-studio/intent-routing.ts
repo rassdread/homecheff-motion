@@ -20,12 +20,13 @@ const DIALOGUE_CUE =
   /\b(laat\s+(hem|haar|deze\s+persoon|de\s+persoon)|vertel(?:len)?|zeg(?:gen)?|praat|spreken|mond\s+meelopen|lipsync|lip[- ]?sync)\b/i;
 
 const NARRATION_CUE =
-  /\b(voice[- ]?over|vertelstem|narratie|als\s+verteller|spraak\s+erover)\b/i;
+  /\b(voice[- ]?over|vertelstem|narratie|als\s+verteller|spraak\s+erover|niet\s+praten|laat\s+de\s+persoon\s+op\s+de\s+foto\s+niet\s+praten)\b/i;
 
 const LIPSYNC_CUE =
   /\b(lipsync|lip[- ]?sync|mond\s+(goed\s+)?meelopen|natuurlijk\s+(praten|spreken)|laten\s+praten)\b/i;
 
-const NO_MUSIC_CUE = /\b(geen\s+muziek|zonder\s+muziek|mute\s+music|no\s+music)\b/i;
+const NO_MUSIC_CUE =
+  /\b(geen\s+muziek|zonder\s+muziek|haal\s+de\s+muziek\s+weg|muziek\s+weg|verwijder\s+de\s+muziek|mute\s+music|no\s+music|remove\s+(the\s+)?music)\b/i;
 
 const MUSIC_PATTERNS: Array<{ re: RegExp; mood: SimpleStudioMusicMood }> = [
   { re: /\b(vrolijk|upbeat|energiek|feestelijk)\b/i, mood: "happy" },
@@ -114,11 +115,17 @@ export function buildCreativePlanV2(input: {
   }
 
   const dialogue = extractQuotedDialogue(story);
-  const lipsyncRequested = LIPSYNC_CUE.test(story) || (DIALOGUE_CUE.test(story) && Boolean(dialogue));
+  const forceVoiceover =
+    NARRATION_CUE.test(story) &&
+    !/\blaat\s+(hem|haar|deze\s+persoon|de\s+persoon)\s+zeggen\b/i.test(story) &&
+    !LIPSYNC_CUE.test(story);
+  const lipsyncRequested =
+    !forceVoiceover &&
+    (LIPSYNC_CUE.test(story) || (DIALOGUE_CUE.test(story) && Boolean(dialogue)));
   const wantsSpeech = DIALOGUE_CUE.test(story) || NARRATION_CUE.test(story) || Boolean(dialogue);
   const speechMode: SimpleStudioSpeechMode = !wantsSpeech
     ? "none"
-    : NARRATION_CUE.test(story) && !dialogue
+    : forceVoiceover || (NARRATION_CUE.test(story) && !dialogue)
       ? "narration"
       : dialogue || DIALOGUE_CUE.test(story)
         ? "dialogue"

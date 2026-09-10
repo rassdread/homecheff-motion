@@ -375,6 +375,58 @@ export function SimpleStudioCreatePage({
     return json.videoUrl;
   };
 
+  /** Mix music onto lipsync speech MP4. On failure: keep speech video + notice. */
+  const mixMusicOntoLipsyncIfNeeded = async (input: {
+    plan: SimpleStudioCreativePlan;
+    speechVideoUrl: string;
+    voiceAudioUrl: string | null;
+    musicTrackUrl: string | null;
+    projectId: string;
+  }): Promise<{ videoUrl: string; musicMixed: boolean; musicNotice: string | null }> => {
+    if (!input.plan.music.required || input.plan.music.mood === "none") {
+      return { videoUrl: input.speechVideoUrl, musicMixed: false, musicNotice: null };
+    }
+    if (!input.musicTrackUrl || !input.voiceAudioUrl) {
+      return {
+        videoUrl: input.speechVideoUrl,
+        musicMixed: false,
+        musicNotice:
+          "Muziek was gevraagd maar niet beschikbaar. De pratende video is klaar zonder muziekbed.",
+      };
+    }
+    setProgressLabel("Video wordt afgerond…");
+    const res = await fetch("/api/studio/simple/mix-audio", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        videoUrl: input.speechVideoUrl,
+        voiceAudioUrl: input.voiceAudioUrl,
+        musicTrackUrl: input.musicTrackUrl,
+        projectId: input.projectId,
+        durationSeconds: input.plan.durationSeconds,
+        musicVolume: input.plan.music.volume,
+      }),
+    });
+    if (!res.ok) {
+      return {
+        videoUrl: input.speechVideoUrl,
+        musicMixed: false,
+        musicNotice:
+          "Muziek mixen mislukte. Je pratende video is bewaard; je kunt opnieuw exporteren of de muziek weglaten.",
+      };
+    }
+    const json = (await res.json()) as { videoUrl?: string; musicMixed?: boolean };
+    if (!json.videoUrl) {
+      return {
+        videoUrl: input.speechVideoUrl,
+        musicMixed: false,
+        musicNotice: "Muziek mixen leverde geen video. Pratende video zonder muziek is bewaard.",
+      };
+    }
+    return { videoUrl: json.videoUrl, musicMixed: true, musicNotice: null };
+  };
+
   const runGenerate = async (revision?: string) => {
     setError(null);
     setDownloadUrl(null);
@@ -440,19 +492,54 @@ export function SimpleStudioCreatePage({
             });
 
       let nextProject = result.project;
-      const lipsyncVideoUrl = await runLipsyncIfNeeded({
-        plan: result.plan,
-        audioUrl: audio.voiceAudioUrl,
-        projectId: nextProject.id,
-      });
-      if (lipsyncVideoUrl) {
+      const priorSpeechUrl =
+        typeof project?.metadata?.lipsyncSpeechVideoUrl === "string"
+          ? project.metadata.lipsyncSpeechVideoUrl
+          : null;
+      const dialogueUnchanged =
+        Boolean(revision) &&
+        Boolean(project?.metadata?.simpleStudioPlan) &&
+        (project?.metadata?.simpleStudioPlan as SimpleStudioCreativePlan | undefined)?.dialogue ===
+          result.plan.dialogue &&
+        result.plan.lipsync.requested &&
+        result.plan.lipsync.available;
+
+      let speechVideoUrl: string | null = null;
+      if (
+        dialogueUnchanged &&
+        priorSpeechUrl &&
+        result.plan.music.mood === "none"
+      ) {
+        // Audio-only revision: reuse prior lipsync speech video, drop music.
+        speechVideoUrl = priorSpeechUrl;
+      } else {
+        speechVideoUrl = await runLipsyncIfNeeded({
+          plan: result.plan,
+          audioUrl: audio.voiceAudioUrl,
+          projectId: nextProject.id,
+        });
+      }
+
+      if (speechVideoUrl) {
+        const mixed = await mixMusicOntoLipsyncIfNeeded({
+          plan: result.plan,
+          speechVideoUrl,
+          voiceAudioUrl: audio.voiceAudioUrl,
+          musicTrackUrl: audio.musicTrackUrl,
+          projectId: nextProject.id,
+        });
+        if (mixed.musicNotice) {
+          setError(mixed.musicNotice);
+        }
         nextProject = {
           ...nextProject,
-          videoUrl: lipsyncVideoUrl,
+          videoUrl: mixed.videoUrl,
           metadata: {
             ...nextProject.metadata,
             lipsyncExecuted: true,
-            lipsyncVideoUrl,
+            lipsyncSpeechVideoUrl: speechVideoUrl,
+            lipsyncVideoUrl: mixed.videoUrl,
+            lipsyncMusicMixed: mixed.musicMixed,
             renderMode: "video_overlay",
             publishEntryMode: "video_enhancement",
             simpleStudioPlan: result.plan,
@@ -477,17 +564,56 @@ export function SimpleStudioCreatePage({
     setPhase("exporting");
     setProgressLabel("Exporteren…");
 
-    // True lipsync output is already a complete talking MP4 (speech baked in).
+    // Lipsync final MP4 (speech-only or already music-mixed) — download directly.
     if (project.metadata?.lipsyncExecuted === true && project.videoUrl) {
-      setDownloadUrl(project.videoUrl);
-      const a = document.createElement("a");
-      a.href = project.videoUrl;
-      a.download = `${project.name.replace(/\s+/g, "-").slice(0, 40) || "studio"}.mp4`;
-      a.rel = "noopener";
-      a.target = "_blank";
-      a.click();
-      setPhase("result");
-      return;
+      const needsMusic =
+        plan.music.required &&
+        plan.music.mood !== "none" &&
+        project.metadata?.lipsyncMusicMixed !== true;
+      if (!needsMusic) {
+        setDownloadUrl(project.videoUrl);
+        const a = document.createElement("a");
+        a.href = project.videoUrl;
+        a.download = `${project.name.replace(/\s+/g, "-").slice(0, 40) || "studio"}.mp4`;
+        a.rel = "noopener";
+        a.target = "_blank";
+        a.click();
+        setPhase("result");
+        return;
+      }
+      // Music requested but not mixed yet — try mix once, then download.
+      const speechUrl =
+        (typeof project.metadata?.lipsyncSpeechVideoUrl === "string"
+          ? project.metadata.lipsyncSpeechVideoUrl
+          : null) || project.videoUrl;
+      if (preparedVoiceUrl && preparedMusicUrl) {
+        const mixed = await mixMusicOntoLipsyncIfNeeded({
+          plan,
+          speechVideoUrl: speechUrl,
+          voiceAudioUrl: preparedVoiceUrl,
+          musicTrackUrl: preparedMusicUrl,
+          projectId: project.id,
+        });
+        const finalUrl = mixed.videoUrl;
+        setProject({
+          ...project,
+          videoUrl: finalUrl,
+          metadata: {
+            ...project.metadata,
+            lipsyncMusicMixed: mixed.musicMixed,
+            lipsyncVideoUrl: finalUrl,
+          },
+        });
+        setDownloadUrl(finalUrl);
+        const a = document.createElement("a");
+        a.href = finalUrl;
+        a.download = `${project.name.replace(/\s+/g, "-").slice(0, 40) || "studio"}.mp4`;
+        a.rel = "noopener";
+        a.target = "_blank";
+        a.click();
+        setPhase("result");
+        return;
+      }
     }
 
     const result = await exportPublishProject(project);
