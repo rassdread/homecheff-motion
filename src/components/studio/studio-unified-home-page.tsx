@@ -183,7 +183,15 @@ export function StudioUnifiedHomePage() {
           </ul>
         </section>
 
-        <p className="mt-6">
+        <p className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-6">
+          <Link
+            href="/studio/simple"
+            prefetch={false}
+            data-testid="studio-home-simple"
+            className="inline-flex min-h-[44px] items-center text-sm font-semibold text-[#006D52] underline-offset-2 hover:underline"
+          >
+            {t("studio.slice1a.simple.hub")} →
+          </Link>
           <Link
             href={STUDIO_HOME_ADVANCED_HREF}
             prefetch={false}

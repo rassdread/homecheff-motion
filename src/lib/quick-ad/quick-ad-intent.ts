@@ -1,9 +1,16 @@
 /**
- * Quick Ad — infer commercial intent from ordinary Dutch (and light EN) copy.
- * Heuristics only; does not call providers.
+ * Quick Ad intent — thin specialization of Simple Studio (purpose=advertisement).
+ * Public API preserved for existing Quick Ad UI + tests.
  */
 
-export type QuickAdPlatform = "instagram" | "facebook";
+import type { SimpleStudioPlatform } from "@/lib/simple-studio/catalog";
+import {
+  buildSimpleStudioPipelineMessage,
+  inferSimpleStudioIntent,
+  simpleStudioProjectName,
+} from "@/lib/simple-studio/intent-infer";
+
+export type QuickAdPlatform = SimpleStudioPlatform;
 
 export type QuickAdIntent = {
   product: string | null;
@@ -17,94 +24,51 @@ export type QuickAdIntent = {
   durationSeconds: 20;
 };
 
-const LOCATION_RE =
-  /\b(in|uit|van|te)\s+([A-ZÁÉÍÓÚÄËÏÖÜÀÈ][\wÁÉÍÓÚÄËÏÖÜÀÈáéíóúäëïöüàè-]{2,})/u;
-
-const CTA_PATTERNS: Array<{ re: RegExp; cta: string }> = [
-  { re: /bestel/i, cta: "Bestel nu" },
-  { re: /growth|klanten vinden|leads/i, cta: "Probeer Growth" },
-  { re: /studio|advertentie maken|social content/i, cta: "Probeer Studio" },
-  { re: /aanbied|verk(oop|oop)|listing|home\s*cheff/i, cta: "Start op HomeCheff" },
-  { re: /meld\s*je\s*aan|aanmelden|inschrijven/i, cta: "Meld je aan" },
-  { re: /volg/i, cta: "Volg ons" },
-];
-
-const TONE_WARM = /warm|lokaal|buurt|gezellig|ambacht/i;
-const TONE_PRO = /professioneel|zakelijk|direct|modern/i;
-
 export function inferQuickAdIntent(input: {
   story: string;
   platforms?: QuickAdPlatform[];
 }): QuickAdIntent {
-  const story = input.story.trim();
-  const platforms =
-    input.platforms && input.platforms.length > 0
-      ? input.platforms
-      : (["instagram", "facebook"] as QuickAdPlatform[]);
-
-  const locMatch = story.match(LOCATION_RE);
-  const location = locMatch?.[2] ?? null;
-
-  let product: string | null = null;
-  const productMatch = story.match(
-    /\b(taarten?|producten?|diensten?|maaltijden?|groente|fruit|creaties?|ambacht)\b/i,
-  );
-  if (productMatch) product = productMatch[1] ?? null;
-  else {
-    const maakMatch = story.match(/\b(?:maak|maakt|verkopen?|bied)\s+(?:zelf\s+)?(.{3,40}?)(?:\s+in\s|\s+en\s|\.|$)/i);
-    if (maakMatch?.[1]) product = maakMatch[1].trim();
-  }
-
-  let audience: string | null = null;
-  if (/buurt|lokaal|vlaardingen|stad|regio/i.test(story)) audience = "lokale klanten";
-  if (/ondernemers?|verkopers?|makers?/i.test(story)) audience = "ondernemers en makers";
-
-  let cta = "Meer info";
-  for (const row of CTA_PATTERNS) {
-    if (row.re.test(story)) {
-      cta = row.cta;
-      break;
-    }
-  }
-
-  let tone = "warm en professioneel";
-  if (TONE_WARM.test(story) && TONE_PRO.test(story)) tone = "warm, lokaal en professioneel";
-  else if (TONE_WARM.test(story)) tone = "warm en lokaal";
-  else if (TONE_PRO.test(story)) tone = "professioneel en direct";
-
+  const base = inferSimpleStudioIntent({
+    story: input.story,
+    purpose: "advertisement",
+    platforms: input.platforms,
+  });
   return {
-    product,
-    audience,
-    location,
+    product: base.product,
+    audience: base.audience,
+    location: base.location,
     purpose: "social_ad",
-    tone,
-    platforms,
-    cta,
+    tone: base.tone,
+    platforms: base.platforms,
+    cta: base.cta,
     format: "9:16",
     durationSeconds: 20,
   };
 }
 
-/** Enrich user story for the existing photo-story scene builder. */
 export function buildQuickAdPipelineMessage(input: {
   story: string;
   intent: QuickAdIntent;
   revisionInstruction?: string | null;
 }): string {
-  const parts = [input.story.trim()];
-  if (input.intent.cta && !input.story.toLowerCase().includes(input.intent.cta.toLowerCase().slice(0, 6))) {
-    parts.push(input.intent.cta);
-  }
-  if (input.revisionInstruction?.trim()) {
-    parts.push(`Aanpassing: ${input.revisionInstruction.trim()}`);
-  }
-  return parts.filter(Boolean).join(". ");
+  return buildSimpleStudioPipelineMessage({
+    story: input.story,
+    intent: {
+      ...input.intent,
+      purpose: "advertisement",
+      durationSeconds: 20,
+    },
+    revisionInstruction: input.revisionInstruction,
+  });
 }
 
 export function quickAdProjectName(intent: QuickAdIntent, story: string): string {
-  if (intent.product && intent.location) return `${intent.product} · ${intent.location}`;
-  if (intent.product) return `Advertentie · ${intent.product}`;
-  if (intent.location) return `Advertentie · ${intent.location}`;
-  const first = story.trim().split(/\s+/).slice(0, 5).join(" ");
-  return first ? `Advertentie · ${first}` : "Social advertentie";
+  return simpleStudioProjectName(
+    {
+      ...intent,
+      purpose: "advertisement",
+      durationSeconds: 20,
+    },
+    story,
+  );
 }

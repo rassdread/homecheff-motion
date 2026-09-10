@@ -47,6 +47,9 @@ export function isHomeCheffAssistantRoute(pathname: string): boolean {
   if (path === "/studio/quick-ad" || path.startsWith("/studio/quick-ad/")) {
     return false;
   }
+  if (path === "/studio/simple" || path.startsWith("/studio/simple/")) {
+    return false;
+  }
 
   if ((HOMECHEFF_ASSISTANT_EXACT_ROUTES as readonly string[]).includes(path)) {
     return true;

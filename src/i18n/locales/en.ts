@@ -4735,6 +4735,7 @@ export const en: LocaleSchema = {
   "studio.slice1a.create.title": "What do you want to make?",
   "studio.slice1a.createNew.title": "Create something new",
   "studio.slice1a.advanced.tools": "Advanced tools",
+  "studio.slice1a.simple.hub": "Simple create (photo + description)",
   "studio.slice1a.hc.chooser.title": "What do you want to make?",
   "studio.slice1a.hc.chooser.lead": "Pick what fits your listing — no technical choices.",
   "studio.slice1a.hc.intent.productVideo.title": "Make a product video",

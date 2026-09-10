@@ -4729,6 +4729,7 @@ export const nl = {
   "studio.slice1a.create.title": "Wat wil je maken?",
   "studio.slice1a.createNew.title": "Iets nieuws maken",
   "studio.slice1a.advanced.tools": "Uitgebreide tools",
+  "studio.slice1a.simple.hub": "Eenvoudig maken (foto + beschrijving)",
   "studio.slice1a.hc.chooser.title": "Wat wil je maken?",
   "studio.slice1a.hc.chooser.lead": "Kies wat past bij je listing — geen technische keuzes.",
   "studio.slice1a.hc.intent.productVideo.title": "Maak een productvideo",

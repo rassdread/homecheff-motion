@@ -96,6 +96,7 @@ describe("Slice 1A — Unified Studio front door", () => {
     assert.equal(isHomeCheffAssistantRoute("/studio/photo-video"), false);
     assert.equal(isHomeCheffAssistantRoute("/studio/photo-video/from-item"), false);
     assert.equal(isHomeCheffAssistantRoute("/studio/quick-ad"), false);
+    assert.equal(isHomeCheffAssistantRoute("/studio/simple"), false);
     assert.equal(isHomeCheffAssistantRoute("/studio"), true);
   });
 
@@ -110,6 +111,8 @@ describe("Slice 1A — Unified Studio front door", () => {
     assert.equal(STUDIO_HOME_ADVANCED_HREF, "/studio/storyboards");
     const home = readFileSync("src/components/studio/studio-unified-home-page.tsx", "utf8");
     assert.match(home, /studio-home-advanced/);
+    assert.match(home, /studio-home-simple/);
+    assert.match(home, /\/studio\/simple/);
   });
 
   it("has NL/EN i18n parity for slice1a keys", () => {

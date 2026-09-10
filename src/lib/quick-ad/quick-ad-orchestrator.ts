@@ -1,20 +1,14 @@
 /**
- * Quick Ad orchestrator — thin layer over Publish AI Everything / photo_story.
- * Preview generation is local (existing heuristics). Export uses existing HC gate.
+ * Quick Ad orchestrator — preserves API; delegates to Simple Studio.
  */
 
 import {
-  createPublishAiEverythingProject,
-  runPublishAiEverythingPipeline,
-} from "@/lib/publish-ai-everything";
-import { savePublishProject } from "@/lib/publish-overlay-session";
-import {
-  buildQuickAdPipelineMessage,
-  inferQuickAdIntent,
-  quickAdProjectName,
-  type QuickAdIntent,
-  type QuickAdPlatform,
-} from "@/lib/quick-ad/quick-ad-intent";
+  generateSimpleStudioProject,
+  reviseSimpleStudioProject,
+  SIMPLE_STUDIO_EXPORT_ACTION,
+  simpleStudioAdvancedEditorPath,
+} from "@/lib/simple-studio/orchestrator";
+import type { QuickAdIntent, QuickAdPlatform } from "@/lib/quick-ad/quick-ad-intent";
 import type { PublishProject } from "@/types/publish-overlay";
 
 export type QuickAdGenerateInput = {
@@ -22,7 +16,6 @@ export type QuickAdGenerateInput = {
   story: string;
   platforms?: QuickAdPlatform[];
   revisionInstruction?: string | null;
-  /** Preserve project id across revisions when possible. */
   existingProjectId?: string | null;
 };
 
@@ -32,75 +25,58 @@ export type QuickAdGenerateResult = {
   pipelineMessage: string;
 };
 
-export function generateQuickAdProject(input: QuickAdGenerateInput): QuickAdGenerateResult {
-  const story = input.story.trim();
-  if (!story) throw new Error("QUICK_AD_STORY_REQUIRED");
-  if (!input.imageUrl?.trim()) throw new Error("QUICK_AD_PHOTO_REQUIRED");
-
-  const intent = inferQuickAdIntent({
-    story,
-    platforms: input.platforms,
-  });
-  const pipelineMessage = buildQuickAdPipelineMessage({
-    story,
-    intent,
-    revisionInstruction: input.revisionInstruction,
-  });
-
-  let project = createPublishAiEverythingProject({
-    name: quickAdProjectName(intent, story),
-    imageUrl: input.imageUrl,
-    message: pipelineMessage,
-    durationSeconds: intent.durationSeconds,
-  });
-
-  if (input.existingProjectId?.trim()) {
-    project = { ...project, id: input.existingProjectId.trim() };
-  }
-
-  project = {
-    ...project,
-    metadata: {
-      ...project.metadata,
-      quickAd: true,
-      quickAdStory: story,
-      quickAdPlatforms: intent.platforms,
-      quickAdCta: intent.cta,
-      quickAdTone: intent.tone,
-      quickAdRevision: input.revisionInstruction?.trim() || null,
-      publishEntryMode: "ai_everything",
-      aspectRatio: "9:16",
-    },
+function toQuickAdIntent(
+  story: string,
+  platforms: QuickAdPlatform[] | undefined,
+  fromSimple: ReturnType<typeof generateSimpleStudioProject>["intent"],
+): QuickAdIntent {
+  return {
+    product: fromSimple.product,
+    audience: fromSimple.audience,
+    location: fromSimple.location,
+    purpose: "social_ad",
+    tone: fromSimple.tone,
+    platforms: platforms?.length ? platforms : fromSimple.platforms,
+    cta: fromSimple.cta,
+    format: "9:16",
+    durationSeconds: 20,
   };
+}
 
-  project = runPublishAiEverythingPipeline({ project });
-  savePublishProject(project);
-
-  return { project, intent, pipelineMessage };
+export function generateQuickAdProject(input: QuickAdGenerateInput): QuickAdGenerateResult {
+  const result = generateSimpleStudioProject({
+    purpose: "advertisement",
+    imageUrl: input.imageUrl,
+    story: input.story,
+    platforms: input.platforms,
+    revisionInstruction: input.revisionInstruction,
+    existingProjectId: input.existingProjectId,
+  });
+  return {
+    project: result.project,
+    intent: toQuickAdIntent(input.story, input.platforms, result.intent),
+    pipelineMessage: result.pipelineMessage,
+  };
 }
 
 export function reviseQuickAdProject(input: {
   project: PublishProject;
   revisionInstruction: string;
 }): QuickAdGenerateResult {
+  const result = reviseSimpleStudioProject(input);
   const story =
     typeof input.project.metadata?.quickAdStory === "string"
       ? input.project.metadata.quickAdStory
-      : String(input.project.metadata?.photoStoryMessage ?? input.project.publishIntent ?? "");
-  const imageUrl = input.project.imageUrl || input.project.videoUrl || "";
-  const platforms = Array.isArray(input.project.metadata?.quickAdPlatforms)
-    ? (input.project.metadata.quickAdPlatforms as QuickAdPlatform[])
-    : undefined;
-
-  return generateQuickAdProject({
-    imageUrl,
-    story,
-    platforms,
-    revisionInstruction: input.revisionInstruction,
-    existingProjectId: input.project.id,
-  });
+      : input.revisionInstruction;
+  return {
+    project: result.project,
+    intent: toQuickAdIntent(story, undefined, result.intent),
+    pipelineMessage: result.pipelineMessage,
+  };
 }
 
-export const QUICK_AD_EXPORT_ACTION = "publish_photo_story" as const;
-export const QUICK_AD_ADVANCED_EDITOR_PATH = (projectId: string) =>
-  `/publish?project=${encodeURIComponent(projectId)}`;
+export const QUICK_AD_EXPORT_ACTION = SIMPLE_STUDIO_EXPORT_ACTION;
+export const QUICK_AD_ADVANCED_EDITOR_PATH = simpleStudioAdvancedEditorPath;
+
+/** @deprecated use inferQuickAdIntent — kept for type re-exports */
+export type { QuickAdIntent, QuickAdPlatform };
