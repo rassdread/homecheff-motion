@@ -284,7 +284,7 @@ export async function authorizeStudioAction(input: {
 
     const { reservationId } = await reserveStudioCredits({
       userId: input.user.id,
-      credits: policy.requiredCredits,
+      credits: Math.floor(policy.requiredCredits),
       service: policy.service,
       provider: policy.provider,
       projectId: input.projectId,
@@ -409,17 +409,26 @@ export async function refundStudioActionReservation(input: {
   });
 }
 
-export function creditDenialMessage(code: string | null): string {
-  switch (code) {
-    case "free_account_provider_action":
-      return "Voor AI-functies heb je credits nodig. Koop credits of start een abonnement.";
-    case "insufficient_credits":
-      return "Onvoldoende Studio Credits.";
-    case "confirmation_required":
-      return "Bevestiging vereist voor deze actie.";
-    default:
-      return "Deze actie is niet toegestaan.";
-  }
+const CREDIT_DENIAL_I18N: Record<"nl" | "en", Record<string, string>> = {
+  nl: {
+    free_account_provider_action:
+      "Voor AI-functies heb je credits nodig. Koop credits of start een abonnement.",
+    insufficient_credits: "Onvoldoende Studio Credits.",
+    confirmation_required: "Bevestiging vereist voor deze actie.",
+    default: "Deze actie is niet toegestaan.",
+  },
+  en: {
+    free_account_provider_action:
+      "AI features need credits. Buy credits or start a subscription.",
+    insufficient_credits: "Insufficient Studio Credits.",
+    confirmation_required: "Confirmation required for this action.",
+    default: "This action is not allowed.",
+  },
+};
+
+export function creditDenialMessage(code: string | null, locale: "nl" | "en" = "nl"): string {
+  const table = CREDIT_DENIAL_I18N[locale] ?? CREDIT_DENIAL_I18N.nl;
+  return table[code ?? ""] ?? table.default;
 }
 
 export function studioCreditDeniedResponse(
@@ -470,6 +479,7 @@ export const ACTION_TYPE_ROUTE_MAP: Record<string, string[]> = {
   image_generation: ["/api/editor/instruction/variant"],
   fusion_render: ["/api/editor/instruction/variant"],
   publish_mp4_export: ["/api/publish/export"],
+  lipsync_talking_avatar: ["/api/studio/simple/lipsync"],
 };
 
 export async function verifyLedgerMatchesWallet(userId: string): Promise<{

@@ -309,6 +309,19 @@ export const PRICING_CATALOG_ACTION_META: Record<string, PricingCatalogActionMet
     visibleInCatalog: true,
     isFree: false,
   },
+  lipsync_talking_avatar: {
+    actionType: "lipsync_talking_avatar",
+    category: "video_motion",
+    displayNameNl: "Pratende foto (lipsync)",
+    displayNameEn: "Talking photo (lipsync)",
+    descriptionNl:
+      "Zet een foto om naar een pratende video met echte mondsynchronisatie op de gegenereerde stem.",
+    descriptionEn:
+      "Turn a photo into a talking video with true mouth synchronization to generated speech.",
+    sortOrder: 420,
+    visibleInCatalog: true,
+    isFree: false,
+  },
   translation_export: {
     actionType: "translation_export",
     category: "translation",

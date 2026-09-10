@@ -39,6 +39,10 @@ export type SimpleStudioGenerateInput = {
   platforms?: SimpleStudioPlatform[];
   revisionInstruction?: string | null;
   existingProjectId?: string | null;
+  /** When true, Creative Plan may route to lipsync_avatar. */
+  lipsyncEngineAvailable?: boolean;
+  /** Prefer server quote plan when present (preserves lipsync routing). */
+  existingPlan?: SimpleStudioCreativePlan | null;
   /** Resolved audio URLs from prepare-audio API */
   voiceAudioUrl?: string | null;
   musicTrackUrl?: string | null;
@@ -74,6 +78,7 @@ export function buildSimpleStudioPlan(input: {
   story: string;
   platforms?: SimpleStudioPlatform[];
   revisionInstruction?: string | null;
+  lipsyncEngineAvailable?: boolean;
 }): SimpleStudioCreativePlan {
   return buildCreativePlanV2({
     story: input.story,
@@ -81,6 +86,7 @@ export function buildSimpleStudioPlan(input: {
     purposeHint: input.purpose,
     platforms: input.platforms,
     revisionInstruction: input.revisionInstruction,
+    lipsyncEngineAvailable: input.lipsyncEngineAvailable === true,
   });
 }
 
@@ -96,13 +102,17 @@ export function generateSimpleStudioProject(
     throw new Error("SIMPLE_STUDIO_MEDIA_REQUIRED");
   }
 
-  const plan = buildSimpleStudioPlan({
-    purpose: input.purpose,
-    media,
-    story,
-    platforms: input.platforms,
-    revisionInstruction: input.revisionInstruction,
-  });
+  const plan =
+    input.existingPlan && !input.revisionInstruction
+      ? input.existingPlan
+      : buildSimpleStudioPlan({
+          purpose: input.purpose,
+          media,
+          story,
+          platforms: input.platforms,
+          revisionInstruction: input.revisionInstruction,
+          lipsyncEngineAvailable: input.lipsyncEngineAvailable === true,
+        });
 
   if (plan.engineChain.includes("motion_deeplink")) {
     throw new Error("SIMPLE_STUDIO_DEEPLINK_MOTION");
@@ -235,6 +245,7 @@ export function reviseSimpleStudioProject(input: {
   musicTrackUrl?: string | null;
   musicTrackId?: string | null;
   musicLabel?: string | null;
+  lipsyncEngineAvailable?: boolean;
 }): SimpleStudioGenerateResult {
   const story =
     typeof input.project.metadata?.quickAdStory === "string"
@@ -273,6 +284,8 @@ export function reviseSimpleStudioProject(input: {
     musicTrackUrl: input.musicTrackUrl,
     musicTrackId: input.musicTrackId,
     musicLabel: input.musicLabel,
+    lipsyncEngineAvailable:
+      input.lipsyncEngineAvailable === true || priorPlan?.lipsync?.available === true,
   });
 }
 

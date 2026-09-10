@@ -18,6 +18,7 @@ export type SimpleStudioEngineStage =
   | "slideshow"
   | "video_overlay"
   | "voice_tts"
+  | "lipsync_avatar"
   | "free_music"
   | "music_generation"
   | "audio_mux"
@@ -62,7 +63,7 @@ export type SimpleStudioCreativePlan = {
   lipsync: {
     requested: boolean;
     available: boolean;
-    /** Honest status — AI lipsync engine is not implemented in Studio. */
+    /** Set when true lipsync is configured and will execute (else honest fallback copy). */
     reasonNl: string | null;
   };
   motion: "none" | "subtle" | "ken_burns" | "deeplink_motion";

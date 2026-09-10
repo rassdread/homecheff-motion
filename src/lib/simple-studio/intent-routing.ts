@@ -84,6 +84,8 @@ export function buildCreativePlanV2(input: {
   purposeHint?: SimpleStudioPurpose | "universal" | null;
   platforms?: SimpleStudioPlatform[];
   revisionInstruction?: string | null;
+  /** Server-side: true when a real lipsync provider is configured. */
+  lipsyncEngineAvailable?: boolean;
 }): SimpleStudioCreativePlan {
   const story = [input.story.trim(), input.revisionInstruction?.trim()]
     .filter(Boolean)
@@ -125,12 +127,14 @@ export function buildCreativePlanV2(input: {
   const musicMood = inferMusicMood(story);
   const musicRequired = musicMood !== "none";
 
-  // Honest: no AI lipsync engine in production.
-  const lipsyncAvailable = false;
-  if (lipsyncRequested) {
+  // Honest: true lipsync only when a real provider is configured.
+  const lipsyncAvailable = input.lipsyncEngineAvailable === true;
+  if (lipsyncRequested && !lipsyncAvailable) {
     warningsNl.push(
       "Studio kan bij deze afbeelding wel een stem of tekst in beeld maken, maar de persoon niet betrouwbaar laten lipsyncen (lipsync-engine is nog niet beschikbaar).",
     );
+  } else if (lipsyncRequested && lipsyncAvailable) {
+    // clear — engine will run
   }
 
   const voiceRequired =
@@ -162,14 +166,21 @@ export function buildCreativePlanV2(input: {
   }
 
   if (voiceRequired) engineChain.push("voice_tts");
+  if (lipsyncRequested && lipsyncAvailable) engineChain.push("lipsync_avatar");
   if (musicRequired) engineChain.push("free_music");
-  if (voiceRequired || musicRequired) engineChain.push("audio_mux");
+  if (voiceRequired || musicRequired || (lipsyncRequested && lipsyncAvailable)) {
+    engineChain.push("audio_mux");
+  }
   engineChain.push("text_overlays");
 
   const hcActions: string[] = [];
-  if (engineChain.includes("slideshow")) hcActions.push("publish_slideshow");
-  else if (engineChain.includes("video_overlay")) hcActions.push("publish_mp4_export");
-  else if (!engineChain.includes("motion_deeplink") && !engineChain.includes("photo_video_deeplink")) {
+  if (lipsyncRequested && lipsyncAvailable) {
+    hcActions.push("lipsync_talking_avatar");
+  } else if (engineChain.includes("slideshow")) {
+    hcActions.push("publish_slideshow");
+  } else if (engineChain.includes("video_overlay")) {
+    hcActions.push("publish_mp4_export");
+  } else if (!engineChain.includes("motion_deeplink") && !engineChain.includes("photo_video_deeplink")) {
     hcActions.push("publish_photo_story");
   }
   if (voiceRequired) hcActions.push("voice_generation");
@@ -229,7 +240,9 @@ export function buildCreativePlanV2(input: {
       requested: lipsyncRequested,
       available: lipsyncAvailable,
       reasonNl: lipsyncRequested
-        ? "Lipsync-engine is in Studio nog niet geïmplementeerd."
+        ? lipsyncAvailable
+          ? null
+          : "Lipsync-engine is in Studio nog niet geconfigureerd."
         : null,
     },
     motion: MOTION_CUE.test(story) || purpose === "talking_photo" ? "ken_burns" : "ken_burns",

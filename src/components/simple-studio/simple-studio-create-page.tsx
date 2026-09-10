@@ -153,6 +153,7 @@ export function SimpleStudioCreatePage({
   const [preparedMusicUrl, setPreparedMusicUrl] = useState<string | null>(null);
   const [preparedMusicId, setPreparedMusicId] = useState<string | null>(null);
   const [preparedMusicLabel, setPreparedMusicLabel] = useState<string | null>(null);
+  const [lipsyncConfigured, setLipsyncConfigured] = useState(false);
 
   const scenes = useMemo(() => {
     const raw = project?.metadata?.publishScenes;
@@ -229,10 +230,12 @@ export function SimpleStudioCreatePage({
         plan: SimpleStudioCreativePlan;
         summary: SimpleStudioPlanSummaryNl;
         quote: { requiredCredits: number; allowed: boolean };
+        lipsyncConfigured?: boolean;
       };
       setPlan(json.plan);
       setSummary(json.summary);
       setQuoteCredits(json.quote.requiredCredits);
+      setLipsyncConfigured(json.lipsyncConfigured === true);
     } catch {
       setQuoteError("Kosten konden niet worden opgehaald.");
     }
@@ -264,7 +267,7 @@ export function SimpleStudioCreatePage({
   };
 
   const prepareAudioIfNeeded = async (activePlan: SimpleStudioCreativePlan, projectId?: string) => {
-    if (!activePlan.voice.required && !activePlan.music.required) {
+    if (!activePlan.voice.required && !activePlan.music.required && !activePlan.lipsync.requested) {
       return {
         voiceAudioUrl: null as string | null,
         musicTrackUrl: null as string | null,
@@ -315,6 +318,63 @@ export function SimpleStudioCreatePage({
     };
   };
 
+  const uploadImageForLipsync = async (imageUrl: string): Promise<string> => {
+    if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) return imageUrl;
+    const blobRes = await fetch(imageUrl);
+    const blob = await blobRes.blob();
+    const form = new FormData();
+    form.append("file", blob, "lipsync-source.jpg");
+    const up = await fetch("/api/uploads/images", {
+      method: "POST",
+      credentials: "include",
+      body: form,
+    });
+    if (!up.ok) throw new Error("Foto upload voor lipsync mislukt.");
+    const json = (await up.json()) as { url?: string; imageUrl?: string };
+    const url = json.url || json.imageUrl;
+    if (!url) throw new Error("Geen publieke foto-URL na upload.");
+    return url;
+  };
+
+  const runLipsyncIfNeeded = async (input: {
+    plan: SimpleStudioCreativePlan;
+    audioUrl: string | null;
+    projectId: string;
+  }): Promise<string | null> => {
+    if (!input.plan.lipsync.requested || !input.plan.lipsync.available) return null;
+    if (!input.audioUrl) throw new Error("Stem ontbreekt voor lipsync.");
+    const sourceImage =
+      input.plan.sourceMedia.find((m) => m.kind === "image")?.url ||
+      media.find((m) => m.kind === "image")?.url;
+    if (!sourceImage) throw new Error("Geen foto gevonden voor lipsync.");
+    setProgressLabel("Persoon wordt tot leven gebracht…");
+    const publicImage = await uploadImageForLipsync(sourceImage);
+    const res = await fetch("/api/studio/simple/lipsync", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        imageUrl: publicImage,
+        audioUrl: input.audioUrl,
+        projectId: input.projectId,
+        durationSeconds: input.plan.durationSeconds,
+        aspectRatio: input.plan.aspectRatio,
+        behaviorPrompt:
+          input.plan.tone ||
+          "Natural talking head, subtle motion, friendly expression, looking at camera.",
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(
+        typeof err?.error === "string" ? err.error : "Lipsync mislukt.",
+      );
+    }
+    const json = (await res.json()) as { videoUrl?: string; lipsyncExecuted?: boolean };
+    if (!json.videoUrl) throw new Error("Lipsync leverde geen video.");
+    return json.videoUrl;
+  };
+
   const runGenerate = async (revision?: string) => {
     setError(null);
     setDownloadUrl(null);
@@ -330,6 +390,7 @@ export function SimpleStudioCreatePage({
               media,
               purposeHint: purpose,
               revisionInstruction: revision,
+              lipsyncEngineAvailable: lipsyncConfigured || plan?.lipsync.available === true,
             });
       setPlan(activePlan);
 
@@ -348,7 +409,11 @@ export function SimpleStudioCreatePage({
       setPreparedMusicId(audio.musicTrackId);
       setPreparedMusicLabel(audio.musicLabel);
 
-      setProgressLabel("Video opbouwen…");
+      setProgressLabel(
+        activePlan.lipsync.requested && activePlan.lipsync.available
+          ? "Stem wordt gemaakt…"
+          : "Video opbouwen…",
+      );
       const result =
         revision && project
           ? reviseSimpleStudioProject({
@@ -358,6 +423,7 @@ export function SimpleStudioCreatePage({
               musicTrackUrl: audio.musicTrackUrl,
               musicTrackId: audio.musicTrackId,
               musicLabel: audio.musicLabel,
+              lipsyncEngineAvailable: lipsyncConfigured || activePlan.lipsync.available,
             })
           : generateSimpleStudioProject({
               purpose,
@@ -365,13 +431,36 @@ export function SimpleStudioCreatePage({
               story,
               revisionInstruction: revision,
               existingProjectId: project?.id,
+              existingPlan: activePlan,
+              lipsyncEngineAvailable: lipsyncConfigured || activePlan.lipsync.available,
               voiceAudioUrl: audio.voiceAudioUrl,
               musicTrackUrl: audio.musicTrackUrl,
               musicTrackId: audio.musicTrackId,
               musicLabel: audio.musicLabel,
             });
 
-      setProject(result.project);
+      let nextProject = result.project;
+      const lipsyncVideoUrl = await runLipsyncIfNeeded({
+        plan: result.plan,
+        audioUrl: audio.voiceAudioUrl,
+        projectId: nextProject.id,
+      });
+      if (lipsyncVideoUrl) {
+        nextProject = {
+          ...nextProject,
+          videoUrl: lipsyncVideoUrl,
+          metadata: {
+            ...nextProject.metadata,
+            lipsyncExecuted: true,
+            lipsyncVideoUrl,
+            renderMode: "video_overlay",
+            publishEntryMode: "video_enhancement",
+            simpleStudioPlan: result.plan,
+          },
+        };
+      }
+
+      setProject(nextProject);
       setPlan(result.plan);
       setSummary(result.summaryNl);
       setRevisionText("");
@@ -387,22 +476,20 @@ export function SimpleStudioCreatePage({
     setError(null);
     setPhase("exporting");
     setProgressLabel("Exporteren…");
-    // Ensure production audio still attached
-    const withAudio =
-      preparedVoiceUrl || preparedMusicUrl
-        ? {
-            ...project,
-            metadata: {
-              ...project.metadata,
-              publishProduction: {
-                ...(typeof project.metadata?.publishProduction === "object"
-                  ? project.metadata.publishProduction
-                  : {}),
-              },
-            },
-          }
-        : project;
-    void withAudio;
+
+    // True lipsync output is already a complete talking MP4 (speech baked in).
+    if (project.metadata?.lipsyncExecuted === true && project.videoUrl) {
+      setDownloadUrl(project.videoUrl);
+      const a = document.createElement("a");
+      a.href = project.videoUrl;
+      a.download = `${project.name.replace(/\s+/g, "-").slice(0, 40) || "studio"}.mp4`;
+      a.rel = "noopener";
+      a.target = "_blank";
+      a.click();
+      setPhase("result");
+      return;
+    }
+
     const result = await exportPublishProject(project);
     if (!result.ok || !result.downloadUrl) {
       setError("Export mislukt. Controleer je tegoed of probeer opnieuw.");
@@ -573,14 +660,25 @@ export function SimpleStudioCreatePage({
         </div>
       )}
 
-      {phase === "result" && project && previewImage ? (
+      {phase === "result" && project && (previewImage || project.videoUrl) ? (
         <div className="space-y-5">
-          <ScenePreview
-            imageUrl={previewImage}
-            scenes={scenes}
-            cta={plan?.cta || "Meer info"}
-            label={title}
-          />
+          {project.videoUrl && project.metadata?.lipsyncExecuted === true ? (
+            <video
+              src={project.videoUrl}
+              controls
+              playsInline
+              className="mx-auto w-full max-w-[280px] rounded-2xl border border-zinc-200 bg-black shadow-lg"
+              style={{ aspectRatio: "9 / 16" }}
+              data-testid="simple-studio-preview-video"
+            />
+          ) : previewImage ? (
+            <ScenePreview
+              imageUrl={previewImage}
+              scenes={scenes}
+              cta={plan?.cta || "Meer info"}
+              label={title}
+            />
+          ) : null}
           {plan ? (
             <div className={`${studioVisual.editorSurface} space-y-1 p-4 text-sm text-zinc-700`}>
               <p>

@@ -43,6 +43,7 @@ export const STUDIO_ACTION_TYPES = [
   "publish_voice_message",
   "publish_poster_export",
   "publish_mp4_export",
+  "lipsync_talking_avatar",
   "translation_export",
   "image_generation",
   "image_edit",
@@ -242,6 +243,16 @@ export const STUDIO_ACTION_COST_REGISTRY: Record<StudioActionType, StudioActionC
     "publish",
     "ffmpeg",
     0.04
+  ),
+  /** True lip-sync talking avatar (Hedra / Replicate SadTalker). Duration overrides via overrideCredits. */
+  lipsync_talking_avatar: entry(
+    "lipsync_talking_avatar",
+    "account.action.lipsyncTalkingAvatar",
+    "studio",
+    "lipsync",
+    0.2,
+    0.15,
+    50
   ),
   translation_export: entry(
     "translation_export",
