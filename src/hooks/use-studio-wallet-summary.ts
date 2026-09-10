@@ -37,12 +37,13 @@ export function useStudioWalletSummary(enabled = true): StudioWalletSummary {
       if (!data) {
         return;
       }
-      setOverview({
+      const next: StudioAccountOverview = {
         account: data.account,
         wallet: data.wallet,
         recentLedger: data.recentLedger ?? [],
-        centralHc: (data as StudioAccountOverview).centralHc ?? null,
-      });
+        centralHc: data.centralHc ?? null,
+      };
+      setOverview(next);
     } finally {
       setLoading(false);
       setResolved(true);
