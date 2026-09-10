@@ -21,6 +21,9 @@ export function GlobalCreditIndicator({ variant = "header" }: { variant?: "heade
   const session = useAuthSession();
   const wallet = useStudioWalletSummary(Boolean(session.user));
 
+  const hcLabel = locale === "nl" ? "HC-tegoed" : "HC balance";
+  const studioCreditsLabel = locale === "nl" ? "Studio-tegoed" : "Studio credits";
+
   if (!session.resolved || !session.user) {
     return null;
   }
@@ -36,18 +39,13 @@ export function GlobalCreditIndicator({ variant = "header" }: { variant?: "heade
 
   const planKey = PLAN_KEYS[wallet.plan] ?? "account.plan.free";
   const planLabel = t(planKey as never);
-  const creditsLabel = wallet.availableCredits.toLocaleString(locale);
 
-  const onBuy = () => {
-    trackBillingConversionEvent("buy_credits_clicked", {
-      source: "global_credit_indicator",
-      availableCredits: wallet.availableCredits,
-    });
-    trackBillingConversionEvent("buy_credits_click", {
-      source: "global_credit_indicator",
-      availableCredits: wallet.availableCredits,
-    });
-  };
+  const shouldShowHcUnavailable = wallet.centralHcIdentityResolved && !wallet.centralHcWalletResolved;
+  const useCentral = wallet.centralHcIdentityResolved && wallet.centralHcWalletResolved;
+  const primaryIsCentral = useCentral || shouldShowHcUnavailable;
+  const primaryAmount = shouldShowHcUnavailable ? null : useCentral ? wallet.centralHcAvailable : wallet.availableCredits;
+  const primaryUnitLabel = shouldShowHcUnavailable ? hcLabel : useCentral ? hcLabel : studioCreditsLabel;
+  const creditsLabel = primaryAmount == null ? "—" : primaryAmount.toLocaleString(locale);
 
   if (variant === "compact") {
     return (
@@ -57,10 +55,10 @@ export function GlobalCreditIndicator({ variant = "header" }: { variant?: "heade
         className="flex min-h-[44px] flex-col rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-left hover:bg-white/10"
       >
         <span className="text-[10px] uppercase tracking-wide text-white/50">
-          {t("billing.conversion.availableCredits")}
+          {primaryUnitLabel}
         </span>
         <span className="text-sm font-semibold text-white">
-          {creditsLabel} {t("account.credits.unit")}
+          {creditsLabel} {primaryIsCentral ? "HC" : t("account.credits.unit")}
         </span>
       </Link>
     );
@@ -73,17 +71,17 @@ export function GlobalCreditIndicator({ variant = "header" }: { variant?: "heade
     >
       <Link href="/account/billing" prefetch={false} className="min-w-0 text-left hover:opacity-90">
         <p className="text-[10px] uppercase tracking-wide text-white/50 leading-none">
-          {creditsLabel} {t("account.credits.unit")}
+          {creditsLabel} {primaryIsCentral ? "HC" : t("account.credits.unit")}
         </p>
         <p className="mt-0.5 truncate text-xs font-medium text-white/90">{planLabel}</p>
       </Link>
       <Link
-        href="/account/billing?tab=credits"
+        href="/account/billing"
         prefetch={false}
-        onClick={onBuy}
         className={`${studioVisual.btnPrimary} shrink-0 px-3 py-1.5 text-xs font-medium`}
+        aria-label={locale === "nl" ? "Wallet details" : "Wallet details"}
       >
-        {t("billing.conversion.buyCreditsShort")}
+        {locale === "nl" ? "Details" : "Details"}
       </Link>
     </div>
   );

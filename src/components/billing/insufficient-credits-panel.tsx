@@ -1,7 +1,9 @@
 "use client";
 
 import { BillingConversionCta } from "@/components/billing/billing-conversion-cta";
-import { useActiveTranslator } from "@/i18n/client";
+import { useActiveTranslator, useLocale } from "@/i18n/client";
+import { useAuthSession } from "@/hooks/use-auth-session";
+import { useStudioWalletSummary } from "@/hooks/use-studio-wallet-summary";
 
 type Props = {
   estimatedCredits: number;
@@ -17,6 +19,9 @@ export function InsufficientCreditsPanel({
   source = "insufficient_credits_panel",
 }: Props) {
   const t = useActiveTranslator();
+  const [locale] = useLocale();
+  const session = useAuthSession();
+  const wallet = useStudioWalletSummary(Boolean(session.user));
 
   return (
     <div
@@ -32,6 +37,13 @@ export function InsufficientCreditsPanel({
           action: actionLabel ?? t("billing.conversion.thisAction"),
         })}
       </p>
+      {wallet.centralHcWalletResolved && wallet.centralHcAvailable > 0 && (
+        <p className="mt-2 text-xs text-amber-100/80">
+          {locale === "nl"
+            ? `Daarnaast heb je ${wallet.centralHcAvailable.toLocaleString(locale)} HC-tegoed in je HomeCheff-wallet. Deze Studio-acties gebruiken momenteel Studio-tegoed.`
+            : `You also have ${wallet.centralHcAvailable.toLocaleString(locale)} HC balance. Studio actions currently use Studio credits.`}
+        </p>
+      )}
       <div className="mt-4">
         <BillingConversionCta source={source} layout="inline" size="sm" />
       </div>

@@ -28,6 +28,7 @@ import {
 import {
   isStudioCentralHcSpendEnabled,
   studioActionToCentralHcAction,
+  isCentralHcMandatoryAction,
 } from "@/server/studio-account/studio-central-hc-spend-policy";
 
 export type CreditAuthorizationPreview = {
@@ -50,6 +51,11 @@ async function buildPolicyEvaluation(input: {
 
   let balance = wallet.balance;
   let reservedBalance = wallet.reservedBalance;
+  const centralMandatory =
+    isStudioCentralHcSpendEnabled() &&
+    isHcCentralAdapterReady() &&
+    isCentralHcMandatoryAction(String(input.actionType));
+
   if (isStudioCentralHcSpendEnabled() && isHcCentralAdapterReady()) {
     const userRow = await prisma.user.findUnique({
       where: { id: input.user.id },
@@ -62,8 +68,71 @@ async function buildPolicyEvaluation(input: {
         balance = Number(central.availableHc ?? 0);
         reservedBalance = Number(central.reservedHc ?? 0);
       } catch {
-        // Fail closed to local wallet if central read fails (auth will still require central reserve).
+        if (centralMandatory) {
+          // Fail closed: do not evaluate eligibility against empty legacy StudioWallet.
+          const registry = getActionCost(input.actionType);
+          const policy = evaluateCreditPolicy({
+            userId: input.user.id,
+            role: input.user.role,
+            accountType: account.accountType,
+            planId: account.studioPlan,
+            planVersion: account.planVersion,
+            creditPolicyVersion: account.creditPolicyVersion,
+            billingStatus: account.billingStatus,
+            actionType: input.actionType,
+            overrideCredits: input.overrideCredits,
+            resolvedCreditCost: undefined,
+            resolvedReservedCostUsd: registry?.reservedCostUsd,
+            resolvedService: registry?.service,
+            resolvedProvider: registry?.provider,
+            balance: 0,
+            reservedBalance: 0,
+            autoChargeSmallActions: account.autoChargeSmallActions,
+            confirmAboveCredits: account.confirmAboveCredits,
+          });
+          return {
+            account,
+            wallet,
+            policy: {
+              ...policy,
+              allowed: false,
+              reason: "central_wallet_unavailable",
+              requiredCredits: policy.requiredCredits,
+            },
+          };
+        }
+        // Unmapped legacy actions may still use StudioWallet if central read fails.
       }
+    } else if (centralMandatory) {
+      const registry = getActionCost(input.actionType);
+      const policy = evaluateCreditPolicy({
+        userId: input.user.id,
+        role: input.user.role,
+        accountType: account.accountType,
+        planId: account.studioPlan,
+        planVersion: account.planVersion,
+        creditPolicyVersion: account.creditPolicyVersion,
+        billingStatus: account.billingStatus,
+        actionType: input.actionType,
+        overrideCredits: input.overrideCredits,
+        resolvedCreditCost: undefined,
+        resolvedReservedCostUsd: registry?.reservedCostUsd,
+        resolvedService: registry?.service,
+        resolvedProvider: registry?.provider,
+        balance: 0,
+        reservedBalance: 0,
+        autoChargeSmallActions: account.autoChargeSmallActions,
+        confirmAboveCredits: account.confirmAboveCredits,
+      });
+      return {
+        account,
+        wallet,
+        policy: {
+          ...policy,
+          allowed: false,
+          reason: "central_identity_required",
+        },
+      };
     }
   }
 
@@ -109,12 +178,15 @@ async function buildPolicyEvaluation(input: {
   });
   const registry = getActionCost(input.actionType);
 
-  // When central spend is on, authoritative HC cost comes from Growth catalog (80 video / 8 vision).
+  // When central spend is on, only motion/vision use Growth catalog HC targets.
+  // voice/lipsync keep Studio registry / overrideCredits (≈15 + 100) — do not rewrite prices.
   const hcAction = studioActionToCentralHcAction(String(input.actionType));
   let resolvedCreditCost = resolved?.creditCost;
   if (isStudioCentralHcSpendEnabled() && isHcCentralAdapterReady() && hcAction) {
-    const catalogHc = resolveAuthoritativeHcForAction(hcAction);
-    if (catalogHc != null) resolvedCreditCost = catalogHc;
+    if (hcAction === "motion_render_5s_720p_turbo" || hcAction === "premium_vision_analysis") {
+      const catalogHc = resolveAuthoritativeHcForAction(hcAction);
+      if (catalogHc != null) resolvedCreditCost = catalogHc;
+    }
   }
 
   const policy = evaluateCreditPolicy({
@@ -246,20 +318,40 @@ export async function authorizeStudioAction(input: {
         };
       }
 
+      // Pass actual legacy StudioWallet available (usually 0) — never the action cost.
+      // Pass overrideHc so Growth reserves Studio's quoted amount (e.g. lipsync 100).
+      const legacyWallet = await ensureStudioWallet(input.user.id);
+      const legacyAvailable = Math.max(
+        0,
+        Math.floor(legacyWallet.balance - legacyWallet.reservedBalance),
+      );
       const idempotencyKey = `studio-hc-reserve:${input.user.id}:${hcAction}:${input.projectId ?? "none"}:${Date.now()}`;
       const reserved = await reserveCentralHc({
         centralUserId,
-        action: hcAction,
+        action: hcAction!,
         operation: "STUDIO_ACTION",
         provider: policy.provider,
         jobId: input.projectId,
         idempotencyKey,
-        legacyStudioCredits: policy.requiredCredits,
+        overrideHc: Math.floor(policy.requiredCredits),
+        legacyStudioCredits: legacyAvailable,
       });
-      const reservationId =
-        reserved && typeof reserved === "object" && "reservationId" in reserved
-          ? String((reserved as { reservationId: string }).reservationId)
-          : null;
+
+      if (
+        reserved &&
+        typeof reserved === "object" &&
+        "billed" in reserved &&
+        (reserved as { billed?: string }).billed === "LEGACY_STUDIO_CREDITS"
+      ) {
+        return {
+          ok: false,
+          code: "central_hc_required",
+          message: "This Studio action must bill canonical HC, not legacy Studio Credits.",
+          preview,
+        };
+      }
+
+      const reservationId = extractCentralReservationId(reserved);
       if (!reservationId) {
         return {
           ok: false,
@@ -279,6 +371,15 @@ export async function authorizeStudioAction(input: {
           reservedCostUsd: policy.reservedCostUsd,
           marginEstimate: policy.marginEstimateUsd,
         },
+      };
+    }
+
+    if (isCentralHcMandatoryAction(String(policy.actionType)) && isStudioCentralHcSpendEnabled()) {
+      return {
+        ok: false,
+        code: "central_hc_required",
+        message: "Central HC adapter is required for this action.",
+        preview,
       };
     }
 
@@ -319,6 +420,22 @@ export async function authorizeStudioAction(input: {
       preview,
     };
   }
+}
+
+function extractCentralReservationId(reserved: unknown): string | null {
+  if (!reserved || typeof reserved !== "object") return null;
+  const row = reserved as {
+    reservationId?: unknown;
+    reservation?: { id?: unknown } | null;
+  };
+  if (typeof row.reservationId === "string" && row.reservationId.trim()) {
+    return row.reservationId.trim();
+  }
+  if (row.reservation && typeof row.reservation === "object") {
+    const id = row.reservation.id;
+    if (typeof id === "string" && id.trim()) return id.trim();
+  }
+  return null;
 }
 
 function parseCentralHcReservation(reservationId: string): {
@@ -415,6 +532,9 @@ const CREDIT_DENIAL_I18N: Record<"nl" | "en", Record<string, string>> = {
       "Voor AI-functies heb je credits nodig. Koop credits of start een abonnement.",
     insufficient_credits: "Onvoldoende Studio Credits.",
     confirmation_required: "Bevestiging vereist voor deze actie.",
+    central_wallet_unavailable: "HomeCheff HC-tegoed is tijdelijk niet beschikbaar. Probeer het zo opnieuw.",
+    central_identity_required: "Koppel je HomeCheff-account om HC te gebruiken.",
+    central_hc_required: "Deze actie vereist HomeCheff HC (niet legacy Studio Credits).",
     default: "Deze actie is niet toegestaan.",
   },
   en: {
@@ -422,6 +542,9 @@ const CREDIT_DENIAL_I18N: Record<"nl" | "en", Record<string, string>> = {
       "AI features need credits. Buy credits or start a subscription.",
     insufficient_credits: "Insufficient Studio Credits.",
     confirmation_required: "Confirmation required for this action.",
+    central_wallet_unavailable: "HomeCheff HC balance is temporarily unavailable. Try again shortly.",
+    central_identity_required: "Link your HomeCheff account to use HC.",
+    central_hc_required: "This action requires HomeCheff HC (not legacy Studio Credits).",
     default: "This action is not allowed.",
   },
 };

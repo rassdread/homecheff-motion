@@ -45,6 +45,7 @@ async function fetchStudioAccountOnce(
     account: data.account,
     wallet: data.wallet,
     recentLedger: data.recentLedger ?? [],
+    centralHc: data.centralHc ?? null,
     ok: data.ok,
   };
 }

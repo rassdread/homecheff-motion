@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
+import { useLocale } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useStudioWalletSummary } from "@/hooks/use-studio-wallet-summary";
 import { BillingConversionCta } from "@/components/billing/billing-conversion-cta";
@@ -12,6 +13,7 @@ const DISMISS_KEY = "hc-low-credit-banner-dismissed";
 
 export function LowCreditBanner() {
   const t = useActiveTranslator();
+  const [locale] = useLocale();
   const session = useAuthSession();
   const wallet = useStudioWalletSummary(Boolean(session.user));
   const [dismissed, setDismissed] = useState(true);
@@ -61,6 +63,13 @@ export function LowCreditBanner() {
               threshold: tier,
             })}
           </p>
+          {wallet.centralHcWalletResolved && wallet.centralHcAvailable > 0 && (
+            <p className="mt-1 text-[11px] text-amber-100/80">
+              {locale === "nl"
+                ? `Daarnaast heb je ${wallet.centralHcAvailable.toLocaleString(locale)} HC-tegoed.`
+                : `You also have ${wallet.centralHcAvailable.toLocaleString(locale)} HC balance.`}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <BillingConversionCta

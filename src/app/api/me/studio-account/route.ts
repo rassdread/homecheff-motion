@@ -9,6 +9,8 @@ import {
 } from "@/server/studio-account/ensure-studio-account";
 import type { StudioCreditSettingsPatch } from "@/types/studio-account";
 
+const NO_STORE = { "Cache-Control": "private, no-store, max-age=0" } as const;
+
 export async function GET(request: NextRequest) {
   const user = await requireActiveUser();
   if (user instanceof NextResponse) {
@@ -20,7 +22,7 @@ export async function GET(request: NextRequest) {
     view === "summary"
       ? await loadStudioAccountSummary(user.id, user.email)
       : await loadStudioAccountOverview(user.id, user.email);
-  return NextResponse.json({ ok: true, ...overview }, { status: 200 });
+  return NextResponse.json({ ok: true, ...overview }, { status: 200, headers: NO_STORE });
 }
 
 export async function PATCH(request: Request) {
@@ -38,5 +40,5 @@ export async function PATCH(request: Request) {
 
   await patchStudioCreditSettings(user.id, patch);
   const overview = await loadStudioAccountOverview(user.id, user.email);
-  return NextResponse.json({ ok: true, ...overview }, { status: 200 });
+  return NextResponse.json({ ok: true, ...overview }, { status: 200, headers: NO_STORE });
 }

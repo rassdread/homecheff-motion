@@ -74,6 +74,7 @@ export async function reserveHcOnGrowth(input: {
   jobId?: string;
   idempotencyKey: string;
   legacyStudioCredits?: number;
+  overrideHc?: number;
 }) {
   return growthFetch("/api/internal/studio/hc/reserve", {
     method: "POST",

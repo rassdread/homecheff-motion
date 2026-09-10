@@ -12,6 +12,11 @@ export type StudioWalletSummary = {
   balance: number;
   plan: string;
   billingStatus: string;
+  centralHcAvailable: number;
+  centralHcReserved: number;
+  centralHcStatus: string | null;
+  centralHcIdentityResolved: boolean;
+  centralHcWalletResolved: boolean;
   loading: boolean;
   resolved: boolean;
   refresh: () => Promise<void>;
@@ -36,6 +41,7 @@ export function useStudioWalletSummary(enabled = true): StudioWalletSummary {
         account: data.account,
         wallet: data.wallet,
         recentLedger: data.recentLedger ?? [],
+        centralHc: (data as StudioAccountOverview).centralHc ?? null,
       });
     } finally {
       setLoading(false);
@@ -63,6 +69,11 @@ export function useStudioWalletSummary(enabled = true): StudioWalletSummary {
     balance: overview?.wallet.balance ?? 0,
     plan: overview?.account.studioPlan ?? "free",
     billingStatus: overview?.account.billingStatus ?? "none",
+    centralHcAvailable: overview?.centralHc?.availableHc ?? 0,
+    centralHcReserved: overview?.centralHc?.reservedHc ?? 0,
+    centralHcStatus: overview?.centralHc?.walletStatus ?? null,
+    centralHcIdentityResolved: overview?.centralHc?.identityResolved ?? false,
+    centralHcWalletResolved: overview?.centralHc?.walletResolved ?? false,
     loading,
     resolved,
     refresh: forceRefresh,

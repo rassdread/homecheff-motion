@@ -52,11 +52,33 @@ function splitSpendFromBuckets(wallet: { promotionalBalance: number; purchasedBa
 }
 
 export async function getWalletForUpdate(userId: string, tx: TxClient) {
+  await tx.$queryRaw`SELECT "id" FROM "StudioWallet" WHERE "userId" = ${userId} FOR UPDATE`;
   const wallet = await tx.studioWallet.findUnique({ where: { userId } });
   if (!wallet) {
     throw new Error(`Studio wallet not found for user ${userId}`);
   }
   return wallet;
+}
+
+function reservationIdFromMetadata(metadataJson: unknown): string | null {
+  if (!metadataJson || typeof metadataJson !== "object") return null;
+  const id = (metadataJson as { reservationId?: unknown }).reservationId;
+  return typeof id === "string" && id.trim() ? id : null;
+}
+
+async function findLedgerForReservation(
+  tx: TxClient,
+  userId: string,
+  reservationId: string,
+  actionTypes: string[]
+) {
+  const rows = await tx.studioLedgerEntry.findMany({
+    where: { userId, actionType: { in: actionTypes } },
+    orderBy: { createdAt: "desc" },
+    take: 80,
+    select: { id: true, balanceAfter: true, actionType: true, metadataJson: true },
+  });
+  return rows.find((row) => reservationIdFromMetadata(row.metadataJson) === reservationId) ?? null;
 }
 
 export type GrantCreditsInput = {
@@ -209,18 +231,38 @@ export async function captureStudioCredits(input: CaptureCreditsInput): Promise<
   balanceAfter: number;
   ledgerId: string;
 }> {
+  const credits = Math.floor(input.credits);
+  if (credits <= 0) {
+    throw new Error("CAPTURE_AMOUNT_INVALID");
+  }
+
   return prisma.$transaction(async (tx) => {
+    const existing = await findLedgerForReservation(tx, input.userId, input.reservationId, [
+      "usage_capture",
+    ]);
+    if (existing) {
+      return { balanceAfter: existing.balanceAfter, ledgerId: existing.id };
+    }
+
+    const released = await findLedgerForReservation(tx, input.userId, input.reservationId, [
+      "usage_refund",
+      "failed_generation_refund",
+    ]);
+    if (released) {
+      throw new Error("RESERVATION_ALREADY_RELEASED");
+    }
+
     const wallet = await getWalletForUpdate(input.userId, tx);
-    if (wallet.reservedBalance < input.credits) {
+    if (wallet.reservedBalance < credits) {
       throw new Error("RESERVATION_MISMATCH");
     }
-    if (wallet.balance < input.credits) {
+    if (wallet.balance < credits) {
       throw new Error("INSUFFICIENT_CREDITS");
     }
 
-    const newBalance = wallet.balance - input.credits;
-    const newReserved = wallet.reservedBalance - input.credits;
-    const { fromPromotional, fromPurchased } = splitSpendFromBuckets(wallet, input.credits);
+    const newBalance = wallet.balance - credits;
+    const newReserved = wallet.reservedBalance - credits;
+    const { fromPromotional, fromPurchased } = splitSpendFromBuckets(wallet, credits);
 
     await tx.studioWallet.update({
       where: { userId: input.userId },
@@ -229,7 +271,7 @@ export async function captureStudioCredits(input: CaptureCreditsInput): Promise<
         reservedBalance: newReserved,
         promotionalBalance: wallet.promotionalBalance - fromPromotional,
         purchasedBalance: wallet.purchasedBalance - fromPurchased,
-        lifetimeSpent: { increment: input.credits },
+        lifetimeSpent: { increment: credits },
         lastTransactionAt: new Date(),
       },
     });
@@ -240,7 +282,7 @@ export async function captureStudioCredits(input: CaptureCreditsInput): Promise<
         projectId: input.projectId,
         service: input.service,
         actionType: "usage_capture",
-        creditsDelta: -input.credits,
+        creditsDelta: -credits,
         balanceAfter: newBalance,
         creditOrigin: fromPurchased > 0 ? "PURCHASED" : "PROMOTIONAL",
         provider: input.provider,
@@ -276,19 +318,39 @@ export async function refundStudioReservation(input: RefundReservationInput): Pr
   balanceAfter: number;
   ledgerId: string;
 }> {
+  const credits = Math.floor(input.credits);
+  if (credits <= 0) {
+    throw new Error("REFUND_AMOUNT_INVALID");
+  }
+
   return prisma.$transaction(async (tx) => {
+    const existing = await findLedgerForReservation(tx, input.userId, input.reservationId, [
+      "usage_refund",
+      "failed_generation_refund",
+    ]);
+    if (existing) {
+      return { balanceAfter: existing.balanceAfter, ledgerId: existing.id };
+    }
+
+    const captured = await findLedgerForReservation(tx, input.userId, input.reservationId, [
+      "usage_capture",
+    ]);
+    if (captured) {
+      throw new Error("RESERVATION_ALREADY_CAPTURED");
+    }
+
     const wallet = await getWalletForUpdate(input.userId, tx);
-    if (wallet.reservedBalance < input.credits) {
+    if (wallet.reservedBalance < credits) {
       throw new Error("RESERVATION_MISMATCH");
     }
 
-    const newReserved = wallet.reservedBalance - input.credits;
+    const newReserved = wallet.reservedBalance - credits;
 
     await tx.studioWallet.update({
       where: { userId: input.userId },
       data: {
         reservedBalance: newReserved,
-        lifetimeRefunded: { increment: input.credits },
+        lifetimeRefunded: { increment: credits },
         lastTransactionAt: new Date(),
       },
     });
@@ -307,7 +369,7 @@ export async function refundStudioReservation(input: RefundReservationInput): Pr
         metadataJson: {
           ...input.metadataJson,
           reservationId: input.reservationId,
-          refundedCredits: input.credits,
+          refundedCredits: credits,
         },
       },
       tx

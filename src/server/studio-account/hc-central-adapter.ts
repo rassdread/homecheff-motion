@@ -53,6 +53,8 @@ export async function reserveCentralHc(input: {
   jobId?: string;
   idempotencyKey: string;
   legacyStudioCredits?: number;
+  /** Studio-authoritative HC amount (keeps local quote / overrideCredits). */
+  overrideHc?: number;
 }) {
   if (!isHcCentralAdapterReady()) throw new HcCentralAdapterNotReadyError();
   const res = await reserveHcOnGrowth(input);
