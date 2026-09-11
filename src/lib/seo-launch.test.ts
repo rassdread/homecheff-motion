@@ -137,7 +137,7 @@ describe("SEO launch readiness", () => {
 
   it("anonymous homepage does not unconditional silent-SSO redirect", () => {
     const page = read("src/app/page.tsx");
-    const middleware = read("src/middleware.ts");
+    const middleware = read("src/proxy.ts");
     assert.doesNotMatch(page, /maybeSilentHydratePublicStudio/);
     assert.doesNotMatch(middleware, /maybePublicSilentHydrate/);
     // Epoch-gated hydrate is allowed (crawlers have no hc_eco_epoch).

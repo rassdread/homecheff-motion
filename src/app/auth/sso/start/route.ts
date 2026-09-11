@@ -7,7 +7,8 @@
  *   pending cookie binds claimStudioUserId to that session user only.
  *
  * interaction (HC IdP):
- *   select_account — explicit login / Google / email (default for Studio buttons)
+ *   login — default Studio CTAs: continue-as when HC session exists
+ *   select_account — "Use another account" only
  *   claim — account linking (always confirm)
  *   silent — returning SSO only when explicitly requested
  *
@@ -50,14 +51,15 @@ function normalizeEmailHint(raw: string | null): string | null {
 function resolveInteraction(
   intent: SsoPendingIntent,
   raw: string | null,
-): "silent" | "select_account" | "claim" {
+): "silent" | "login" | "select_account" | "claim" {
   const v = (raw ?? "").trim().toLowerCase();
   if (intent === "claim") return "claim";
   if (v === "silent") return "silent";
   if (v === "claim") return "claim";
-  if (v === "login" || v === "select_account") return "select_account";
-  // Explicit Studio login buttons / default start → never silent-hijack HC session.
-  return "select_account";
+  if (v === "select_account") return "select_account";
+  if (v === "login") return "login";
+  // Default interactive Studio CTAs → HC continue-as (not forced account picker).
+  return "login";
 }
 
 export async function GET(req: Request) {
@@ -108,7 +110,8 @@ export async function GET(req: Request) {
       login.searchParams.set("email", emailHint);
       login.searchParams.set("callbackUrl", `${authorize.pathname}${authorize.search}`);
       login.searchParams.set("ssoInteraction", interaction);
-      if (interaction !== "silent") {
+      // Only force Google/account picker when the user explicitly switches accounts.
+      if (interaction === "select_account") {
         login.searchParams.set("prompt", "select_account");
       }
       logStudioSsoEvent("email_login_selected", { hasEmailHint: true });

@@ -76,7 +76,10 @@ describe("universe v6 rotating capability orbits", () => {
   it("planet visual debug resolves from query param", () => {
     assert.equal(resolveUniversePlanetVisualDebug("editor"), "editor");
     assert.equal(resolveUniversePlanetVisualDebug("invalid"), null);
-    const homeSource = readFileSync("src/components/suite/universe/universe-home-page.tsx", "utf8");
-    assert.match(homeSource, /universePlanetDebug/);
+    const widgetSource = readFileSync(
+      "src/components/suite/universe/universe-landing-orbit-widget.tsx",
+      "utf8"
+    );
+    assert.match(widgetSource, /UniverseOrbitSystem/);
   });
 });

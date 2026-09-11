@@ -71,7 +71,8 @@ describe("studio copilot layout switcher", () => {
     assert.equal(resolveRestorePlacement("dock", "/studio"), "side");
     const layout = { ...DEFAULT_STUDIO_COPILOT_LAYOUT, placement: "dock" as const };
     assert.equal(shouldShowCopilotDock(layout, "/studio"), false);
-    assert.equal(shouldShowSideCopilotPanel(layout, "/studio"), true);
+    assert.equal(shouldShowSideCopilotPanel(layout, "/studio"), false);
+    assert.equal(shouldShowSideCopilotPanel(layout, "/studio/characters"), true);
   });
 
   it("clicking dock placement updates localStorage", () => {

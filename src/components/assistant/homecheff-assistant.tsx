@@ -1,14 +1,21 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useActiveTranslator } from "@/i18n/client";
 import { MotionBottomSheet } from "@/components/ui/motion-bottom-sheet";
 import { useHomeCheffAssistant } from "@/components/assistant/homecheff-assistant-provider";
 import { GrowthSidebar } from "@/components/growth/growth-sidebar";
+import { isStudioPrimaryHomePath } from "@/lib/studio-primary-home";
 
 /** Mobile-only FAB + bottom sheet. Desktop uses the permanent Growth Sidebar layout. */
 export function HomeCheffAssistant() {
   const t = useActiveTranslator();
+  const pathname = usePathname();
   const { open, setOpen, copilotLayout, copilotLayoutHydrated } = useHomeCheffAssistant();
+
+  if (isStudioPrimaryHomePath(pathname)) {
+    return null;
+  }
 
   if (copilotLayoutHydrated && copilotLayout.collapsed) {
     return null;

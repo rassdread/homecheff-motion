@@ -16,21 +16,23 @@ type Props = {
 
 /**
  * SP.2B — Honest Studio login presentation.
- * Password is NEVER collected on Studio (no discarded-password UX).
- * Email/password validation happens only on HomeCheff hosted login.
- * Google routes via HomeCheff IdP (no Studio Google OAuth).
+ * Password is NEVER collected on Studio for SSO path (HC hosted login).
+ * Google / email route via HomeCheff IdP.
+ *
+ * interaction=login (default CTAs): HC continue-as when a session exists.
+ * interaction=select_account: only "Use another account".
  */
 export function LoginPageContent({ ssoEnabled, legacyEnabled, returnTo }: Props) {
   const t = useActiveTranslator();
   const [email, setEmail] = useState("");
   const [showEmailStep, setShowEmailStep] = useState(false);
-  const [busy, setBusy] = useState<"google" | "email" | null>(null);
+  const [busy, setBusy] = useState<"google" | "email" | "switch" | null>(null);
 
   const ssoBase = `/auth/sso/start?returnTo=${encodeURIComponent(returnTo)}`;
 
   function startGoogle() {
     setBusy("google");
-    window.location.assign(`${ssoBase}&intent=google&interaction=select_account`);
+    window.location.assign(`${ssoBase}&intent=google&interaction=login`);
   }
 
   function startEmail(event: FormEvent<HTMLFormElement>) {
@@ -39,13 +41,13 @@ export function LoginPageContent({ ssoEnabled, legacyEnabled, returnTo }: Props)
     setBusy("email");
     const hint = email.trim();
     const qs = hint
-      ? `&email=${encodeURIComponent(hint)}&intent=password&interaction=select_account`
-      : `&intent=password&interaction=select_account`;
+      ? `&email=${encodeURIComponent(hint)}&intent=password&interaction=login`
+      : `&intent=password&interaction=login`;
     window.location.assign(`${ssoBase}${qs}`);
   }
 
   function startSwitchAccount() {
-    setBusy("google");
+    setBusy("switch");
     window.location.assign(
       `${ssoBase}&intent=login&interaction=select_account`,
     );
@@ -92,7 +94,30 @@ export function LoginPageContent({ ssoEnabled, legacyEnabled, returnTo }: Props)
                   {t("auth.login.continueEmail")}
                 </button>
               ) : (
-                <AuthForm mode="login" />
+                <form onSubmit={startEmail} className="space-y-3">
+                  <label className="block text-sm font-medium text-zinc-700" htmlFor="studio-sso-email">
+                    {t("auth.login.emailHintPlaceholder")}
+                  </label>
+                  <input
+                    id="studio-sso-email"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    placeholder={t("auth.login.emailHintPlaceholder")}
+                    className="w-full rounded-md border border-zinc-300 px-3 py-2.5 text-sm text-zinc-900"
+                    data-testid="studio-sso-email-input"
+                  />
+                  <button
+                    type="submit"
+                    disabled={busy !== null}
+                    className="flex w-full items-center justify-center rounded-md bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
+                    data-testid="studio-sso-email-submit"
+                  >
+                    {busy === "email" ? t("auth.login.continuing") : t("auth.login.continueEmail")}
+                  </button>
+                </form>
               )}
 
               <button

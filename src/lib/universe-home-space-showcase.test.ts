@@ -17,15 +17,14 @@ describe("universe home space showcase carousel", () => {
     assert.match(source, /space-orbit-float/);
   });
 
-  it("homepage renders showcase between hero and after-hero sections", () => {
+  it("homepage no longer mounts decorative space showcase (orbit removed)", () => {
     const home = readFileSync(
       join(ROOT, "src/components/suite/universe/universe-home-page.tsx"),
       "utf8"
     );
-    const showcase = home.indexOf("<UniverseHomeSpaceShowcase");
-    const afterHero = home.indexOf('data-testid="home-after-hero"');
-    const heroGrid = home.indexOf('data-testid="home-hero-grid"');
-    assert.ok(showcase > 0 && afterHero > showcase && heroGrid < showcase);
+    assert.doesNotMatch(home, /UniverseHomeSpaceShowcase/);
+    assert.match(home, /UniverseDestinationLinks/);
+    assert.match(home, /data-testid="home-after-hero"/);
   });
 
   it("showcase loads admin-managed catalog via API with pageKey", () => {

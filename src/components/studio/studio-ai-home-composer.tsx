@@ -16,6 +16,7 @@ import {
 } from "@/lib/studio-ai-home-intent";
 import {
   STUDIO_AI_HOME_INSPIRATION,
+  STUDIO_AI_HOME_INSPIRATION_PRIMARY_COUNT,
   type StudioAiHomeInspirationId,
 } from "@/lib/studio-ai-home-inspiration";
 import { fetchStudioCharacters } from "@/lib/studio-characters-client";
@@ -60,10 +61,38 @@ export function StudioAiHomeComposer() {
   const [estimatedCredits, setEstimatedCredits] = useState<number | null>(null);
   const [allowed, setAllowed] = useState(true);
   const [balanceAfter, setBalanceAfter] = useState<number | null>(null);
+  const [showAllInspiration, setShowAllInspiration] = useState(false);
 
   const selectedCharacterIds = new Set(
     attachments.filter((a) => a.kind === "character").map((a) => a.id)
   );
+  const visibleInspiration = showAllInspiration
+    ? STUDIO_AI_HOME_INSPIRATION
+    : STUDIO_AI_HOME_INSPIRATION.slice(0, STUDIO_AI_HOME_INSPIRATION_PRIMARY_COUNT);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("hc_studio_ai_home_draft");
+      if (!raw) return;
+      const draft = JSON.parse(raw) as {
+        prompt?: string;
+        attachments?: StudioIntentPlanAttachment[];
+        inspirationId?: StudioAiHomeInspirationId | null;
+      };
+      sessionStorage.removeItem("hc_studio_ai_home_draft");
+      if (typeof draft.prompt === "string" && draft.prompt.trim()) {
+        setPrompt(draft.prompt);
+      }
+      if (Array.isArray(draft.attachments) && draft.attachments.length > 0) {
+        setAttachments(draft.attachments);
+      }
+      if (draft.inspirationId) {
+        setInspirationId(draft.inspirationId);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     if (!auth.resolved || !auth.user) {
@@ -225,6 +254,14 @@ export function StudioAiHomeComposer() {
     if (!plan) return;
     if (!plan.free && !allowed) return;
     if (!auth.user && !plan.free) {
+      try {
+        sessionStorage.setItem(
+          "hc_studio_ai_home_draft",
+          JSON.stringify({ prompt, attachments, inspirationId })
+        );
+      } catch {
+        /* ignore */
+      }
       router.push(`/login?next=${encodeURIComponent("/studio")}`);
       return;
     }
@@ -323,6 +360,14 @@ export function StudioAiHomeComposer() {
                     return;
                   }
                   if (!auth.user) {
+                    try {
+                      sessionStorage.setItem(
+                        "hc_studio_ai_home_draft",
+                        JSON.stringify({ prompt, attachments, inspirationId })
+                      );
+                    } catch {
+                      /* ignore */
+                    }
                     router.push(`/login?next=${encodeURIComponent("/studio")}`);
                     return;
                   }
@@ -334,7 +379,7 @@ export function StudioAiHomeComposer() {
                     : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
                 }`}
               >
-                {t(key)}
+                + {t(key)}
               </button>
             ))}
           </div>
@@ -480,67 +525,12 @@ export function StudioAiHomeComposer() {
         />
       : null}
 
-      <section className="space-y-2" data-testid="studio-ai-home-characters">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-zinc-900">
-            {t("studio.aiHome.characters.title")}
-          </h2>
-          <Link
-            href="/studio/characters/new"
-            className="text-xs font-semibold text-[#006D52] underline-offset-2 hover:underline"
-            data-testid="studio-ai-home-character-new"
-          >
-            {t("studio.aiHome.characters.new")}
-          </Link>
-        </div>
-        {auth.user && characters.length > 0 ?
-          <ul className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {characters.slice(0, 12).map((c) => {
-              const selected = selectedCharacterIds.has(c.id);
-              return (
-                <li key={c.id} className="shrink-0">
-                  <button
-                    type="button"
-                    data-testid="studio-ai-home-character-chip"
-                    aria-pressed={selected}
-                    onClick={() =>
-                      upsertAttachment({
-                        kind: "character",
-                        id: c.id,
-                        name: c.name,
-                        url: c.referenceImageUrl,
-                      })
-                    }
-                    className={`flex min-h-[44px] items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${
-                      selected
-                        ? "border-[#006D52] bg-[#006D52]/10 text-[#006D52] ring-1 ring-[#006D52]/30"
-                        : "border-zinc-200 bg-white text-zinc-800"
-                    }`}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={c.referenceImageUrl}
-                      alt=""
-                      className="h-7 w-7 rounded-full object-cover"
-                    />
-                    {c.name}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        : <p className="text-sm text-zinc-500" data-testid="studio-ai-home-characters-empty">
-            {auth.user ? t("studio.aiHome.characters.empty") : t("studio.aiHome.characters.login")}
-          </p>}
-        <p className="text-xs text-zinc-500">{t("studio.aiHome.character.keepConsistentHint")}</p>
-      </section>
-
       <section className="space-y-2" data-testid="studio-ai-home-inspiration">
         <h2 className="text-sm font-semibold text-zinc-900">
-          {t("studio.aiHome.inspiration.title")}
+          {t("studio.aiHome.inspiration.try")}
         </h2>
         <ul className="flex flex-wrap gap-2">
-          {STUDIO_AI_HOME_INSPIRATION.map((item) => {
+          {visibleInspiration.map((item) => {
             const active = inspirationId === item.id;
             return (
               <li key={item.id}>
@@ -565,8 +555,76 @@ export function StudioAiHomeComposer() {
               </li>
             );
           })}
+          {!showAllInspiration && STUDIO_AI_HOME_INSPIRATION.length > STUDIO_AI_HOME_INSPIRATION_PRIMARY_COUNT ?
+            <li>
+              <button
+                type="button"
+                data-testid="studio-ai-home-inspiration-more"
+                onClick={() => setShowAllInspiration(true)}
+                className="min-h-[40px] rounded-full border border-dashed border-zinc-300 bg-transparent px-3 text-xs font-semibold text-zinc-600 hover:border-zinc-400"
+              >
+                {t("studio.aiHome.inspiration.more")}
+              </button>
+            </li>
+          : null}
         </ul>
       </section>
+
+      {auth.user ?
+        <section className="space-y-2" data-testid="studio-ai-home-characters">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-zinc-900">
+              {t("studio.aiHome.characters.title")}
+            </h2>
+            <Link
+              href="/studio/characters/new"
+              className="text-xs font-semibold text-[#006D52] underline-offset-2 hover:underline"
+              data-testid="studio-ai-home-character-new"
+            >
+              {t("studio.aiHome.characters.new")}
+            </Link>
+          </div>
+          {characters.length > 0 ?
+            <ul className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {characters.slice(0, 8).map((c) => {
+                const selected = selectedCharacterIds.has(c.id);
+                return (
+                  <li key={c.id} className="shrink-0">
+                    <button
+                      type="button"
+                      data-testid="studio-ai-home-character-chip"
+                      aria-pressed={selected}
+                      onClick={() =>
+                        upsertAttachment({
+                          kind: "character",
+                          id: c.id,
+                          name: c.name,
+                          url: c.referenceImageUrl,
+                        })
+                      }
+                      className={`flex min-h-[44px] items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${
+                        selected
+                          ? "border-[#006D52] bg-[#006D52]/10 text-[#006D52] ring-1 ring-[#006D52]/30"
+                          : "border-zinc-200 bg-white text-zinc-800"
+                      }`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={c.referenceImageUrl}
+                        alt=""
+                        className="h-7 w-7 rounded-full object-cover"
+                      />
+                      {c.name}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          : <p className="text-sm text-zinc-500" data-testid="studio-ai-home-characters-empty">
+              {t("studio.aiHome.characters.empty")}
+            </p>}
+        </section>
+      : null}
     </section>
   );
 }

@@ -96,6 +96,9 @@ export const STUDIO_AI_HOME_INSPIRATION: readonly StudioAiHomeInspiration[] = [
   },
 ] as const;
 
+/** Compact first-screen inspiration — rest behind "more". */
+export const STUDIO_AI_HOME_INSPIRATION_PRIMARY_COUNT = 4;
+
 export function studioAiHomeInspiration(
   id: StudioAiHomeInspirationId
 ): StudioAiHomeInspiration {

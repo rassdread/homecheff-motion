@@ -3,12 +3,17 @@
 import { usePathname } from "next/navigation";
 import { useHomeCheffAssistant } from "@/components/assistant/homecheff-assistant-provider";
 import { useActiveTranslator } from "@/i18n/client";
+import { isStudioPrimaryHomePath } from "@/lib/studio-primary-home";
 
 /** Floating restore control when Copilot is minimized. */
 export function StudioCopilotRestoreFab() {
   const t = useActiveTranslator();
   const pathname = usePathname();
   const { copilotLayout, copilotLayoutHydrated, restoreCopilot, setOpen } = useHomeCheffAssistant();
+
+  if (isStudioPrimaryHomePath(pathname)) {
+    return null;
+  }
 
   if (!copilotLayoutHydrated || !copilotLayout.collapsed) {
     return null;

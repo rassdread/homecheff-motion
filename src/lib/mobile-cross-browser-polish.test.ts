@@ -6,14 +6,16 @@ import { describe, it } from "node:test";
 const ROOT = process.cwd();
 
 describe("mobile cross-browser polish", () => {
-  it("hides omniverse and space gallery on mobile homepage", () => {
+  it("hides decorative orbit on mobile homepage and keeps quick actions", () => {
     const home = readFileSync(
       join(ROOT, "src/components/suite/universe/universe-home-page.tsx"),
       "utf8"
     );
     assert.match(home, /home-universe-zone hidden md:flex/);
     assert.match(home, /UniverseHomeMobileQuickActions/);
-    assert.match(home, /hidden md:block[\s\S]*UniverseHomeSpaceShowcase/);
+    assert.match(home, /UniverseDestinationLinks/);
+    assert.doesNotMatch(home, /UniverseOrbitSystem/);
+    assert.doesNotMatch(home, /UniverseHomeSpaceShowcase/);
     assert.doesNotMatch(home, /UniverseMobileStack/);
   });
 

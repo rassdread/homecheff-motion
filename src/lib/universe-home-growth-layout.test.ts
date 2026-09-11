@@ -31,7 +31,7 @@ describe("universe homepage growth sidebar layout", () => {
     assert.doesNotMatch(heroSource, /universe\.productionLine\.title/);
   });
 
-  it("keeps production line title only in after-hero section", () => {
+  it("keeps destinations and recent sections after hero", () => {
     const homeSource = readFileSync(
       join(ROOT, "src/components/suite/universe/universe-home-page.tsx"),
       "utf8"
@@ -41,8 +41,10 @@ describe("universe homepage growth sidebar layout", () => {
       "utf8"
     );
     assert.match(homeSource, /home-after-hero/);
-    assert.match(homeSource, /UniverseHomeSpaceShowcase/);
+    assert.match(homeSource, /UniverseDestinationLinks/);
     assert.match(homeSource, /UniverseHomeSections/);
+    assert.doesNotMatch(homeSource, /UniverseOrbitSystem/);
+    assert.doesNotMatch(homeSource, /UniverseHomeSpaceShowcase/);
     assert.match(sectionsSource, /UniverseProductionLine/);
     assert.doesNotMatch(homeSource, /UniverseMarketingSections/);
     assert.doesNotMatch(homeSource, /UniverseQuickActions/);

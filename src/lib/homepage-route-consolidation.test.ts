@@ -54,18 +54,19 @@ describe("homepage route consolidation", () => {
     assert.equal(resolvePostAuthRedirect("/maak"), CANONICAL_HOMEPAGE_PATH);
   });
 
-  it("homepage includes full row structure below hero", () => {
+  it("homepage includes destinations and row structure below hero", () => {
     const universe = read("src/components/suite/universe/universe-home-page.tsx");
     const sections = read("src/components/suite/universe/universe-home-sections.tsx");
-    assert.match(universe, /UniverseHomeSpaceShowcase/);
+    assert.match(universe, /UniverseDestinationLinks/);
+    assert.doesNotMatch(universe, /UniverseOrbitSystem/);
+    assert.doesNotMatch(universe, /UniverseHomeSpaceShowcase/);
     assert.match(sections, /universe-home-recent-projects/);
     assert.match(sections, /universe-home-recent-assets/);
     assert.match(sections, /universe-home-capabilities/);
     assert.match(sections, /universe-home-why-studio/);
     assert.match(sections, /universe-home-getting-started/);
-    const showcaseIdx = universe.indexOf("<UniverseHomeSpaceShowcase />");
     const afterHeroIdx = universe.indexOf('data-testid="home-after-hero"');
-    assert.ok(showcaseIdx > 0 && afterHeroIdx > showcaseIdx);
+    assert.ok(afterHeroIdx > 0);
   });
 
   it("legacy nav creation entry points to /studio not /maak", () => {

@@ -17,12 +17,14 @@ describe("universe v8 layout and hover stability", () => {
     assert.doesNotMatch(heroSource, /text-center/);
   });
 
-  it("home page places hero and orbit side by side on desktop", () => {
+  it("home page places hero and destinations side by side on desktop", () => {
     const homeSource = readFileSync("src/components/suite/universe/universe-home-page.tsx", "utf8");
     assert.match(homeSource, /home-hero-grid/);
     assert.match(homeSource, /home-hero-copy/);
     assert.match(homeSource, /home-universe-zone/);
+    assert.match(homeSource, /UniverseDestinationLinks/);
     assert.match(homeSource, /home-after-hero/);
+    assert.doesNotMatch(homeSource, /UniverseOrbitSystem/);
     assert.doesNotMatch(homeSource, /UniverseDynamicWelcome/);
   });
 
@@ -51,12 +53,15 @@ describe("universe v8 layout and hover stability", () => {
     assert.doesNotMatch(satSource, /depthStyle\.scale/);
   });
 
-  it("hover lock uses 500ms minimum", () => {
+  it("orbit hover helpers remain available for optional widgets", () => {
     assert.equal(UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS, 500);
     assert.equal(UNIVERSE_PLANET_HOVER_LOCK_MS, 500);
-    const homeSource = readFileSync("src/components/suite/universe/universe-home-page.tsx", "utf8");
-    assert.match(homeSource, /UNIVERSE_PLANET_HOVER_LOCK_MS/);
-    assert.match(homeSource, /hoverOpenedAt/);
+    const widgetSource = readFileSync(
+      "src/components/suite/universe/universe-landing-orbit-widget.tsx",
+      "utf8"
+    );
+    assert.match(widgetSource, /UNIVERSE_PLANET_HOVER_LOCK_MS/);
+    assert.match(widgetSource, /hoverOpenedAt/);
   });
 
   it("planet cluster scales as one unit for stable hover", () => {

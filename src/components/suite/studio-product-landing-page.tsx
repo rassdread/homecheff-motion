@@ -3,7 +3,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { UniverseBackground } from "@/components/suite/universe/universe-background";
-import { UniverseLandingOrbitWidget } from "@/components/suite/universe/universe-landing-orbit-widget";
 import { ServiceLandingNav } from "@/components/suite/service-landing-nav";
 import { SpaceGallery } from "@/components/examples/space-gallery";
 import { useShowcaseCtaAction } from "@/hooks/use-showcase-cta-action";
@@ -43,8 +42,7 @@ export function StudioProductLandingPage({ config, continueCard, continueSlot }:
       <div className="relative mx-auto w-full max-w-6xl px-4 pb-16 pt-12 sm:px-8 lg:pt-16">
         <ServiceLandingNav current={config.moduleKey} />
 
-        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(300px,500px)] lg:gap-10">
-          <div className="min-w-0 max-w-3xl">
+        <div className="min-w-0 max-w-3xl">
           <StudioPageIntro
             eyebrow={config.positioningKey ? t(config.positioningKey) : t(config.eyebrowKey)}
             title={t(config.titleKey)}
@@ -79,13 +77,6 @@ export function StudioProductLandingPage({ config, continueCard, continueSlot }:
               </Link>
             </div>
           : null)}
-          </div>
-
-          <div className="flex items-center justify-center pt-6 lg:justify-end lg:pt-4">
-            <div className="w-full max-w-[min(92vw,500px)] scale-[0.92] sm:scale-100 lg:max-w-none">
-              <UniverseLandingOrbitWidget />
-            </div>
-          </div>
         </div>
 
         {!showcaseLoading && examples.length > 0 ?

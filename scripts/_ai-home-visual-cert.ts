@@ -32,6 +32,9 @@ async function assertHome(page: import("playwright").Page, label: string) {
   }
   await home.getByTestId("studio-ai-home-attach-media").waitFor({ state: "visible" });
   await home.getByTestId("studio-ai-home-inspiration").waitFor({ state: "visible" });
+  const more = home.getByTestId("studio-home-more");
+  await more.waitFor({ state: "visible" });
+  await more.locator("summary").click();
   await page.getByTestId("studio-home-intents").first().waitFor({ state: "visible" });
   await page.getByTestId("studio-home-advanced").first().waitFor({ state: "visible" });
 

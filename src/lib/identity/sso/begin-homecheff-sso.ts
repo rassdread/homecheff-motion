@@ -17,7 +17,14 @@ import {
 } from "@/lib/identity/sso/state";
 import { clearSkipSilentSsoCookie } from "@/lib/identity/sso/silent-guard";
 
-export type StudioSsoInteraction = "silent" | "select_account" | "claim";
+/**
+ * HC IdP interaction modes:
+ * - silent — returning SSO / hydrate (no UI when session exists)
+ * - login — continue-as when HC session exists; else hosted login (default Studio CTAs)
+ * - select_account — force account picker ("Use another account")
+ * - claim — dual-proof legacy linking
+ */
+export type StudioSsoInteraction = "silent" | "login" | "select_account" | "claim";
 
 export type BeginStudioHomeCheffSsoInput = {
   returnTo: string;

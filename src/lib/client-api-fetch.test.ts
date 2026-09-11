@@ -74,12 +74,12 @@ test("polling hooks use shared same-origin fetch module", () => {
 });
 
 test("API middleware never redirects and logs auth-check", () => {
-  const mw = readFileSync(join(__dirname, "../middleware.ts"), "utf8");
+  const mw = readFileSync(join(__dirname, "../proxy.ts"), "utf8");
   assert.match(mw, /logAuthCheck/);
   assert.match(mw, /NextResponse\.next/);
   assert.match(mw, /originMatchesRequestHost/);
   const apiStart = mw.indexOf("function handleApiMiddleware");
-  const exportStart = mw.indexOf("export function middleware");
+  const exportStart = mw.indexOf("export function proxy");
   assert.ok(apiStart >= 0 && exportStart > apiStart);
   const apiHandler = mw.slice(apiStart, exportStart);
   assert.doesNotMatch(apiHandler, /redirect\(/);

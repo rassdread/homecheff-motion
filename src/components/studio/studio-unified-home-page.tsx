@@ -70,6 +70,11 @@ function IntentCard({
   );
 }
 
+/**
+ * AI-first Studio home — progressive disclosure.
+ * Above fold: brand + primary composer (+ compact inspiration inside composer).
+ * Below fold: continue, then collapsed "all capabilities".
+ */
 export function StudioUnifiedHomePage() {
   const t = useActiveTranslator();
   const auth = useAuthSession();
@@ -150,46 +155,59 @@ export function StudioUnifiedHomePage() {
           </p>
         : null}
 
-        <section className="mt-8 space-y-3" data-testid="studio-home-intents">
-          <h2 className="text-sm font-semibold text-zinc-900">
-            {t("studio.aiHome.shortcuts.title")}
-          </h2>
-          <p className="text-xs text-zinc-500">{t("studio.aiHome.shortcuts.subtitle")}</p>
-          <ul className="grid gap-2 sm:grid-cols-2">
-            {STUDIO_HOME_INTENTS.map((intent) => (
-              <li key={intent.id}>
-                <IntentCard
-                  href={intent.href}
-                  title={t(intent.titleKey)}
-                  description={t(intent.descriptionKey)}
-                  free={intent.free}
-                  usesCredits={intent.usesCredits}
-                  testId={`studio-intent-${intent.id}`}
-                  analyticsEvent={intent.analyticsEvent}
-                />
-              </li>
-            ))}
-          </ul>
-        </section>
+        <details className="mt-10 group" data-testid="studio-home-more">
+          <summary className="cursor-pointer list-none text-sm font-semibold text-zinc-700 underline-offset-2 hover:text-zinc-900 hover:underline [&::-webkit-details-marker]:hidden">
+            <span className="inline-flex min-h-[44px] items-center gap-2">
+              {t("studio.aiHome.moreCapabilities")}
+              <span aria-hidden className="text-zinc-400 transition group-open:rotate-90">
+                ›
+              </span>
+            </span>
+          </summary>
 
-        <p className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-6">
-          <Link
-            href="/studio/simple"
-            prefetch={false}
-            data-testid="studio-home-simple"
-            className="inline-flex min-h-[44px] items-center text-sm font-semibold text-[#006D52] underline-offset-2 hover:underline"
-          >
-            {t("studio.slice1a.simple.hub")} →
-          </Link>
-          <Link
-            href={STUDIO_HOME_ADVANCED_HREF}
-            prefetch={false}
-            data-testid="studio-home-advanced"
-            className="inline-flex min-h-[44px] items-center text-sm font-semibold text-zinc-600 underline-offset-2 hover:text-zinc-900 hover:underline"
-          >
-            {t("studio.slice1a.advanced.tools")} →
-          </Link>
-        </p>
+          <div className="mt-4 space-y-6 border-t border-zinc-100 pt-4">
+            <section className="space-y-3" data-testid="studio-home-intents">
+              <h2 className="text-sm font-semibold text-zinc-900">
+                {t("studio.aiHome.shortcuts.title")}
+              </h2>
+              <p className="text-xs text-zinc-500">{t("studio.aiHome.shortcuts.subtitle")}</p>
+              <ul className="grid gap-2 sm:grid-cols-2">
+                {STUDIO_HOME_INTENTS.map((intent) => (
+                  <li key={intent.id}>
+                    <IntentCard
+                      href={intent.href}
+                      title={t(intent.titleKey)}
+                      description={t(intent.descriptionKey)}
+                      free={intent.free}
+                      usesCredits={intent.usesCredits}
+                      testId={`studio-intent-${intent.id}`}
+                      analyticsEvent={intent.analyticsEvent}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </section>
+
+            <p className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-6">
+              <Link
+                href="/studio/simple"
+                prefetch={false}
+                data-testid="studio-home-simple"
+                className="inline-flex min-h-[44px] items-center text-sm font-medium text-zinc-600 underline-offset-2 hover:text-zinc-900 hover:underline"
+              >
+                {t("studio.slice1a.simple.hub")} →
+              </Link>
+              <Link
+                href={STUDIO_HOME_ADVANCED_HREF}
+                prefetch={false}
+                data-testid="studio-home-advanced"
+                className="inline-flex min-h-[44px] items-center text-sm font-medium text-zinc-600 underline-offset-2 hover:text-zinc-900 hover:underline"
+              >
+                {t("studio.slice1a.advanced.tools")} →
+              </Link>
+            </p>
+          </div>
+        </details>
       </div>
     </main>
   );

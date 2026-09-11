@@ -104,7 +104,8 @@ describe("homepage render audit", () => {
   it("below-hero sections remain on canonical homepage", () => {
     const universe = read("src/components/suite/universe/universe-home-page.tsx");
     assert.match(universe, /data-testid="home-after-hero"/);
-    assert.match(universe, /UniverseHomeSpaceShowcase/);
+    assert.match(universe, /UniverseDestinationLinks/);
+    assert.doesNotMatch(universe, /UniverseHomeSpaceShowcase/);
     assert.match(universe, /UniverseHomeSections/);
     const sections = read("src/components/suite/universe/universe-home-sections.tsx");
     assert.match(sections, /universe-home-capabilities/);

@@ -65,8 +65,11 @@ describe("universe v7 brand globe and upright orbit labels", () => {
   it("orbit debug param resolves", () => {
     assert.equal(resolveUniverseOrbitDebug("1"), true);
     assert.equal(resolveUniverseOrbitDebug("false"), false);
-    const homeSource = readFileSync("src/components/suite/universe/universe-home-page.tsx", "utf8");
-    assert.match(homeSource, /universeOrbitDebug/);
+    const widgetSource = readFileSync(
+      "src/components/suite/universe/universe-landing-orbit-widget.tsx",
+      "utf8"
+    );
+    assert.match(widgetSource, /UniverseOrbitSystem/);
   });
 
   it("Saturn product ring stays separate from capability orbit", () => {
