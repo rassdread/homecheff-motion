@@ -15,6 +15,7 @@ import { usePathname } from "next/navigation";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useMounted } from "@/hooks/use-mounted";
 import { usePricingCatalog } from "@/hooks/use-pricing-catalog";
+import { useLocale } from "@/i18n/client";
 import { readIdentityPreservationOverrides } from "@/lib/studio-copilot-identity-preservation-storage";
 import {
   buildAssistantSnapshotFromClient,
@@ -121,6 +122,7 @@ export function HomeCheffAssistantProvider({ children }: { children: ReactNode }
 
 function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const [locale] = useLocale();
   const session = useAuthSession();
   const isAuthenticated = Boolean(session.resolved && session.user);
   const [urlProjectId, setUrlProjectId] = useState<string | null>(null);
@@ -362,7 +364,7 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
           urlProjectId,
           interpretation,
           isAuthenticated,
-          locale: "nl",
+          locale: locale === "en" ? "en" : "nl",
           pathname,
           projectMemory,
           billingContext,
@@ -446,7 +448,10 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
               method: "POST",
               credentials: "include",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ message: trimmed, locale: "nl" }),
+              body: JSON.stringify({
+                message: trimmed,
+                locale: locale === "en" ? "en" : "nl",
+              }),
             });
             if (res.ok) {
               const data = (await res.json()) as { interpretation?: AssistantInterpretation | null };
@@ -468,7 +473,7 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
 
       runTurn(null);
     },
-    [memory, snapshot, urlProjectId, isAuthenticated, pathname, projectMemory, billingContext, pricingCatalog, session.resolved]
+    [memory, snapshot, urlProjectId, isAuthenticated, pathname, projectMemory, billingContext, pricingCatalog, session.resolved, locale, libraryRecords]
   );
 
   const acceptProposal = useCallback((proposal: AssistantProposal) => {

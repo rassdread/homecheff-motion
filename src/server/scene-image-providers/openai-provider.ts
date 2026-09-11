@@ -86,7 +86,11 @@ export class OpenAiSceneImageProvider implements SceneImageProvider {
           "[OpenAiSceneImageProvider] Reference edit failed — falling back to text-to-image.",
           { sceneId: input.sceneId, message: error instanceof Error ? error.message : "unknown" }
         );
-        return this.generateFromPrompt(input, apiKey, size);
+        const fallback = await this.generateFromPrompt(input, apiKey, size);
+        return {
+          ...fallback,
+          identityPreservation: "text_fallback",
+        };
       }
     }
 
@@ -177,6 +181,7 @@ export class OpenAiSceneImageProvider implements SceneImageProvider {
       model: editModel,
       size,
       generationMode: "image_edit",
+      identityPreservation: "reference_edit",
     };
   }
 
@@ -189,7 +194,8 @@ export class OpenAiSceneImageProvider implements SceneImageProvider {
     const refs = (input.referenceImages ?? []).filter((ref) => ref.url.trim());
     const primary = refs[0];
     if (!primary) {
-      return this.generateFromPrompt(input, apiKey, size);
+      const fallback = await this.generateFromPrompt(input, apiKey, size);
+      return { ...fallback, identityPreservation: "text_fallback" };
     }
     const source = await fetchSourceImageBuffer(primary.url.trim());
     const additionalImages: OpenAiImageEditReferenceImage[] = [];
@@ -247,6 +253,7 @@ export class OpenAiSceneImageProvider implements SceneImageProvider {
       model: editModel,
       size,
       generationMode: "image_edit",
+      identityPreservation: "reference_edit",
     };
   }
 
@@ -290,6 +297,7 @@ export class OpenAiSceneImageProvider implements SceneImageProvider {
       model,
       size,
       generationMode: "text_to_image",
+      identityPreservation: "none",
     };
   }
 

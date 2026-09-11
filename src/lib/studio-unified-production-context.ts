@@ -446,6 +446,17 @@ function sceneHashPayload(scene: UpcScene): unknown {
   };
 }
 
+/** Character identity exactness — strong/strict + reference URL → MUST_PRESERVE when provider can edit. */
+export function characterReferenceExactness(
+  identityStrength: string
+): "MUST_PRESERVE" | "SHOULD_MATCH" {
+  const strength = identityStrength.trim().toLowerCase();
+  if (strength === "strong" || strength === "strict") {
+    return "MUST_PRESERVE";
+  }
+  return "SHOULD_MATCH";
+}
+
 function collectReferences(
   characters: UpcCharacter[],
   locations: UpcLocation[],
@@ -453,13 +464,14 @@ function collectReferences(
 ): ProductionReferenceAsset[] {
   const refs: ProductionReferenceAsset[] = [];
   for (const character of characters) {
+    const primaryExactness = characterReferenceExactness(character.identityStrength);
     refs.push({
       entityId: character.id,
       entityKind: "character",
       label: character.name,
       role: "primary",
       url: character.referenceIdentity.primaryUrl,
-      exactness: "SHOULD_MATCH",
+      exactness: primaryExactness,
     });
     for (const supporting of character.referenceIdentity.supportingUrls) {
       refs.push({
@@ -468,7 +480,9 @@ function collectReferences(
         label: character.name,
         role: supporting.role,
         url: supporting.url,
-        exactness: "STYLE_REFERENCE_ONLY",
+        // Supporting refs: elevate to SHOULD_MATCH when identity is strong/strict (not style-only).
+        exactness:
+          primaryExactness === "MUST_PRESERVE" ? "SHOULD_MATCH" : "STYLE_REFERENCE_ONLY",
       });
     }
   }

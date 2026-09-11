@@ -521,6 +521,7 @@ async function runSceneImageGeneration(params: {
           model: result.model,
           size: result.size,
           generationMode: result.generationMode ?? settings.generationMode,
+          identityPreservation: result.identityPreservation ?? "none",
           transformationExecution: finalExecution,
         } as unknown as Prisma.InputJsonValue,
       },

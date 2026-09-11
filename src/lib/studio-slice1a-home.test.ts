@@ -78,6 +78,7 @@ describe("Slice 1A — Unified Studio front door", () => {
     assert.match(landing, /studioRouteNeedsRootPage/);
     const home = readFileSync("src/components/studio/studio-unified-home-page.tsx", "utf8");
     assert.match(home, /data-testid="studio-unified-home"/);
+    assert.match(home, /StudioAiHomeComposer/);
     assert.match(home, /STUDIO_HOME_INTENTS/);
     assert.match(home, /view=shell/);
     assert.match(home, /studio-intent-\$\{intent\.id\}/);

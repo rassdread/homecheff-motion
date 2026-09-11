@@ -11,6 +11,7 @@ import {
   STUDIO_HOME_INTENTS,
 } from "@/lib/studio-slice1a-home";
 import { studioVisual } from "@/lib/studio-visual-tokens";
+import { StudioAiHomeComposer } from "@/components/studio/studio-ai-home-composer";
 import type { UserStudioDashboardReport } from "@/types/studio-profitability";
 
 function trackStudioHomeEvent(event: string) {
@@ -30,7 +31,6 @@ function IntentCard({
   usesCredits,
   testId,
   analyticsEvent,
-  hero = false,
 }: {
   href: string;
   title: string;
@@ -39,7 +39,6 @@ function IntentCard({
   usesCredits?: boolean;
   testId: string;
   analyticsEvent: string;
-  hero?: boolean;
 }) {
   const t = useActiveTranslator();
   return (
@@ -48,12 +47,10 @@ function IntentCard({
       prefetch={false}
       data-testid={testId}
       onClick={() => trackStudioHomeEvent(analyticsEvent)}
-      className={`flex min-h-[88px] flex-col justify-center px-5 py-4 transition hover:border-[#006D52]/40 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#006D52] ${studioVisual.editorSurface} ${
-        hero ? "ring-1 ring-[#006D52]/25" : ""
-      }`}
+      className={`flex min-h-[72px] flex-col justify-center px-4 py-3 transition hover:border-[#006D52]/40 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#006D52] ${studioVisual.editorSurface}`}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-base font-semibold text-zinc-900">{title}</span>
+        <span className="text-sm font-semibold text-zinc-900">{title}</span>
         {free ?
           <span
             className="rounded-full bg-[#006D52]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#006D52]"
@@ -68,12 +65,7 @@ function IntentCard({
           </span>
         : null}
       </div>
-      <span className="mt-1 text-sm text-zinc-600">{description}</span>
-      {free ?
-        <span className="mt-2 text-xs text-[#006D52]" data-testid={`${testId}-free-detail`}>
-          {t("studio.slice1a.free.onDevice")} · {t("studio.slice1a.free.noCredits")}
-        </span>
-      : null}
+      <span className="mt-0.5 text-xs text-zinc-600">{description}</span>
     </Link>
   );
 }
@@ -90,7 +82,7 @@ export function StudioUnifiedHomePage() {
 
   useEffect(() => {
     if (!auth.resolved || !auth.user) {
-      setShell(null);
+      queueMicrotask(() => setShell(null));
       return;
     }
     let cancelled = false;
@@ -114,21 +106,18 @@ export function StudioUnifiedHomePage() {
 
   return (
     <main
-      className="min-h-[70vh] flex-1 bg-gradient-to-b from-zinc-50 to-white"
+      className="min-h-[70vh] flex-1 overflow-x-hidden bg-gradient-to-b from-zinc-50 to-white pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))]"
       data-testid="studio-unified-home"
     >
-      <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
-        <header className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[#006D52]">
+      <div className="mx-auto w-full max-w-3xl px-4 pb-10 pt-3 sm:px-6 sm:pb-12 sm:pt-6">
+        <header className="mb-3 space-y-0.5 sm:mb-4 [@media(max-height:500px)]:mb-1">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#006D52] [@media(max-height:500px)]:hidden">
             {brand.studioProductName}
           </p>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
-            {t("studio.slice1a.hero.title")}
-          </h1>
-          <p className="max-w-xl text-sm leading-relaxed text-zinc-600">
-            {t("studio.slice1a.hero.subtitle")}
-          </p>
+          <p className="sr-only">{t("studio.slice1a.hero.subtitle")}</p>
         </header>
+
+        <StudioAiHomeComposer />
 
         {auth.resolved && auth.user && hasContinue ?
           <section className="mt-8 space-y-3" data-testid="studio-home-continue">
@@ -163,9 +152,10 @@ export function StudioUnifiedHomePage() {
 
         <section className="mt-8 space-y-3" data-testid="studio-home-intents">
           <h2 className="text-sm font-semibold text-zinc-900">
-            {hasContinue ? t("studio.slice1a.createNew.title") : t("studio.slice1a.create.title")}
+            {t("studio.aiHome.shortcuts.title")}
           </h2>
-          <ul className="grid gap-3 sm:grid-cols-2">
+          <p className="text-xs text-zinc-500">{t("studio.aiHome.shortcuts.subtitle")}</p>
+          <ul className="grid gap-2 sm:grid-cols-2">
             {STUDIO_HOME_INTENTS.map((intent) => (
               <li key={intent.id}>
                 <IntentCard
@@ -176,7 +166,6 @@ export function StudioUnifiedHomePage() {
                   usesCredits={intent.usesCredits}
                   testId={`studio-intent-${intent.id}`}
                   analyticsEvent={intent.analyticsEvent}
-                  hero={intent.id === "quickVideo" && !hasContinue}
                 />
               </li>
             ))}

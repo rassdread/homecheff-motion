@@ -31,6 +31,11 @@ export type SceneImageGenerateResult = {
   size?: string;
   /** How the image was produced. */
   generationMode?: import("@/types/studio-asset-image-generation").AssetImageGenerationMode;
+  /**
+   * Honesty signal when reference-preserving generation was requested but not used.
+   * UI must not imply FaceID / guaranteed identity when this is `text_fallback`.
+   */
+  identityPreservation?: "reference_edit" | "text_fallback" | "none";
 };
 
 export type SceneImageProvider = {
