@@ -15,18 +15,22 @@ export function BillingUsageConversionCard({ creditsUsedLast30Days }: Props) {
   const t = useActiveTranslator();
   const [locale] = useLocale();
   const wallet = useStudioWalletSummary(true);
+  const spendable =
+    wallet.canonicalSpendable != null
+      ? wallet.canonicalSpendable
+      : wallet.availableCredits;
   const daysRemaining = estimateDaysRemaining({
-    availableCredits: wallet.availableCredits,
+    availableCredits: spendable,
     creditsUsedLast30Days,
   });
 
   const surface = wallet.resolved
     ? resolveConversionSurface({
         currentPlan: wallet.plan,
-        availableCredits: wallet.availableCredits,
+        availableCredits: spendable,
         pageType: "usage",
         loggedIn: true,
-        usageLevel: resolveUsageLevel(wallet.availableCredits),
+        usageLevel: resolveUsageLevel(spendable),
         creditsUsedThisMonth: creditsUsedLast30Days,
       })
     : null;
@@ -37,10 +41,16 @@ export function BillingUsageConversionCard({ creditsUsedLast30Days }: Props) {
         <h2 className="text-lg font-semibold text-zinc-900">{t("billing.conversion.usageSummaryTitle")}</h2>
         <dl className="mt-4 grid gap-4 sm:grid-cols-3">
           <div>
-            <dt className="text-xs text-zinc-500">{t("billing.conversion.creditsRemaining")}</dt>
+            <dt className="text-xs text-zinc-500">
+              {wallet.canonicalUnit === "HC"
+                ? t("billing.conversion.hcRemaining")
+                : t("billing.conversion.creditsRemaining")}
+            </dt>
             <dd className="text-xl font-semibold text-zinc-900">
               {wallet.resolved
-                ? wallet.availableCredits.toLocaleString(locale)
+                ? wallet.canonicalSource === "unavailable"
+                  ? "—"
+                  : spendable.toLocaleString(locale)
                 : "—"}
             </dd>
           </div>

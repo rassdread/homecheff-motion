@@ -181,7 +181,11 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
           return;
         }
         setBillingContext({
-          walletAvailableCredits: data.wallet?.availableBalance ?? 0,
+          walletAvailableCredits:
+            data.canonicalBalance?.spendable ??
+            data.centralHc?.availableHc ??
+            data.wallet?.availableBalance ??
+            0,
           studioPlan: data.account?.studioPlan ?? "free",
         });
       })();

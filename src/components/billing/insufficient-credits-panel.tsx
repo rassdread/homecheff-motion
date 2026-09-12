@@ -14,7 +14,7 @@ type Props = {
 
 export function InsufficientCreditsPanel({
   estimatedCredits,
-  availableCredits = 0,
+  availableCredits,
   actionLabel,
   source = "insufficient_credits_panel",
 }: Props) {
@@ -23,27 +23,30 @@ export function InsufficientCreditsPanel({
   const session = useAuthSession();
   const wallet = useStudioWalletSummary(Boolean(session.user));
 
+  const resolvedAvailable =
+    availableCredits ??
+    (wallet.canonicalSpendable != null ? wallet.canonicalSpendable : 0);
+  const unit = wallet.canonicalUnit === "HC" ? "HC" : t("account.credits.unit");
+
   return (
     <div
       className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4"
       data-testid="insufficient-credits-panel"
+      data-balance-source={wallet.canonicalSource}
       role="alert"
     >
-      <p className="text-sm font-semibold text-amber-100">{t("billing.conversion.insufficientTitle")}</p>
-      <p className="mt-1 text-sm text-amber-100/85">
-        {t("billing.conversion.insufficientBody", {
-          required: estimatedCredits,
-          available: availableCredits,
-          action: actionLabel ?? t("billing.conversion.thisAction"),
-        })}
+      <p className="text-sm font-semibold text-amber-100">
+        {wallet.canonicalUnit === "HC"
+          ? locale === "nl"
+            ? "Onvoldoende HC"
+            : "Not enough HC"
+          : t("billing.conversion.insufficientTitle")}
       </p>
-      {wallet.centralHcWalletResolved && wallet.centralHcAvailable > 0 && (
-        <p className="mt-2 text-xs text-amber-100/80">
-          {locale === "nl"
-            ? `Daarnaast heb je ${wallet.centralHcAvailable.toLocaleString(locale)} HC-tegoed in je HomeCheff-wallet. Deze Studio-acties gebruiken momenteel Studio-tegoed.`
-            : `You also have ${wallet.centralHcAvailable.toLocaleString(locale)} HC balance. Studio actions currently use Studio credits.`}
-        </p>
-      )}
+      <p className="mt-1 text-sm text-amber-100/85">
+        {locale === "nl"
+          ? `Je hebt ${resolvedAvailable.toLocaleString(locale)} ${unit} beschikbaar, maar ${estimatedCredits.toLocaleString(locale)} ${unit} is nodig voor ${actionLabel ?? t("billing.conversion.thisAction")}.`
+          : `You have ${resolvedAvailable.toLocaleString(locale)} ${unit} available, but ${estimatedCredits.toLocaleString(locale)} ${unit} is needed for ${actionLabel ?? t("billing.conversion.thisAction")}.`}
+      </p>
       <div className="mt-4">
         <BillingConversionCta source={source} layout="inline" size="sm" />
       </div>

@@ -289,9 +289,9 @@ export function useEditorVisionAnalysisRun(
     () =>
       resolvePremiumVisionAnalysisGate({
         isAdmin,
-        creditsAvailable: wallet.availableCredits,
+        creditsAvailable: (wallet.canonicalSpendable ?? wallet.availableCredits),
       }),
-    [isAdmin, wallet.availableCredits]
+    [isAdmin, wallet.canonicalSpendable, wallet.availableCredits]
   );
 
   const showPremiumAnalyzeCta =
@@ -424,7 +424,7 @@ export function useEditorVisionAnalysisRun(
           analysisDepth,
           isAdmin,
           userId,
-          creditsAvailable: wallet.availableCredits,
+          creditsAvailable: (wallet.canonicalSpendable ?? wallet.availableCredits),
           ...buildCallbacks(),
         });
 
@@ -472,7 +472,7 @@ export function useEditorVisionAnalysisRun(
         }
       }
     },
-    [buildCallbacks, isAdmin, userId, wallet.availableCredits, wallet.refresh]
+    [buildCallbacks, isAdmin, userId, wallet.canonicalSpendable, wallet.availableCredits, wallet.refresh]
   );
 
   const runPremiumAnalysis = useCallback(

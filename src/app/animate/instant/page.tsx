@@ -710,7 +710,7 @@ export default function InstantPremiumPage() {
     !usesFreeGeneration &&
     !pricingSummary.isAdminFree &&
     wallet.resolved &&
-    effectiveEstimatedCredits > wallet.availableCredits;
+    effectiveEstimatedCredits > (wallet.canonicalSpendable ?? wallet.availableCredits);
 
   const imagesHaveValidSources = useMemo(
     () => sceneSlotsHaveValidImageSources(sceneSlots),
@@ -1475,7 +1475,7 @@ export default function InstantPremiumPage() {
         if (!usesFreeGeneration) {
           const started = beginMotionPresetTransaction({
             estimate: hcActionPresetWithEngine.engineSnapshot.complexityEstimate,
-            creditsAvailable: wallet.availableCredits,
+            creditsAvailable: wallet.canonicalSpendable ?? wallet.availableCredits,
           });
           if (!started.ok) {
             throw new Error(t("instant.errors.insufficientCredits"));
@@ -1730,6 +1730,7 @@ export default function InstantPremiumPage() {
       instantCustomerCheckoutReady,
       imagesHaveValidSources,
       hcActionPresetWithEngine,
+      wallet.canonicalSpendable,
       wallet.availableCredits,
       motionPresetReferences,
       motionVisionAnalysis.visionSignals,
@@ -2661,7 +2662,7 @@ export default function InstantPremiumPage() {
                     </p>
                   : null}
                 </div>
-                <FirstSuccessCelebration creditsRemaining={wallet.availableCredits} />
+                <FirstSuccessCelebration creditsRemaining={wallet.canonicalSpendable ?? wallet.availableCredits} />
                 <ConversionSurface
                   pageType="motion"
                   variant={insufficientCreditsForRender ? "banner" : "compact"}

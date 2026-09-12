@@ -20,9 +20,6 @@ export function GlobalCreditIndicator({ variant = "header" }: { variant?: "heade
   const session = useAuthSession();
   const wallet = useStudioWalletSummary(Boolean(session.user));
 
-  const hcLabel = locale === "nl" ? "HC-tegoed" : "HC balance";
-  const studioCreditsLabel = locale === "nl" ? "Studio-tegoed" : "Studio credits";
-
   if (!session.resolved || !session.user) {
     return null;
   }
@@ -39,12 +36,17 @@ export function GlobalCreditIndicator({ variant = "header" }: { variant?: "heade
   const planKey = PLAN_KEYS[wallet.plan] ?? "account.plan.free";
   const planLabel = t(planKey as never);
 
-  const shouldShowHcUnavailable = wallet.centralHcIdentityResolved && !wallet.centralHcWalletResolved;
-  const useCentral = wallet.centralHcIdentityResolved && wallet.centralHcWalletResolved;
-  const primaryIsCentral = useCentral || shouldShowHcUnavailable;
-  const primaryAmount = shouldShowHcUnavailable ? null : useCentral ? wallet.centralHcAvailable : wallet.availableCredits;
-  const primaryUnitLabel = shouldShowHcUnavailable ? hcLabel : useCentral ? hcLabel : studioCreditsLabel;
+  const isHc = wallet.canonicalUnit === "HC" || wallet.canonicalSource === "unavailable";
+  const primaryAmount = wallet.canonicalSpendable;
   const creditsLabel = primaryAmount == null ? "—" : primaryAmount.toLocaleString(locale);
+  const unitSuffix = isHc ? "HC" : t("account.credits.unit");
+  const primaryUnitLabel = isHc
+    ? locale === "nl"
+      ? "HC beschikbaar"
+      : "HC available"
+    : locale === "nl"
+      ? "Studio-tegoed"
+      : "Studio credits";
 
   if (variant === "compact") {
     return (
@@ -52,12 +54,14 @@ export function GlobalCreditIndicator({ variant = "header" }: { variant?: "heade
         href="/account/billing"
         prefetch={false}
         className="flex min-h-[44px] flex-col rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-left hover:bg-white/10"
+        data-testid="global-credit-indicator"
+        data-balance-source={wallet.canonicalSource}
       >
         <span className="text-[10px] uppercase tracking-wide text-white/50">
           {primaryUnitLabel}
         </span>
         <span className="text-sm font-semibold text-white">
-          {creditsLabel} {primaryIsCentral ? "HC" : t("account.credits.unit")}
+          {creditsLabel} {unitSuffix}
         </span>
       </Link>
     );
@@ -67,10 +71,11 @@ export function GlobalCreditIndicator({ variant = "header" }: { variant?: "heade
     <div
       className="hidden items-center gap-1.5 rounded-full border border-white/15 bg-white/5 pl-2 pr-1 py-1 lg:flex"
       data-testid="global-credit-indicator"
+      data-balance-source={wallet.canonicalSource}
     >
       <Link href="/account/billing" prefetch={false} className="min-w-0 text-left hover:opacity-90">
         <p className="text-[10px] uppercase tracking-wide text-white/50 leading-none">
-          {creditsLabel} {primaryIsCentral ? "HC" : t("account.credits.unit")}
+          {creditsLabel} {unitSuffix}
         </p>
         <p className="mt-0.5 truncate text-xs font-medium text-white/90">{planLabel}</p>
       </Link>

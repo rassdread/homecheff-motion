@@ -23,17 +23,24 @@ export function useConversionSurface(
   const impressedRef = useRef(false);
 
   const input: ConversionSurfaceInput = useMemo(
-    () => ({
-      currentPlan: wallet.plan,
-      availableCredits: wallet.availableCredits,
-      pageType,
-      loggedIn: Boolean(session.user),
-      usageLevel: resolveUsageLevel(wallet.availableCredits),
-      estimatedCredits: options?.estimatedCredits,
-      creditsUsedThisMonth: options?.creditsUsedThisMonth,
-    }),
+    () => {
+      const spendable =
+        wallet.canonicalSpendable != null
+          ? wallet.canonicalSpendable
+          : wallet.availableCredits;
+      return {
+        currentPlan: wallet.plan,
+        availableCredits: spendable,
+        pageType,
+        loggedIn: Boolean(session.user),
+        usageLevel: resolveUsageLevel(spendable),
+        estimatedCredits: options?.estimatedCredits,
+        creditsUsedThisMonth: options?.creditsUsedThisMonth,
+      };
+    },
     [
       wallet.plan,
+      wallet.canonicalSpendable,
       wallet.availableCredits,
       pageType,
       session.user,
@@ -52,12 +59,23 @@ export function useConversionSurface(
       return;
     }
     impressedRef.current = true;
+    const spendable =
+      wallet.canonicalSpendable != null
+        ? wallet.canonicalSpendable
+        : wallet.availableCredits;
     trackBillingConversionEvent("conversion_surface_impression", {
       source: pageType,
-      availableCredits: wallet.availableCredits,
+      availableCredits: spendable,
       planId: wallet.plan,
     });
-  }, [options?.trackImpression, pageType, session.resolved, wallet.availableCredits, wallet.plan]);
+  }, [
+    options?.trackImpression,
+    pageType,
+    session.resolved,
+    wallet.canonicalSpendable,
+    wallet.availableCredits,
+    wallet.plan,
+  ]);
 
   return {
     surface,

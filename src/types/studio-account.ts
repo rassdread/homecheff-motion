@@ -74,8 +74,9 @@ export type StudioWalletSnapshot = {
 
 /**
  * Central HC wallet is ecosystem-wide and keyed by `centralUserId`.
- * Studio continues to debit its own legacy Studio Wallet for actions (unless/ until flags enable central spend),
- * but we must display central HC separately in the UX.
+ * When identity + wallet are resolved, Studio UX must treat availableHc as the
+ * primary customer-facing spendable balance (see `canonicalBalance`).
+ * Legacy StudioWallet remains for intentional product-local actions / ledger.
  */
 export type CentralHcWalletSnapshot = {
   /** Studio account is linked to central identity. */
@@ -88,6 +89,20 @@ export type CentralHcWalletSnapshot = {
   reservedHc: number;
   /** HcWallet status string from the DB, if present. */
   walletStatus: string | null;
+};
+
+/**
+ * Single Studio display/gate contract — derived from central HC when linked,
+ * otherwise legacy StudioWallet. Never invent a second wallet.
+ */
+export type StudioCanonicalBalance = {
+  spendable: number | null;
+  reserved: number;
+  unit: "HC" | "credits";
+  source: "central_hc" | "legacy_studio_wallet" | "unavailable";
+  legacyStudioAvailable: number;
+  identityResolved: boolean;
+  walletResolved: boolean;
 };
 
 export type StudioLedgerRow = {
@@ -111,6 +126,8 @@ export type StudioAccountOverview = {
   wallet: StudioWalletSnapshot;
   recentLedger: StudioLedgerRow[];
   centralHc?: CentralHcWalletSnapshot | null;
+  /** Primary customer-facing spendable — use this on all Studio balance surfaces. */
+  canonicalBalance?: StudioCanonicalBalance | null;
 };
 
 export type StudioCreditSettingsPatch = {

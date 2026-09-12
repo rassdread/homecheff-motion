@@ -1,13 +1,54 @@
 import { resolveRegistryActionCreditCost } from "@/lib/studio-billing-sync";
 import { buildAssistantBillingSummary } from "@/lib/billing-display-labels";
+import { resolveCanonicalSpendableBalance } from "@/lib/studio-canonical-balance";
 import type { AssistantStudioContext } from "@/types/assistant-studio-brain";
 import type { AssistantBillingPreview } from "@/types/studio-billing";
 import { resolveActionCreditCost } from "@/server/studio-account/studio-pricing-rule-service";
 import { ensureStudioWallet } from "@/server/studio-account/studio-wallet-service";
 import type { StudioActionType } from "@/server/studio-account/studio-action-cost-registry";
+import { prisma } from "@/lib/prisma";
+import {
+  getCentralHcWallet,
+  isHcCentralAdapterReady,
+} from "@/server/studio-account/hc-central-adapter";
 
 function isNl(locale?: string): boolean {
   return !locale || locale.startsWith("nl");
+}
+
+async function resolveCanonicalAvailableCredits(userId?: string, fallbackStudio?: number): Promise<number> {
+  if (!userId) {
+    return Math.max(0, fallbackStudio ?? 0);
+  }
+  const wallet = await ensureStudioWallet(userId);
+  const studioAvailable = Math.max(0, wallet.availableBalance);
+  if (!isHcCentralAdapterReady()) {
+    return studioAvailable;
+  }
+  const userRow = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { centralUserId: true },
+  });
+  const centralUserId = userRow?.centralUserId?.trim() || null;
+  if (!centralUserId) {
+    return studioAvailable;
+  }
+  try {
+    const central = await getCentralHcWallet(centralUserId);
+    const canonical = resolveCanonicalSpendableBalance({
+      studioAvailable,
+      studioReserved: wallet.reservedBalance,
+      centralHc: {
+        identityResolved: true,
+        walletResolved: true,
+        availableHc: Number(central.availableHc ?? 0),
+        reservedHc: Number(central.reservedHc ?? 0),
+      },
+    });
+    return canonical.spendable ?? studioAvailable;
+  } catch {
+    return studioAvailable;
+  }
 }
 
 export async function buildAssistantBillingPreview(input: {
@@ -18,13 +59,12 @@ export async function buildAssistantBillingPreview(input: {
   locale?: string;
   overrideCredits?: number;
 }): Promise<AssistantBillingPreview> {
-  const wallet = input.userId ? await ensureStudioWallet(input.userId) : null;
-
-  const available =
-    wallet?.availableBalance ??
-    (input.studio
+  const available = await resolveCanonicalAvailableCredits(
+    input.userId,
+    input.studio
       ? Math.max(0, (input.studio as { walletBalance?: number }).walletBalance ?? 0)
-      : 0);
+      : 0
+  );
 
   const resolved = await resolveActionCreditCost({
     actionType: input.actionType,
@@ -177,7 +217,7 @@ export async function buildMotionAssistantBillingPreview(input: {
     overrideCredits: input.estimatedCredits,
   });
   const estimatedCredits = resolved?.creditCost ?? input.estimatedCredits ?? 450;
-  const available = wallet.availableBalance;
+  const available = await resolveCanonicalAvailableCredits(input.userId, wallet.availableBalance);
   const balanceAfter = Math.max(0, available - estimatedCredits);
   const nl = isNl(input.locale);
 

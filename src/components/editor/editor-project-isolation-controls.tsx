@@ -37,7 +37,7 @@ export function EditorProjectIsolationControls({
   const wallet = useStudioWalletSummary(Boolean(userId));
   const premiumGate = resolvePremiumVisionAnalysisGate({
     isAdmin,
-    creditsAvailable: wallet.availableCredits,
+    creditsAvailable: wallet.canonicalSpendable ?? wallet.availableCredits,
   });
 
   const handleNewProject = () => {

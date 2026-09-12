@@ -58,7 +58,16 @@ export function ConversionSurface({
 
   const planKey = PLAN_KEYS[wallet.plan] ?? PLAN_KEYS.free;
   const planLabel = t(planKey as never);
-  const creditsLabel = wallet.availableCredits.toLocaleString(locale);
+  const spendable =
+    wallet.canonicalSpendable != null
+      ? wallet.canonicalSpendable
+      : wallet.availableCredits;
+  const creditsLabel =
+    wallet.canonicalSource === "unavailable"
+      ? "—"
+      : spendable.toLocaleString(locale);
+  const unitLabel =
+    wallet.canonicalUnit === "HC" ? "HC" : t("account.credits.unit");
 
   const headline = surface.headlineKey ? t(surface.headlineKey as never) : null;
   const body = surface.bodyKey ? t(surface.bodyKey as never) : null;
@@ -68,7 +77,7 @@ export function ConversionSurface({
       <div className={className} data-testid="conversion-surface-insufficient">
         <InsufficientCreditsPanel
           estimatedCredits={estimatedCredits}
-          availableCredits={wallet.availableCredits}
+          availableCredits={spendable}
           actionLabel={actionLabel}
           source={source}
         />
@@ -81,13 +90,16 @@ export function ConversionSurface({
       <aside
         className={`rounded-2xl border border-white/15 bg-white/5 p-4 ${className}`}
         data-testid="conversion-surface-sidebar"
+        data-balance-source={wallet.canonicalSource}
       >
         <p className="text-[10px] font-semibold uppercase tracking-wide text-white/50">
-          {t("billing.conversion.surface.creditsRemaining")}
+          {wallet.canonicalUnit === "HC"
+            ? t("billing.conversion.hcRemaining")
+            : t("billing.conversion.surface.creditsRemaining")}
         </p>
         <p className="mt-1 text-2xl font-bold text-white">
           {creditsLabel}
-          <span className="ml-1 text-sm font-normal text-white/50">{t("account.credits.unit")}</span>
+          <span className="ml-1 text-sm font-normal text-white/50">{unitLabel}</span>
         </p>
         <BillingConversionCta
           source={source}
@@ -217,9 +229,14 @@ export function ConversionSurface({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-wide text-white/50">
-            {t("billing.conversion.availableCredits")}
+            {wallet.canonicalUnit === "HC"
+              ? t("account.wallet.availableHc")
+              : t("billing.conversion.availableCredits")}
           </p>
-          <p className="mt-1 text-2xl font-bold text-white">{creditsLabel}</p>
+          <p className="mt-1 text-2xl font-bold text-white">
+            {creditsLabel}
+            <span className="ml-1 text-sm font-normal text-white/50">{unitLabel}</span>
+          </p>
           <p className="mt-1 text-sm text-white/70">
             {t("account.wallet.planLabel")}: {planLabel}
           </p>

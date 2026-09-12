@@ -3,6 +3,7 @@ import { loadRecentLedger } from "@/server/studio-account/studio-ledger-service"
 import { ensureStudioWallet } from "@/server/studio-account/studio-wallet-service";
 import type { StudioAccountOverview } from "@/types/studio-account";
 import type { CentralHcWalletSnapshot } from "@/types/studio-account";
+import { resolveCanonicalFromOverview } from "@/lib/studio-canonical-balance";
 import { prisma } from "@/lib/prisma";
 import {
   getCentralHcWallet,
@@ -61,6 +62,18 @@ async function loadCentralHcSummaryForStudioUser(userId: string): Promise<Centra
   }
 }
 
+function withCanonicalBalance(
+  overview: Omit<StudioAccountOverview, "canonicalBalance">
+): StudioAccountOverview {
+  return {
+    ...overview,
+    canonicalBalance: resolveCanonicalFromOverview({
+      wallet: overview.wallet,
+      centralHc: overview.centralHc ?? null,
+    }),
+  };
+}
+
 export async function loadStudioAccountOverview(
   userId: string,
   email: string
@@ -70,7 +83,7 @@ export async function loadStudioAccountOverview(
   const recentLedger = await loadRecentLedger(userId, 25);
   const centralHc = await loadCentralHcSummaryForStudioUser(userId);
 
-  return { account, wallet, recentLedger, centralHc };
+  return withCanonicalBalance({ account, wallet, recentLedger, centralHc });
 }
 
 /** Shell/wallet bootstrap — skips ledger read (not needed for credit chips / conversion). */
@@ -81,5 +94,5 @@ export async function loadStudioAccountSummary(
   const account = await ensureStudioAccount(userId, email);
   const wallet = await ensureStudioWallet(userId);
   const centralHc = await loadCentralHcSummaryForStudioUser(userId);
-  return { account, wallet, recentLedger: [], centralHc };
+  return withCanonicalBalance({ account, wallet, recentLedger: [], centralHc });
 }

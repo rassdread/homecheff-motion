@@ -41,6 +41,7 @@ describe("loadCentralHcSummaryForStudioUser contracts", () => {
       "utf8",
     );
     assert.match(text, /getCentralHcWallet/);
+    assert.match(text, /resolveCanonicalFromOverview|withCanonicalBalance/);
     assert.doesNotMatch(text, /FROM\s+"HcWallet"/);
     assert.doesNotMatch(text, /\$queryRaw[\s\S]*HcWallet/);
   });

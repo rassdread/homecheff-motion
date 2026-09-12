@@ -21,6 +21,7 @@ import {
   fetchStudioAccountJson,
   invalidateStudioAccountCache,
 } from "@/lib/studio-account-client";
+import { resolveCanonicalFromOverview } from "@/lib/studio-canonical-balance";
 import type { StudioAccountOverview, StudioBillingStatus } from "@/types/studio-account";
 
 type Tab = "wallet" | "usage" | "credits" | "subscription" | "transactions";
@@ -88,6 +89,13 @@ export function StudioUnifiedBillingDashboard({ initial, planDiscountPercent }: 
       account: data.account,
       wallet: data.wallet,
       recentLedger: data.recentLedger,
+      centralHc: data.centralHc ?? null,
+      canonicalBalance:
+        data.canonicalBalance ??
+        resolveCanonicalFromOverview({
+          wallet: data.wallet,
+          centralHc: data.centralHc ?? null,
+        }),
     });
   }, []);
 
@@ -130,6 +138,19 @@ export function StudioUnifiedBillingDashboard({ initial, planDiscountPercent }: 
 
   const planLabel = t(PLAN_KEYS[overview.account.studioPlan] ?? "account.plan.free");
   const statusLabel = t(BILLING_STATUS_KEYS[overview.account.billingStatus]);
+  const canonical =
+    overview.canonicalBalance ??
+    resolveCanonicalFromOverview({
+      wallet: overview.wallet,
+      centralHc: overview.centralHc ?? null,
+    });
+  const primarySpendable = canonical.spendable;
+  const primaryUnit =
+    canonical.unit === "HC" ? "HC" : t("account.credits.unit");
+  const availableLabel =
+    canonical.unit === "HC"
+      ? t("account.wallet.availableHc")
+      : t("account.wallet.availableCredits");
 
   return (
     <div className="space-y-6">
@@ -169,10 +190,13 @@ export function StudioUnifiedBillingDashboard({ initial, planDiscountPercent }: 
       </div>
 
       {(tab === "wallet" || tab === "credits") && (
-        <div className="space-y-4">
+        <div className="space-y-4" data-balance-source={canonical.source}>
           {tab === "wallet" ? (
             <BillingWalletHero
-              availableCredits={overview.wallet.availableBalance}
+              availableCredits={primarySpendable ?? 0}
+              balanceUnavailable={canonical.source === "unavailable"}
+              unitLabel={primaryUnit}
+              availableLabel={availableLabel}
               planLabel={planLabel}
               planId={overview.account.studioPlan}
               planDiscountPercent={planDiscountPercent}
@@ -183,14 +207,19 @@ export function StudioUnifiedBillingDashboard({ initial, planDiscountPercent }: 
             <>
               <div className={`${studioVisual.cardOnDark} p-5 sm:p-6`}>
                 <p className="text-xs uppercase tracking-wide text-white/50">
-                  {t("account.wallet.availableCredits")}
+                  {availableLabel}
                 </p>
                 <p className="mt-1 text-3xl font-bold text-white sm:text-4xl">
-                  {overview.wallet.availableBalance.toLocaleString(locale)}
+                  {primarySpendable == null ? "—" : primarySpendable.toLocaleString(locale)}
                   <span className="ml-2 text-base font-normal text-white/50">
-                    {t("account.credits.unit")}
+                    {primaryUnit}
                   </span>
                 </p>
+                {canonical.reserved > 0 ? (
+                  <p className="mt-2 text-sm text-white/60">
+                    {t("account.credits.reserved", { count: canonical.reserved })}
+                  </p>
+                ) : null}
               </div>
               <StudioBillingPanel />
             </>
@@ -199,10 +228,33 @@ export function StudioUnifiedBillingDashboard({ initial, planDiscountPercent }: 
           {tab === "wallet" ? (
             <>
               <div className={`${studioVisual.cardOnDark} grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4`}>
-                <Stat label={t("account.wallet.purchasedCredits")} value={overview.wallet.purchasedBalance} locale={locale} />
-                <Stat label={t("account.wallet.bonusCredits")} value={overview.wallet.promotionalBalance} locale={locale} />
-                <Stat label={t("account.wallet.reservedCredits")} value={overview.wallet.reservedBalance} locale={locale} />
-                <Stat label={t("account.credits.lifetimeSpent")} value={overview.wallet.lifetimeSpent} locale={locale} />
+                {canonical.source === "central_hc" ? (
+                  <>
+                    <Stat
+                      label={availableLabel}
+                      value={primarySpendable ?? 0}
+                      locale={locale}
+                    />
+                    <Stat
+                      label={t("account.wallet.reservedCredits")}
+                      value={canonical.reserved}
+                      locale={locale}
+                    />
+                    <Stat
+                      label={t("account.wallet.legacyStudioCredits")}
+                      value={canonical.legacyStudioAvailable}
+                      locale={locale}
+                    />
+                    <Stat label={t("account.credits.lifetimeSpent")} value={overview.wallet.lifetimeSpent} locale={locale} />
+                  </>
+                ) : (
+                  <>
+                    <Stat label={t("account.wallet.purchasedCredits")} value={overview.wallet.purchasedBalance} locale={locale} />
+                    <Stat label={t("account.wallet.bonusCredits")} value={overview.wallet.promotionalBalance} locale={locale} />
+                    <Stat label={t("account.wallet.reservedCredits")} value={overview.wallet.reservedBalance} locale={locale} />
+                    <Stat label={t("account.credits.lifetimeSpent")} value={overview.wallet.lifetimeSpent} locale={locale} />
+                  </>
+                )}
               </div>
               <BillingEducationPanel variant="wallet" planDiscountPercent={planDiscountPercent} />
             </>

@@ -7,12 +7,14 @@ import {
   fetchStudioAccountJson,
   invalidateStudioAccountCache,
 } from "@/lib/studio-account-client";
+import { resolveCanonicalFromOverview } from "@/lib/studio-canonical-balance";
 import type { TranslationKey } from "@/i18n";
 import {
   formatCreditSourceLabel,
   formatLedgerActionLabel,
 } from "@/lib/billing-display-labels";
 import type { StudioAccountOverview, StudioBillingStatus } from "@/types/studio-account";
+import { useLocale } from "@/i18n/client";
 
 const BILLING_STATUS_KEYS: Record<StudioBillingStatus, TranslationKey> = {
   none: "account.billingStatus.none",
@@ -42,6 +44,7 @@ export function StudioAccountDashboard({
   showLedger = true,
 }: Props) {
   const t = useActiveTranslator();
+  const [locale] = useLocale();
   const [overview, setOverview] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +57,13 @@ export function StudioAccountDashboard({
       account: data.account,
       wallet: data.wallet,
       recentLedger: data.recentLedger,
+      centralHc: data.centralHc ?? null,
+      canonicalBalance:
+        data.canonicalBalance ??
+        resolveCanonicalFromOverview({
+          wallet: data.wallet,
+          centralHc: data.centralHc ?? null,
+        }),
     });
   }, []);
 
@@ -81,7 +91,17 @@ export function StudioAccountDashboard({
     }
   };
 
-  const { account, wallet } = overview;
+  const { account } = overview;
+  const canonical =
+    overview.canonicalBalance ??
+    resolveCanonicalFromOverview({
+      wallet: overview.wallet,
+      centralHc: overview.centralHc ?? null,
+    });
+  const primarySpendable = canonical.spendable;
+  const primaryUnit = canonical.unit === "HC" ? "HC" : t("account.credits.unit");
+  const creditsLabel =
+    canonical.unit === "HC" ? t("account.credits.labelHc") : t("account.credits.label");
 
   return (
     <div className="space-y-6">
@@ -95,14 +115,16 @@ export function StudioAccountDashboard({
             {t(BILLING_STATUS_KEYS[account.billingStatus])}
           </p>
         </div>
-        <div className={`${studioVisual.cardOnDark} p-5`}>
-          <p className="text-xs uppercase tracking-wide text-white/50">{t("account.credits.label")}</p>
+        <div className={`${studioVisual.cardOnDark} p-5`} data-balance-source={canonical.source}>
+          <p className="text-xs uppercase tracking-wide text-white/50">{creditsLabel}</p>
           <p className="mt-1 text-xl font-semibold text-white">
-            {wallet.availableBalance.toLocaleString()} {t("account.credits.unit")}
+            {primarySpendable == null
+              ? "—"
+              : `${primarySpendable.toLocaleString(locale)} ${primaryUnit}`}
           </p>
-          {wallet.reservedBalance > 0 && (
+          {canonical.reserved > 0 && (
             <p className="mt-1 text-sm text-white/60">
-              {t("account.credits.reserved", { count: wallet.reservedBalance })}
+              {t("account.credits.reserved", { count: canonical.reserved })}
             </p>
           )}
         </div>

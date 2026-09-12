@@ -8,6 +8,7 @@ import { useStudioWalletSummary } from "@/hooks/use-studio-wallet-summary";
 import { BillingConversionCta } from "@/components/billing/billing-conversion-cta";
 import { trackBillingConversionEvent } from "@/lib/billing-conversion-analytics";
 import { resolveLowCreditTier } from "@/lib/billing-conversion-utils";
+import { canonicalAmountForLowBalanceWarning } from "@/lib/studio-canonical-balance";
 
 const DISMISS_KEY = "hc-low-credit-banner-dismissed";
 
@@ -18,7 +19,11 @@ export function LowCreditBanner() {
   const wallet = useStudioWalletSummary(Boolean(session.user));
   const [dismissed, setDismissed] = useState(true);
 
-  const tier = wallet.resolved ? resolveLowCreditTier(wallet.availableCredits) : null;
+  const spendable = wallet.resolved
+    ? canonicalAmountForLowBalanceWarning(wallet.canonical)
+    : null;
+  const tier = spendable != null ? resolveLowCreditTier(spendable) : null;
+  const isHc = wallet.canonicalUnit === "HC";
 
   useEffect(() => {
     if (!tier) {
@@ -31,15 +36,15 @@ export function LowCreditBanner() {
   }, [tier]);
 
   useEffect(() => {
-    if (tier && wallet.availableCredits <= 20) {
+    if (tier && spendable != null && spendable <= 20) {
       trackBillingConversionEvent("insufficient_credits_seen", {
         source: "low_credit_banner",
-        availableCredits: wallet.availableCredits,
+        availableCredits: spendable,
       });
     }
-  }, [tier, wallet.availableCredits]);
+  }, [tier, spendable]);
 
-  if (!session.user || !wallet.resolved || !tier || dismissed) {
+  if (!session.user || !wallet.resolved || spendable == null || !tier || dismissed) {
     return null;
   }
 
@@ -48,28 +53,31 @@ export function LowCreditBanner() {
     setDismissed(true);
   };
 
+  const title = isHc
+    ? locale === "nl"
+      ? "Je HC-saldo raakt op."
+      : "You're running low on HC."
+    : t("billing.conversion.lowCreditsTitle");
+  const body = isHc
+    ? locale === "nl"
+      ? `Je hebt nog ${spendable.toLocaleString(locale)} HC beschikbaar (onder ${tier}).`
+      : `You have ${spendable.toLocaleString(locale)} HC left (below ${tier}).`
+    : t("billing.conversion.lowCreditsBody", {
+        credits: spendable,
+        threshold: tier,
+      });
+
   return (
     <div
       className="border-b border-amber-500/30 bg-amber-500/10 px-4 py-3"
       role="status"
       data-testid="low-credit-banner"
+      data-balance-source={wallet.canonicalSource}
     >
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-amber-100">{t("billing.conversion.lowCreditsTitle")}</p>
-          <p className="mt-0.5 text-xs text-amber-100/80">
-            {t("billing.conversion.lowCreditsBody", {
-              credits: wallet.availableCredits,
-              threshold: tier,
-            })}
-          </p>
-          {wallet.centralHcWalletResolved && wallet.centralHcAvailable > 0 && (
-            <p className="mt-1 text-[11px] text-amber-100/80">
-              {locale === "nl"
-                ? `Daarnaast heb je ${wallet.centralHcAvailable.toLocaleString(locale)} HC-tegoed.`
-                : `You also have ${wallet.centralHcAvailable.toLocaleString(locale)} HC balance.`}
-            </p>
-          )}
+          <p className="text-sm font-medium text-amber-100">{title}</p>
+          <p className="mt-0.5 text-xs text-amber-100/80">{body}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <BillingConversionCta
@@ -82,7 +90,7 @@ export function LowCreditBanner() {
             onClick={() => {
               trackBillingConversionEvent("low_credit_banner_clicked", {
                 source: "dismiss",
-                availableCredits: wallet.availableCredits,
+                availableCredits: spendable,
               });
               dismiss();
             }}
