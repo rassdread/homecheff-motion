@@ -61,6 +61,11 @@ function allKnownStudioPaths(): string[] {
     PUBLIC_PAGE_SEO.library.path,
     PUBLIC_PAGE_SEO.projects.path,
     PUBLIC_PAGE_SEO.signup.path,
+    "/affiliate",
+    "/about",
+    "/faq",
+    "/hoe-het-werkt",
+    "/hoe-werkt-studio",
     "/account",
     "/admin",
     "/billing",
@@ -69,7 +74,7 @@ function allKnownStudioPaths(): string[] {
     "/drafts",
   ];
   const help = HELP_ARTICLES.map((a) => `/help/${a.slug}`);
-  return [...new Set([...core, ...help, ...SEO_CONTENT_PATHS])];
+  return [...new Set([...core, ...help, ...SEO_CONTENT_PATHS, ...SEO_SITEMAP_PATHS])];
 }
 
 describe("SEO 0 Studio sitemap classification", () => {

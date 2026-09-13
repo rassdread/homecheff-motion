@@ -3,9 +3,19 @@ import { getCanonicalStudioOrigin } from "@/lib/public-origin";
 import { absoluteUrl } from "@/lib/seo/site-metadata";
 
 const SITE_NAME = "HomeCheff Studio";
-const ORGANIZATION_NAME = "HomeCheff";
+/** Studio product Organization — distinct from parent brand HomeCheff. */
+const ORGANIZATION_NAME = "HomeCheff Studio";
+const PARENT_ORG_NAME = "HomeCheff";
 const PARENT_ORG_ID = "https://homecheff.eu/#organization";
 const PARENT_WEBSITE_ID = "https://homecheff.eu/#website";
+const STUDIO_ORG_DESCRIPTION =
+  "HomeCheff Studio is the CREATE layer of the HomeCheff ecosystem — tools to create promotional images, video, motion and related content for products, services and businesses.";
+
+function softwareApplicationId(path?: string): string {
+  const origin = getCanonicalStudioOrigin();
+  if (path === "/animate/instant") return `${origin}/#motion-app`;
+  return `${origin}/#app`;
+}
 
 export function buildOrganizationJsonLd() {
   const origin = getCanonicalStudioOrigin();
@@ -14,11 +24,12 @@ export function buildOrganizationJsonLd() {
     "@type": "Organization",
     "@id": `${origin}/#organization`,
     name: ORGANIZATION_NAME,
+    description: STUDIO_ORG_DESCRIPTION,
     url: origin,
     logo: absoluteUrl(HOMECHEFF_BRAND_ICON_PATHS.source),
     brand: {
       "@type": "Brand",
-      name: ORGANIZATION_NAME,
+      name: PARENT_ORG_NAME,
     },
     parentOrganization: { "@id": PARENT_ORG_ID },
     sameAs: [
@@ -40,7 +51,7 @@ export function buildWebSiteJsonLd() {
     isPartOf: { "@id": PARENT_WEBSITE_ID },
     publisher: {
       "@type": "Organization",
-      name: ORGANIZATION_NAME,
+      name: PARENT_ORG_NAME,
       "@id": PARENT_ORG_ID,
     },
     potentialAction: {
@@ -60,19 +71,19 @@ export function buildSoftwareApplicationJsonLd(input?: {
   description?: string;
   featureList?: string[];
 }) {
-  const origin = getCanonicalStudioOrigin();
+  const path = input?.path ?? "/";
   return {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    "@id": `${origin}/#app`,
+    "@id": softwareApplicationId(path),
     name: input?.name ?? SITE_NAME,
     applicationCategory: "MultimediaApplication",
     operatingSystem: "Web",
-    url: absoluteUrl(input?.path ?? "/"),
+    url: absoluteUrl(path),
     image: absoluteUrl(HOMECHEFF_BRAND_ICON_PATHS.source),
     description:
       input?.description ??
-      "CREATE layer of HomeCheff — AI video production with image-to-video, storyboards, voice, subtitles, translation, and publishing.",
+      "HomeCheff Studio is the CREATE layer of the HomeCheff ecosystem — AI video production with image-to-video, storyboards, voice, subtitles, translation, and publishing.",
     isPartOf: { "@id": PARENT_ORG_ID },
     provider: { "@id": PARENT_ORG_ID },
     featureList: input?.featureList ?? [
@@ -90,7 +101,7 @@ export function buildSoftwareApplicationJsonLd(input?: {
     },
     publisher: {
       "@type": "Organization",
-      name: ORGANIZATION_NAME,
+      name: PARENT_ORG_NAME,
       "@id": PARENT_ORG_ID,
     },
   };
@@ -105,7 +116,7 @@ export function buildPricingProductJsonLd() {
       "Transparent AI video production credits for storyboards, motion, voice, and publishing. Subscriptions and credit packs available.",
     brand: {
       "@type": "Brand",
-      name: ORGANIZATION_NAME,
+      name: PARENT_ORG_NAME,
     },
     url: absoluteUrl("/pricing"),
     offers: {
@@ -126,13 +137,14 @@ export function buildMotionVideoObjectJsonLd() {
     "@type": "VideoObject",
     name: "HomeCheff Image to Video",
     description:
-      "Turn still images into AI motion clips with HomeCheff Studio — storyboard-ready exports for social and campaigns.",
+      "Turn still images into AI motion clips with HomeCheff Studio — part of the HomeCheff ecosystem CREATE layer — storyboard-ready exports for social and campaigns.",
     contentUrl: absoluteUrl("/animate/instant"),
     thumbnailUrl: absoluteUrl(HOMECHEFF_BRAND_ICON_PATHS.source),
     uploadDate: "2025-01-01",
     publisher: {
       "@type": "Organization",
       name: ORGANIZATION_NAME,
+      "@id": `${getCanonicalStudioOrigin()}/#organization`,
     },
   };
 }

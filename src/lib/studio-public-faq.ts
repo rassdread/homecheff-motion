@@ -16,13 +16,13 @@ export const STUDIO_PUBLIC_FAQ: StudioFaqItem[] = [
     id: "what-is-studio",
     question: "What is HomeCheff Studio?",
     answer:
-      "HomeCheff Studio is the CREATE layer of the HomeCheff ecosystem: tools to create and export video, motion, voice and related media for food and local-business storytelling.",
+      "HomeCheff Studio is the CREATE layer of the HomeCheff ecosystem: tools to create and export images, video, motion, voice and related media for products, services and businesses. Food and local-business storytelling is one common use case — not the whole product.",
   },
   {
     id: "who-for",
     question: "Who is Studio for?",
     answer:
-      "Creators, cooks, local businesses and teams who want to produce media without treating Studio as a guaranteed marketing or income product.",
+      "Creators, local businesses, sellers and teams who want to produce promotional and storytelling media without treating Studio as a guaranteed marketing or income product.",
   },
   {
     id: "without-marketplace",

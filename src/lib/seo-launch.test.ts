@@ -28,6 +28,10 @@ describe("SEO launch readiness", () => {
       "/animate/instant",
       "/pricing",
       "/help",
+      "/about",
+      "/faq",
+      "/hoe-het-werkt",
+      "/hoe-werkt-studio",
     ]) {
       assert.ok(SEO_PUBLIC_PATHS.includes(path as (typeof SEO_PUBLIC_PATHS)[number]), path);
     }
@@ -120,13 +124,24 @@ describe("SEO launch readiness", () => {
     ]);
   });
 
-  it("robots disallows private prefixes and references sitemap", () => {
+  it("robots disallows private prefixes and allows AI search crawlers", () => {
     const robots = read("src/app/robots.ts");
     assert.match(robots, /allow:\s*"\//);
     assert.match(robots, /\/account\//);
     assert.match(robots, /\/admin\//);
     assert.match(robots, /\/mijn-verbruik\//);
     assert.match(robots, /sitemap/);
+    for (const bot of [
+      "GPTBot",
+      "OAI-SearchBot",
+      "ChatGPT-User",
+      "ClaudeBot",
+      "Google-Extended",
+      "PerplexityBot",
+      "Applebot-Extended",
+    ]) {
+      assert.match(robots, new RegExp(bot));
+    }
   });
 
   it("sitemap is driven by SEO_SITEMAP_PATHS only", () => {
@@ -173,10 +188,43 @@ describe("SEO launch readiness", () => {
 
   it("structured data builders produce valid schema types", () => {
     assert.equal(buildOrganizationJsonLd()["@type"], "Organization");
+    assert.equal(buildOrganizationJsonLd().name, "HomeCheff Studio");
+    assert.match(String(buildOrganizationJsonLd().description), /CREATE layer/);
     assert.equal(buildWebSiteJsonLd()["@type"], "WebSite");
     assert.equal(buildSoftwareApplicationJsonLd()["@type"], "SoftwareApplication");
+    assert.match(String(buildSoftwareApplicationJsonLd()["@id"]), /#app$/);
+    assert.match(
+      String(buildSoftwareApplicationJsonLd({ path: "/animate/instant" })["@id"]),
+      /#motion-app$/,
+    );
+    assert.match(
+      String(buildSoftwareApplicationJsonLd({ path: "/studio" })["@id"]),
+      /#app$/,
+    );
     assert.equal(buildPricingProductJsonLd()["@type"], "Product");
     assert.ok(buildSoftwareApplicationJsonLd({ featureList: ["Test"] }).featureList?.length);
+  });
+
+  it("root metadata includes homepage canonical", () => {
+    const meta = read("src/lib/seo/site-metadata.ts");
+    assert.match(meta, /ROOT_SITE_METADATA/);
+    assert.match(meta, /alternates:\s*\{\s*canonical:\s*absoluteUrl\("\/"\)/);
+  });
+
+  it("llms.txt and ai.txt routes serve the entity brief", () => {
+    const llms = read("src/app/llms.txt/route.ts");
+    assert.match(llms, /HomeCheff/);
+    assert.match(llms, /CREATE/);
+    assert.match(llms, /Arrias Beheer B\.V\./);
+    assert.match(llms, /#organization/);
+    assert.match(read("src/app/ai.txt/route.ts"), /llms\.txt/);
+  });
+
+  it("homepage includes crawlable Studio entity section", () => {
+    const page = read("src/app/page.tsx");
+    assert.match(page, /What is HomeCheff Studio\?/);
+    assert.match(page, /CREATE layer/);
+    assert.match(page, /homecheff\.eu\/ecosystem/);
   });
 
   it("help center cross-links product hubs and related articles", () => {

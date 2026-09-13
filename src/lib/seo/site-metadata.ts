@@ -120,6 +120,9 @@ export const ROOT_SITE_METADATA: Metadata = {
     template: `%s | ${SITE_NAME}`,
   },
   description: DEFAULT_DESCRIPTION,
+  alternates: {
+    canonical: absoluteUrl("/"),
+  },
   icons: homeCheffSiteIcons(),
   manifest: HOMECHEFF_BRAND_ICON_PATHS.webManifest,
   appleWebApp: {
@@ -182,6 +185,10 @@ export const SEO_SITEMAP_PATHS = [
   PUBLIC_PAGE_SEO.studio.path,
   PUBLIC_PAGE_SEO.motion.path,
   "/affiliate",
+  "/about",
+  "/faq",
+  "/hoe-het-werkt",
+  "/hoe-werkt-studio",
   ...HELP_SITEMAP_PATHS,
   ...SEO_CONTENT_PATHS,
 ] as const;

@@ -11833,20 +11833,28 @@ export const nl = {
   "about.label": "Over",
   "about.title": "Het HomeCheff-ecosysteem",
   "about.subtitle":
-    "HomeCheff is een professionele AI-motionstudio en creatorplatform — niet alleen één animatietool.",
+    "HomeCheff is een ecosysteem voor lokaal ondernemerschap, creatie en verdienen. Het verbindt Marketplace, HomeCheff Studio, HomeCheff Growth en Affiliate/Partners in één systeem.",
   "about.vision.title": "Onze visie",
   "about.vision.body":
-    "We verbinden planning, rendering en publicatie zodat creators consistente AI-films op studiokwaliteit kunnen produceren — van eerste videoverhaal tot final cut.",
+    "Mensen en bedrijven kunnen er maken, aanbieden en verkopen, content creëren, klanten vinden, promoten en verdienen. Studio is de CREATE-laag in die lus: CREATE → SELL → GROW → PROMOTE → EARN → REPEAT.",
   "about.products.homecheff.name": "HomeCheff",
-  "about.products.homecheff.body": "Het paraplu-creatorplatform dat Motion, Studio en toekomstige lifestyleproducten verbindt.",
-  "about.products.homegarden.name": "HomeGarden",
-  "about.products.homegarden.body": "Buitenleven-inspiratie — gepland als complementair merk in het ecosysteem.",
-  "about.products.homedesigner.name": "HomeDesigner",
-  "about.products.homedesigner.body": "Interieurdesigntooling — gepland om assets en stijl te delen met Studio-producties.",
-  "about.products.motion.name": "HomeCheff Motion",
-  "about.products.motion.body": "AI-motionwizard, renderpipelines, voortgangsherstel en videoversionering.",
+  "about.products.homecheff.body":
+    "Het moeder-ecosysteem voor lokaal ondernemerschap — Marketplace, Studio, Growth en Affiliate/Partners in één systeem.",
+  "about.products.marketplace.name": "HomeCheff Marketplace",
+  "about.products.marketplace.body":
+    "Koop, verkoop en ontdek lokale producten en diensten — de SELL-laag van het ecosysteem.",
   "about.products.studio.name": "HomeCheff Studio",
-  "about.products.studio.body": "Videoverhalen, personages, directors en scènebeelden voor herhaalbare productiekwaliteit.",
+  "about.products.studio.body":
+    "De CREATE-laag: promotionele beelden, video, motion en gerelateerde content voor producten, diensten en bedrijven.",
+  "about.products.growth.name": "HomeCheff Growth",
+  "about.products.growth.body":
+    "Klanten vinden en ontwikkelen — de GROW-laag naast Marketplace en Studio.",
+  "about.products.affiliate.name": "Affiliate / Partners",
+  "about.products.affiliate.body":
+    "Deel HomeCheff en verdien op in aanmerking komende platformopbrengst — het PROMOTE- en EARN-pad.",
+  "about.products.motion.name": "HomeCheff Motion",
+  "about.products.motion.body":
+    "Image-to-video motion binnen Studio’s CREATE-tools — stilstaande beelden omzetten in motionclips voor campagnes.",
   "about.products.explore": "Verkennen",
   "about.cta": "Begin met maken",
 

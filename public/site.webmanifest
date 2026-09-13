@@ -1,7 +1,7 @@
 {
   "name": "HomeCheff Studio",
   "short_name": "HomeCheff",
-  "description": "Your AI production line — create once, adapt endlessly.",
+  "description": "HomeCheff Studio — the CREATE layer of the HomeCheff ecosystem. Make promotional images, video and content for products, services and businesses.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#041428",

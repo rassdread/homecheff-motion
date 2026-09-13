@@ -6,6 +6,45 @@ import { GradientButton } from "@/components/ui/gradient-button";
 import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
 
+const ABOUT_PRODUCTS = [
+  {
+    key: "homecheff",
+    color: brand.studioGreen,
+    href: "https://homecheff.eu/ecosystem",
+    external: true,
+  },
+  {
+    key: "marketplace",
+    color: "#2d6a4f",
+    href: "https://homecheff.eu/",
+    external: true,
+  },
+  {
+    key: "studio",
+    color: brand.studioBlue,
+    href: "/studio",
+    external: false,
+  },
+  {
+    key: "growth",
+    color: brand.studioGreen,
+    href: "https://growth.homecheff.eu/",
+    external: true,
+  },
+  {
+    key: "affiliate",
+    color: brand.studioBlue,
+    href: "https://homecheff.eu/affiliate",
+    external: true,
+  },
+  {
+    key: "motion",
+    color: brand.studioGreen,
+    href: "/animate/instant",
+    external: false,
+  },
+] as const;
+
 export default function AboutPage() {
   const t = useActiveTranslator();
 
@@ -33,30 +72,21 @@ export default function AboutPage() {
         </AppCard>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          {(
-            [
-              { key: "homecheff", color: brand.studioGreen },
-              { key: "homegarden", color: "#2d6a4f" },
-              { key: "homedesigner", color: brand.studioBlue },
-              { key: "motion", color: brand.studioGreen, href: "/animate/instant" },
-              { key: "studio", color: brand.studioBlue, href: "/studio" },
-            ] as const
-          ).map((item) => (
+          {ABOUT_PRODUCTS.map((item) => (
             <AppCard key={item.key} className="bg-white p-5">
               <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: item.color }}>
                 {t(`about.products.${item.key}.name`)}
               </p>
               <p className="mt-2 text-sm text-zinc-600">{t(`about.products.${item.key}.body`)}</p>
-              {"href" in item && item.href ? (
-                <Link
-                  href={item.href}
-                  prefetch={false}
-                  className="mt-3 inline-block text-sm font-semibold hover:underline"
-                  style={{ color: item.color }}
-                >
-                  {t("about.products.explore")} →
-                </Link>
-              ) : null}
+              <Link
+                href={item.href}
+                prefetch={false}
+                {...(item.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                className="mt-3 inline-block text-sm font-semibold hover:underline"
+                style={{ color: item.color }}
+              >
+                {t("about.products.explore")} →
+              </Link>
             </AppCard>
           ))}
         </div>

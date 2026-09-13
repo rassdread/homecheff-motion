@@ -15,13 +15,13 @@ export const PUBLIC_PAGE_SEO = {
   studio: {
     title: "AI Storyboard & Production Studio",
     description:
-      "Plan campaigns in AI storyboards with reusable characters, voice, subtitles, and multi-channel publishing. The production hub between Editor assets and image-to-video motion.",
+      "Plan campaigns in AI storyboards with reusable characters, voice, subtitles, and multi-channel publishing. Part of the HomeCheff ecosystem CREATE layer — between Editor assets and image-to-video motion.",
     path: "/studio",
   },
   motion: {
     title: "AI Video Generator — Image to Video",
     description:
-      "Turn still images into AI motion clips for social and campaigns. Storyboard-ready exports that connect to Studio voice, subtitles, translation, and publishing.",
+      "Turn still images into AI motion clips for social and campaigns. Part of the HomeCheff ecosystem CREATE layer — storyboard-ready exports that connect to Studio voice, subtitles, translation, and publishing.",
     path: "/animate/instant",
   },
   pricing: {

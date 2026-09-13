@@ -11833,20 +11833,28 @@ export const en: LocaleSchema = {
   "about.label": "About",
   "about.title": "The HomeCheff ecosystem",
   "about.subtitle":
-    "HomeCheff is a professional AI motion studio and creator platform — not just a single animation tool.",
+    "HomeCheff is an ecosystem for local entrepreneurship, creation and earning. It connects Marketplace, HomeCheff Studio, HomeCheff Growth and Affiliate/Partners in one system.",
   "about.vision.title": "Our vision",
   "about.vision.body":
-    "We connect planning, rendering, and publishing so creators can produce consistent AI films at studio quality — from first storyboard to final cut.",
+    "People and businesses can create, offer and sell, produce content, find customers, promote and earn. Studio is the CREATE layer in that loop: CREATE → SELL → GROW → PROMOTE → EARN → REPEAT.",
   "about.products.homecheff.name": "HomeCheff",
-  "about.products.homecheff.body": "The umbrella creator platform tying Motion, Studio, and future lifestyle products together.",
-  "about.products.homegarden.name": "HomeGarden",
-  "about.products.homegarden.body": "Outdoor living inspiration — planned as a complementary brand in the ecosystem.",
-  "about.products.homedesigner.name": "HomeDesigner",
-  "about.products.homedesigner.body": "Interior design tooling — planned to share assets and style with Studio productions.",
-  "about.products.motion.name": "HomeCheff Motion",
-  "about.products.motion.body": "AI motion wizard, render pipelines, progress recovery, and video versioning.",
+  "about.products.homecheff.body":
+    "The parent ecosystem for local entrepreneurship — Marketplace, Studio, Growth and Affiliate/Partners in one system.",
+  "about.products.marketplace.name": "HomeCheff Marketplace",
+  "about.products.marketplace.body":
+    "Buy, sell and discover local products and services — the SELL layer of the ecosystem.",
   "about.products.studio.name": "HomeCheff Studio",
-  "about.products.studio.body": "Storyboards, characters, directors, and scene images for repeatable production quality.",
+  "about.products.studio.body":
+    "The CREATE layer: promotional images, video, motion and related content for products, services and businesses.",
+  "about.products.growth.name": "HomeCheff Growth",
+  "about.products.growth.body":
+    "Find and develop customers — the GROW layer alongside Marketplace and Studio.",
+  "about.products.affiliate.name": "Affiliate / Partners",
+  "about.products.affiliate.body":
+    "Share HomeCheff and earn on eligible platform revenue — the PROMOTE and EARN path.",
+  "about.products.motion.name": "HomeCheff Motion",
+  "about.products.motion.body":
+    "Image-to-video motion within Studio’s CREATE tools — turn stills into motion clips for campaigns.",
   "about.products.explore": "Explore",
   "about.cta": "Start creating",
 
