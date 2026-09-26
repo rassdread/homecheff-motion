@@ -188,7 +188,7 @@ export function AppShellUserBar({ compact = false }: Props) {
             Mijn HomeCheff
           </a>
           <a
-            href="https://homecheff.eu/affiliate"
+            href="https://homecheff.eu/affiliate?product=studio#commissies"
             className={studioVisual.userDropdownItem}
             onClick={() => setOpen(false)}
             role="menuitem"

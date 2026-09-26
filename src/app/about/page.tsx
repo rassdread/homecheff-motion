@@ -34,7 +34,7 @@ const ABOUT_PRODUCTS = [
   {
     key: "affiliate",
     color: brand.studioBlue,
-    href: "https://homecheff.eu/affiliate",
+    href: "https://homecheff.eu/affiliate?product=studio#commissies",
     external: true,
   },
   {

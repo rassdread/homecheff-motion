@@ -231,7 +231,7 @@ export const STUDIO_PUBLIC_FAQ: StudioFaqItem[] = [
     id: "affiliate",
     question: "Is affiliate available for Studio?",
     answer:
-      "Yes — see studio.homecheff.eu/affiliate. You earn 50% of eligible Studio platform revenue for 12 months per referred user. Commission is never calculated over HC itself, VAT, or seller proceeds. Eligible platform revenue from HC-pack purchases can also generate commission; HC face value never does. Creative templates named “affiliate” are not a commission product.",
+      "Yes. Studio uses the same HomeCheff affiliate program as the rest of the ecosystem: https://homecheff.eu/affiliate?product=studio#commissies. Commission follows that product’s rules for as long as qualifying paid use continues. It is not calculated over HC itself, VAT, or seller proceeds. Creative templates named “affiliate” are not a commission product. No guaranteed income.",
   },
   {
     id: "international",

@@ -50,7 +50,7 @@ export function StudioSiteFooter() {
           <a href="mailto:support@homecheff.eu" className="underline-offset-2 hover:underline">
             Contact
           </a>
-          <a href="/affiliate" className="underline-offset-2 hover:underline">
+          <a href="https://homecheff.eu/affiliate?product=studio#commissies" className="underline-offset-2 hover:underline">
             Affiliate
           </a>
         </nav>

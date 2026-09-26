@@ -43,7 +43,7 @@ export default async function Home() {
             <Link href="https://growth.homecheff.eu/" className="font-medium text-zinc-900 underline-offset-2 hover:underline">
               Growth
             </Link>
-            <Link href="https://homecheff.eu/affiliate" className="font-medium text-zinc-900 underline-offset-2 hover:underline">
+            <Link href="https://homecheff.eu/affiliate?product=studio#commissies" className="font-medium text-zinc-900 underline-offset-2 hover:underline">
               Affiliate
             </Link>
             <Link href="/about" className="font-medium text-zinc-900 underline-offset-2 hover:underline">

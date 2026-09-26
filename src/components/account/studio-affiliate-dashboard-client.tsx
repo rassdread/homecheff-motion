@@ -81,7 +81,7 @@ export function StudioAffiliateDashboardClient() {
         <section className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-4">
           <h2 className="text-sm font-semibold text-emerald-950">Je Studio-referral link</h2>
           <p className="mt-1 text-xs text-zinc-600">
-            Deel deze link. Bij signup wordt de referral 12 maanden vastgezet op centralUserId.
+            Deel deze link. Een klant die via jou start, blijft aan jouw portefeuille gekoppeld volgens de geldende voorwaarden.
           </p>
           <p className="mt-2 break-all font-mono text-xs text-zinc-800">{studioRef}</p>
         </section>
