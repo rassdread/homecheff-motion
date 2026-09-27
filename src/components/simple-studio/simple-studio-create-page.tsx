@@ -20,6 +20,8 @@ import {
   simpleStudioAdvancedEditorPath,
 } from "@/lib/simple-studio/orchestrator";
 import { studioVisual } from "@/lib/studio-visual-tokens";
+import { useActiveTranslator } from "@/i18n/client";
+import type { TranslationKey } from "@/i18n";
 import type { PublishProject } from "@/types/publish-overlay";
 import type { PublishStorySceneBlock } from "@/lib/publish-story-proposal";
 
@@ -68,6 +70,7 @@ function ScenePreview({
 }
 
 export function SimpleStudioHub() {
+  const t = useActiveTranslator();
   return (
     <div
       className="mx-auto min-h-[100dvh] w-full max-w-lg px-4 pb-28 pt-6 sm:pb-10"
@@ -78,20 +81,18 @@ export function SimpleStudioHub() {
           <p className="text-xs font-semibold uppercase tracking-wide text-[#006D52]">
             HomeCheff Studio
           </p>
-          <h1 className="text-2xl font-bold text-zinc-900">Wat wil je maken?</h1>
-          <p className="mt-1 text-sm text-zinc-600">
-            Upload wat je hebt en vertel het in gewone taal — Studio kiest de rest.
-          </p>
+          <h1 className="text-2xl font-bold text-zinc-900">{t("simple.hub.title")}</h1>
+          <p className="mt-1 text-sm text-zinc-600">{t("simple.hub.lead")}</p>
         </div>
         <Link href="/studio" className="text-sm font-medium text-[#006D52] underline">
-          Terug
+          {t("simple.hub.back")}
         </Link>
       </div>
 
       <SimpleStudioCreatePage purpose="universal" embedInHub />
 
       <div className="mt-10 space-y-3">
-        <h2 className="text-sm font-semibold text-zinc-900">Of kies een snelkoppeling</h2>
+        <h2 className="text-sm font-semibold text-zinc-900">{t("simple.hub.shortcuts")}</h2>
         {SIMPLE_STUDIO_CATALOG.map((entry) => (
           <Link
             key={entry.purpose}
@@ -100,14 +101,18 @@ export function SimpleStudioHub() {
             className={`block ${studioVisual.editorSurface} px-4 py-3 transition hover:border-[#006D52]/40`}
           >
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-semibold text-zinc-900">{entry.titleNl}</span>
+              <span className="font-semibold text-zinc-900">
+                {t(`simple.catalog.${entry.purpose}.title` as TranslationKey)}
+              </span>
               {entry.free ? (
                 <span className="rounded-full bg-[#006D52]/10 px-2 py-0.5 text-[10px] font-bold uppercase text-[#006D52]">
-                  Gratis
+                  {t("simple.hub.free")}
                 </span>
               ) : null}
             </div>
-            <p className="mt-0.5 text-sm text-zinc-600">{entry.descNl}</p>
+            <p className="mt-0.5 text-sm text-zinc-600">
+              {t(`simple.catalog.${entry.purpose}.desc` as TranslationKey)}
+            </p>
           </Link>
         ))}
       </div>
@@ -154,6 +159,7 @@ export function SimpleStudioCreatePage({
   const [preparedMusicId, setPreparedMusicId] = useState<string | null>(null);
   const [preparedMusicLabel, setPreparedMusicLabel] = useState<string | null>(null);
   const [lipsyncConfigured, setLipsyncConfigured] = useState(false);
+  const t = useActiveTranslator();
 
   const scenes = useMemo(() => {
     const raw = project?.metadata?.publishScenes;
@@ -244,9 +250,11 @@ export function SimpleStudioCreatePage({
   if (!shared && catalog) {
     return (
       <div className="mx-auto max-w-lg p-6 text-sm text-zinc-700">
-        Doorsturen naar {catalog.titleNl}…
+        {t("simple.hub.redirecting", {
+          title: t(`simple.catalog.${catalog.purpose}.title` as TranslationKey),
+        })}
         <Link href={catalog.href} className="ml-2 underline text-[#006D52]">
-          Open
+          {t("simple.hub.open")}
         </Link>
       </div>
     );
