@@ -222,9 +222,12 @@ describe("SEO launch readiness", () => {
 
   it("homepage includes crawlable Studio entity section", () => {
     const page = read("src/app/page.tsx");
-    assert.match(page, /What is HomeCheff Studio\?/);
-    assert.match(page, /CREATE layer/);
-    assert.match(page, /homecheff\.eu\/ecosystem/);
+    const brief = read("src/components/seo/studio-entity-brief.tsx");
+    assert.match(page, /StudioEntityBrief/);
+    assert.match(brief, /entity\.whatIs/);
+    assert.match(brief, /homecheff\.eu\/ecosystem/);
+    assert.match(read("src/i18n/locales/en.ts"), /What is HomeCheff Studio\?/);
+    assert.match(read("src/i18n/locales/en.ts"), /CREATE layer/);
   });
 
   it("help center cross-links product hubs and related articles", () => {

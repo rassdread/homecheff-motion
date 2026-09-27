@@ -82,7 +82,26 @@ function writeBrowserLocaleCookie(locale: Locale, explicit: boolean): void {
   document.cookie = `${MARKETPLACE_LEGACY_LOCALE_COOKIE}=${locale}; Path=/; Max-Age=${maxAge}; Expires=${expires}; SameSite=Lax${securePart}${domainPart}`;
 }
 
-/** Call once after client mount so SSR and first paint both use DEFAULT_LOCALE / cookie. */
+/**
+ * Explicit shared cookie wins over a stale Studio localStorage value.
+ * Otherwise a previous Studio choice, then the cookie, then English.
+ */
+export function resolveHydratedLocale(input: {
+  saved: string | null;
+  cookie: Locale | null;
+  explicit: boolean;
+}): Locale {
+  if (input.explicit && input.cookie) return input.cookie;
+  if (input.saved === "nl" || input.saved === "en") return input.saved;
+  if (input.cookie) return input.cookie;
+  return DEFAULT_LOCALE;
+}
+
+export function isI18nHydrated(): boolean {
+  return i18nHydrated;
+}
+
+/** Align the client store with the cookie the server already rendered. */
 export function markI18nHydrated(): void {
   if (typeof window === "undefined" || i18nHydrated) {
     return;
@@ -93,16 +112,18 @@ export function markI18nHydrated(): void {
   const prefExplicit = document.cookie
     .split("; ")
     .some((r) => r.startsWith(`${ECOSYSTEM_LOCALE_PREF_COOKIE}=1`));
-
-  if (saved === "nl" || saved === "en") {
-    activeLocale = saved;
-    writeBrowserLocaleCookie(saved, true);
+  activeLocale = resolveHydratedLocale({
+    saved,
+    cookie: fromCookie,
+    explicit: prefExplicit,
+  });
+  if (prefExplicit && fromCookie) {
+    window.localStorage.setItem(LOCALE_STORAGE_KEY, fromCookie);
+  } else if (activeLocale === saved) {
+    writeBrowserLocaleCookie(activeLocale, true);
   } else if (fromCookie) {
-    activeLocale = fromCookie;
-    writeBrowserLocaleCookie(fromCookie, prefExplicit);
+    window.localStorage.setItem(LOCALE_STORAGE_KEY, fromCookie);
   } else {
-    // Fail-safe English (middleware should have seeded cookie from IP already)
-    activeLocale = DEFAULT_LOCALE;
     writeBrowserLocaleCookie(DEFAULT_LOCALE, false);
   }
   localeInitialized = true;

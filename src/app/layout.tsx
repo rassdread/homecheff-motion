@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { cookies, headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import { JsonLd } from "@/components/seo/json-ld";
 import { AppShell } from "@/components/layout/app-shell";
@@ -11,14 +10,7 @@ import {
   buildWebSiteJsonLd,
 } from "@/lib/seo/structured-data";
 import { ROOT_SITE_METADATA } from "@/lib/seo/site-metadata";
-import {
-  ECOSYSTEM_LOCALE_COOKIE,
-  ECOSYSTEM_LOCALE_PREF_COOKIE,
-  MARKETPLACE_LEGACY_LOCALE_COOKIE,
-  countryFromRequestHeaders,
-  parseEcosystemLanguage,
-  resolveEcosystemLanguage,
-} from "@/lib/ecosystem-locale";
+import { resolveStudioRequestLocale } from "@/i18n/request-locale";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -36,22 +28,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = ROOT_SITE_METADATA;
 
 async function resolveHtmlLang(): Promise<"nl" | "en"> {
-  const jar = await cookies();
-  const h = await headers();
-  const fromHeader = parseEcosystemLanguage(h.get("x-hc-locale"));
-  if (fromHeader) return fromHeader;
-  const eco = parseEcosystemLanguage(jar.get(ECOSYSTEM_LOCALE_COOKIE)?.value);
-  const legacy = parseEcosystemLanguage(
-    jar.get(MARKETPLACE_LEGACY_LOCALE_COOKIE)?.value ?? jar.get("hc_locale")?.value,
-  );
-  const cookieLanguage = eco ?? legacy;
-  const prefFlag = jar.get(ECOSYSTEM_LOCALE_PREF_COOKIE)?.value;
-  const countryCode = countryFromRequestHeaders((n) => h.get(n));
-  return resolveEcosystemLanguage({
-    explicitLanguage: prefFlag === "1" ? cookieLanguage : null,
-    cookieLanguage,
-    countryCode,
-  });
+  return resolveStudioRequestLocale();
 }
 
 export default async function RootLayout({
@@ -104,7 +81,7 @@ export default async function RootLayout({
             buildSoftwareApplicationJsonLd(),
           ]}
         />
-        <AppShell>{children}</AppShell>
+        <AppShell locale={lang}>{children}</AppShell>
       </body>
     </html>
   );

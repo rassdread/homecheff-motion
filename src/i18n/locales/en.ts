@@ -14817,4 +14817,28 @@ export const en: LocaleSchema = {
   "admin.studioFinance.creditsSpent": "Credits spent",
   "admin.studioFinance.projectId": "Project",
   "admin.studioFinance.failedRefunds": "Failed generation refunds: {count}",
+  "footer.partOf": "Part of HomeCheff · CREATE layer · Arrias Beheer B.V.",
+  "footer.everybodyEats":
+    "HomeCheff — Everybody Eats. Opportunity across CREATE · SELL · GROW · PROMOTE — not guaranteed income.",
+  "footer.legalAria": "Legal",
+  "footer.faq": "FAQ",
+  "footer.help": "Help",
+  "footer.terms": "Terms",
+  "footer.privacy": "Privacy",
+  "footer.cookies": "Cookies",
+  "footer.ecosystem": "Ecosystem",
+  "footer.contact": "Contact",
+  "footer.affiliate": "Affiliate",
+  "footer.hcCredits": "HC Credits",
+  "entity.whatIs": "What is HomeCheff Studio?",
+  "entity.p1":
+    "HomeCheff Studio is the CREATE layer of HomeCheff — an ecosystem for local entrepreneurship, creation and earning. Studio helps people and businesses create promotional images, video, motion and related content for products, services and businesses.",
+  "entity.p2":
+    "HomeCheff connects Marketplace, HomeCheff Studio, HomeCheff Growth and Affiliate/Partners in one system. Loop: CREATE → SELL → GROW → PROMOTE → EARN → REPEAT.",
+  "entity.marketplace": "Marketplace",
+  "entity.growth": "Growth",
+  "entity.about": "About",
+  "seo.home.title": "HomeCheff Studio",
+  "seo.home.description":
+    "HomeCheff Studio is the CREATE layer of HomeCheff — make promotional images, video and content for products, services and businesses. Part of the HomeCheff ecosystem alongside Marketplace and Growth.",
 };

@@ -14834,4 +14834,28 @@ export const nl = {
   "admin.studioFinance.creditsSpent": "Credits besteed",
   "admin.studioFinance.projectId": "Project",
   "admin.studioFinance.failedRefunds": "Mislukte generatie refunds: {count}",
+  "footer.partOf": "Onderdeel van HomeCheff · CREATE-laag · Arrias Beheer B.V.",
+  "footer.everybodyEats":
+    "HomeCheff — Everybody Eats. Kansen via CREATE · SELL · GROW · PROMOTE — geen gegarandeerd inkomen. Iedereen eet mee.",
+  "footer.legalAria": "Juridisch",
+  "footer.faq": "FAQ",
+  "footer.help": "Help",
+  "footer.terms": "Voorwaarden",
+  "footer.privacy": "Privacy",
+  "footer.cookies": "Cookies",
+  "footer.ecosystem": "Ecosysteem",
+  "footer.contact": "Contact",
+  "footer.affiliate": "Affiliate",
+  "footer.hcCredits": "HC Credits",
+  "entity.whatIs": "Wat is HomeCheff Studio?",
+  "entity.p1":
+    "HomeCheff Studio is de CREATE-laag van HomeCheff — een ecosysteem voor lokaal ondernemen, maken en verdienen. Studio helpt mensen en bedrijven promotiebeelden, video, motion en gerelateerde content te maken voor producten, diensten en bedrijven.",
+  "entity.p2":
+    "HomeCheff verbindt Marketplace, HomeCheff Studio, HomeCheff Growth en Affiliate/Partners in één systeem. Lus: CREATE → SELL → GROW → PROMOTE → EARN → REPEAT.",
+  "entity.marketplace": "Marketplace",
+  "entity.growth": "Growth",
+  "entity.about": "Over",
+  "seo.home.title": "HomeCheff Studio",
+  "seo.home.description":
+    "HomeCheff Studio is de CREATE-laag van HomeCheff — maak promotiebeelden, video en content voor producten, diensten en bedrijven. Onderdeel van het HomeCheff-ecosysteem, naast Marketplace en Growth.",
 } as const;
