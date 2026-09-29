@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { brand } from "@/lib/brand";
-import { useActiveTranslator } from "@/i18n/client";
+import { useActiveTranslator, useLocale } from "@/i18n/client";
+import { studioCareersHref } from "@/lib/affiliate/studio-ecosystem-nav";
 
 /**
  * Site legal/trust footer for marketing and account shells.
@@ -10,6 +11,7 @@ import { useActiveTranslator } from "@/i18n/client";
  */
 export function StudioSiteFooter() {
   const t = useActiveTranslator();
+  const [locale] = useLocale();
   return (
     <footer className="border-t border-zinc-200 bg-zinc-50 px-4 py-8 text-sm text-zinc-700">
       <div className="mx-auto flex max-w-5xl flex-col gap-6 sm:flex-row sm:justify-between">
@@ -42,6 +44,13 @@ export function StudioSiteFooter() {
           </Link>
           <a href="https://homecheff.eu/ecosystem" className="underline-offset-2 hover:underline">
             {t("footer.ecosystem")}
+          </a>
+          <a
+            href={studioCareersHref(locale)}
+            data-studio-careers
+            className="underline-offset-2 hover:underline"
+          >
+            {t("footer.careers")}
           </a>
           <a href="https://growth.homecheff.eu/legal/credits-terms" className="underline-offset-2 hover:underline">
             {t("footer.hcCredits")}

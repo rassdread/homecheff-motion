@@ -14829,6 +14829,11 @@ export const en: LocaleSchema = {
   "footer.ecosystem": "Ecosystem",
   "footer.contact": "Contact",
   "footer.affiliate": "Affiliate",
+  "footer.careers": "Careers",
+  "nav.affiliateDashboard": "Affiliate dashboard",
+  "nav.becomeAffiliate": "Become an affiliate",
+  "nav.promoteStudio": "Promote Studio",
+  "nav.promoMaterial": "Promotional material",
   "footer.hcCredits": "HC Credits",
   "entity.whatIs": "What is HomeCheff Studio?",
   "entity.p1":

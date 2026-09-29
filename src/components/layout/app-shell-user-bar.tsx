@@ -13,6 +13,13 @@ import {
 } from "@/lib/identity/studio-session-identity-channel";
 import { isHomeCheffProductSuiteNavEnabled } from "@/lib/homecheff-product-suite-flag";
 import { studioVisual } from "@/lib/studio-visual-tokens";
+import { useLocale } from "@/i18n/client";
+import {
+  STUDIO_PROMO_LIBRARY_HREF,
+  STUDIO_PROMOTE_HREF,
+  studioAffiliateNavEntry,
+  studioCareersHref,
+} from "@/lib/affiliate/studio-ecosystem-nav";
 
 type AccountMenuItem = {
   href: string;
@@ -55,9 +62,32 @@ type Props = {
 
 export function AppShellUserBar({ compact = false }: Props) {
   const t = useActiveTranslator();
+  const [locale] = useLocale();
   const session = useAuthSession();
   const [open, setOpen] = useState(false);
+  const [affiliateAccess, setAffiliateAccess] = useState<boolean | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!session.user) {
+      setAffiliateAccess(null);
+      return;
+    }
+    let cancelled = false;
+    void fetch("/api/me/affiliate/self", { credentials: "include", cache: "no-store" })
+      .then(async (res) => {
+        const json = (await res.json().catch(() => null)) as {
+          loggedIn?: boolean;
+          dashboardAccess?: boolean;
+        } | null;
+        if (cancelled || !res.ok || !json || typeof json.dashboardAccess !== "boolean") return;
+        setAffiliateAccess(json.dashboardAccess);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [session.user]);
 
   const handleLogout = useCallback(async () => {
     let idpLogoutUrl = "https://homecheff.eu/api/auth/ecosystem-logout";
@@ -187,13 +217,50 @@ export function AppShellUserBar({ compact = false }: Props) {
           >
             Mijn HomeCheff
           </a>
+          {affiliateAccess == null ? null : (
+            <a
+              href={studioAffiliateNavEntry({ dashboardAccess: affiliateAccess }).href}
+              data-studio-affiliate-entry
+              data-studio-affiliate-entry-kind={
+                studioAffiliateNavEntry({ dashboardAccess: affiliateAccess }).kind
+              }
+              className={`${studioVisual.userDropdownItem} min-h-11`}
+              onClick={() => setOpen(false)}
+              role="menuitem"
+            >
+              {affiliateAccess ? t("nav.affiliateDashboard") : t("nav.becomeAffiliate")}
+            </a>
+          )}
+          {affiliateAccess ? (
+            <a
+              href={STUDIO_PROMOTE_HREF}
+              data-studio-promote
+              className={`${studioVisual.userDropdownItem} min-h-11`}
+              onClick={() => setOpen(false)}
+              role="menuitem"
+            >
+              {t("nav.promoteStudio")}
+            </a>
+          ) : null}
+          {affiliateAccess ? (
+            <a
+              href={STUDIO_PROMO_LIBRARY_HREF}
+              data-studio-promo-library
+              className={`${studioVisual.userDropdownItem} min-h-11`}
+              onClick={() => setOpen(false)}
+              role="menuitem"
+            >
+              {t("nav.promoMaterial")}
+            </a>
+          ) : null}
           <a
-            href="https://homecheff.eu/affiliate?product=studio#commissies"
-            className={studioVisual.userDropdownItem}
+            href={studioCareersHref(locale)}
+            data-studio-careers
+            className={`${studioVisual.userDropdownItem} min-h-11`}
             onClick={() => setOpen(false)}
             role="menuitem"
           >
-            HomeCheff Affiliate
+            {t("footer.careers")}
           </a>
           {ACCOUNT_MENU_ITEMS.map((item) => {
             if (item.adminOnly && normalizedRole !== "admin") {

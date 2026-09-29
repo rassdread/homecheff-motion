@@ -2,7 +2,6 @@
  * Compact Studio entry into the canonical HomeCheff affiliate proposition.
  */
 import type { Metadata } from "next";
-import Link from "next/link";
 import { StudioSiteFooter } from "@/components/layout/studio-site-footer";
 
 const CANONICAL = "https://homecheff.eu/affiliate?product=studio#commissies";
@@ -45,9 +44,12 @@ export default function StudioAffiliatePage() {
           </a>
         </p>
         <p className="mt-6 text-center text-sm">
-          <Link href="/account/affiliate" className="font-semibold text-zinc-800 underline-offset-2 hover:underline">
-            Ga naar mijn Studio-affiliate
-          </Link>
+          <a
+            href="https://homecheff.eu/affiliate/dashboard"
+            className="font-semibold text-zinc-800 underline-offset-2 hover:underline"
+          >
+            Affiliate dashboard
+          </a>
         </p>
       </main>
       <StudioSiteFooter />

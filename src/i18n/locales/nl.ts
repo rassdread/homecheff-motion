@@ -14846,6 +14846,11 @@ export const nl = {
   "footer.ecosystem": "Ecosysteem",
   "footer.contact": "Contact",
   "footer.affiliate": "Affiliate",
+  "footer.careers": "Werken bij",
+  "nav.affiliateDashboard": "Affiliate dashboard",
+  "nav.becomeAffiliate": "Word affiliate",
+  "nav.promoteStudio": "Promoot Studio",
+  "nav.promoMaterial": "Promotiemateriaal",
   "footer.hcCredits": "HC Credits",
   "entity.whatIs": "Wat is HomeCheff Studio?",
   "entity.p1":

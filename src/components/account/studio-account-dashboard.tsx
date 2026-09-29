@@ -174,12 +174,6 @@ export function StudioAccountDashboard({
         >
           Deel Studio
         </button>
-        <a
-          href="https://homecheff.eu/werken-bij"
-          className="mt-2 inline-block text-sm text-white/70 underline hover:text-white"
-        >
-          Verdien met HomeCheff
-        </a>
       </div>
 
       {showSettings && (
