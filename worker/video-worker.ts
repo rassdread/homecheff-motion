@@ -11,6 +11,17 @@ import {
 } from "../src/server/instant-premium/worker-job";
 import { runLanguageExportWorkerRender } from "../src/server/instant-premium/language-export-worker-job";
 import { installWorkerFfmpegPaths } from "../src/worker/video-tools/resolve-worker-ffmpeg";
+import {
+  callbackFromResult,
+  executeMarketplaceVideoJob,
+  notifyMarketplaceCallback,
+} from "../src/server/marketplace-video/run-marketplace-video-job";
+import {
+  MARKETPLACE_VIDEO_NAMESPACE,
+  isMarketplaceJobId,
+  marketplaceJobAdmission,
+  parseMarketplaceJobRequest,
+} from "../src/server/marketplace-video/marketplace-video-job";
 
 logBlobConfigStatus("instant-premium-video-worker");
 
@@ -28,6 +39,7 @@ void installWorkerFfmpegPaths().catch((error) => {
 const port = Number.parseInt(String(process.env.PORT || "8090"), 10) || 8090;
 const RUNNING = new Set<string>();
 const LANGUAGE_EXPORT_RUNNING = new Set<string>();
+let marketplaceVideoActive = 0;
 
 function requireWorkerAuth(
   req: express.Request,
@@ -143,6 +155,10 @@ app.post(
       res.status(200).json({ ok: true, projectId, status: "running" });
       return;
     }
+    if (marketplaceJobAdmission({ studioActive: 0, marketplaceActive: marketplaceVideoActive }) === "busy") {
+      res.status(429).json({ ok: false, namespace: "STUDIO_RENDER", code: "BUSY" });
+      return;
+    }
     RUNNING.add(projectId);
     try {
       const force = Boolean(req.body?.force);
@@ -172,6 +188,10 @@ app.post(
     }
     if (RUNNING.has(projectId)) {
       res.status(200).json({ ok: true, projectId, status: "running" });
+      return;
+    }
+    if (marketplaceJobAdmission({ studioActive: 0, marketplaceActive: marketplaceVideoActive }) === "busy") {
+      res.status(429).json({ ok: false, namespace: "STUDIO_RENDER", code: "BUSY" });
       return;
     }
     RUNNING.add(projectId);
@@ -204,6 +224,10 @@ app.post(
       res.status(200).json({ ok: true, exportId, status: "running" });
       return;
     }
+    if (marketplaceJobAdmission({ studioActive: 0, marketplaceActive: marketplaceVideoActive }) === "busy") {
+      res.status(429).json({ ok: false, namespace: "STUDIO_LANGUAGE_EXPORT", code: "BUSY" });
+      return;
+    }
     LANGUAGE_EXPORT_RUNNING.add(exportId);
     try {
       await installWorkerFfmpegPaths();
@@ -221,6 +245,62 @@ app.post(
     }
   }
 );
+
+app.post("/jobs/marketplace-video/:jobId/process", requireWorkerAuth, (req, res) => {
+  const jobId = String(req.params.jobId ?? "").trim();
+  if (!isMarketplaceJobId(jobId)) {
+    res.status(400).json({ ok: false, namespace: MARKETPLACE_VIDEO_NAMESPACE, code: "BAD_REQUEST" });
+    return;
+  }
+  const parsed = parseMarketplaceJobRequest(req.body);
+  if (!parsed.ok) {
+    res.status(400).json({ ok: false, namespace: MARKETPLACE_VIDEO_NAMESPACE, code: parsed.code });
+    return;
+  }
+  const admission = marketplaceJobAdmission({
+    studioActive: RUNNING.size + LANGUAGE_EXPORT_RUNNING.size,
+    marketplaceActive: marketplaceVideoActive,
+  });
+  if (admission === "busy") {
+    res.status(429).json({ ok: false, namespace: MARKETPLACE_VIDEO_NAMESPACE, status: "PENDING", code: "BUSY" });
+    return;
+  }
+  marketplaceVideoActive += 1;
+  res.status(202).json({
+    ok: true,
+    namespace: MARKETPLACE_VIDEO_NAMESPACE,
+    jobId,
+    status: "PROCESSING",
+  });
+  const secret = getVideoWorkerSecret() ?? "";
+  void executeMarketplaceVideoJob({
+    jobId,
+    sourceUrl: parsed.sourceUrl,
+    maxDurationSeconds: parsed.maxDurationSeconds,
+  })
+    .then(async (result) => {
+      if (parsed.callbackUrl) {
+        await notifyMarketplaceCallback(parsed.callbackUrl, secret, callbackFromResult(jobId, result));
+      }
+    })
+    .catch(async () => {
+      if (parsed.callbackUrl) {
+        await notifyMarketplaceCallback(parsed.callbackUrl, secret, {
+          jobId,
+          namespace: MARKETPLACE_VIDEO_NAMESPACE,
+          status: "FAILED",
+          failureCode: "FFMPEG",
+          canonicalUrl: null,
+          posterUrl: null,
+          probe: null,
+          decision: null,
+        });
+      }
+    })
+    .finally(() => {
+      marketplaceVideoActive = Math.max(0, marketplaceVideoActive - 1);
+    });
+});
 
 app.listen(port, "0.0.0.0", () => {
   console.info("[video-worker]", { phase: "listening", port });
