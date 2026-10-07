@@ -2,8 +2,6 @@ import { createWriteStream } from "node:fs";
 import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { Readable } from "node:stream";
-import { pipeline } from "node:stream/promises";
 import { uploadPublicBlob } from "../../lib/vercel-blob-config";
 import {
   MARKETPLACE_VIDEO_NAMESPACE,
@@ -39,22 +37,31 @@ async function downloadSource(url: string, destination: string): Promise<{ ok: t
   if (!response.ok || !response.body) return { ok: false, code: "SOURCE_MISSING" };
   const declared = Number(response.headers.get("content-length") ?? "0");
   if (Number.isFinite(declared) && declared > SOURCE_BYTE_CAP) return { ok: false, code: "OVERSIZE" };
+  const file = createWriteStream(destination);
+  const reader = response.body.getReader();
   let received = 0;
-  const counter = new TransformStream<Uint8Array, Uint8Array>({
-    transform(chunk, controller) {
-      received += chunk.byteLength;
-      if (received > SOURCE_BYTE_CAP) {
-        controller.error(new Error("oversize"));
-        return;
-      }
-      controller.enqueue(chunk);
-    },
-  });
+  let oversize = false;
   try {
-    await pipeline(Readable.fromWeb(response.body.pipeThrough(counter)), createWriteStream(destination));
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      received += value.byteLength;
+      if (received > SOURCE_BYTE_CAP) {
+        oversize = true;
+        await reader.cancel();
+        break;
+      }
+      if (!file.write(Buffer.from(value))) {
+        await new Promise((resolve) => file.once("drain", resolve));
+      }
+    }
   } catch {
-    return { ok: false, code: received > SOURCE_BYTE_CAP ? "OVERSIZE" : "SOURCE_MISSING" };
+    return { ok: false, code: "SOURCE_MISSING" };
+  } finally {
+    await new Promise<void>((resolve) => file.end(() => resolve()));
   }
+  if (oversize) return { ok: false, code: "OVERSIZE" };
   const bytes = (await stat(destination)).size;
   if (bytes <= 0) return { ok: false, code: "SOURCE_MISSING" };
   return { ok: true, bytes };
