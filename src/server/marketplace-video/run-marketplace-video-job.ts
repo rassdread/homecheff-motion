@@ -53,7 +53,7 @@ async function downloadSource(url: string, destination: string): Promise<{ ok: t
         break;
       }
       if (!file.write(Buffer.from(value))) {
-        await new Promise((resolve) => file.once("drain", resolve));
+        await new Promise<void>((resolve) => file.once("drain", () => resolve()));
       }
     }
   } catch {
