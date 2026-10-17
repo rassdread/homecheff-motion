@@ -15,6 +15,7 @@ import { resolveSceneStillCapability } from "@/lib/studio-generation-provider-ca
 type OpenAiImageResponse = {
   data?: Array<{ url?: string; b64_json?: string }>;
   error?: { message?: string };
+  usage?: { input_tokens?: number; output_tokens?: number };
 };
 
 async function fetchImageBuffer(url: string): Promise<Buffer> {
@@ -72,7 +73,7 @@ export class OpenAiSceneImageProvider implements SceneImageProvider {
       throw new Error("OPENAI_API_KEY is not configured.");
     }
 
-    const size = process.env.STUDIO_SCENE_IMAGE_SIZE?.trim() || "1024x1024";
+    const size = input.lockedSize?.trim() || process.env.STUDIO_SCENE_IMAGE_SIZE?.trim() || "1024x1024";
 
     if (shouldUseImageEdit(input)) {
       return this.generateFromSourceEdit(input, apiKey, size);
@@ -262,12 +263,13 @@ export class OpenAiSceneImageProvider implements SceneImageProvider {
     apiKey: string,
     size: string
   ): Promise<SceneImageGenerateResult> {
-    const model = resolveOpenAiImageModel();
+    const model = input.lockedModel?.trim() || resolveOpenAiImageModel();
     const body = prepareOpenAiImageGenerationsBody({
       model,
       prompt: input.prompt,
       size,
       n: 1,
+      quality: input.lockedQuality,
     });
 
     const res = await fetchOpenAiImageGenerations({
@@ -296,6 +298,13 @@ export class OpenAiSceneImageProvider implements SceneImageProvider {
       seed: input.seed ?? null,
       model,
       size,
+      quality: input.lockedQuality,
+      providerUsage: payload.usage
+        ? {
+            inputTokens: payload.usage.input_tokens ?? 0,
+            outputTokens: payload.usage.output_tokens ?? 0,
+          }
+        : null,
       generationMode: "text_to_image",
       identityPreservation: "none",
     };

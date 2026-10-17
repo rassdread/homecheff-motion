@@ -19,6 +19,10 @@ export type SceneImageGenerateInput = {
     role: string;
     exactness?: "MUST_PRESERVE" | "SHOULD_MATCH" | "STYLE_REFERENCE_ONLY";
   }>;
+  /** Stage A character masters lock the request. Other callers leave these unset. */
+  lockedModel?: string;
+  lockedSize?: string;
+  lockedQuality?: "low" | "medium" | "high";
 };
 
 export type SceneImageGenerateResult = {
@@ -29,6 +33,8 @@ export type SceneImageGenerateResult = {
   seed: string | null;
   model?: string;
   size?: string;
+  quality?: string;
+  providerUsage?: { inputTokens: number; outputTokens: number } | null;
   /** How the image was produced. */
   generationMode?: import("@/types/studio-asset-image-generation").AssetImageGenerationMode;
   /**

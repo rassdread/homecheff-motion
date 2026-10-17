@@ -55,6 +55,7 @@ export async function POST(request: Request) {
     };
     identityAudit?: import("@/types/studio-asset-identity-generation-audit").AssetIdentityGenerationAudit;
     confirmed?: boolean;
+    quote?: { promptVersion?: string };
   };
 
   try {
@@ -64,6 +65,18 @@ export async function POST(request: Request) {
   }
 
   const kind = body.kind;
+  if (body && typeof body === "object" && "quote" in body && body.quote && typeof body.quote === "object") {
+    const quoted = body.quote as { promptVersion?: string };
+    if (quoted.promptVersion === "passion-masters-v3") {
+      return NextResponse.json(
+        {
+          error: "Character masters require the signed Studio quote route.",
+          code: "STAGE_A_ROUTE_REQUIRED",
+        },
+        { status: 409 }
+      );
+    }
+  }
   if (!kind || !VALID_KINDS.has(kind)) {
     return NextResponse.json(
       { error: "kind must be character, prop, or location.", code: "INVALID_KIND" },

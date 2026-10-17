@@ -101,8 +101,13 @@ export function prepareOpenAiImageGenerationsBody(params: {
   prompt: string;
   size: string;
   n?: number;
+  quality?: "low" | "medium" | "high";
 }): Record<string, unknown> {
-  return stripUnsafeOpenAiImageGenerationParams(buildOpenAiImageGenerationsBody(params));
+  const body = buildOpenAiImageGenerationsBody(params);
+  if (params.quality && String(params.model).toLowerCase().startsWith("gpt-image")) {
+    body.quality = params.quality;
+  }
+  return stripUnsafeOpenAiImageGenerationParams(body);
 }
 
 export type OpenAiImageGenerationLogContext = {
