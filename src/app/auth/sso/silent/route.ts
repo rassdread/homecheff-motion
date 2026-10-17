@@ -10,10 +10,9 @@
 
 import { NextResponse } from "next/server";
 import { isCentralSsoLive } from "@/lib/identity/flags";
-import {
-  isPublicStudioSurface,
-  validateStudioReturnTo,
-} from "@/lib/identity/return-path";
+import { isPublicStudioSurface, validateStudioReturnTo } from "@/lib/identity/return-path";
+import { navigationOriginForRequest, previewNavigationOrigin, centralSsoStaysOnRequestHost } from "@/lib/preview-navigation-origin";
+import { studioSsoRedirectUri } from "@/lib/identity/sso/exchange-client";
 import { beginHomeCheffSsoRedirect } from "@/lib/identity/sso/begin-homecheff-sso";
 import { logStudioSsoEvent } from "@/lib/identity/sso/observability";
 import {
@@ -26,27 +25,27 @@ import { getAuthenticatedUser } from "@/server/auth/session";
 export const dynamic = "force-dynamic";
 
 function appOrigin(req: Request): string {
-  const env =
-    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
-    process.env.NEXT_PUBLIC_STUDIO_URL?.trim() ||
-    process.env.PUBLIC_BASE_URL?.trim();
-  if (env) return env.replace(/\/$/, "");
-  return new URL(req.url).origin;
+  return navigationOriginForRequest(req);
 }
 
-function failRedirect(
-  req: Request,
-  returnTo: string,
-  publicMode: boolean,
-): NextResponse {
+function failRedirect(req: Request, returnTo: string, publicMode: boolean): NextResponse {
   const origin = appOrigin(req);
+  const onPreview = previewNavigationOrigin({
+    vercelEnv: process.env.VERCEL_ENV,
+    forwardedHost: req.headers.get("x-forwarded-host"),
+    forwardedProto: req.headers.get("x-forwarded-proto"),
+    requestUrl: req.url,
+  });
+  if (onPreview) {
+    const path = isPublicStudioSurface(returnTo)
+      ? returnTo
+      : `/login?next=${encodeURIComponent(returnTo)}`;
+    return NextResponse.redirect(new URL(path, origin), 302);
+  }
   if (publicMode || isPublicStudioSurface(returnTo)) {
     return NextResponse.redirect(new URL(returnTo, origin), 302);
   }
-  return NextResponse.redirect(
-    new URL(`/login?next=${encodeURIComponent(returnTo)}`, origin),
-    302,
-  );
+  return NextResponse.redirect(new URL(`/login?next=${encodeURIComponent(returnTo)}`, origin), 302);
 }
 
 function redirectSilentToHomeCheff(opts: {
@@ -74,6 +73,25 @@ function redirectSilentToHomeCheff(opts: {
   return res;
 }
 
+function previewCanLeaveForCentralSso(req: Request): boolean {
+  let callbackUri: string | null = null;
+  try {
+    callbackUri = studioSsoRedirectUri();
+  } catch {
+    callbackUri = null;
+  }
+  return centralSsoStaysOnRequestHost({
+    vercelEnv: process.env.VERCEL_ENV,
+    requestOrigin: previewNavigationOrigin({
+      vercelEnv: process.env.VERCEL_ENV,
+      forwardedHost: req.headers.get("x-forwarded-host"),
+      forwardedProto: req.headers.get("x-forwarded-proto"),
+      requestUrl: req.url,
+    }),
+    callbackUri,
+  });
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const returnTo = validateStudioReturnTo(
@@ -90,7 +108,7 @@ export async function GET(req: Request) {
     return NextResponse.redirect(new URL(returnTo, origin), 302);
   }
 
-  if (!isCentralSsoLive()) {
+  if (!isCentralSsoLive() || !previewCanLeaveForCentralSso(req)) {
     return failRedirect(req, returnTo, publicMode || ecosystemMode);
   }
 

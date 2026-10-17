@@ -23,20 +23,17 @@ import {
   mintStudioHomeCheffSsoBegin,
 } from "@/lib/identity/sso/begin-homecheff-sso";
 import { StudioSsoError } from "@/lib/identity/sso/errors";
-import { homecheffIdentityOrigin } from "@/lib/identity/sso/exchange-client";
+import { homecheffIdentityOrigin, studioSsoRedirectUri } from "@/lib/identity/sso/exchange-client";
 import { logStudioSsoEvent } from "@/lib/identity/sso/observability";
+import { centralSsoStaysOnRequestHost, navigationOriginForRequest } from "@/lib/preview-navigation-origin";
 import { applySsoPendingCookie, type SsoPendingIntent } from "@/lib/identity/sso/state";
 import { clearSkipSilentSsoCookie } from "@/lib/identity/sso/silent-guard";
 import { getAuthenticatedUser } from "@/server/auth/session";
 
 export const dynamic = "force-dynamic";
 
-function errorRedirect(code: string): NextResponse {
-  const origin =
-    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
-    process.env.NEXT_PUBLIC_STUDIO_URL?.trim() ||
-    "http://localhost:3000";
-  const url = new URL("/auth/sso/error", origin.replace(/\/$/, ""));
+function errorRedirect(req: Request, code: string): NextResponse {
+  const url = new URL("/auth/sso/error", navigationOriginForRequest(req));
   url.searchParams.set("code", code);
   return NextResponse.redirect(url);
 }
@@ -64,7 +61,26 @@ function resolveInteraction(
 
 export async function GET(req: Request) {
   if (!isCentralSsoLive()) {
-    return errorRedirect("SSO_DISABLED");
+    return errorRedirect(req, "SSO_DISABLED");
+  }
+  if (
+    !centralSsoStaysOnRequestHost({
+      vercelEnv: process.env.VERCEL_ENV,
+      requestOrigin: navigationOriginForRequest(req),
+      callbackUri: (() => {
+        try {
+          return studioSsoRedirectUri();
+        } catch {
+          return null;
+        }
+      })(),
+    })
+  ) {
+    const returnTo = validateStudioReturnTo(new URL(req.url).searchParams.get("returnTo"));
+    return NextResponse.redirect(
+      new URL(`/login?next=${encodeURIComponent(returnTo)}`, navigationOriginForRequest(req)),
+      302,
+    );
   }
 
   try {
@@ -135,6 +151,6 @@ export async function GET(req: Request) {
     });
   } catch (err) {
     const code = err instanceof StudioSsoError ? err.code : "CONFIG_ERROR";
-    return errorRedirect(code);
+    return errorRedirect(req, code);
   }
 }

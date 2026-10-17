@@ -21,7 +21,13 @@ type StudioAuthGateProps = {
 export function StudioAuthGate({ children }: StudioAuthGateProps) {
   const session = useAuthSession();
   const pathname = usePathname();
-  const silentHref = `/auth/sso/silent?returnTo=${encodeURIComponent(pathname || "/")}&mode=ecosystem`;
+  const previewHost =
+    typeof window !== "undefined" &&
+    window.location.hostname.startsWith("homecheff-motion") &&
+    window.location.hostname.endsWith(".vercel.app");
+  const silentHref = previewHost
+    ? `/login?next=${encodeURIComponent(pathname || "/")}`
+    : `/auth/sso/silent?returnTo=${encodeURIComponent(pathname || "/")}&mode=ecosystem`;
   const started = useRef(false);
 
   useEffect(() => {

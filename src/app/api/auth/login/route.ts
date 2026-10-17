@@ -4,7 +4,8 @@ import { callMarketplaceLegacyMigrate } from "@/lib/identity/legacy-migrate-clie
 import { homecheffIdentityOrigin } from "@/lib/identity/sso/exchange-client";
 import { prisma } from "@/lib/prisma";
 import { apiServiceUnavailable } from "@/server/api-error-response";
-import { verifyPassword } from "@/server/auth/session";
+import { verifyPassword, applyStudioSessionToResponse } from "@/server/auth/session";
+import { shouldUsePreviewHostPasswordLogin } from "@/lib/preview-navigation-origin";
 
 type LoginPayload = {
   email?: string;
@@ -38,6 +39,9 @@ export async function POST(request: Request) {
   }
 
   if (!isCentralSsoLive()) {
+    if (shouldUsePreviewHostPasswordLogin({ vercelEnv: process.env.VERCEL_ENV, centralSsoLive: false })) {
+      return previewHostPasswordLogin(email, password);
+    }
     return NextResponse.json(
       { error: "Legacy login disabled.", code: "LEGACY_LOGIN_DISABLED" },
       { status: 403 },
@@ -147,4 +151,37 @@ export async function POST(request: Request) {
     centralUserId: migrated.centralUserId,
     outcome: migrated.outcome,
   });
+}
+
+/**
+ * Preview-only host session. Production SSO login is unchanged.
+ * Does not migrate, clear the password, or write the wallet.
+ */
+async function previewHostPasswordLogin(email: string, password: string) {
+  let user;
+  try {
+    user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, passwordHash: true, isActive: true, centralUserId: true },
+    });
+  } catch (error) {
+    return apiServiceUnavailable("auth/login", error);
+  }
+  if (!user?.passwordHash || !verifyPassword(password, user.passwordHash)) {
+    return NextResponse.json(
+      { error: "Invalid credentials.", code: "WRONG_PASSWORD" },
+      { status: 401 },
+    );
+  }
+  if (user.isActive === false) {
+    return NextResponse.json(
+      { error: "Account is disabled.", code: "USER_INACTIVE" },
+      { status: 403 },
+    );
+  }
+  const res = NextResponse.json({ ok: true });
+  applyStudioSessionToResponse(res, user.id, {
+    centralUserId: user.centralUserId ?? undefined,
+  });
+  return res;
 }

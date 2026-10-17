@@ -34,6 +34,7 @@ import {
 import { applyStudioSessionToResponse, getAuthenticatedUser } from "@/server/auth/session";
 import { readStudioUtmFromCookies } from "@/server/acquisition/read-studio-utm-cookie";
 import { upsertStudioAcquisitionFirstTouch } from "@/server/acquisition/studio-acquisition";
+import { navigationOriginForRequest } from "@/lib/preview-navigation-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -47,12 +48,7 @@ async function persistSsoAcquisition(userId: string): Promise<void> {
 }
 
 function appOrigin(req: Request): string {
-  const env =
-    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
-    process.env.NEXT_PUBLIC_STUDIO_URL?.trim() ||
-    process.env.PUBLIC_BASE_URL?.trim();
-  if (env) return env.replace(/\/$/, "");
-  return new URL(req.url).origin;
+  return navigationOriginForRequest(req);
 }
 
 function errorRedirect(req: Request, code: StudioSsoErrorCode): NextResponse {

@@ -15,7 +15,7 @@ const ALLOWED_EXACT = new Set([
   "/videos",
 ]);
 
-const ALLOWED_PREFIXES = ["/videos/", "/admin/"];
+const ALLOWED_PREFIXES = ["/videos/", "/admin/", "/studio/projects/"];
 
 export function isAllowedPostAuthPath(path: string): boolean {
   if (!path.startsWith("/") || path.startsWith("//")) {

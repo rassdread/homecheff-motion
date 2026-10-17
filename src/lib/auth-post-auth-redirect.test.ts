@@ -20,13 +20,20 @@ describe("auth post-auth redirect", () => {
       "/studio/photo-video",
       "/studio/photo-video?resume=1",
       "/studio/photo-video/from-item",
+      "/studio/projects/cmvcbmxdp00032jryohiw8a84/character-masters",
     ]) {
       assert.equal(isAllowedPostAuthPath(path), true, path);
     }
   });
 
   it("rejects open redirects and unknown paths", () => {
-    for (const path of ["//evil.com", "https://evil.com", "/evil", "/studio?foo=bar"]) {
+    for (const path of [
+      "//evil.com",
+      "https://evil.com",
+      "https://studio.homecheff.eu/studio/projects/x",
+      "/evil",
+      "/studio?foo=bar",
+    ]) {
       assert.equal(isAllowedPostAuthPath(path), false, path);
     }
   });
@@ -39,5 +46,10 @@ describe("auth post-auth redirect", () => {
     assert.equal(resolvePostAuthRedirect("/maak"), "/");
     assert.equal(resolvePostAuthRedirect("/animate/instant"), "/animate/instant");
     assert.equal(resolvePostAuthRedirect("/studio/photo-video?resume=1"), "/studio/photo-video?resume=1");
+    assert.equal(
+      resolvePostAuthRedirect("/studio/projects/cmvcbmxdp00032jryohiw8a84/character-masters"),
+      "/studio/projects/cmvcbmxdp00032jryohiw8a84/character-masters",
+    );
+    assert.equal(resolvePostAuthRedirect("https://studio.homecheff.eu/"), "/");
   });
 });
