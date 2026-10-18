@@ -64,32 +64,21 @@ describe("voice center UX wiring", () => {
     "src/components/studio/studio-character-voice-library-section.tsx"
   );
 
-  it("uses collapsible sections with summaries and closed-by-default library browse", () => {
-    const centerSrc = readFileSync(centerPath, "utf8");
-    assert.match(centerSrc, /VoiceCenterCollapsibleSection/);
-    assert.match(centerSrc, /studio\.voiceCenter\.section\.bestMatches/);
-    assert.match(centerSrc, /studio\.voiceCenter\.section\.personaPresets/);
-    assert.match(centerSrc, /studio\.voiceCenter\.section\.library/);
-    assert.match(centerSrc, /studio\.voiceCenter\.section\.myVoice/);
-    assert.match(centerSrc, /libraryBrowseOpen/);
-    assert.match(centerSrc, /browseOpen=\{libraryBrowseOpen\}/);
-    assert.doesNotMatch(centerSrc, /setVoiceLibraryTab/);
-    const sectionSrc = readFileSync(sectionPath, "utf8");
-    assert.match(sectionSrc, /studio\.voiceCenter\.openLibrary/);
-  });
-
-  it("keeps selected voice card always visible before collapsible sections", () => {
+  it("shows voice choices directly and keeps the shared preview panel above the tabs", () => {
     const centerSrc = readFileSync(centerPath, "utf8");
     const renderBlock = centerSrc.slice(centerSrc.indexOf("export function StudioCharacterVoiceCenter"));
-    const mainIdx = renderBlock.indexOf("<CharacterMainVoiceCard");
-    const collapsibleIdx = renderBlock.indexOf("<VoiceCenterCollapsibleSection");
-    assert.ok(mainIdx >= 0 && collapsibleIdx > mainIdx);
-  });
-
-  it("opens best matches only when no explicit voice is chosen", () => {
-    const centerSrc = readFileSync(centerPath, "utf8");
-    assert.match(centerSrc, /hasExplicitVoiceSelection/);
-    assert.match(centerSrc, /useState\(\(\) => !chosenVoice\)/);
+    const panelIdx = renderBlock.indexOf("<StudioCharacterVoiceSharedPreview");
+    const pickerIdx = renderBlock.indexOf("Kies een stem");
+    assert.ok(panelIdx >= 0 && pickerIdx > panelIdx);
+    const panelSrc = readFileSync(
+      join(process.cwd(), "src/components/studio/studio-character-voice-shared-preview.tsx"),
+      "utf8"
+    );
+    assert.match(panelSrc, /Beluister voorbeeld/);
+    assert.match(centerSrc, /Beluister gratis voorbeeld/);
+    assert.match(centerSrc, /personaPresets/);
+    assert.doesNotMatch(centerSrc, /setVoiceLibraryTab/);
+    assert.doesNotMatch(centerSrc, /scheduleFullCatalogLoad/);
   });
 
   it("splits preview text input from applied preview text", () => {
@@ -98,7 +87,7 @@ describe("voice center UX wiring", () => {
     assert.match(centerSrc, /appliedPreviewText/);
     assert.match(centerSrc, /PREVIEW_TEXT_DEBOUNCE_MS/);
     assert.match(centerSrc, /flushPreviewText/);
-    assert.match(centerSrc, /previewText=\{appliedPreviewText\}/);
+    assert.match(centerSrc, /speechSpeed: value.speechSpeed/);
     assert.doesNotMatch(centerSrc, /previewText=\{resolvedPreviewText\}/);
   });
 

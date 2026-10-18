@@ -302,13 +302,16 @@ export function characterIdentityCompletenessTier(
   return "missing";
 }
 
-export type CharacterVoiceIdentityStatus = "none" | "preset" | "clone" | "locked";
+export type CharacterVoiceIdentityStatus = "none" | "chosen" | "preset" | "clone" | "locked";
 
 export function resolveCharacterVoiceIdentityStatus(
   character: StudioCharacterListItem
 ): CharacterVoiceIdentityStatus {
-  if (!character.voiceEnabled || !character.voiceProfile.trim()) {
+  if (!character.voiceProfile.trim()) {
     return "none";
+  }
+  if (!character.voiceEnabled) {
+    return "chosen";
   }
   if (character.voiceLock) {
     return "locked";

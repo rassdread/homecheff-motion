@@ -69,7 +69,7 @@ describe("voice library discovery UX", () => {
   it("voice center exposes enable hint and auto-enables voice on selection", () => {
     const centerPath = join(process.cwd(), "src/components/studio/studio-character-voice-center.tsx");
     const src = readFileSync(centerPath, "utf8");
-    assert.match(src, /studio\.voiceCenter\.enableToUseHint/);
+    assert.match(src, /nog niet ingeschakeld/);
     assert.match(src, /voiceEnabled: true/);
     assert.doesNotMatch(src, /setVoiceLibraryTab/);
   });
@@ -101,45 +101,43 @@ describe("voice library discovery UX", () => {
     assert.doesNotMatch(src, /disabled=\{!_voiceEnabled\}/);
   });
 
-  it("voice center shows main voice card and collapsible discovery sections", () => {
+  it("voice center shows the shared preview panel and the voice tabs", () => {
     const centerPath = join(process.cwd(), "src/components/studio/studio-character-voice-center.tsx");
     const src = readFileSync(centerPath, "utf8");
-    assert.match(src, /studio\.voiceCenter\.mainVoiceTitle/);
-    assert.match(src, /CharacterMainVoiceCard/);
-    assert.match(src, /VoiceCenterCollapsibleSection/);
-    assert.match(src, /StudioVoiceRecommendationsPanel/);
-    assert.match(src, /StudioVoicePersonaPresetsPanel/);
+    assert.match(src, /StudioCharacterVoiceSharedPreview/);
+    assert.match(src, /StudioVoiceCatalogBrowser/);
+    assert.match(src, /Kies een stem/);
+    assert.match(
+      readFileSync(join(process.cwd(), "src/components/studio/studio-character-voice-shared-preview.tsx"), "utf8"),
+      /Beluister voorbeeld/
+    );
     assert.match(src, /studio\.voiceCenter\.advancedLanguageTitle/);
     assert.match(src, /studio\.voiceCenter\.sameVoiceForAllLanguages/);
     assert.match(src, /advancedLanguageOpen/);
+    assert.doesNotMatch(src, /disabled=\{!voiceEnabled/);
   });
 
-  it("orders voice center: main voice, then collapsible best matches and persona presets", () => {
+  it("puts the preview panel before the voice tabs and does not download the full catalog", () => {
     const centerPath = join(process.cwd(), "src/components/studio/studio-character-voice-center.tsx");
+    const clientPath = join(process.cwd(), "src/lib/studio-voice-library-client.ts");
     const src = readFileSync(centerPath, "utf8");
     const renderBlock = src.slice(src.indexOf("export function StudioCharacterVoiceCenter"));
-    const mainIdx = renderBlock.indexOf("<CharacterMainVoiceCard");
-    const collapsibleIdx = renderBlock.indexOf("<VoiceCenterCollapsibleSection");
-    const recIdx = renderBlock.indexOf("<StudioVoiceRecommendationsPanel");
-    const personaIdx = renderBlock.indexOf("<StudioVoicePersonaPresetsPanel");
-    assert.ok(mainIdx >= 0 && collapsibleIdx > mainIdx);
-    assert.ok(recIdx > collapsibleIdx);
-    assert.ok(personaIdx > recIdx);
+    const panelIdx = renderBlock.indexOf("<StudioCharacterVoiceSharedPreview");
+    const tabsIdx = renderBlock.indexOf("Kies een stem");
+    assert.ok(panelIdx >= 0 && tabsIdx > panelIdx);
+    assert.match(readFileSync(clientPath, "utf8"), /searchVoiceLibraryPage/);
+    assert.doesNotMatch(readFileSync(clientPath, "utf8"), /scheduleFullCatalogLoad/);
   });
 
-  it("shows auto preview hint in main flow and textarea only in advanced settings", () => {
+  it("keeps editable preview text in the shared panel", () => {
     const centerPath = join(process.cwd(), "src/components/studio/studio-character-voice-center.tsx");
+    const panelPath = join(process.cwd(), "src/components/studio/studio-character-voice-shared-preview.tsx");
     const src = readFileSync(centerPath, "utf8");
-    const renderBlock = src.slice(src.indexOf("export function StudioCharacterVoiceCenter"));
-    assert.match(renderBlock, /studio\.voiceCenter\.previewTextAutoHint/);
-    const mainIdx = renderBlock.indexOf("<CharacterMainVoiceCard");
-    const hintIdx = renderBlock.indexOf("studio.voiceCenter.previewTextAutoHint");
-    const advancedIdx = renderBlock.indexOf('title={t("studio.voiceCenter.advancedLanguageTitle")}');
-    const textareaIdx = renderBlock.indexOf("studio.voiceCenter.previewTextLabel");
-    assert.ok(mainIdx >= 0 && hintIdx > mainIdx && hintIdx < advancedIdx);
-    assert.ok(advancedIdx >= 0 && textareaIdx > advancedIdx);
-    const beforeAdvanced = renderBlock.slice(0, advancedIdx);
-    assert.doesNotMatch(beforeAdvanced, /studio\.voiceCenter\.previewTextLabel/);
+    const panel = readFileSync(panelPath, "utf8");
+    assert.match(src, /previewTextInput/);
+    assert.match(panel, /Voorbeeldtekst/);
+    assert.match(panel, /Spreeksnelheid/);
+    assert.doesNotMatch(panel, /playbackRate/);
   });
 
   it("persona preset cards expose preview button and requestCharacterVoicePreview", () => {
@@ -167,8 +165,9 @@ describe("voice library discovery UX", () => {
     assert.match(routeSrc, /summary/);
     assert.match(routeSrc, /voices:\s*\[\]/);
     assert.match(clientSrc, /summary=1/);
-    assert.match(clientSrc, /loadingVoices/);
-    assert.match(clientSrc, /voicesReady/);
+    assert.match(clientSrc, /searchVoiceLibraryPage/);
+    assert.match(routeSrc, /pageVoiceLibrary/);
+    assert.doesNotMatch(clientSrc, /scheduleFullCatalogLoad/);
   });
 
   it("my voices tab shows discovery heading and clone workflow", () => {

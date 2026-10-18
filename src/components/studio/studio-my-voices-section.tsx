@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { StudioAudioPreviewPlayer } from "@/components/studio/studio-audio-preview-player";
+import { playVoiceLibrarySample } from "@/lib/studio-voice-library-sample";
 import { useOptionalUserVoiceLibrary } from "@/components/studio/studio-user-voice-library-provider";
 import { StudioVoiceCloneWorkflow } from "@/components/studio/studio-voice-clone-workflow";
 import { useActiveTranslator } from "@/i18n/client";
@@ -82,16 +82,14 @@ function MyVoiceRow({
         </div>
       </div>
       {voice.previewUrl ?
-        <div className="mt-2">
-          <StudioAudioPreviewPlayer
-            title={voice.name}
-            audioUrl={voice.previewUrl}
-            source="voice_clone"
-            variant="compact"
-            className="border-violet-100"
-          />
-        </div>
-      : null}
+        <button
+          type="button"
+          onClick={() => playVoiceLibrarySample(voice.previewUrl)}
+          className="mt-2 min-h-[44px] rounded-full border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-900"
+        >
+          Beluister gratis voorbeeld
+        </button>
+      : <p className="mt-2 text-xs text-zinc-500">Geen gratis voorbeeld beschikbaar</p>}
     </article>
   );
 }

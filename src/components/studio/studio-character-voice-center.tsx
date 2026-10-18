@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StudioAudioPreviewPlayer } from "@/components/studio/studio-audio-preview-player";
-import type { TranslationKey } from "@/i18n";
 import { useActiveTranslator } from "@/i18n/client";
 import {
   requestCharacterVoicePreview,
@@ -10,15 +9,10 @@ import {
 } from "@/lib/studio-character-voice-preview-client";
 import {
   buildStoryAwareVoicePreviewText,
-  computeVoiceCompatibilityScore,
-  findMarketplaceEntryByProfileRef,
   type VoiceMarketplaceContext,
-  type VoiceMarketplaceEntry,
 } from "@/lib/studio-voice-marketplace";
-import { ELEVENLABS_SPEECH_SPEEDS } from "@/lib/elevenlabs-speech-speed";
-import { voiceLanguageLabelKey } from "@/lib/studio-voice-language-labels";
-import { appendVoiceSelectionMemory, parseVoiceSelectionMemory } from "@/lib/studio-voice-selection-memory";
-import type { VoiceSelectMeta } from "@/components/studio/studio-character-voice-library-section";
+import { appendVoiceSelectionMemory } from "@/lib/studio-voice-selection-memory";
+import type { VoiceSelectMeta, VoiceLibraryTab } from "@/components/studio/studio-character-voice-library-section";
 import {
   STUDIO_VOICE_PROFILE_IDS,
   getVoiceProfilePreset,
@@ -38,24 +32,14 @@ import {
 import type { VoiceLibraryPayload } from "@/lib/studio-voice-library-client";
 import { useOptionalUserVoiceLibrary } from "@/components/studio/studio-user-voice-library-provider";
 import type { UserVoiceLibrary } from "@/types/studio-user-voice-library";
-import {
-  StudioCharacterVoiceLibrarySection,
-  StudioVoicePersonaPresetsPanel,
-  StudioVoiceQuickPicksPanel,
-  StudioVoiceRecommendationsPanel,
-  type VoiceLibraryTab,
-} from "@/components/studio/studio-character-voice-library-section";
 import { VoiceCenterCollapsibleSection } from "@/components/studio/voice-center-collapsible-section";
 import { StudioMyVoicesSection } from "@/components/studio/studio-my-voices-section";
+import { StudioVoiceCatalogBrowser } from "@/components/studio/studio-voice-catalog-browser";
+import { StudioCharacterVoiceSharedPreview } from "@/components/studio/studio-character-voice-shared-preview";
+import { playVoiceLibrarySample } from "@/lib/studio-voice-library-sample";
 import { useOptionalVoiceLibrary } from "@/components/studio/studio-voice-library-provider";
 import { buildVoiceLibraryStats } from "@/lib/studio-voice-accent-coverage";
-import {
-  PREVIEW_TEXT_DEBOUNCE_MS,
-  countVoiceRecommendations,
-  hasExplicitVoiceSelection,
-  personaGroupSummaryLabelKey,
-  resolvePersonaGroupFromCharacterType,
-} from "@/lib/studio-voice-center-ux";
+import { PREVIEW_TEXT_DEBOUNCE_MS } from "@/lib/studio-voice-center-ux";
 import type {
   CharacterVoiceLanguageProfile,
   CharacterVoiceProfilesByLanguage,
@@ -85,7 +69,7 @@ export function characterVoiceStateFromDetail(
   return {
     voiceEnabled: character.voiceEnabled,
     voiceProvider: character.voiceProvider || "elevenlabs",
-    voiceProfile: character.voiceProfile || "warm_narrator",
+    voiceProfile: character.voiceProfile || "",
     voiceLanguage: character.voiceLanguage || "en",
     voiceGender: character.voiceGender || "",
     voiceDescription: character.voiceDescription || "",
@@ -132,6 +116,9 @@ function resolveVoiceDisplayLabel(params: {
   t: (key: never, p?: Record<string, string>) => string;
   catalogVoiceName?: string;
 }): string {
+  if (!params.voiceProfile.trim()) {
+    return "Geen stem gekozen";
+  }
   if (isClonedVoiceProfileRef(params.voiceProfile)) {
     return params.voiceDescription.trim() || params.t("studio.voiceClone.clonedVoice" as never);
   }
@@ -172,122 +159,6 @@ function resolveLanguageVoice(
   };
 }
 
-function CharacterMainVoiceCard({
-  voiceProfile,
-  voiceDescription,
-  voiceProvider,
-  voiceEnabled,
-  displayLabel,
-  marketplaceEntry,
-  compatibilityScore,
-  catalogPreviewUrl,
-  mainPreviewUrl,
-  lastPreviewWasDraft,
-  previewBusy,
-  onPreview,
-  t,
-}: {
-  voiceProfile: string;
-  voiceDescription: string;
-  voiceProvider: string;
-  voiceEnabled: boolean;
-  displayLabel: string;
-  marketplaceEntry: VoiceMarketplaceEntry | null;
-  compatibilityScore: number | null;
-  catalogPreviewUrl?: string;
-  mainPreviewUrl?: string;
-  lastPreviewWasDraft: boolean;
-  previewBusy: boolean;
-  onPreview: () => void;
-  t: (key: TranslationKey, p?: Record<string, string>) => string;
-}) {
-  const accentLabel = marketplaceEntry?.accentLabelKey
-    ? t(marketplaceEntry.accentLabelKey as never)
-    : marketplaceEntry?.accent || "—";
-  const languageLabel = marketplaceEntry?.language
-    ? t(voiceLanguageLabelKey(marketplaceEntry.language) as never)
-    : "—";
-
-  return (
-    <section className="mt-6 rounded-xl border border-violet-300 bg-violet-50/80 p-4 shadow-sm">
-      <h3 className="text-sm font-bold text-violet-950">{t("studio.voiceCenter.mainVoiceTitle")}</h3>
-      <p className="mt-1 text-xs text-violet-800">{t("studio.voiceCenter.mainVoiceSubtitle")}</p>
-
-      <div className="mt-4 rounded-lg border border-violet-200 bg-white p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-base font-bold text-violet-950">{displayLabel}</p>
-              <span className="rounded-full bg-violet-600 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                {t("studio.voiceCenter.selectedVoiceBadge")}
-              </span>
-            </div>
-            {marketplaceEntry ?
-              <>
-                <p className="mt-2 text-xs text-violet-800">
-                  {[accentLabel, languageLabel, marketplaceEntry.gender, marketplaceEntry.age]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
-                <p className="mt-1 text-[10px] uppercase tracking-wide text-violet-500">
-                  {t("studio.voiceLibrary.providerLabel", { provider: marketplaceEntry.provider })}
-                </p>
-                {compatibilityScore !== null ?
-                  <p className="mt-1 text-xs font-medium text-violet-700">
-                    {t("studio.voiceLibrary.compatibilityScoreValue", {
-                      score: String(compatibilityScore),
-                    })}
-                  </p>
-                : null}
-              </>
-            : <p className="mt-2 text-xs text-violet-700">
-                {voiceDescription.trim() || voiceProfile}
-              </p>
-            }
-            <p className="mt-1 text-[10px] text-violet-600">
-              {t("studio.characterVoice.provider")}: {voiceProvider || "elevenlabs"}
-            </p>
-          </div>
-          <button
-            type="button"
-            disabled={!voiceEnabled || previewBusy}
-            onClick={onPreview}
-            className="min-h-[44px] shrink-0 rounded-full border border-violet-400 bg-white px-4 py-2 text-sm font-semibold text-violet-900 hover:bg-violet-50 disabled:opacity-50"
-          >
-            {previewBusy ? t("button.loading") : t("studio.voiceCenter.preview")}
-          </button>
-        </div>
-
-        {mainPreviewUrl ?
-          <div className="mt-3 space-y-1">
-            {lastPreviewWasDraft ?
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-sky-800">
-                {t("studio.voiceCenter.draftPreviewBadge")}
-              </p>
-            : null}
-            <StudioAudioPreviewPlayer
-              title={t("studio.voiceCenter.lastPreview")}
-              audioUrl={mainPreviewUrl}
-              source="voice_character"
-              variant="compact"
-              className="border-violet-100"
-            />
-          </div>
-        : catalogPreviewUrl ?
-          <div className="mt-3">
-            <StudioAudioPreviewPlayer
-              title={displayLabel}
-              audioUrl={catalogPreviewUrl}
-              source="voice_library"
-              variant="compact"
-              className="border-violet-100"
-            />
-          </div>
-        : null}
-      </div>
-    </section>
-  );
-}
 
 export type PerLanguageVoiceOverrideOption = {
   value: string;
@@ -399,22 +270,11 @@ export function StudioCharacterVoiceCenter({
   );
   const [advancedLanguageOpen, setAdvancedLanguageOpen] = useState(false);
   const [adminDebugOverridesOpen, setAdminDebugOverridesOpen] = useState(false);
-  const [libraryBrowseOpen, setLibraryBrowseOpen] = useState(false);
   const [useSameVoiceForAllLanguages, setUseSameVoiceForAllLanguages] = useState(
     () => !hasLanguageVoiceOverrides(value.voiceProfilesByLanguage)
   );
-
-  const chosenVoice = hasExplicitVoiceSelection(value.voiceProfile, value.voiceNotes);
-  const [bestMatchesOpen, setBestMatchesOpen] = useState(() => !chosenVoice);
-  const [personaPresetsOpen, setPersonaPresetsOpen] = useState(true);
   const [voicePickerTab, setVoicePickerTab] = useState<"recommended" | "all" | "mine">("recommended");
-  const [librarySectionOpen, setLibrarySectionOpen] = useState(false);
-  const [myVoiceOpen, setMyVoiceOpen] = useState(false);
-
-  const preferredPersonaGroupId = useMemo(
-    () => resolvePersonaGroupFromCharacterType(marketplaceContext?.characterType),
-    [marketplaceContext?.characterType]
-  );
+  const [sampleByProfile, setSampleByProfile] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!previewTextTouched) {
@@ -449,61 +309,18 @@ export function StudioCharacterVoiceCenter({
   const mainVoiceLang = (value.voiceLanguage as VoiceCenterLanguage) || "en";
   const mainPreviewUrl = previewByLang[mainVoiceLang];
   const mainPreviewBusy = previewBusyLang === mainVoiceLang;
+  const previewSignature = `${value.voiceProfile}|${value.speechSpeed}|${value.voiceLanguage}|${appliedPreviewText}`;
+  const previewSignatureRef = useRef(previewSignature);
+  useEffect(() => {
+    if (previewSignatureRef.current === previewSignature) {
+      return;
+    }
+    previewSignatureRef.current = previewSignature;
+    setPreviewByLang({});
+    setPreviewNotice("");
+  }, [previewSignature]);
 
   const voicePayload = voiceLibrary?.payload ?? null;
-  const cloneVoices = userVoiceLibrary?.library?.voices;
-
-  const marketplaceEntry = useMemo(() => {
-    if (!voicePayload) {
-      return null;
-    }
-    return findMarketplaceEntryByProfileRef(
-      value.voiceProfile,
-      voicePayload.catalog,
-      cloneVoices ?? []
-    );
-  }, [voicePayload, value.voiceProfile, cloneVoices]);
-
-  const selectionMemory = useMemo(
-    () => parseVoiceSelectionMemory(value.voiceNotes),
-    [value.voiceNotes]
-  );
-
-  const mainCompatibilityScore = useMemo(() => {
-    if (!marketplaceEntry || !voicePayload) {
-      return selectionMemory?.compatibilityScore ?? null;
-    }
-    const ctx: VoiceMarketplaceContext = {
-      ...marketplaceContext,
-      characterName,
-      language: value.voiceLanguage,
-      gender: value.voiceGender,
-    };
-    const match = computeVoiceCompatibilityScore(
-      marketplaceEntry,
-      ctx,
-      voicePayload.personaPresets
-    );
-    return match.score;
-  }, [
-    marketplaceEntry,
-    voicePayload,
-    marketplaceContext,
-    characterName,
-    value.voiceLanguage,
-    value.voiceGender,
-    selectionMemory,
-  ]);
-
-  const resolvedMarketplaceContext = useMemo(
-    (): VoiceMarketplaceContext => ({
-      ...marketplaceContext,
-      characterName,
-      language: value.voiceLanguage,
-      gender: value.voiceGender,
-    }),
-    [marketplaceContext, characterName, value.voiceLanguage, value.voiceGender]
-  );
 
   const libraryStats = useMemo(() => {
     if (!voicePayload) {
@@ -518,19 +335,6 @@ export function StudioCharacterVoiceCenter({
       })
     );
   }, [voicePayload]);
-
-  const recommendationCount = useMemo(() => {
-    if (!voicePayload) {
-      return 0;
-    }
-    return countVoiceRecommendations({
-      payload: voicePayload,
-      marketplaceContext: resolvedMarketplaceContext,
-      clones: cloneVoices ?? [],
-    });
-  }, [voicePayload, resolvedMarketplaceContext, cloneVoices]);
-
-  const cloneCount = cloneVoices?.length ?? 0;
 
   const invalidMainVoice = isInvalidProviderVoiceProfileRef(value.voiceProfile);
   const invalidLangOverrides = VOICE_CENTER_LANGUAGES.some((lang) => {
@@ -584,16 +388,19 @@ export function StudioCharacterVoiceCenter({
         meta?.selectionMemory
           ? appendVoiceSelectionMemory(value.voiceNotes, meta.selectionMemory)
           : value.voiceNotes;
+      const storedProfile = coerceVoiceProfileForStorage(profile);
+      if (meta?.previewUrl) {
+        setSampleByProfile((current) => ({ ...current, [storedProfile]: meta.previewUrl ?? "" }));
+      }
       onChange({
         ...value,
         voiceEnabled: true,
-        voiceProfile: coerceVoiceProfileForStorage(profile),
+        voiceProfile: storedProfile,
         voiceDescription: meta?.personaLabelKey
           ? t(meta.personaLabelKey as never)
           : meta?.voiceName ?? value.voiceDescription,
         voiceNotes,
       });
-      setBestMatchesOpen(false);
     },
     [onChange, t, value]
   );
@@ -713,7 +520,22 @@ export function StudioCharacterVoiceCenter({
           />
           {t("studio.voiceCenter.lockLabel")}
         </label>
+        <p className="basis-full text-xs text-zinc-600">
+          Inschakelen laat renders deze stem gebruiken. Zonder vinkje blijft een gekozen stem bewaard als keuze, maar scènes spreken hem niet.
+        </p>
+        <p className="basis-full text-xs text-zinc-600">
+          Vergrendelen houdt deze stem vast in scènes. Je kunt hier nog een andere stem kiezen. Vink uit om te ontgrendelen, en sla daarna op.
+        </p>
       </div>
+      <p className="mt-3 text-sm font-medium text-zinc-800">
+        {!value.voiceProfile.trim()
+          ? "Stem: niet gekozen"
+          : !value.voiceEnabled
+            ? "Stem gekozen, nog niet ingeschakeld"
+            : value.voiceLock
+              ? "Stem ingeschakeld en vergrendeld. Sla op om dit te bewaren."
+              : "Stem ingeschakeld. Sla op om hem in scènes te gebruiken."}
+      </p>
 
       {showInvalidVoiceBanner ?
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
@@ -733,54 +555,35 @@ export function StudioCharacterVoiceCenter({
         </div>
       : null}
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <label className="block text-xs font-medium text-violet-900">
-          {t("studio.characterVoice.language")}
-          <select
-            className="mt-1 w-full min-h-[44px] rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm"
-            value={value.voiceLanguage}
-            onChange={(e) => onChange({ ...value, voiceLanguage: e.target.value })}
-          >
-            {VOICE_CENTER_LANGUAGES.map((lang) => (
-              <option key={lang} value={lang}>
-                {lang.toUpperCase()}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-xs font-medium text-violet-900">
-          Spreeksnelheid
-          <select
-            className="mt-1 w-full min-h-[44px] rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm"
-            value={String(value.speechSpeed || 1)}
-            onChange={(e) => onChange({ ...value, speechSpeed: Number(e.target.value) })}
-          >
-            {ELEVENLABS_SPEECH_SPEEDS.map((speed) => (
-              <option key={speed} value={speed}>
-                {speed === 1 ? "1× standaard" : `${speed}×`}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <CharacterMainVoiceCard
-        voiceProfile={value.voiceProfile}
-        voiceDescription={value.voiceDescription}
-        voiceProvider={value.voiceProvider}
+      <StudioCharacterVoiceSharedPreview
+        voiceLabel={defaultProfileLabel}
+        voiceSelected={Boolean(value.voiceProfile.trim())}
         voiceEnabled={value.voiceEnabled}
-        displayLabel={defaultProfileLabel}
-        marketplaceEntry={marketplaceEntry}
-        compatibilityScore={mainCompatibilityScore}
-        catalogPreviewUrl={marketplaceEntry?.previewUrl}
-        mainPreviewUrl={mainPreviewUrl}
-        lastPreviewWasDraft={lastPreviewWasDraft}
+        language={value.voiceLanguage}
+        languages={VOICE_CENTER_LANGUAGES}
+        onLanguage={(language) => onChange({ ...value, voiceLanguage: language })}
+        speechSpeed={value.speechSpeed || 1}
+        onSpeechSpeed={(speechSpeed) => onChange({ ...value, speechSpeed })}
+        previewText={previewTextTouched ? previewTextInput : defaultPreviewText}
+        onPreviewText={(text) => {
+          setPreviewTextTouched(true);
+          setPreviewTextInput(text);
+        }}
+        sampleUrl={
+          sampleByProfile[value.voiceProfile] ||
+          voicePayload?.personaPresets.find((preset) => {
+            const ref = parseVoiceProfileRef(value.voiceProfile);
+            const providerId = ref.kind === "library" || ref.kind === "clone" ? ref.providerVoiceId : "";
+            return preset.voiceId === providerId || `library:${preset.voiceId}` === value.voiceProfile;
+          })?.previewUrl ||
+          ""
+        }
+        onPersonalizedPreview={() => void runPreview(mainVoiceLang)}
         previewBusy={mainPreviewBusy}
-        onPreview={() => void runPreview(mainVoiceLang)}
-        t={t}
+        previewError={previewError}
+        previewNotice={previewNotice}
+        personalizedAudioUrl={mainPreviewUrl}
       />
-
-      <p className="mt-4 text-xs text-violet-700/90">{t("studio.voiceCenter.previewTextAutoHint")}</p>
 
       {!value.voiceEnabled ?
         <p className="mt-4 rounded-lg border border-sky-200 bg-sky-50/80 px-3 py-2 text-xs text-sky-950">
@@ -814,126 +617,95 @@ export function StudioCharacterVoiceCenter({
       </div>
 
       {voicePickerTab === "recommended" ? (
-      <>
-      <VoiceCenterCollapsibleSection
-        title={t("studio.voiceCenter.section.bestMatches")}
-        summary={t("studio.voiceCenter.summary.recommendations", {
-          count: String(recommendationCount),
-        })}
-        open={true}
-        onToggle={() => setBestMatchesOpen((open) => !open)}
-      >
-        {voiceLibrary?.loadingVoices ?
-          <p className="text-sm text-violet-700">{t("studio.voiceLibrary.loadingVoices")}</p>
-        : voicePayload && voiceLibrary?.voicesReady ?
-          <StudioVoiceRecommendationsPanel
-            payload={voicePayload}
-            marketplaceContext={resolvedMarketplaceContext}
-            selectedProfile={value.voiceProfile}
-            onSelectProfile={handleSelectProfile}
-            characterId={characterId}
-            characterName={characterName}
-            language={value.voiceLanguage}
-            previewText={appliedPreviewText}
-            onPreviewError={setPreviewError}
-            embedded
-          />
-        : null}
-      </VoiceCenterCollapsibleSection>
-
-      <VoiceCenterCollapsibleSection
-        title={t("studio.voiceCenter.section.personaPresets")}
-        summary={t("studio.voiceCenter.summary.personaPresets", {
-          count: String(voicePayload?.personaPresets.length ?? 0),
-          group: t(personaGroupSummaryLabelKey(preferredPersonaGroupId) as never),
-        })}
-        open={true}
-        onToggle={() => setPersonaPresetsOpen((open) => !open)}
-      >
-        {voicePayload ?
-          <StudioVoicePersonaPresetsPanel
-            personaPresets={voicePayload.personaPresets}
-            selectedProfile={value.voiceProfile}
-            onSelectProfile={handleSelectProfile}
-            characterId={characterId}
-            characterName={characterName}
-            language={value.voiceLanguage}
-            previewText={appliedPreviewText}
-            onPreviewError={setPreviewError}
-            embedded
-            preferredGroupId={preferredPersonaGroupId}
-          />
-        : null}
-      </VoiceCenterCollapsibleSection>
-      </>
+        <div className="mt-4 space-y-2">
+          {voiceLibrary?.loading && !voicePayload ?
+            <p className="text-sm text-zinc-600">Aanbevolen stemmen laden…</p>
+          : null}
+          {voiceLibrary?.error ?
+            <p className="text-sm text-red-800">{voiceLibrary.error}</p>
+          : null}
+          <ul className="grid gap-2">
+            {(voicePayload?.personaPresets ?? []).map((preset) => {
+              const profile = safeFormatLibraryVoiceProfileRef(preset.voiceId) ?? "";
+              const selected = profile !== "" && value.voiceProfile === profile;
+              return (
+                <li
+                  key={preset.id}
+                  className={`rounded-xl border p-3 ${selected ? "border-[#0067B1] bg-sky-50" : "border-zinc-200 bg-white"}`}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-950">{preset.voiceName || t(preset.labelKey as never)}</p>
+                      <p className="mt-1 text-xs text-zinc-600">
+                        {t(preset.labelKey as never)} · {preset.language.toUpperCase()}
+                      </p>
+                    </div>
+                    {selected ?
+                      <span className="rounded-full bg-[#0067B1] px-2 py-0.5 text-[10px] font-semibold uppercase text-white">
+                        Geselecteerd
+                      </span>
+                    : null}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {preset.previewUrl ?
+                      <button
+                        type="button"
+                        onClick={() => playVoiceLibrarySample(preset.previewUrl)}
+                        className="min-h-[44px] rounded-full border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-900"
+                      >
+                        Beluister gratis voorbeeld
+                      </button>
+                    : <p className="text-xs text-zinc-500">Geen gratis voorbeeld beschikbaar</p>}
+                    <button
+                      type="button"
+                      disabled={!profile || !canModify}
+                      onClick={() =>
+                        handleSelectProfile(profile, {
+                          voiceName: preset.voiceName,
+                          personaLabelKey: preset.labelKey,
+                          previewUrl: preset.previewUrl,
+                        })
+                      }
+                      className="min-h-[44px] rounded-full bg-[#0067B1] px-3 text-sm font-semibold text-white disabled:opacity-50"
+                    >
+                      Kies deze stem
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       ) : null}
 
       {voicePickerTab === "all" ? (
-      <VoiceCenterCollapsibleSection
-        title={t("studio.voiceCenter.section.library")}
-        summary={
-          libraryStats
-            ? t("studio.voiceCenter.summary.library", {
-                voices: libraryStats.totalVoices,
-                accents: libraryStats.accentCount,
-                languages: libraryStats.languageCount,
-              })
-            : t("studio.voiceLibrary.loading")
-        }
-        open={true}
-        onToggle={() => setLibrarySectionOpen((open) => !open)}
-      >
-        {voicePayload && voiceLibrary?.voicesReady ?
-          <div className="space-y-4">
-            <StudioVoiceQuickPicksPanel
-              payload={voicePayload}
-              marketplaceContext={resolvedMarketplaceContext}
-              selectedProfile={value.voiceProfile}
-              onSelectProfile={handleSelectProfile}
-              characterId={characterId}
-              characterName={characterName}
-              language={value.voiceLanguage}
-              previewText={appliedPreviewText}
-              onPreviewError={setPreviewError}
-            />
-            <StudioCharacterVoiceLibrarySection
-              activeTab="persona"
-              voiceEnabled={value.voiceEnabled}
-              selectedProfile={value.voiceProfile}
-              characterId={characterId}
-              characterName={characterName}
-              language={value.voiceLanguage}
-              canModify={canModify}
-              isAdmin={isAdmin}
-              marketplaceContext={marketplaceContext}
-              browseOpen={libraryBrowseOpen || voicePickerTab === "all"}
-              onBrowseOpen={() => setLibraryBrowseOpen(true)}
-              onSelectProfile={handleSelectProfile}
-            />
-          </div>
-        : voiceLibrary?.loadingVoices ?
-          <p className="text-sm text-violet-700">{t("studio.voiceLibrary.loadingVoices")}</p>
-        : null}
-      </VoiceCenterCollapsibleSection>
+        <StudioVoiceCatalogBrowser
+          active={voicePickerTab === "all"}
+          selectedProfile={value.voiceProfile}
+          filterOptions={voicePayload?.filterOptions ?? null}
+          statsNote={
+            libraryStats
+              ? `${libraryStats.totalVoices} stemmen, ${libraryStats.accentCount} accenten, ${libraryStats.languageCount} talen en ${libraryStats.personaCount} persona's staan in de index (${libraryStats.catalogSource}). Dit is geen live controle of elke stem nu spraak kan maken.`
+              : "De stemindex laden…"
+          }
+          onSelect={(profile, voiceName, previewUrl) =>
+            handleSelectProfile(profile, { voiceName, previewUrl })
+          }
+        />
       ) : null}
 
       {voicePickerTab === "mine" ? (
-      <VoiceCenterCollapsibleSection
-        title={t("studio.voiceCenter.section.myVoice")}
-        summary={t("studio.voiceCenter.summary.myVoice", { count: String(cloneCount) })}
-        open={true}
-        onToggle={() => setMyVoiceOpen((open) => !open)}
-      >
-        <StudioMyVoicesSection
-          selectedProfile={value.voiceProfile}
-          characterId={characterId}
-          characterName={characterName}
-          language={value.voiceLanguage}
-          canModify={canModify}
-          onSelectProfile={handleSelectProfile}
-        />
-        <p className="mt-4 text-xs text-violet-700">{t("studio.voiceLibrary.clonesInLibraryHint")}</p>
-      </VoiceCenterCollapsibleSection>
+        <div className="mt-4">
+          <StudioMyVoicesSection
+            selectedProfile={value.voiceProfile}
+            characterId={characterId}
+            characterName={characterName}
+            language={value.voiceLanguage}
+            canModify={canModify}
+            onSelectProfile={handleSelectProfile}
+          />
+          <p className="mt-4 text-xs text-violet-700">{t("studio.voiceLibrary.clonesInLibraryHint")}</p>
+        </div>
       ) : null}
 
       <VoiceCenterCollapsibleSection

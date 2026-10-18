@@ -84,6 +84,7 @@ export type VoiceSelectMeta = {
   voiceName?: string;
   personaLabelKey?: string;
   selectionMemory?: VoiceSelectionMemory;
+  previewUrl?: string;
 };
 
 type Props = {

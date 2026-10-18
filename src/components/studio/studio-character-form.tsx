@@ -158,8 +158,11 @@ function fromDetail(d: StudioCharacterDetail): StudioCharacterFormValues {
 }
 
 function voiceStatusFromForm(voice: CharacterVoiceFormState): CharacterVoiceIdentityStatus {
-  if (!voice.voiceEnabled || !voice.voiceProfile.trim()) {
+  if (!voice.voiceProfile.trim()) {
     return "none";
+  }
+  if (!voice.voiceEnabled) {
+    return "chosen";
   }
   if (voice.voiceLock) {
     return "locked";

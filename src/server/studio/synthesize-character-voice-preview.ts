@@ -162,6 +162,12 @@ export async function synthesizeCharacterVoicePreview(
       language,
       modelId,
       speechSpeed: request.speed,
+      provider: "elevenlabs",
+      voiceSettings: {
+        stability: request.voice_settings.stability,
+        similarity_boost: request.voice_settings.similarity_boost,
+        style: request.voice_settings.style,
+      },
     });
     if (cached) {
       const estimatedCostSavedUsd = estimateElevenLabsTtsCostUsd({
@@ -230,6 +236,11 @@ export async function synthesizeCharacterVoicePreview(
         modelId: synthesis.providerModelId,
         speechSpeed: request.speed,
         provider: synthesis.provider,
+        voiceSettings: {
+          stability: request.voice_settings.stability,
+          similarity_boost: request.voice_settings.similarity_boost,
+          style: request.voice_settings.style,
+        },
         previewType,
         audioBuffer: synthesis.audioBuffer,
         contentType: "audio/mpeg",

@@ -1,6 +1,6 @@
 /**
- * Client-side voice library fetch with module-level cache (load once per session).
- * Initial load requests summary (no voice rows); full catalog loads in the background.
+ * Client-side voice library fetch.
+ * The first request is the summary only. Voice rows load later, one page at a time.
  */
 
 import type { VoiceLibraryFilterOptions } from "@/lib/studio-voice-accent-model";
@@ -20,10 +20,30 @@ export type VoiceLibraryPayload = {
   voicesDeferred?: boolean;
 };
 
+export type VoiceLibraryPageVoice = {
+  id: string;
+  name: string;
+  accent: string;
+  gender: string;
+  age: string;
+  language: string;
+  description: string;
+  previewUrl: string;
+};
+
+export type VoiceLibraryPageResult = {
+  voices: VoiceLibraryPageVoice[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
 type CacheEntry = {
   payload: VoiceLibraryPayload;
   fetchedAt: number;
 };
+
+const pageCache = new Map<string, VoiceLibraryPageResult>();
 
 type VoiceLibraryStoreSnapshot = {
   payload: VoiceLibraryPayload | null;
@@ -35,7 +55,6 @@ type VoiceLibraryStoreSnapshot = {
 
 let cached: CacheEntry | null = null;
 let summaryInflight: Promise<VoiceLibraryPayload> | null = null;
-let fullInflight: Promise<VoiceLibraryPayload> | null = null;
 let storeSnapshot: VoiceLibraryStoreSnapshot = {
   payload: null,
   loading: false,
@@ -58,13 +77,8 @@ function setStoreSnapshot(next: VoiceLibraryStoreSnapshot): void {
   emitStoreChange();
 }
 
-function isFullPayload(payload: VoiceLibraryPayload): boolean {
-  return !payload.voicesDeferred && payload.catalog.voices.length > 0;
-}
-
-async function fetchVoiceLibraryFromApi(summary: boolean): Promise<VoiceLibraryPayload> {
-  const url = summary ? "/api/studio/voice-library?summary=1" : "/api/studio/voice-library";
-  const res = await fetch(url);
+async function fetchVoiceLibraryFromApi(): Promise<VoiceLibraryPayload> {
+  const res = await fetch("/api/studio/voice-library?summary=1");
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string };
     throw new Error(body.error ?? "Voice library fetch failed.");
@@ -72,43 +86,39 @@ async function fetchVoiceLibraryFromApi(summary: boolean): Promise<VoiceLibraryP
   return (await res.json()) as VoiceLibraryPayload;
 }
 
-function scheduleFullCatalogLoad(): void {
-  if (fullInflight || (cached && isFullPayload(cached.payload))) {
-    return;
-  }
-
-  setStoreSnapshot({
-    ...storeSnapshot,
-    loadingVoices: true,
+export async function searchVoiceLibraryPage(params: {
+  query?: string;
+  language?: string;
+  accent?: string;
+  page?: number;
+  signal?: AbortSignal;
+}): Promise<VoiceLibraryPageResult> {
+  const search = new URLSearchParams({
+    page: String(params.page ?? 0),
+    pageSize: "24",
   });
-
-  fullInflight = (async () => {
-    try {
-      const payload = await fetchVoiceLibraryFromApi(false);
-      cached = { payload, fetchedAt: Date.now() };
-      setStoreSnapshot({
-        payload,
-        loading: false,
-        loadingVoices: false,
-        voicesReady: true,
-        error: "",
-      });
-      return payload;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Voice library fetch failed.";
-      const keepSummary = Boolean(storeSnapshot.payload);
-      setStoreSnapshot({
-        payload: storeSnapshot.payload,
-        loading: false,
-        loadingVoices: false,
-        voicesReady: keepSummary ? isFullPayload(storeSnapshot.payload!) : false,
-        error: keepSummary ? "" : message,
-      });
-      throw err;
-    } finally {
-      fullInflight = null;
-    }
-  })();
+  if (params.query?.trim()) {
+    search.set("q", params.query.trim());
+  }
+  if (params.language?.trim()) {
+    search.set("language", params.language.trim());
+  }
+  if (params.accent?.trim()) {
+    search.set("accent", params.accent.trim());
+  }
+  const key = search.toString();
+  const cachedPage = pageCache.get(key);
+  if (cachedPage) {
+    return cachedPage;
+  }
+  const res = await fetch(`/api/studio/voice-library?${key}`, { signal: params.signal });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? "Voice library search failed.");
+  }
+  const page = (await res.json()) as VoiceLibraryPageResult;
+  pageCache.set(key, page);
+  return page;
 }
 
 export function subscribeVoiceLibraryStore(listener: () => void): () => void {
@@ -128,17 +138,13 @@ export async function fetchVoiceLibrary(options?: {
 }): Promise<VoiceLibraryPayload> {
   const now = Date.now();
   if (!options?.forceRefresh && cached && now - cached.fetchedAt < CLIENT_CACHE_TTL_MS) {
-    const voicesReady = isFullPayload(cached.payload);
     setStoreSnapshot({
       payload: cached.payload,
       loading: false,
-      loadingVoices: !voicesReady,
-      voicesReady,
+      loadingVoices: false,
+      voicesReady: true,
       error: "",
     });
-    if (!voicesReady) {
-      scheduleFullCatalogLoad();
-    }
     return cached.payload;
   }
 
@@ -146,19 +152,17 @@ export async function fetchVoiceLibrary(options?: {
     setStoreSnapshot({
       payload: storeSnapshot.payload,
       loading: true,
-      loadingVoices: storeSnapshot.loadingVoices,
+      loadingVoices: false,
       voicesReady: storeSnapshot.voicesReady,
       error: "",
     });
-    const summary = await summaryInflight;
-    scheduleFullCatalogLoad();
-    return summary;
+    return summaryInflight;
   }
 
   if (options?.forceRefresh) {
     cached = null;
     summaryInflight = null;
-    fullInflight = null;
+    pageCache.clear();
   }
 
   setStoreSnapshot({
@@ -171,16 +175,15 @@ export async function fetchVoiceLibrary(options?: {
 
   summaryInflight = (async () => {
     try {
-      const summaryPayload = await fetchVoiceLibraryFromApi(true);
+      const summaryPayload = await fetchVoiceLibraryFromApi();
       cached = { payload: summaryPayload, fetchedAt: Date.now() };
       setStoreSnapshot({
         payload: summaryPayload,
         loading: false,
-        loadingVoices: true,
-        voicesReady: false,
+        loadingVoices: false,
+        voicesReady: true,
         error: "",
       });
-      scheduleFullCatalogLoad();
       return summaryPayload;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Voice library fetch failed.";
@@ -203,7 +206,7 @@ export async function fetchVoiceLibrary(options?: {
 export function clearVoiceLibraryClientCacheForTests(): void {
   cached = null;
   summaryInflight = null;
-  fullInflight = null;
+  pageCache.clear();
   storeSnapshot = {
     payload: null,
     loading: false,

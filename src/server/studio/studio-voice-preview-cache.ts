@@ -6,6 +6,7 @@ import {
   buildVoicePreviewTextHash,
   voicePreviewBlobPathname,
   VOICE_PREVIEW_CACHE_MANIFEST_PATH,
+  type VoicePreviewCacheSettings,
 } from "@/lib/studio-voice-preview-cache-key";
 import type {
   VoicePreviewCacheEntry,
@@ -84,13 +85,33 @@ export async function lookupVoicePreviewCache(params: {
   language: string;
   modelId: string;
   speechSpeed?: number;
+  voiceSettings?: VoicePreviewCacheSettings;
+  provider?: string;
 }): Promise<VoicePreviewCacheLookup | null> {
-  const textHash = buildVoicePreviewTextHash(params);
-  const blobPathname = voicePreviewBlobPathname(params.voiceId, textHash);
-  const audioUrl = await resolvePublicBlobUrlByPathname(blobPathname);
+  const resolvedHash = buildVoicePreviewTextHash(params);
+  const legacyHash =
+    params.speechSpeed == null || params.speechSpeed === 1
+      ? buildVoicePreviewTextHash({
+          voiceId: params.voiceId,
+          previewText: params.previewText,
+          language: params.language,
+          modelId: params.modelId,
+        })
+      : resolvedHash;
+  let audioUrl = await resolvePublicBlobUrlByPathname(
+    voicePreviewBlobPathname(params.voiceId, resolvedHash)
+  );
+  let textHash = resolvedHash;
+  if (!audioUrl && legacyHash !== resolvedHash) {
+    audioUrl = await resolvePublicBlobUrlByPathname(
+      voicePreviewBlobPathname(params.voiceId, legacyHash)
+    );
+    textHash = legacyHash;
+  }
   if (!audioUrl) {
     return null;
   }
+  const blobPathname = voicePreviewBlobPathname(params.voiceId, textHash);
 
   const manifest = await readVoicePreviewCacheManifest();
   const entry = manifest.entries[textHash];
@@ -112,6 +133,7 @@ export async function storeVoicePreviewCache(params: {
   language: string;
   modelId: string;
   speechSpeed?: number;
+  voiceSettings?: VoicePreviewCacheSettings;
   provider: string;
   previewType: VoicePreviewType;
   audioBuffer: Buffer;

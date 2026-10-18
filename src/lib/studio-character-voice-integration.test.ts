@@ -126,7 +126,8 @@ describe("character voice integration", () => {
   });
 
   it("accepts only ElevenLabs speech speeds and stores a non-default speed beside the voice profile", () => {
-    assert.equal(normalizeElevenLabsSpeechSpeed(1.15), 1);
+    assert.equal(normalizeElevenLabsSpeechSpeed(1.03), 1);
+    assert.equal(normalizeElevenLabsSpeechSpeed(1.05), 1.05);
     assert.equal(normalizeElevenLabsSpeechSpeed(1.2), 1.2);
     assert.equal(readCharacterSpeechSpeed({ speechSpeed: 0.8, en: { voiceProfile: "warm_narrator" } }), 0.8);
     const stored = voiceProfilesWithSpeechSpeed({ en: { voiceProfile: "warm_narrator" } }, 1.1);
@@ -161,8 +162,43 @@ describe("character voice integration", () => {
       modelId: request.model_id,
       speechSpeed: 1.1,
     });
+    const slower = buildVoicePreviewTextHash({
+      voiceId: "voice",
+      previewText: "Hallo.",
+      language: "nl",
+      modelId: request.model_id,
+      speechSpeed: 0.9,
+    });
+    const five = buildVoicePreviewTextHash({
+      voiceId: "voice",
+      previewText: "Hallo.",
+      language: "nl",
+      modelId: request.model_id,
+      speechSpeed: 1.05,
+    });
+    const withSettings = buildVoicePreviewTextHash({
+      voiceId: "voice",
+      previewText: "Hallo.",
+      language: "nl",
+      modelId: request.model_id,
+      speechSpeed: 1,
+      provider: "elevenlabs",
+      voiceSettings: { stability: 0.5, similarity_boost: 0.75, style: 0.2 },
+    });
     assert.equal(base, same);
     assert.notEqual(base, faster);
+    assert.notEqual(faster, slower);
+    assert.notEqual(faster, five);
+    assert.notEqual(base, withSettings);
+    const requestFast = buildVoiceRequest({
+      script: "I love baking cupcakes.",
+      voiceProfile: "library:21m00Tcm4TlvDq8ikWAM",
+      voiceLanguage: "en",
+      narrationMode: "narrator",
+      speechSpeed: 1.05,
+    });
+    assert.equal(requestFast.speed, 1.05);
+    assert.equal(requestFast.model_id, "eleven_multilingual_v2");
   });
 
   it("only accepts an internal project return path", () => {

@@ -3,7 +3,10 @@
  * Values outside that range are rejected by the provider, so the editor
  * only offers the supported steps. 1 is the provider default.
  */
-export const ELEVENLABS_SPEECH_SPEEDS = [0.7, 0.8, 0.9, 1, 1.1, 1.2] as const;
+/** 0.05 steps across the provider range, including 1.05. */
+export const ELEVENLABS_SPEECH_SPEEDS = Array.from({ length: 11 }, (_, index) =>
+  Math.round((0.7 + index * 0.05) * 100) / 100
+);
 
 export const ELEVENLABS_DEFAULT_SPEECH_SPEED = 1;
 

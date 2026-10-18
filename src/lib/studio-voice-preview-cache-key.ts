@@ -7,16 +7,33 @@ export function sanitizeVoicePreviewVoiceId(voiceId: string): string {
   return safe.slice(0, 80) || "unknown-voice";
 }
 
+export type VoicePreviewCacheSettings = {
+  stability: number;
+  similarity_boost: number;
+  style: number;
+};
+
 export function buildVoicePreviewTextHash(params: {
   voiceId: string;
   previewText: string;
   language: string;
   modelId: string;
   speechSpeed?: number;
+  voiceSettings?: VoicePreviewCacheSettings;
+  provider?: string;
 }): string {
   const speed = params.speechSpeed;
-  const previewText =
-    speed != null && speed !== 1 ? `${params.previewText}\n[speed:${speed}]` : params.previewText;
+  let previewText = params.previewText;
+  if (params.provider) {
+    previewText += `\n[provider:${params.provider}]`;
+  }
+  if (speed != null && speed !== 1) {
+    previewText += `\n[speed:${speed}]`;
+  }
+  if (params.voiceSettings) {
+    const settings = params.voiceSettings;
+    previewText += `\n[settings:${settings.stability}:${settings.similarity_boost}:${settings.style}]`;
+  }
   return buildVoicePreviewDedupHash({
     voiceId: params.voiceId,
     previewText,
