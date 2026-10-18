@@ -44,6 +44,8 @@ export type SharedVoicesFetchOptions = {
   maxVoices?: number;
   pageSize?: number;
   fetchFn?: typeof fetch;
+  /** Sync passes no-store so a cached provider page cannot end the crawl early. */
+  cache?: RequestCache;
 };
 
 const DEFAULT_PAGE_SIZE = 100;
@@ -307,7 +309,7 @@ export async function* iterateElevenLabsSharedVoicePages(
     for (let attempt = 0; attempt < 3; attempt += 1) {
       res = await fetchFn(url, {
         headers: { "xi-api-key": apiKey },
-        next: { revalidate: 3600 },
+        ...(options?.cache ? { cache: options.cache } : { next: { revalidate: 3600 } }),
       });
       if (res.status !== 429 || attempt === 2) {
         break;

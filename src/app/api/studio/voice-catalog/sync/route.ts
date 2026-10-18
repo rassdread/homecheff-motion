@@ -19,9 +19,14 @@ export async function POST() {
     apiKey: process.env.ELEVENLABS_API_KEY?.trim() ?? "",
     db: studioVoiceCatalogSyncClient(),
     intervalMs: intervalHours * 60 * 60 * 1000,
-    loadAccount: (apiKey) => fetchElevenLabsAccountVoices(apiKey),
+    loadAccount: (apiKey) =>
+      fetchElevenLabsAccountVoices(apiKey, (input, init) => {
+        const nextInit = { ...(init ?? {}) };
+        delete nextInit.next;
+        return fetch(input, { ...nextInit, cache: "no-store" });
+      }),
     async *loadSharedPages(apiKey) {
-      yield* iterateElevenLabsSharedVoicePages(apiKey);
+      yield* iterateElevenLabsSharedVoicePages(apiKey, { cache: "no-store" });
     },
   });
   if (result.status === "blocked") {

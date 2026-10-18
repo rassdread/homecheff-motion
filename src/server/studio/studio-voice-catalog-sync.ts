@@ -99,8 +99,10 @@ export async function runStudioVoiceCatalogSync(deps: {
   try {
     providerRequests += 1;
     const account = await deps.loadAccount(deps.apiKey);
+    const accountIds = new Set<string>();
     for (const voice of account) {
       await deps.db.upsert(voiceCatalogDraftFromLibraryEntry(voice), now);
+      accountIds.add(voice.id);
       upserted += 1;
     }
     for await (const page of deps.loadSharedPages(deps.apiKey)) {
@@ -108,6 +110,9 @@ export async function runStudioVoiceCatalogSync(deps: {
       pagesFetched += 1;
       cursor = String(pagesFetched);
       for (const voice of page) {
+        if (accountIds.has(voice.id)) {
+          continue;
+        }
         await deps.db.upsert(voiceCatalogDraftFromLibraryEntry(voice), now);
         upserted += 1;
       }

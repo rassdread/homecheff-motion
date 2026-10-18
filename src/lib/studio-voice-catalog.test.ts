@@ -241,4 +241,36 @@ describe("voice catalog sync", () => {
     assert.equal(result.status, "skipped");
     assert.equal(result.providerRequests, 0);
   });
+
+  it("keeps the account voice when the shared catalog repeats its id", async () => {
+    const sources: string[] = [];
+    const db: VoiceCatalogSyncClient = {
+      async findLastCompleted() {
+        return null;
+      },
+      async findRunning() {
+        return null;
+      },
+      async startRun() {
+        return { id: "run-2", status: "running", startedAt: new Date() };
+      },
+      async finishRun() {},
+      async upsert(draft) {
+        sources.push(`${draft.providerVoiceId}:${draft.catalogSource}`);
+      },
+    };
+    const accountVoice = entry("shared-id", "en", "https://example.com/account.mp3");
+    accountVoice.labels = { catalog_source: "account" };
+    const sharedVoice = entry("shared-id", "en", "https://example.com/shared.mp3");
+    const result = await runStudioVoiceCatalogSync({
+      apiKey: "test-key",
+      db,
+      loadAccount: async () => [accountVoice],
+      async *loadSharedPages() {
+        yield [sharedVoice, entry("other", "nl", "https://example.com/other.mp3")];
+      },
+    });
+    assert.equal(result.status, "completed");
+    assert.deepEqual(sources, ["shared-id:account", "other:shared"]);
+  });
 });
