@@ -25,6 +25,7 @@ export async function GET(_request: Request, context: RouteContext) {
     quote: preview.quote,
     attempts: preview.attempts,
     characters: preview.characters,
+    saved: preview.saved,
     studioHcAvailable: preview.studioHcAvailable,
     walletSource: preview.walletSource,
     confirmationRequired: true,

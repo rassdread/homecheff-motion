@@ -131,6 +131,7 @@ function emptyVoiceState(): CharacterVoiceFormState {
     voiceDescription: "",
     voiceNotes: "",
     voiceLock: false,
+    speechSpeed: 1,
     voiceProfilesByLanguage: {},
   };
 }
@@ -178,6 +179,7 @@ function voiceAndPerformancePayload(values: StudioCharacterFormValues) {
     voiceDescription: values.voice.voiceDescription,
     voiceNotes: values.voice.voiceNotes,
     voiceLock: values.voice.voiceLock,
+    speechSpeed: values.voice.speechSpeed,
     voiceProfilesByLanguage: values.voice.voiceProfilesByLanguage,
     performanceEnabled: values.performance.performanceEnabled,
     defaultSmileStrength: values.performance.defaultSmileStrength,

@@ -304,6 +304,7 @@ function emptyCharacterVoice() {
     voiceDescription: "",
     voiceNotes: "",
     voiceLock: false,
+    speechSpeed: 1,
     voiceProfilesByLanguage: {},
   };
 }

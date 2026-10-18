@@ -83,6 +83,7 @@ export async function lookupVoicePreviewCache(params: {
   previewText: string;
   language: string;
   modelId: string;
+  speechSpeed?: number;
 }): Promise<VoicePreviewCacheLookup | null> {
   const textHash = buildVoicePreviewTextHash(params);
   const blobPathname = voicePreviewBlobPathname(params.voiceId, textHash);
@@ -110,6 +111,7 @@ export async function storeVoicePreviewCache(params: {
   previewText: string;
   language: string;
   modelId: string;
+  speechSpeed?: number;
   provider: string;
   previewType: VoicePreviewType;
   audioBuffer: Buffer;

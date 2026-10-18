@@ -70,6 +70,7 @@ export type StudioCharacterListItem = {
   voiceNotes: string;
   voiceLock: boolean;
   voiceProfilesByLanguage: import("@/types/studio-character-voice").CharacterVoiceProfilesByLanguage;
+  speechSpeed?: number;
   performanceEnabled: boolean;
   defaultSmileStrength: number;
   defaultBlinkRate: string;

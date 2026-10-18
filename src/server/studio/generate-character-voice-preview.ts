@@ -1,3 +1,4 @@
+import { readCharacterSpeechSpeed } from "@/lib/elevenlabs-speech-speed";
 import { prisma } from "@/lib/prisma";
 import { normalizeVoiceProfileForSynthesis } from "@/lib/studio-voice-profile-ref";
 import type { ServiceError } from "@/server/studio/studio-storyboard-service";
@@ -22,6 +23,8 @@ export type CharacterVoicePreviewOverrides = {
   voiceProfile?: string;
   characterName?: string;
   previewType?: string;
+  speechSpeed?: number;
+  cacheOnly?: boolean;
 };
 
 export async function generateCharacterVoicePreview(params: {
@@ -65,6 +68,8 @@ export async function generateCharacterVoicePreview(params: {
     previewType: params.previewType
       ? normalizeVoicePreviewType(params.previewType)
       : undefined,
+    speechSpeed: params.speechSpeed ?? readCharacterSpeechSpeed(row.voiceProfilesJson),
+    cacheOnly: params.cacheOnly,
   });
 
   if ("error" in synthesis) {
@@ -87,6 +92,8 @@ export async function generateCharacterVoicePreviewDraft(params: {
   voiceLanguage: string;
   sampleLine?: string;
   previewType?: string;
+  speechSpeed?: number;
+  cacheOnly?: boolean;
 }): Promise<
   | {
       ok: true;
@@ -122,6 +129,8 @@ export async function generateCharacterVoicePreviewDraft(params: {
     previewType: params.previewType
       ? normalizeVoicePreviewType(params.previewType)
       : undefined,
+    speechSpeed: params.speechSpeed,
+    cacheOnly: params.cacheOnly,
   });
 
   if ("error" in synthesis) {

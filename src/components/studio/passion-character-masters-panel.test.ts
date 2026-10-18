@@ -39,6 +39,7 @@ function markup(input: { accepted: boolean; busy?: boolean }) {
       busy: input.busy ?? false,
       activeKey: null,
       error: "",
+      projectId: "cmvcbmxdp00032jryohiw8a84",
       onAcceptedChange: () => undefined,
       onGenerate: () => undefined,
     })
@@ -78,5 +79,37 @@ describe("passion character masters panel", () => {
     const html = markup({ accepted: true, busy: true });
     assert.match(buttonTag(html), /\sdisabled=""/);
     assert.match(html, />Bezig…</);
+  });
+
+  it("links a saved master to the existing editor without offering a fresh generate button", () => {
+    const html = renderToStaticMarkup(
+      createElement(PassionCharacterMastersPanel, {
+        quote,
+        studioHcAvailable: 9625,
+        characters,
+        masters: characters.map((character) => ({
+          characterKey: character.key,
+          characterId: `char-${character.key}`,
+          libraryAssetId: `asset-${character.key}`,
+          referenceImageUrl: `https://example.com/${character.key}.png`,
+          downloadUrl: `https://example.com/${character.key}.png`,
+        })),
+        accepted: false,
+        busy: false,
+        activeKey: null,
+        error: "",
+        projectId: "cmvcbmxdp00032jryohiw8a84",
+        onAcceptedChange: () => undefined,
+        onGenerate: () => undefined,
+      })
+    );
+    assert.match(html, /Voltooid/);
+    assert.match(html, /De drie personages zijn opgeslagen/);
+    assert.match(html, /\/studio\/characters\/char-baker\/edit\?returnTo=/);
+    assert.match(html, /Personage instellen/);
+    assert.match(html, /Download afbeelding/);
+    assert.match(html, /Bekijk in bibliotheek/);
+    assert.doesNotMatch(html, />Genereer 3 personages</);
+    assert.match(html, />Opnieuw genereren</);
   });
 });

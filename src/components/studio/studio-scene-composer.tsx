@@ -11,6 +11,7 @@ import { StudioScenePreview } from "@/components/studio/studio-scene-preview";
 import { StudioSceneImagePanel } from "@/components/studio/studio-scene-image-panel";
 import { StudioSceneContinuityPreview } from "@/components/studio/studio-scene-continuity-preview";
 import { StudioScenePromptPreview } from "@/components/studio/studio-scene-prompt-preview";
+import { StudioSceneVoiceOverview } from "@/components/studio/studio-scene-voice-overview";
 import { useActiveTranslator } from "@/i18n/client";
 import { StudioDirectorSelect } from "@/components/studio/studio-director-select";
 import {
@@ -316,6 +317,14 @@ export function StudioSceneComposer({
                   onSceneUpdated(updated);
                 }}
                 onCharactersRefresh={onCharactersRefresh ?? (() => undefined)}
+              />
+            </div>
+            <div className="mt-3">
+              <StudioSceneVoiceOverview
+                scene={draft}
+                characters={characters}
+                storyLanguage={storyboard.voiceLanguage}
+                storyVoiceProfile={storyboard.voiceProfile}
               />
             </div>
           </div>

@@ -2,6 +2,7 @@
  * Studio V28 — ElevenLabs request planning (no API calls).
  */
 
+import { normalizeElevenLabsSpeechSpeed } from "@/lib/elevenlabs-speech-speed";
 import {
   getVoiceProfilePreset,
   normalizeStudioNarrationMode,
@@ -23,6 +24,8 @@ export type ElevenLabsVoiceRequest = {
   model_id: string;
   voice_id_recommendation: string;
   language_code: string;
+  /** eleven_multilingual_v2 supports 0.7–1.2. The request omits 1, the provider default. */
+  speed?: number;
   voice_settings: ElevenLabsVoiceSettings;
   metadata: {
     narrationMode: string;
@@ -180,6 +183,9 @@ export async function synthesizeElevenLabsSpeech(params: {
       ...(params.request.language_code
         ? { language_code: params.request.language_code }
         : {}),
+      ...(params.request.speed != null && params.request.speed !== 1
+        ? { speed: params.request.speed }
+        : {}),
     }),
   });
   if (!res.ok) {
@@ -208,6 +214,7 @@ export function buildVoiceRequest(params: {
   voiceLanguage: string;
   narrationMode: string;
   preset?: StudioVoiceProfilePreset;
+  speechSpeed?: number;
 }): ElevenLabsVoiceRequest {
   const preset = params.preset ?? getVoiceProfilePreset(params.voiceProfile);
   const text = cleanVoiceScript(params.script);
@@ -218,6 +225,7 @@ export function buildVoiceRequest(params: {
     model_id: "eleven_multilingual_v2",
     voice_id_recommendation: preset.elevenLabsVoiceRecommendation,
     language_code: lang,
+    speed: normalizeElevenLabsSpeechSpeed(params.speechSpeed ?? 1),
     voice_settings: {
       stability: preset.stability,
       similarity_boost: preset.similarity,

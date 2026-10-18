@@ -12,8 +12,17 @@ export function buildVoicePreviewTextHash(params: {
   previewText: string;
   language: string;
   modelId: string;
+  speechSpeed?: number;
 }): string {
-  return buildVoicePreviewDedupHash(params);
+  const speed = params.speechSpeed;
+  const previewText =
+    speed != null && speed !== 1 ? `${params.previewText}\n[speed:${speed}]` : params.previewText;
+  return buildVoicePreviewDedupHash({
+    voiceId: params.voiceId,
+    previewText,
+    language: params.language,
+    modelId: params.modelId,
+  });
 }
 
 export function voicePreviewBlobPathname(voiceId: string, textHash: string): string {

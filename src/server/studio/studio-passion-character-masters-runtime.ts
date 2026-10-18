@@ -132,7 +132,12 @@ async function persistMaster(input: {
   hc: number;
   providerUsd: number;
   attempt: 1 | 2;
-}): Promise<{ characterId: string; referenceImageUrl: string; storageKey: string }> {
+}): Promise<{
+  characterId: string;
+  libraryAssetId: string;
+  referenceImageUrl: string;
+  storageKey: string;
+}> {
   const uploaded = await uploadStudioAssetReferenceBuffers({
     ownerId: input.userId,
     kind: "character",
@@ -199,8 +204,9 @@ async function persistMaster(input: {
     generationStatus: "generated",
   } satisfies Prisma.InputJsonObject;
 
+  let libraryAssetId = existing?.id ?? "";
   if (!existing) {
-    await prisma.studioLibraryAsset.create({
+    const createdAsset = await prisma.studioLibraryAsset.create({
       data: {
         ownerId: input.userId,
         projectId: input.projectId,
@@ -227,6 +233,7 @@ async function persistMaster(input: {
         metadataJson: metadata,
       },
     });
+    libraryAssetId = createdAsset.id;
   } else {
     await prisma.studioLibraryAsset.update({
       where: { id: existing.id },
@@ -270,6 +277,7 @@ async function persistMaster(input: {
 
   return {
     characterId,
+    libraryAssetId,
     referenceImageUrl: uploaded.referenceImageUrl,
     storageKey: uploaded.referenceStorageKey,
   };
@@ -515,12 +523,41 @@ export async function previewOwnedPassionQuote(input: { userId: string; projectI
     projectId: project.id,
     quoteId: quote.id,
   });
+  const savedAssets = await prisma.studioLibraryAsset.findMany({
+    where: {
+      ownerId: input.userId,
+      projectId: project.id,
+      sourceKind: "passion_character_master",
+    },
+    select: {
+      id: true,
+      sourceId: true,
+      previewUrl: true,
+      downloadUrl: true,
+      metadataJson: true,
+    },
+  });
+  const saved = savedAssets.flatMap((asset) => {
+    const metadata = asRecord(asset.metadataJson);
+    const characterId = typeof metadata?.characterId === "string" ? metadata.characterId : "";
+    if (!characterId || !asset.previewUrl) return [];
+    return [
+      {
+        characterKey: asset.sourceId,
+        characterId,
+        libraryAssetId: asset.id,
+        referenceImageUrl: asset.previewUrl,
+        downloadUrl: asset.downloadUrl || asset.previewUrl,
+      },
+    ];
+  });
   return {
     project,
     quote,
     studioHcAvailable: wallet ? wallet.balance - wallet.reservedBalance : null,
     walletSource: "studio_hc" as const,
     attempts,
+    saved,
     characters: (["baker", "potter", "gardener"] as const).map((key) => ({
       key,
       name: passionCharacterPrompt(key).name,

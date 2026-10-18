@@ -41,6 +41,9 @@ export type CharacterVoicePreviewSynthesisInput = {
   storageAssetId: string;
   storageStoryboardId: string;
   previewType?: VoicePreviewType;
+  speechSpeed?: number;
+  /** Resolve the cache only. A miss does not call the voice provider. */
+  cacheOnly?: boolean;
 };
 
 export type CharacterVoicePreviewSynthesisResult =
@@ -132,6 +135,7 @@ export async function synthesizeCharacterVoicePreview(
     voiceLanguage: language,
     narrationMode: "narrator",
     preset,
+    speechSpeed: input.speechSpeed,
   });
 
   const provider = selectVoiceProvider();
@@ -157,6 +161,7 @@ export async function synthesizeCharacterVoicePreview(
       previewText: script,
       language,
       modelId,
+      speechSpeed: request.speed,
     });
     if (cached) {
       const estimatedCostSavedUsd = estimateElevenLabsTtsCostUsd({
@@ -186,6 +191,19 @@ export async function synthesizeCharacterVoicePreview(
     }
   }
 
+  if (input.cacheOnly) {
+    return {
+      ok: true,
+      audioUrl: "",
+      durationSeconds: 0,
+      provider: provider.id,
+      script,
+      voiceProfile,
+      language,
+      cacheHit: false,
+    };
+  }
+
   try {
     const synthesis = await provider.synthesize({
       request,
@@ -210,6 +228,7 @@ export async function synthesizeCharacterVoicePreview(
         previewText: script,
         language,
         modelId: synthesis.providerModelId,
+        speechSpeed: request.speed,
         provider: synthesis.provider,
         previewType,
         audioBuffer: synthesis.audioBuffer,

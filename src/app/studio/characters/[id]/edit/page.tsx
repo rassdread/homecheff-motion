@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { safeStudioProjectReturnTo } from "@/lib/studio-return-to";
 import { useCallback, useEffect, useState } from "react";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import {
@@ -20,7 +21,9 @@ import type { StudioCharacterDetail } from "@/types/studio-api";
 
 export default function StudioCharacterEditPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = typeof params.id === "string" ? params.id : "";
+  const returnTo = safeStudioProjectReturnTo(searchParams.get("returnTo"));
   const t = useActiveTranslator();
   const router = useRouter();
   const session = useAuthSession();
@@ -63,7 +66,7 @@ export default function StudioCharacterEditPage() {
     if (!res.ok) {
       throw new Error((res.data as { error?: string }).error ?? t("studio.characters.error.saveFailed"));
     }
-    router.push(`/studio/characters/${id}`);
+    router.push(returnTo ?? `/studio/characters/${id}`);
   };
 
   return (
@@ -71,10 +74,10 @@ export default function StudioCharacterEditPage() {
       <main className={`flex-1 ${brand.softGradientBg}`}>
         <section className="mx-auto w-full max-w-3xl px-6 py-12 sm:px-10">
           <Link
-            href={`/studio/characters/${id}`}
+            href={returnTo ?? `/studio/characters/${id}`}
             className="text-sm font-medium text-[#006D52] hover:underline"
           >
-            ← {t("studio.characters.backToCharacter")}
+            ← {returnTo ? "Terug naar MADE WITH PASSION" : t("studio.characters.backToCharacter")}
           </Link>
           <h1 className="mt-2 text-3xl font-bold text-zinc-900">{t("studio.characters.editTitle")}</h1>
 

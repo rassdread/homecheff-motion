@@ -41,6 +41,7 @@ export default function PassionCharacterMastersPage() {
         characters?: Array<PassionMastersCharacterView & { prompt?: string }>;
         studioHcAvailable?: number | null;
         walletSource?: string;
+        saved?: PassionMastersResultView[];
         error?: string;
       };
       if (cancelled) return;
@@ -56,6 +57,11 @@ export default function PassionCharacterMastersPage() {
           name: character.name,
         }))
       );
+      setMasters(
+        (body.saved ?? []).filter(
+          (master) => master.characterId && master.referenceImageUrl
+        )
+      );
     }
     void load();
     return () => {
@@ -63,14 +69,19 @@ export default function PassionCharacterMastersPage() {
     };
   }, [projectId]);
 
-  async function confirmAndGenerate() {
+  async function confirmAndGenerate(replaceExisting: boolean) {
     if (!quote || !accepted || busy || submitting.current) return;
+    const savedKeys = new Set(masters.map((master) => master.characterKey));
+    const targets = characters.filter(
+      (character) => replaceExisting || !savedKeys.has(character.key)
+    );
+    if (targets.length === 0) return;
     submitting.current = true;
     setBusy(true);
     setError("");
-    const next: PassionMastersResultView[] = [];
+    const next: PassionMastersResultView[] = replaceExisting ? [] : [...masters];
     try {
-      for (const character of characters) {
+      for (const character of targets) {
         setActiveKey(character.key);
         const response = await fetch(`/api/studio/projects/${projectId}/character-masters`, {
           method: "POST",
@@ -110,7 +121,9 @@ export default function PassionCharacterMastersPage() {
         activeKey={activeKey}
         error={error}
         onAcceptedChange={setAccepted}
-        onGenerate={() => void confirmAndGenerate()}
+        projectId={projectId}
+        onGenerate={() => void confirmAndGenerate(false)}
+        onRegenerate={() => void confirmAndGenerate(true)}
       />
     </StudioAuthGate>
   );

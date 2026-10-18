@@ -31,6 +31,7 @@ export type StudioCharacterVoiceInput = {
   voiceNotes?: string;
   voiceLock?: boolean;
   voiceProfilesByLanguage?: CharacterVoiceProfilesByLanguage;
+  speechSpeed?: number;
 };
 
 export type StudioCharacterPerformanceInput = {

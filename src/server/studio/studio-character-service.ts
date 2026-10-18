@@ -1,4 +1,4 @@
-import type { Prisma, StudioCharacter } from "@prisma/client";
+import { Prisma, type StudioCharacter } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { registerPrismaEntityInLibrary } from "@/server/studio/library-consistency-hooks";
 import { normalizeStudioContinuityStrength } from "@/lib/studio-continuity-strength";
@@ -22,6 +22,10 @@ import {
 } from "@/server/studio/studio-character-access";
 import { deleteStudioReferenceBlob } from "@/server/studio/studio-reference-blob";
 import { assertWorldProfileOwnedByViewer } from "@/server/studio/studio-world-profile-service";
+import {
+  readCharacterSpeechSpeed,
+  voiceProfilesWithSpeechSpeed,
+} from "@/lib/elevenlabs-speech-speed";
 import { parseCharacterVoiceProfilesJson } from "@/lib/studio-character-voice";
 import { appendCharacterVoiceHistoryIfChanged } from "@/server/studio/studio-character-voice-history";
 import {
@@ -44,6 +48,16 @@ export type ServiceError = {
 
 function serviceError(code: string, message: string, httpStatus: number): ServiceError {
   return { code, message, httpStatus };
+}
+
+function voiceProfilesJsonForWrite(
+  profiles: Record<string, unknown> | null | undefined,
+  speechSpeed: number | undefined
+): Prisma.InputJsonValue | typeof Prisma.JsonNull | undefined {
+  const stored = voiceProfilesWithSpeechSpeed(profiles, speechSpeed);
+  if (stored === undefined) return undefined;
+  if (stored === null) return Prisma.JsonNull;
+  return stored as Prisma.InputJsonValue;
 }
 
 export function mapStudioCharacterToListItem(
@@ -83,6 +97,7 @@ export function mapStudioCharacterToListItem(
     voiceNotes: row.voiceNotes,
     voiceLock: row.voiceLock,
     voiceProfilesByLanguage: parseCharacterVoiceProfilesJson(row.voiceProfilesJson),
+    speechSpeed: readCharacterSpeechSpeed(row.voiceProfilesJson),
     performanceEnabled: row.performanceEnabled,
     defaultSmileStrength: row.defaultSmileStrength,
     defaultBlinkRate: row.defaultBlinkRate,
@@ -275,7 +290,10 @@ export async function createStudioCharacter(
       voiceDescription: validated.value.voiceDescription,
       voiceNotes: validated.value.voiceNotes,
       voiceLock: validated.value.voiceLock,
-      voiceProfilesJson: validated.value.voiceProfilesJson ?? undefined,
+      voiceProfilesJson: voiceProfilesJsonForWrite(
+        validated.value.voiceProfilesJson as Record<string, unknown> | null,
+        raw.speechSpeed
+      ),
       performanceEnabled: validated.value.performanceEnabled,
       defaultSmileStrength: validated.value.defaultSmileStrength,
       defaultBlinkRate: validated.value.defaultBlinkRate,
@@ -349,11 +367,12 @@ export async function updateStudioCharacter(
   if (worldProfileId !== undefined) {
     data.worldProfileId = worldProfileId;
   }
-  if (voiceProfilesJson !== undefined) {
-    data.voiceProfilesJson =
-      voiceProfilesJson === null
-        ? undefined
-        : (voiceProfilesJson as Prisma.InputJsonValue);
+  const writtenProfiles = voiceProfilesJsonForWrite(
+    voiceProfilesJson as Record<string, unknown> | null | undefined,
+    raw.speechSpeed
+  );
+  if (writtenProfiles !== undefined) {
+    data.voiceProfilesJson = writtenProfiles;
   }
 
   const row = await prisma.studioCharacter.update({

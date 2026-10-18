@@ -15,6 +15,7 @@ import {
   type VoiceMarketplaceContext,
   type VoiceMarketplaceEntry,
 } from "@/lib/studio-voice-marketplace";
+import { ELEVENLABS_SPEECH_SPEEDS } from "@/lib/elevenlabs-speech-speed";
 import { voiceLanguageLabelKey } from "@/lib/studio-voice-language-labels";
 import { appendVoiceSelectionMemory, parseVoiceSelectionMemory } from "@/lib/studio-voice-selection-memory";
 import type { VoiceSelectMeta } from "@/components/studio/studio-character-voice-library-section";
@@ -74,6 +75,7 @@ export type CharacterVoiceFormState = {
   voiceDescription: string;
   voiceNotes: string;
   voiceLock: boolean;
+  speechSpeed: number;
   voiceProfilesByLanguage: CharacterVoiceProfilesByLanguage;
 };
 
@@ -89,6 +91,7 @@ export function characterVoiceStateFromDetail(
     voiceDescription: character.voiceDescription || "",
     voiceNotes: character.voiceNotes || "",
     voiceLock: character.voiceLock,
+    speechSpeed: character.speechSpeed ?? 1,
     voiceProfilesByLanguage: character.voiceProfilesByLanguage ?? {},
   };
 }
@@ -377,6 +380,7 @@ export function StudioCharacterVoiceCenter({
   );
   const [previewBusyLang, setPreviewBusyLang] = useState<VoiceCenterLanguage | null>(null);
   const [previewError, setPreviewError] = useState("");
+  const [previewNotice, setPreviewNotice] = useState("");
   const [lastPreviewWasDraft, setLastPreviewWasDraft] = useState(false);
   const defaultPreviewText = useMemo(() => {
     if (marketplaceContext) {
@@ -604,6 +608,7 @@ export function StudioCharacterVoiceCenter({
       }
       setPreviewBusyLang(lang);
       setPreviewError("");
+      setPreviewNotice("");
       const sampleLine = previewTextTouched
         ? previewTextInput.trim() || defaultPreviewText
         : defaultPreviewText;
@@ -614,7 +619,13 @@ export function StudioCharacterVoiceCenter({
           voiceProfile: resolved.profile,
           language: lang,
           sampleLine,
+          speechSpeed: value.speechSpeed,
         });
+        setPreviewNotice(
+          result.free
+            ? "Gratis voorbeeld. Er is geen Studio HC gebruikt."
+            : "Voorbeeld afgespeeld na bevestiging van de Studio HC-kosten."
+        );
         setPreviewByLang((prev) => ({ ...prev, [lang]: result.audioUrl }));
         setLastPreviewWasDraft(result.isDraft);
       } catch (e) {
@@ -732,6 +743,20 @@ export function StudioCharacterVoiceCenter({
             {VOICE_CENTER_LANGUAGES.map((lang) => (
               <option key={lang} value={lang}>
                 {lang.toUpperCase()}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block text-xs font-medium text-violet-900">
+          Spreeksnelheid
+          <select
+            className="mt-1 w-full min-h-[44px] rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm"
+            value={String(value.speechSpeed || 1)}
+            onChange={(e) => onChange({ ...value, speechSpeed: Number(e.target.value) })}
+          >
+            {ELEVENLABS_SPEECH_SPEEDS.map((speed) => (
+              <option key={speed} value={speed}>
+                {speed === 1 ? "1× standaard" : `${speed}×`}
               </option>
             ))}
           </select>
@@ -1068,6 +1093,9 @@ export function StudioCharacterVoiceCenter({
         </div>
       </VoiceCenterCollapsibleSection>
 
+      {previewNotice ?
+        <p className="mt-3 text-xs font-medium text-[#006D52]">{previewNotice}</p>
+      : null}
       {previewError ?
         <p className="mt-3 text-xs text-red-700">{previewError}</p>
       : null}

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 
 export type PassionMastersQuoteView = {
@@ -19,7 +20,9 @@ export type PassionMastersCharacterView = {
 export type PassionMastersResultView = {
   characterKey: string;
   characterId: string;
+  libraryAssetId?: string;
   referenceImageUrl: string;
+  downloadUrl?: string;
 };
 
 const SHORT_DESCRIPTIONS: Record<PassionMastersCharacterView["key"], string> = {
@@ -42,12 +45,51 @@ export function passionMastersQualityLabel(quality: string): string {
   return quality.charAt(0).toUpperCase() + quality.slice(1);
 }
 
+function ConfirmGeneration(props: {
+  accepted: boolean;
+  busy: boolean;
+  canGenerate: boolean;
+  label: string;
+  onAcceptedChange: (accepted: boolean) => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <>
+      <label className="flex items-start gap-3 text-base font-medium leading-6 text-zinc-900" htmlFor="passion-masters-accept">
+        <input
+          id="passion-masters-accept"
+          data-testid="passion-masters-accept"
+          className="mt-1 h-5 w-5 shrink-0 accent-[#006D52]"
+          type="checkbox"
+          checked={props.accepted}
+          onChange={(event) => props.onAcceptedChange(event.target.checked)}
+        />
+        <span>Ik bevestig dat ik 375 Studio-HC wil gebruiken om drie AI-personages te genereren.</span>
+      </label>
+      <div className="mt-5">
+        <button
+          data-testid="passion-masters-confirm"
+          type="button"
+          className={`${studioVisual.btnGradientPrimary} studio-btn-glow w-full sm:w-auto`}
+          disabled={!props.canGenerate}
+          onClick={() => {
+            if (!props.canGenerate) return;
+            props.onConfirm();
+          }}
+        >
+          {props.label}
+        </button>
+      </div>
+    </>
+  );
+}
+
 function characterStatus(input: {
   key: string;
   masters: PassionMastersResultView[];
   activeKey: string | null;
 }): string {
-  if (input.masters.some((master) => master.characterKey === input.key)) return "Generated";
+  if (input.masters.some((master) => master.characterKey === input.key)) return "Voltooid";
   if (input.activeKey === input.key) return "Generating";
   return "Not generated";
 }
@@ -61,8 +103,10 @@ type Props = {
   busy: boolean;
   activeKey: string | null;
   error: string;
+  projectId: string;
   onAcceptedChange: (accepted: boolean) => void;
   onGenerate: () => void;
+  onRegenerate?: () => void;
 };
 
 export function PassionCharacterMastersPanel({
@@ -74,10 +118,16 @@ export function PassionCharacterMastersPanel({
   busy,
   activeKey,
   error,
+  projectId,
   onAcceptedChange,
   onGenerate,
+  onRegenerate,
 }: Props) {
   const canGenerate = Boolean(quote) && accepted && !busy;
+  const completedCount = characters.filter((character) =>
+    masters.some((master) => master.characterKey === character.key && master.characterId)
+  ).length;
+  const allComplete = characters.length > 0 && completedCount === characters.length;
   const balance =
     typeof studioHcAvailable === "number" ? studioHcAvailable.toLocaleString("en-US") : "—";
 
@@ -142,45 +192,75 @@ export function PassionCharacterMastersPanel({
                     <p className="mt-3 text-sm font-semibold text-[#0067B1]" data-testid={`passion-status-${character.key}`}>
                       {status}
                     </p>
-                    {master ? (
+                    {master?.referenceImageUrl ? (
                       <img
                         alt={character.name}
                         src={master.referenceImageUrl}
                         className="mt-4 aspect-[2/3] w-full rounded-xl object-cover"
                       />
                     ) : null}
+                    {master?.characterId ? (
+                      <div className="mt-4 flex flex-col gap-2">
+                        <Link
+                          href={`/studio/characters/${master.characterId}/edit?returnTo=${encodeURIComponent(`/studio/projects/${projectId}/character-masters`)}`}
+                          className={`${studioVisual.btnGradientPrimary} text-center`}
+                        >
+                          Personage instellen
+                        </Link>
+                        <a
+                          href={master.downloadUrl || master.referenceImageUrl}
+                          download
+                          className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-center text-sm font-semibold text-zinc-900"
+                        >
+                          Download afbeelding
+                        </a>
+                        <Link
+                          href="/studio/assets/library/generated"
+                          className="text-center text-sm font-semibold text-[#0067B1] hover:underline"
+                        >
+                          Bekijk in bibliotheek
+                        </Link>
+                      </div>
+                    ) : null}
                   </article>
                 );
               })}
             </section>
 
+            {allComplete ? (
+              <p className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-950" data-testid="passion-masters-complete">
+                De drie personages zijn opgeslagen. Stel de stem in via Personage instellen. Een nieuwe afbeelding vraagt een nieuwe bevestiging van 375 Studio HC.
+              </p>
+            ) : null}
+
+            {allComplete ? (
+              <details className={`${studioVisual.cardElevated} min-w-0`}>
+                <summary className="cursor-pointer text-sm font-semibold text-zinc-800">
+                  Nieuwe generatie
+                </summary>
+                <div className="mt-4">
+                  <ConfirmGeneration
+                    accepted={accepted}
+                    busy={busy}
+                    canGenerate={canGenerate}
+                    label={busy ? "Bezig…" : "Opnieuw genereren"}
+                    onAcceptedChange={onAcceptedChange}
+                    onConfirm={() => onRegenerate?.()}
+                  />
+                </div>
+              </details>
+            ) : (
             <section className={`${studioVisual.cardElevated} min-w-0`}>
-              <label className="flex items-start gap-3 text-base font-medium leading-6 text-zinc-900" htmlFor="passion-masters-accept">
-                <input
-                  id="passion-masters-accept"
-                  data-testid="passion-masters-accept"
-                  className="mt-1 h-5 w-5 shrink-0 accent-[#006D52]"
-                  type="checkbox"
-                  checked={accepted}
-                  onChange={(event) => onAcceptedChange(event.target.checked)}
-                />
-                <span>Ik bevestig dat ik 375 Studio-HC wil gebruiken om drie AI-personages te genereren.</span>
-              </label>
-              <div className="mt-5">
-                <button
-                  data-testid="passion-masters-confirm"
-                  type="button"
-                  className={`${studioVisual.btnGradientPrimary} studio-btn-glow w-full sm:w-auto`}
-                  disabled={!canGenerate}
-                  onClick={() => {
-                    if (!canGenerate) return;
-                    onGenerate();
-                  }}
-                >
-                  {busy ? "Bezig…" : "Genereer 3 personages"}
-                </button>
-              </div>
+              <ConfirmGeneration
+                accepted={accepted}
+                busy={busy}
+                canGenerate={canGenerate}
+                label={busy ? "Bezig…" : "Genereer 3 personages"}
+                onAcceptedChange={onAcceptedChange}
+                onConfirm={onGenerate}
+              />
             </section>
+            )}
           </>
         )}
       </div>

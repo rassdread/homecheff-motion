@@ -20,6 +20,7 @@ import {
 export type PassionMasterResult = {
   characterKey: PassionCharacterKey;
   characterId: string;
+  libraryAssetId?: string;
   referenceImageUrl: string;
   storageKey: string;
   hcCharged: number;
@@ -127,7 +128,7 @@ export type PassionMasterDeps = {
     hc: number;
     providerUsd: number;
     attempt: 1 | 2;
-  }) => Promise<{ characterId: string; referenceImageUrl: string; storageKey: string }>;
+  }) => Promise<{ characterId: string; libraryAssetId?: string; referenceImageUrl: string; storageKey: string }>;
   capture: (input: {
     userId: string;
     projectId: string;
@@ -286,6 +287,7 @@ export async function executePassionMasterGeneration(input: {
       result: {
         characterKey,
         characterId: saved.characterId,
+        libraryAssetId: saved.libraryAssetId,
         referenceImageUrl: saved.referenceImageUrl,
         storageKey: saved.storageKey,
         hcCharged: PASSION_HC_PER_IMAGE,
