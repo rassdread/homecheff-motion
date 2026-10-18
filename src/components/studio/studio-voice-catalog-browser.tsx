@@ -40,7 +40,7 @@ function VoiceCatalogCard({
         <div className="min-w-0">
           <p className="text-sm font-semibold text-zinc-950">{voice.name}</p>
           <p className="mt-1 text-xs text-zinc-600">
-            {[voiceLanguageLabel(voice.language), voice.accent, voice.gender, voice.age].filter(Boolean).join(" · ")}
+            {[voiceLanguageLabel(voice.language), voice.accent, voice.gender, voice.age, voice.category].filter(Boolean).join(" · ")}
           </p>
           {voice.description ? <p className="mt-1 text-xs text-zinc-500">{voice.description}</p> : null}
         </div>

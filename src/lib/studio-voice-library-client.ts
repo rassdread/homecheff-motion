@@ -29,6 +29,7 @@ export type VoiceLibraryPageVoice = {
   language: string;
   description: string;
   previewUrl: string;
+  category?: string;
 };
 
 export type VoiceLibraryPageResult = {

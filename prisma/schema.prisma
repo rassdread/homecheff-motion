@@ -1631,6 +1631,67 @@ model StudioAssetRelation {
   @@index([relationType])
 }
 
+/**
+ * HomeCheff copy of ElevenLabs voice metadata.
+ * Audio stays at the provider sample URL. Rows are never deleted by a partial sync.
+ */
+model StudioVoiceCatalogEntry {
+  id                 String   @id @default(cuid())
+  provider           String   @default("elevenlabs")
+  providerVoiceId    String
+  name               String
+  canonicalLanguage  String   @default("")
+  originalLanguage   String   @default("")
+  locale             String   @default("")
+  accent             String   @default("")
+  /** Canonical accent id when one is known. Empty when the accent is unclassified. */
+  accentId           String   @default("")
+  gender             String   @default("")
+  age                String   @default("")
+  category           String   @default("")
+  description        String   @default("")
+  descriptive        String   @default("")
+  useCase            String   @default("")
+  labelsJson         Json?
+  previewUrl         String   @default("")
+  catalogSource      String   @default("")
+  /** ELIGIBLE | EXCLUDED_NO_SAMPLE | EXCLUDED_INVALID_ID | EXCLUDED_INVALID_METADATA */
+  eligibilityStatus  String
+  /** AVAILABILITY_UNKNOWN | UNAVAILABLE_CONFIRMED */
+  availabilityStatus String
+  /** Empty unless a verified language names the synthesis model. Not a live availability check. */
+  modelCompatibility String   @default("")
+  /** present | invalid */
+  sampleStatus       String   @default("present")
+  firstSeenAt        DateTime @default(now())
+  lastSeenAt         DateTime @default(now())
+  lastCheckedAt      DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([provider, providerVoiceId])
+  @@index([eligibilityStatus, canonicalLanguage, name])
+  @@index([eligibilityStatus, accentId])
+  @@index([eligibilityStatus, gender])
+  @@index([eligibilityStatus, age])
+  @@index([eligibilityStatus, category])
+}
+
+/** One row per catalog sync attempt. A running row blocks a second sync. */
+model StudioVoiceCatalogSyncRun {
+  id               String    @id @default(cuid())
+  status           String
+  startedAt        DateTime  @default(now())
+  finishedAt       DateTime?
+  pagesFetched     Int       @default(0)
+  upserted         Int       @default(0)
+  providerRequests Int       @default(0)
+  error            String    @default("")
+  cursor           String    @default("")
+
+  @@index([status, startedAt])
+}
+
 model StudioAssetUsageEvent {
   id         String   @id @default(cuid())
   assetId    String

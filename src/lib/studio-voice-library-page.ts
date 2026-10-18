@@ -17,6 +17,7 @@ export type VoiceLibraryPageVoice = {
   language: string;
   description: string;
   previewUrl: string;
+  category?: string;
 };
 
 export type VoiceLibraryPageResult = {
@@ -37,6 +38,7 @@ function slimVoice(voice: VoiceLibraryEntry): VoiceLibraryPageVoice {
     language: voice.language,
     description: voice.description.trim().slice(0, 180),
     previewUrl: voice.previewUrl,
+    category: voice.category || undefined,
   };
 }
 

@@ -381,7 +381,7 @@ export function mockVoiceLibraryCatalog(): VoiceLibraryCatalog {
   };
 }
 
-async function fetchElevenLabsAccountVoices(
+export async function fetchElevenLabsAccountVoices(
   apiKey: string,
   fetchFn: typeof fetch = fetch
 ): Promise<VoiceLibraryEntry[]> {

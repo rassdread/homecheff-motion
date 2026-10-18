@@ -30,35 +30,16 @@ const LANGUAGE_NAME_TO_CODE: Record<string, string> = {
   filipino: "fil",
 };
 
-/** Dutch labels for codes we can name. Unknown codes are not given a guessed name. */
-export const VOICE_LANGUAGE_LABELS_NL: Record<string, string> = {
-  nl: "Nederlands",
-  en: "Engels",
-  de: "Duits",
-  es: "Spaans",
-  fr: "Frans",
-  it: "Italiaans",
-  pt: "Portugees",
-  pl: "Pools",
-  sv: "Zweeds",
-  da: "Deens",
-  no: "Noors",
-  fi: "Fins",
-  ar: "Arabisch",
-  tr: "Turks",
-  ru: "Russisch",
-  uk: "Oekraïens",
-  ro: "Roemeens",
-  hu: "Hongaars",
-  cs: "Tsjechisch",
-  el: "Grieks",
-  ja: "Japans",
-  ko: "Koreaans",
-  zh: "Chinees",
-  hi: "Hindi",
-  id: "Indonesisch",
-  fil: "Filipijns",
+const dutchLanguageNames = new Intl.DisplayNames(["nl"], { type: "language" });
+
+/**
+ * ICU labels Filipino and Tagalog both as Filipijns.
+ * The codes stay distinct, and Tagalog keeps its own name.
+ * Central Kurdish is labeled in Dutch because the ICU name is Soranî.
+ */
+const LANGUAGE_LABEL_OVERRIDES: Record<string, string> = {
   tl: "Tagalog",
+  ckb: "Centraal-Koerdisch",
 };
 
 const POPULAR_LANGUAGE_CODES = ["nl", "en", "de", "fr", "es"];
@@ -77,7 +58,19 @@ export function voiceLanguageLabel(raw: string): string {
   if (!code) {
     return "";
   }
-  return VOICE_LANGUAGE_LABELS_NL[code] ?? code;
+  const override = LANGUAGE_LABEL_OVERRIDES[code];
+  if (override) {
+    return override;
+  }
+  try {
+    const name = dutchLanguageNames.of(code);
+    if (name && name.toLowerCase() !== code.toLowerCase()) {
+      return name;
+    }
+  } catch {
+    return code;
+  }
+  return code;
 }
 
 export function sortVoiceLanguageOptions<T extends { value: string }>(options: T[]): T[] {

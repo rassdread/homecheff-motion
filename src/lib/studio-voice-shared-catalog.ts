@@ -284,6 +284,74 @@ export function mergeAccountAndSharedVoices(
   return { voices, dedupeCount };
 }
 
+async function pause(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Yield one shared-voice page at a time. Retries a 429 twice, then throws. */
+export async function* iterateElevenLabsSharedVoicePages(
+  apiKey: string,
+  options?: SharedVoicesFetchOptions
+): AsyncGenerator<VoiceLibraryEntry[]> {
+  const fetchFn = options?.fetchFn ?? fetch;
+  const sharedVoicesLimit = options?.maxVoices ?? resolveSharedVoicesLimit();
+  const pageSize = Math.min(options?.pageSize ?? DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
+  let page = 0;
+  let yielded = 0;
+
+  while (sharedVoicesLimit === null || yielded < sharedVoicesLimit) {
+    const remaining = sharedVoicesLimit === null ? pageSize : sharedVoicesLimit - yielded;
+    const requestSize = Math.min(pageSize, remaining);
+    const url = `https://api.elevenlabs.io/v1/shared-voices?page_size=${requestSize}&page=${page}`;
+    let res: Response | null = null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      res = await fetchFn(url, {
+        headers: { "xi-api-key": apiKey },
+        next: { revalidate: 3600 },
+      });
+      if (res.status !== 429 || attempt === 2) {
+        break;
+      }
+      await pause(1000 * (attempt + 1));
+    }
+    if (!res || !res.ok) {
+      const detail = res ? await res.text().catch(() => "") : "";
+      throw new Error(
+        `ElevenLabs shared voice list failed (${res?.status ?? 0}): ${detail.slice(0, 200) || res?.statusText || "no response"}`
+      );
+    }
+    const payload = (await res.json()) as {
+      voices?: ElevenLabsSharedVoiceRow[];
+      has_more?: boolean;
+    };
+    const rows = payload.voices ?? [];
+    if (rows.length === 0) {
+      break;
+    }
+    const mapped: VoiceLibraryEntry[] = [];
+    for (const row of rows) {
+      if (sharedVoicesLimit !== null && yielded + mapped.length >= sharedVoicesLimit) {
+        break;
+      }
+      const voice = mapElevenLabsSharedVoice(row);
+      if (voice) {
+        mapped.push(voice);
+      }
+    }
+    if (mapped.length > 0) {
+      yield mapped;
+      yielded += mapped.length;
+    }
+    if (sharedVoicesLimit !== null && yielded >= sharedVoicesLimit) {
+      break;
+    }
+    if (!payload.has_more) {
+      break;
+    }
+    page += 1;
+  }
+}
+
 export async function fetchElevenLabsSharedVoices(
   apiKey: string,
   options?: SharedVoicesFetchOptions
