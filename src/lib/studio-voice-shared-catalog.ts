@@ -22,6 +22,9 @@ export type ElevenLabsSharedVoiceRow = {
   category?: string;
   description?: string | null;
   preview_url?: string | null;
+  descriptive?: string | null;
+  use_case?: string | null;
+  locale?: string | null;
   labels?: Record<string, string>;
   verified_languages?: ElevenLabsVerifiedLanguage[] | null;
 };
@@ -173,7 +176,8 @@ export function mapElevenLabsSharedVoice(row: ElevenLabsSharedVoiceRow): VoiceLi
 
   const name = row.name?.trim() || voiceId;
   const description = row.description?.trim() ?? "";
-  const language = normalizeLanguageCode(row.language ?? row.labels?.language ?? "");
+  const rawLanguage = (row.language ?? row.labels?.language ?? "").trim();
+  const language = normalizeLanguageCode(rawLanguage);
   const accent = normalizeSharedAccent({
     rawAccent: row.accent ?? row.labels?.accent ?? "",
     language,
@@ -196,6 +200,18 @@ export function mapElevenLabsSharedVoice(row: ElevenLabsSharedVoiceRow): VoiceLi
   }
   if (row.age?.trim()) {
     labels.age = labels.age || row.age.trim();
+  }
+  if (rawLanguage) {
+    labels.provider_language = labels.provider_language || rawLanguage;
+  }
+  if (row.descriptive?.trim()) {
+    labels.descriptive = labels.descriptive || row.descriptive.trim();
+  }
+  if (row.use_case?.trim()) {
+    labels.use_case = labels.use_case || row.use_case.trim();
+  }
+  if (row.locale?.trim()) {
+    labels.locale = labels.locale || row.locale.trim();
   }
 
   const mapped = mapElevenLabsVoice({

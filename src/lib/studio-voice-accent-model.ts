@@ -6,6 +6,7 @@
 import type { VoiceLibraryCatalog, VoiceLibraryEntry } from "@/lib/studio-voice-library-catalog";
 import { voiceMatchesGeographyFilters } from "@/lib/studio-voice-geography-model";
 import { resolveMarketplaceSearchQuery } from "@/lib/studio-voice-marketplace-search";
+import { canonicalVoiceAge, canonicalVoiceLanguage } from "@/lib/studio-voice-language";
 
 export type VoiceAccentFamilyId =
   | "english"
@@ -188,8 +189,12 @@ const CATEGORY_LABEL_KEYS: Record<string, string> = {
 
 export function buildVoiceLibraryFilterOptions(catalog: VoiceLibraryCatalog): VoiceLibraryFilterOptions {
   const genderCounts = countByField(catalog.voices, (v) => v.gender || v.labels.gender || "");
-  const languageCounts = countByField(catalog.voices, (v) => v.language || v.labels.language || "");
-  const ageCounts = countByField(catalog.voices, (v) => v.age || v.labels.age || "");
+  const languageCounts = countByField(catalog.voices, (v) =>
+    canonicalVoiceLanguage(v.language || v.labels.language || "")
+  );
+  const ageCounts = countByField(catalog.voices, (v) =>
+    canonicalVoiceAge(v.age || v.labels.age || "")
+  );
   const categoryCounts = countByField(catalog.voices, (v) => v.category || "");
 
   return {
@@ -254,14 +259,14 @@ export function filterVoiceLibrary(
       }
     }
     if (filters.language) {
-      const language = (voice.language || voice.labels.language || "").trim().toLowerCase();
-      if (language !== filters.language.trim().toLowerCase()) {
+      const language = canonicalVoiceLanguage(voice.language || voice.labels.language || "");
+      if (!language || language !== canonicalVoiceLanguage(filters.language)) {
         return false;
       }
     }
     if (filters.age) {
-      const age = (voice.age || voice.labels.age || "").trim().toLowerCase();
-      if (age !== filters.age.trim().toLowerCase()) {
+      const age = canonicalVoiceAge(voice.age || voice.labels.age || "");
+      if (!age || age !== canonicalVoiceAge(filters.age)) {
         return false;
       }
     }

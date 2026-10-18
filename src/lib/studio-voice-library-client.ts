@@ -36,6 +36,7 @@ export type VoiceLibraryPageResult = {
   total: number;
   page: number;
   pageSize: number;
+  languageCounts?: Array<{ value: string; voiceCount: number }>;
 };
 
 type CacheEntry = {
@@ -93,6 +94,7 @@ export async function searchVoiceLibraryPage(params: {
   gender?: string;
   age?: string;
   sample?: "yes" | "no" | "";
+  category?: string;
   page?: number;
   signal?: AbortSignal;
 }): Promise<VoiceLibraryPageResult> {
@@ -114,6 +116,9 @@ export async function searchVoiceLibraryPage(params: {
   }
   if (params.age?.trim()) {
     search.set("age", params.age.trim());
+  }
+  if (params.category?.trim()) {
+    search.set("category", params.category.trim());
   }
   if (params.sample === "yes" || params.sample === "no") {
     search.set("sample", params.sample);

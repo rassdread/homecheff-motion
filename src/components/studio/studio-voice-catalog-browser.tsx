@@ -2,12 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import { StudioVoiceSampleCompare } from "@/components/studio/studio-voice-sample-compare";
+import { useActiveTranslator } from "@/i18n/client";
+import type { TranslationKey } from "@/i18n";
 import {
   searchVoiceLibraryPage,
   type VoiceLibraryPageResult,
 } from "@/lib/studio-voice-library-client";
 import type { VoiceLibraryFilterOptions } from "@/lib/studio-voice-accent-model";
 import { safeFormatLibraryVoiceProfileRef } from "@/lib/studio-voice-profile-ref";
+import {
+  sortVoiceLanguageOptions,
+  voiceLanguageLabel,
+} from "@/lib/studio-voice-language";
 
 type Props = {
   active: boolean;
@@ -34,7 +40,7 @@ function VoiceCatalogCard({
         <div className="min-w-0">
           <p className="text-sm font-semibold text-zinc-950">{voice.name}</p>
           <p className="mt-1 text-xs text-zinc-600">
-            {[voice.language, voice.accent, voice.gender, voice.age].filter(Boolean).join(" · ")}
+            {[voiceLanguageLabel(voice.language), voice.accent, voice.gender, voice.age].filter(Boolean).join(" · ")}
           </p>
           {voice.description ? <p className="mt-1 text-xs text-zinc-500">{voice.description}</p> : null}
         </div>
@@ -75,6 +81,8 @@ export function StudioVoiceCatalogBrowser({
   const [gender, setGender] = useState("");
   const [age, setAge] = useState("");
   const [sampleFilter, setSampleFilter] = useState<"" | "yes" | "no">("");
+  const [category, setCategory] = useState("");
+  const [languageQuery, setLanguageQuery] = useState("");
   const [page, setPage] = useState(0);
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const seenQuery = useRef(query);
@@ -108,6 +116,7 @@ export function StudioVoiceCatalogBrowser({
       gender,
       age,
       sample: sampleFilter,
+      category,
       page,
       signal: controller.signal,
     })
@@ -130,9 +139,37 @@ export function StudioVoiceCatalogBrowser({
       cancelled = true;
       controller.abort();
     };
-  }, [active, debouncedQuery, language, accent, gender, age, sampleFilter, page]);
+  }, [active, debouncedQuery, language, accent, gender, age, sampleFilter, category, page]);
+
+  const t = useActiveTranslator();
+  const languageSource = result?.languageCounts?.length
+    ? result.languageCounts
+    : (filterOptions?.languages ?? []);
+  const languageQueryText = languageQuery.trim().toLowerCase();
+  const languageOptions = sortVoiceLanguageOptions(languageSource).filter((option) => {
+    if (option.value === language) return true;
+    if (!languageQueryText) return true;
+    const label = voiceLanguageLabel(option.value).toLowerCase();
+    return label.includes(languageQueryText) || option.value.toLowerCase().includes(languageQueryText);
+  });
 
   const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize)) : 1;
+  const filtersActive = Boolean(query || language || accent || gender || age || sampleFilter || category);
+
+  function resetFilters() {
+    setQuery("");
+    setDebouncedQuery("");
+    seenQuery.current = "";
+    setLanguage("");
+    setLanguageQuery("");
+    setAccent("");
+    setGender("");
+    setAge("");
+    setSampleFilter("");
+    setCategory("");
+    setPage(0);
+    setLoading(true);
+  }
 
   return (
     <div className="mt-4 space-y-3" data-testid="voice-catalog-browser">
@@ -146,6 +183,14 @@ export function StudioVoiceCatalogBrowser({
           aria-label="Zoek een stem"
           className="min-h-[44px] rounded-lg border border-zinc-200 bg-white px-3 text-sm"
         />
+        <input
+          type="search"
+          value={languageQuery}
+          onChange={(event) => setLanguageQuery(event.target.value)}
+          placeholder="Zoek een taal"
+          aria-label="Zoek een taal"
+          className="min-h-[44px] rounded-lg border border-zinc-200 bg-white px-3 text-sm"
+        />
         <select
           aria-label="Taalfilter"
           value={language}
@@ -157,9 +202,9 @@ export function StudioVoiceCatalogBrowser({
           className="min-h-[44px] rounded-lg border border-zinc-200 bg-white px-3 text-sm"
         >
           <option value="">Alle talen</option>
-          {(filterOptions?.languages ?? []).map((option) => (
+          {languageOptions.map((option) => (
             <option key={option.value} value={option.value}>
-              {option.value.toUpperCase()} ({option.voiceCount})
+              {voiceLanguageLabel(option.value)} ({option.voiceCount})
             </option>
           ))}
         </select>
@@ -176,7 +221,7 @@ export function StudioVoiceCatalogBrowser({
           <option value="">Alle accenten</option>
           {(filterOptions?.accents ?? []).map((option) => (
             <option key={option.id} value={option.id}>
-              {option.id} ({option.voiceCount})
+              {t(option.labelKey as TranslationKey)} ({option.voiceCount})
             </option>
           ))}
         </select>
@@ -193,7 +238,7 @@ export function StudioVoiceCatalogBrowser({
           <option value="">Alle stemtypes</option>
           {(filterOptions?.genders ?? []).map((option) => (
             <option key={option.value} value={option.value}>
-              {option.value} ({option.voiceCount})
+              {t(option.labelKey as TranslationKey)} ({option.voiceCount})
             </option>
           ))}
         </select>
@@ -210,7 +255,24 @@ export function StudioVoiceCatalogBrowser({
           <option value="">Alle leeftijden</option>
           {(filterOptions?.ages ?? []).map((option) => (
             <option key={option.value} value={option.value}>
-              {option.value} ({option.voiceCount})
+              {t(option.labelKey as TranslationKey)} ({option.voiceCount})
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Categoriefilter"
+          value={category}
+          onChange={(event) => {
+            setCategory(event.target.value);
+            setPage(0);
+            setLoading(true);
+          }}
+          className="min-h-[44px] rounded-lg border border-zinc-200 bg-white px-3 text-sm"
+        >
+          <option value="">Alle categorieën</option>
+          {(filterOptions?.categories ?? []).map((option) => (
+            <option key={option.value} value={option.value}>
+              {t(option.labelKey as TranslationKey)} ({option.voiceCount})
             </option>
           ))}
         </select>
@@ -229,6 +291,21 @@ export function StudioVoiceCatalogBrowser({
           <option value="yes">Gratis voorbeeld aanwezig</option>
           <option value="no">Geen gratis voorbeeld</option>
         </select>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-zinc-600">
+          {result ? `${result.total} stemmen in deze selectie` : "Selectie laden…"}
+          {language ? ` · ${voiceLanguageLabel(language)}` : ""}
+        </p>
+        {filtersActive ?
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="min-h-[44px] rounded-full border border-zinc-300 px-4 text-sm font-semibold text-zinc-800"
+          >
+            Wis filters
+          </button>
+        : null}
       </div>
       {loading ? <p className="text-sm text-zinc-600">Stemmen laden…</p> : null}
       {error ?

@@ -28,6 +28,7 @@ export async function GET(request: Request) {
         accent: url.searchParams.get("accent") ?? "",
         gender: url.searchParams.get("gender") ?? "",
         age: url.searchParams.get("age") ?? "",
+        category: url.searchParams.get("category") ?? "",
         sample:
           url.searchParams.get("sample") === "yes" ? "yes"
           : url.searchParams.get("sample") === "no" ? "no"

@@ -4,6 +4,7 @@
 
 import { classifyVoiceAccent } from "@/lib/studio-voice-accent-model";
 import { applyVoiceMetadataRepair } from "@/lib/studio-voice-metadata-repair";
+import { canonicalVoiceLanguage } from "@/lib/studio-voice-language";
 
 export { inferAccentFromLocale } from "@/lib/studio-voice-locale-accent";
 export { parseAccentFromDescription } from "@/lib/studio-voice-accent-model";
@@ -53,6 +54,7 @@ export type ElevenLabsVoiceRow = {
 const CACHE_TTL_MS = 60 * 60 * 1000;
 let cachedCatalog: VoiceLibraryCatalog | null = null;
 let cacheExpiresAt = 0;
+let catalogInflight: Promise<VoiceLibraryCatalog> | null = null;
 
 export function isMockOnlyVoiceId(voiceId: string): boolean {
   return voiceId.trim().startsWith("mock-");
@@ -69,12 +71,7 @@ function pickLabel(labels: Record<string, string>, ...keys: string[]): string {
 }
 
 export function normalizeLanguageCode(raw: string): string {
-  const value = raw.trim().toLowerCase();
-  if (!value) {
-    return "";
-  }
-  const primary = value.split(/[-_]/)[0]?.trim();
-  return primary ?? value;
+  return canonicalVoiceLanguage(raw);
 }
 
 export function pickVerifiedLanguage(row: ElevenLabsVoiceRow): ElevenLabsVerifiedLanguage | null {
@@ -111,7 +108,11 @@ export function mapElevenLabsVoice(row: ElevenLabsVoiceRow): VoiceLibraryEntry |
   let accent = pickLabel(labels, "accent", "Accent");
   const gender = pickLabel(labels, "gender", "Gender");
   const age = pickLabel(labels, "age", "Age");
-  let language = normalizeLanguageCode(pickLabel(labels, "language", "Language", "locale"));
+  const rawLanguage = pickLabel(labels, "language", "Language", "locale");
+  if (rawLanguage) {
+    labels.provider_language = labels.provider_language || rawLanguage;
+  }
+  let language = normalizeLanguageCode(rawLanguage);
   let previewUrl = row.preview_url?.trim() ?? "";
 
   if (verified) {
@@ -478,11 +479,23 @@ export async function buildVoiceLibraryCatalog(options?: {
   if (!options?.forceRefresh && cachedCatalog && now < cacheExpiresAt) {
     return cachedCatalog;
   }
+  if (!options?.forceRefresh && catalogInflight) {
+    return catalogInflight;
+  }
 
-  const catalog = await fetchElevenLabsVoiceCatalog();
-  cachedCatalog = catalog;
-  cacheExpiresAt = now + CACHE_TTL_MS;
-  return catalog;
+  const pending = fetchElevenLabsVoiceCatalog().then((catalog) => {
+    cachedCatalog = catalog;
+    cacheExpiresAt = Date.now() + CACHE_TTL_MS;
+    return catalog;
+  });
+  catalogInflight = pending;
+  try {
+    return await pending;
+  } finally {
+    if (catalogInflight === pending) {
+      catalogInflight = null;
+    }
+  }
 }
 
 export function findVoiceLibraryEntry(
@@ -496,4 +509,5 @@ export function findVoiceLibraryEntry(
 export function clearVoiceLibraryCatalogCacheForTests(): void {
   cachedCatalog = null;
   cacheExpiresAt = 0;
+  catalogInflight = null;
 }

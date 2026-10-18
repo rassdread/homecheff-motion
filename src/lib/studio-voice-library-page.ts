@@ -4,6 +4,7 @@
 
 import { filterVoiceLibrary } from "@/lib/studio-voice-accent-model";
 import type { VoiceLibraryCatalog, VoiceLibraryEntry } from "@/lib/studio-voice-library-catalog";
+import { canonicalVoiceLanguage } from "@/lib/studio-voice-language";
 
 export const VOICE_LIBRARY_PAGE_SIZE = 24;
 
@@ -23,6 +24,7 @@ export type VoiceLibraryPageResult = {
   total: number;
   page: number;
   pageSize: number;
+  languageCounts: Array<{ value: string; voiceCount: number }>;
 };
 
 function slimVoice(voice: VoiceLibraryEntry): VoiceLibraryPageVoice {
@@ -47,6 +49,7 @@ export function pageVoiceLibrary(
     gender?: string;
     age?: string;
     sample?: "yes" | "no" | "";
+    category?: string;
     page?: number;
     pageSize?: number;
   }
@@ -54,22 +57,23 @@ export function pageVoiceLibrary(
   const pageSize = Math.min(48, Math.max(1, input.pageSize ?? VOICE_LIBRARY_PAGE_SIZE));
   const page = Math.max(0, Math.floor(input.page ?? 0));
   const query = input.query?.trim() ?? "";
-  const language = input.language?.trim() ?? "";
+  const language = canonicalVoiceLanguage(input.language ?? "");
   const accent = input.accent?.trim() ?? "";
-  let matches = filterVoiceLibrary(catalog, {
+  const shared = {
     query,
-    language: language || undefined,
     accentId: accent || undefined,
     gender: input.gender?.trim() || undefined,
     age: input.age?.trim() || undefined,
-  });
+    category: input.category?.trim() || undefined,
+  };
+  let matches = filterVoiceLibrary(catalog, shared);
   if (accent && matches.length === 0) {
     const raw = accent.toLowerCase();
     matches = filterVoiceLibrary(catalog, {
       query,
-      language: language || undefined,
-      gender: input.gender?.trim() || undefined,
-      age: input.age?.trim() || undefined,
+      gender: shared.gender,
+      age: shared.age,
+      category: shared.category,
     }).filter((voice) => (voice.accent || "").trim().toLowerCase() === raw);
   }
   if (input.sample === "yes") {
@@ -77,11 +81,29 @@ export function pageVoiceLibrary(
   } else if (input.sample === "no") {
     matches = matches.filter((voice) => !voice.previewUrl.trim());
   }
+  const languageCounts = new Map<string, number>();
+  for (const voice of matches) {
+    const code = canonicalVoiceLanguage(voice.language || voice.labels.language || "");
+    if (!code) continue;
+    languageCounts.set(code, (languageCounts.get(code) ?? 0) + 1);
+  }
+  if (language) {
+    matches = matches.filter(
+      (voice) => canonicalVoiceLanguage(voice.language || voice.labels.language || "") === language
+    );
+    if (!languageCounts.has(language)) {
+      languageCounts.set(language, 0);
+    }
+  }
+  matches.sort((a, b) => a.name.localeCompare(b.name, "en") || a.id.localeCompare(b.id));
   const start = page * pageSize;
   return {
     voices: matches.slice(start, start + pageSize).map(slimVoice),
     total: matches.length,
     page,
     pageSize,
+    languageCounts: [...languageCounts.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([value, voiceCount]) => ({ value, voiceCount })),
   };
 }
