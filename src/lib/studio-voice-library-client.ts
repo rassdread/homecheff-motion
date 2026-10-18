@@ -40,6 +40,10 @@ export type VoiceLibraryPageResult = {
   languageCounts?: Array<{ value: string; voiceCount: number }>;
   accentCounts?: Array<{ value: string; labelKey: string; voiceCount: number }>;
   localeCounts?: Array<{ value: string; label: string; voiceCount: number }>;
+  suppressedAccentIds?: string[];
+  genderCounts?: Array<{ value: string; labelKey: string; voiceCount: number }>;
+  ageCounts?: Array<{ value: string; labelKey: string; voiceCount: number }>;
+  categoryCounts?: Array<{ value: string; labelKey: string; voiceCount: number }>;
   relaxed?: boolean;
 };
 
@@ -101,6 +105,7 @@ export async function searchVoiceLibraryPage(params: {
   category?: string;
   locale?: string;
   recommend?: boolean;
+  favorites?: boolean;
   page?: number;
   pageSize?: number;
   signal?: AbortSignal;
@@ -137,6 +142,14 @@ export async function searchVoiceLibraryPage(params: {
     search.set("sample", params.sample);
   }
   const key = search.toString();
+  if (params.favorites) {
+    const res = await fetch(`/api/studio/voice-favorites?${key}`, { signal: params.signal });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(body.error ?? "Favorieten laden mislukt.");
+    }
+    return (await res.json()) as VoiceLibraryPageResult;
+  }
   const cachedPage = pageCache.get(key);
   if (cachedPage) {
     return cachedPage;
@@ -244,6 +257,24 @@ export function clearVoiceLibraryClientCacheForTests(): void {
     voicesReady: false,
     error: "",
   };
+}
+
+export async function fetchVoiceFavoriteIds(voiceIds: string[], signal?: AbortSignal): Promise<string[]> {
+  const ids = voiceIds.map((id) => id.trim()).filter(Boolean).slice(0, 48);
+  if (ids.length === 0) return [];
+  const res = await fetch(`/api/studio/voice-favorites?voiceIds=${encodeURIComponent(ids.join(","))}`, { signal });
+  if (!res.ok) return [];
+  const body = (await res.json()) as { favoriteIds?: string[] };
+  return body.favoriteIds ?? [];
+}
+
+export async function setVoiceFavorite(providerVoiceId: string, favorite: boolean): Promise<boolean> {
+  const res = await fetch("/api/studio/voice-favorites", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ providerVoiceId, favorite }),
+  });
+  return res.ok;
 }
 
 export function findVoiceInClientCatalog(voiceId: string): VoiceLibraryCatalog["voices"][number] | undefined {

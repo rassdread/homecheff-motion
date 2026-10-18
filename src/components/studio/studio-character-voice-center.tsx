@@ -29,7 +29,7 @@ import {
   safeFormatLibraryVoiceProfileRef,
   validateVoiceProfileForSynthesis,
 } from "@/lib/studio-voice-profile-ref";
-import { searchVoiceLibraryPage, type VoiceLibraryPageResult, type VoiceLibraryPayload } from "@/lib/studio-voice-library-client";
+import { fetchVoiceFavoriteIds, searchVoiceLibraryPage, setVoiceFavorite, type VoiceLibraryPageResult, type VoiceLibraryPayload } from "@/lib/studio-voice-library-client";
 import { voiceGenderLabel, voiceGenderPreference, voiceLanguageLabel } from "@/lib/studio-voice-language";
 import { useOptionalUserVoiceLibrary } from "@/components/studio/studio-user-voice-library-provider";
 import type { UserVoiceLibrary } from "@/types/studio-user-voice-library";
@@ -37,6 +37,7 @@ import { VoiceCenterCollapsibleSection } from "@/components/studio/voice-center-
 import { StudioMyVoicesSection } from "@/components/studio/studio-my-voices-section";
 import { StudioVoiceCatalogBrowser } from "@/components/studio/studio-voice-catalog-browser";
 import { StudioCharacterVoiceSharedPreview } from "@/components/studio/studio-character-voice-shared-preview";
+import { StudioVoiceFavoriteHeart } from "@/components/studio/studio-voice-favorite-heart";
 import { StudioVoiceSampleCompare } from "@/components/studio/studio-voice-sample-compare";
 import { useOptionalVoiceLibrary } from "@/components/studio/studio-voice-library-provider";
 import { buildVoiceLibraryStats } from "@/lib/studio-voice-accent-coverage";
@@ -242,6 +243,8 @@ function RecommendedPresetCard({
   subtitle,
   previewUrl,
   canModify,
+  favorite,
+  onFavorite,
   onSelect,
 }: {
   profile: string;
@@ -250,6 +253,8 @@ function RecommendedPresetCard({
   subtitle: string;
   previewUrl: string;
   canModify: boolean;
+  favorite: boolean;
+  onFavorite: () => void;
   onSelect: (speechSpeed: number) => void;
 }) {
   const [speed, setSpeed] = useState(1);
@@ -260,11 +265,14 @@ function RecommendedPresetCard({
           <p className="text-sm font-semibold text-zinc-950">{title}</p>
           <p className="mt-1 text-xs text-zinc-600">{subtitle}</p>
         </div>
-        {selected ?
-          <span className="rounded-full bg-[#0067B1] px-2 py-0.5 text-[10px] font-semibold uppercase text-white">
-            Geselecteerd
-          </span>
-        : null}
+        <span className="flex items-center gap-2">
+          <StudioVoiceFavoriteHeart favorite={favorite} onToggle={onFavorite} />
+          {selected ?
+            <span className="rounded-full bg-[#0067B1] px-2 py-0.5 text-[10px] font-semibold uppercase text-white">
+              Geselecteerd
+            </span>
+          : null}
+        </span>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <StudioVoiceSampleCompare previewUrl={previewUrl} label={title} onSpeed={setSpeed} />
@@ -320,7 +328,8 @@ export function StudioCharacterVoiceCenter({
   const [useSameVoiceForAllLanguages, setUseSameVoiceForAllLanguages] = useState(
     () => !hasLanguageVoiceOverrides(value.voiceProfilesByLanguage)
   );
-  const [voicePickerTab, setVoicePickerTab] = useState<"recommended" | "all" | "mine">("recommended");
+  const [voicePickerTab, setVoicePickerTab] = useState<"recommended" | "all" | "favorites" | "mine">("recommended");
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [recommended, setRecommended] = useState<VoiceLibraryPageResult | null>(null);
   const [recommendedLoading, setRecommendedLoading] = useState(true);
   const [recommendedError, setRecommendedError] = useState("");
@@ -371,6 +380,11 @@ export function StudioCharacterVoiceCenter({
         setRecommended(page);
         setRecommendedError("");
         setRecommendedLoading(false);
+        void fetchVoiceFavoriteIds(page.voices.map((voice) => voice.id), controller.signal).then((ids) => {
+          if (!controller.signal.aborted) {
+            setFavoriteIds((current) => [...new Set([...current, ...ids])]);
+          }
+        });
       })
       .catch((err: unknown) => {
         if (controller.signal.aborted) return;
@@ -699,11 +713,12 @@ export function StudioCharacterVoiceCenter({
 
       <div className="mt-4" data-testid="voice-picker">
         <p className="text-sm font-semibold text-zinc-900">Kies een stem</p>
-        <div className="mt-2 grid grid-cols-3 gap-2">
+        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {(
             [
               ["recommended", "Aanbevolen"],
               ["all", "Alle stemmen"],
+              ["favorites", "Favorieten"],
               ["mine", "Mijn stemmen"],
             ] as const
           ).map(([tab, label]) => (
@@ -745,6 +760,17 @@ export function StudioCharacterVoiceCenter({
                   subtitle={[voiceLanguageLabel(voice.language), voice.accent, voiceGenderLabel(voice.gender)].filter(Boolean).join(" · ")}
                   previewUrl={voice.previewUrl}
                   canModify={canModify}
+                  favorite={favoriteIds.includes(voice.id)}
+                  onFavorite={() => {
+                    const next = !favoriteIds.includes(voice.id);
+                    setFavoriteIds((current) => next ? [...current, voice.id] : current.filter((id) => id !== voice.id));
+                    void setVoiceFavorite(voice.id, next).then((ok) => {
+                      if (!ok) {
+                        setFavoriteIds((current) => next ? current.filter((id) => id !== voice.id) : [...current, voice.id]);
+                        setRecommendedError("Favoriet opslaan mislukt. Probeer het opnieuw.");
+                      }
+                    });
+                  }}
                   onSelect={(speechSpeed) =>
                     handleSelectProfile(profile, {
                       voiceName: voice.name,
@@ -778,9 +804,10 @@ export function StudioCharacterVoiceCenter({
         </div>
       ) : null}
 
-      {voicePickerTab === "all" ? (
+      {voicePickerTab === "all" || voicePickerTab === "favorites" ? (
         <StudioVoiceCatalogBrowser
-          active={voicePickerTab === "all"}
+          active={voicePickerTab === "all" || voicePickerTab === "favorites"}
+          collection={voicePickerTab === "favorites" ? "favorites" : "all"}
           selectedProfile={value.voiceProfile}
           filterOptions={voicePayload?.filterOptions ?? null}
           statsNote={

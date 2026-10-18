@@ -331,6 +331,7 @@ model User {
   studioLibraryAssets    StudioLibraryAsset[]
   studioAssetCollections StudioAssetCollection[]
   studioFavorites        StudioFavorite[]
+  studioVoiceFavorites   StudioVoiceFavorite[]
   studioBrandKits        StudioBrandKit[]
   studioPromptPresets    StudioPromptPreset[]
 }
@@ -1675,6 +1676,22 @@ model StudioVoiceCatalogEntry {
   @@index([eligibilityStatus, gender])
   @@index([eligibilityStatus, age])
   @@index([eligibilityStatus, category])
+}
+
+/**
+ * Account-level voice favorites. The row stores the provider id only.
+ * Catalog refreshes do not delete it, and a missing catalog voice does not remove it.
+ */
+model StudioVoiceFavorite {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider        String   @default("elevenlabs")
+  providerVoiceId String
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, provider, providerVoiceId])
+  @@index([userId, createdAt])
 }
 
 /** One row per catalog sync attempt. A running row blocks a second sync. */

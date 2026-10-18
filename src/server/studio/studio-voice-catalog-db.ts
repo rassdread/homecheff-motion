@@ -92,13 +92,35 @@ function catalogSearchClient(): VoiceCatalogSearchClient {
       }));
     },
     groupByValue: async (field, where) => {
+      const scoped = where as Prisma.StudioVoiceCatalogEntryWhereInput;
+      if (field === "accentId") {
+        const rows = await prisma.studioVoiceCatalogEntry.groupBy({ by: ["accentId"], where: scoped, _count: { _all: true } });
+        return rows.map((row) => ({ value: row.accentId, voiceCount: row._count._all }));
+      }
+      if (field === "locale") {
+        const rows = await prisma.studioVoiceCatalogEntry.groupBy({ by: ["locale"], where: scoped, _count: { _all: true } });
+        return rows.map((row) => ({ value: row.locale, voiceCount: row._count._all }));
+      }
+      if (field === "gender") {
+        const rows = await prisma.studioVoiceCatalogEntry.groupBy({ by: ["gender"], where: scoped, _count: { _all: true } });
+        return rows.map((row) => ({ value: row.gender, voiceCount: row._count._all }));
+      }
+      if (field === "age") {
+        const rows = await prisma.studioVoiceCatalogEntry.groupBy({ by: ["age"], where: scoped, _count: { _all: true } });
+        return rows.map((row) => ({ value: row.age, voiceCount: row._count._all }));
+      }
+      const rows = await prisma.studioVoiceCatalogEntry.groupBy({ by: ["category"], where: scoped, _count: { _all: true } });
+      return rows.map((row) => ({ value: row.category, voiceCount: row._count._all }));
+    },
+    groupByAccentLocale: async (where) => {
       const rows = await prisma.studioVoiceCatalogEntry.groupBy({
-        by: [field],
+        by: ["accentId", "locale"],
         where: where as Prisma.StudioVoiceCatalogEntryWhereInput,
         _count: { _all: true },
       });
       return rows.map((row) => ({
-        value: String(row[field] ?? ""),
+        accentId: row.accentId,
+        locale: row.locale,
         voiceCount: row._count._all,
       }));
     },
