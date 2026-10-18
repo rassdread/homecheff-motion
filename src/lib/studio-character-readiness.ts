@@ -82,8 +82,8 @@ function buildIdentityDomain(identity: CharacterIdentityFormValues): CharacterRe
   const hasType = Boolean(identity.characterType.trim());
   const hasDescription = Boolean(identity.description.trim());
   const hasPersonality = Boolean(identity.personality.trim());
-  const passed = hasName && hasType && hasDescription;
-  const weak = hasName && (!hasDescription || !hasPersonality);
+  const passed = hasName && hasType && hasDescription && hasPersonality;
+  const weak = hasName && (!hasType || !hasDescription || !hasPersonality);
   return {
     id: "identity",
     labelKey: "studio.characterReadiness.domain.identity",
@@ -99,15 +99,13 @@ function buildIdentityDomain(identity: CharacterIdentityFormValues): CharacterRe
 
 function buildVisualStyleDomain(identity: CharacterIdentityFormValues): CharacterReadinessDomain {
   const hasStyle = Boolean(identity.visualStyle.trim());
-  const hasShape = Boolean(identity.shapeLanguage.trim());
-  const hasColor = Boolean(identity.colorTheme.trim());
-  const passed = hasStyle && hasShape;
-  const weak = hasStyle || hasShape || hasColor;
   return {
     id: "visualStyle",
     labelKey: "studio.characterReadiness.domain.visualStyle",
-    status: domainStatus(passed, weak),
-    detailKey: !hasStyle ? "studio.characterReadiness.detail.visualStyleMissing" : undefined,
+    status: "pass",
+    detailKey: hasStyle
+      ? "studio.characterReadiness.detail.visualStyleSaved"
+      : "studio.characterReadiness.detail.visualStyleOptional",
   };
 }
 
@@ -118,11 +116,10 @@ function buildVoiceDomain(
 ): CharacterReadinessDomain {
   const explicit = characterHasExplicitVoiceChoice(voiceProfile);
   const passed = voiceEnabled && explicit && voiceStatus !== "none";
-  const weak = voiceEnabled && !explicit;
   return {
     id: "voice",
     labelKey: "studio.characterReadiness.domain.voice",
-    status: domainStatus(passed, weak),
+    status: passed ? "pass" : "warning",
     detailKey:
       !voiceEnabled ? "studio.characterReadiness.detail.voiceDisabled"
       : !explicit ? "studio.characterReadiness.detail.voiceDefault"
@@ -132,14 +129,11 @@ function buildVoiceDomain(
 
 function buildWorldDomain(identity: CharacterIdentityFormValues): CharacterReadinessDomain {
   const hasWorld = Boolean(identity.worldProfileId);
-  const hasContext = Boolean(identity.usageContext.trim());
-  const passed = hasWorld;
-  const weak = !hasWorld && hasContext;
   return {
     id: "world",
     labelKey: "studio.characterReadiness.domain.world",
-    status: domainStatus(passed, weak),
-    detailKey: !hasWorld ? "studio.characterReadiness.detail.worldMissing" : undefined,
+    status: "pass",
+    detailKey: hasWorld ? undefined : "studio.characterReadiness.detail.worldOptional",
   };
 }
 
@@ -164,18 +158,14 @@ function buildReferenceDomain(
 }
 
 function pickNextStep(
-  domains: CharacterReadinessDomain[],
-  mode: "create" | "edit"
+  domains: CharacterReadinessDomain[]
 ): { key: string; detailKey?: string } {
   const byId = new Map(domains.map((d) => [d.id, d]));
-  const order: CharacterReadinessDomainId[] =
-    mode === "create"
-      ? ["identity", "voice", "referenceImage", "visualStyle", "world"]
-      : ["identity", "voice", "visualStyle", "referenceImage", "world"];
+  const order: CharacterReadinessDomainId[] = ["identity", "referenceImage", "voice"];
 
   for (const id of order) {
     const domain = byId.get(id);
-    if (!domain || domain.status === "pass") continue;
+    if (!domain || domain.status !== "missing") continue;
     const stepKeys: Record<CharacterReadinessDomainId, string> = {
       identity: "studio.characterReadiness.next.identity",
       visualStyle: "studio.characterReadiness.next.visualStyle",
@@ -184,6 +174,11 @@ function pickNextStep(
       referenceImage: "studio.characterReadiness.next.reference",
     };
     return { key: stepKeys[id], detailKey: domain.detailKey };
+  }
+
+  const voice = byId.get("voice");
+  if (voice && voice.status !== "pass") {
+    return { key: "studio.characterReadiness.next.voice", detailKey: voice.detailKey };
   }
 
   const identity = byId.get("identity");
@@ -250,14 +245,13 @@ function buildDirectorCompatibility(identity: CharacterIdentityFormValues, voice
 
 function buildCreationPhases(params: {
   domains: CharacterReadinessDomain[];
-  overallTier: "complete" | "almost" | "missing";
 }): CharacterCreationPhase[] {
   const identityDone =
     params.domains.find((d) => d.id === "identity")?.status === "pass" ||
     params.domains.find((d) => d.id === "identity")?.status === "warning";
   const voiceDone = params.domains.find((d) => d.id === "voice")?.status === "pass";
   const referenceDone = params.domains.find((d) => d.id === "referenceImage")?.status === "pass";
-  const readyDone = params.overallTier === "complete";
+  const readyDone = identityDone && referenceDone;
 
   const phases: CharacterCreationPhase[] = [
     {
@@ -338,7 +332,7 @@ export function buildCharacterReadinessView(input: CharacterReadinessInput): Cha
     buildReferenceDomain(input.referenceImageUrl, input.mode),
   ];
 
-  const next = pickNextStep(domains, input.mode);
+  const next = pickNextStep(domains);
   const worldName =
     input.worlds.find((w) => w.id === input.identity.worldProfileId)?.name ?? null;
 
@@ -348,7 +342,7 @@ export function buildCharacterReadinessView(input: CharacterReadinessInput): Cha
     overallTier,
     nextStepKey: next.key,
     nextStepDetailKey: next.detailKey,
-    creationPhases: buildCreationPhases({ domains, overallTier }),
+    creationPhases: buildCreationPhases({ domains }),
     summary: {
       name: input.identity.name.trim() || "—",
       characterTypeKey: input.identity.characterType

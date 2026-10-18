@@ -152,6 +152,10 @@ export function StudioCharacterSummaryReadinessPanel({
             {t(tierLabelKey as TranslationKey)}
             <span className="ml-1 text-zinc-400">({view.overallScore}%)</span>
           </p>
+          <p className="mt-1 text-xs text-zinc-500">{t("studio.characterReadiness.fieldCoverage")}</p>
+          {identity.name.trim() && referenceImageUrl.trim() ?
+            <p className="mt-1 text-xs font-medium text-emerald-800">{t("studio.characterReadiness.reuseReady")}</p>
+          : null}
         </div>
       </div>
 

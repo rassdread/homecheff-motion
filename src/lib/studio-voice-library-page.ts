@@ -44,6 +44,9 @@ export function pageVoiceLibrary(
     query?: string;
     language?: string;
     accent?: string;
+    gender?: string;
+    age?: string;
+    sample?: "yes" | "no" | "";
     page?: number;
     pageSize?: number;
   }
@@ -57,13 +60,22 @@ export function pageVoiceLibrary(
     query,
     language: language || undefined,
     accentId: accent || undefined,
+    gender: input.gender?.trim() || undefined,
+    age: input.age?.trim() || undefined,
   });
   if (accent && matches.length === 0) {
     const raw = accent.toLowerCase();
     matches = filterVoiceLibrary(catalog, {
       query,
       language: language || undefined,
+      gender: input.gender?.trim() || undefined,
+      age: input.age?.trim() || undefined,
     }).filter((voice) => (voice.accent || "").trim().toLowerCase() === raw);
+  }
+  if (input.sample === "yes") {
+    matches = matches.filter((voice) => Boolean(voice.previewUrl.trim()));
+  } else if (input.sample === "no") {
+    matches = matches.filter((voice) => !voice.previewUrl.trim());
   }
   const start = page * pageSize;
   return {

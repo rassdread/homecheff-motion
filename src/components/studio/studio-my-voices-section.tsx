@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { playVoiceLibrarySample } from "@/lib/studio-voice-library-sample";
+import { StudioVoiceSampleCompare } from "@/components/studio/studio-voice-sample-compare";
 import { useOptionalUserVoiceLibrary } from "@/components/studio/studio-user-voice-library-provider";
 import { StudioVoiceCloneWorkflow } from "@/components/studio/studio-voice-clone-workflow";
 import { useActiveTranslator } from "@/i18n/client";
@@ -15,7 +15,7 @@ type Props = {
   characterName: string;
   language: string;
   canModify: boolean;
-  onSelectProfile: (profile: string, meta?: { voiceName?: string }) => void;
+  onSelectProfile: (profile: string, meta?: { voiceName?: string; speechSpeed?: number }) => void;
 };
 
 function MyVoiceRow({
@@ -26,12 +26,13 @@ function MyVoiceRow({
 }: {
   voice: UserVoiceLibraryEntry;
   selected: boolean;
-  onSelect: () => void;
+  onSelect: (speechSpeed: number) => void;
   onRename: (name: string) => void;
 }) {
   const t = useActiveTranslator();
   const [editing, setEditing] = useState(false);
   const [nameDraft, setNameDraft] = useState(voice.name);
+  const [speed, setSpeed] = useState(1);
 
   return (
     <article
@@ -67,7 +68,7 @@ function MyVoiceRow({
         <div className="flex flex-wrap gap-1">
           <button
             type="button"
-            onClick={onSelect}
+            onClick={() => onSelect(speed)}
             className="min-h-[44px] rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-900 hover:bg-violet-50"
           >
             {selected ? t("studio.voiceLibrary.selected") : t("studio.myVoices.useVoice")}
@@ -81,15 +82,9 @@ function MyVoiceRow({
           </button>
         </div>
       </div>
-      {voice.previewUrl ?
-        <button
-          type="button"
-          onClick={() => playVoiceLibrarySample(voice.previewUrl)}
-          className="mt-2 min-h-[44px] rounded-full border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-900"
-        >
-          Beluister gratis voorbeeld
-        </button>
-      : <p className="mt-2 text-xs text-zinc-500">Geen gratis voorbeeld beschikbaar</p>}
+      <div className="mt-2">
+        <StudioVoiceSampleCompare previewUrl={voice.previewUrl} label={voice.name} onSpeed={setSpeed} />
+      </div>
     </article>
   );
 }
@@ -165,8 +160,8 @@ export function StudioMyVoicesSection({
                 key={voice.cloneId}
                 voice={voice}
                 selected={selectedCloneId === voice.cloneId}
-                onSelect={() =>
-                  onSelectProfile(cloneRef, { voiceName: voice.name })
+                onSelect={(speechSpeed) =>
+                  onSelectProfile(cloneRef, { voiceName: voice.name, speechSpeed })
                 }
                 onRename={(name) => {
                   void renameUserVoiceCloneApi(voice.cloneId, name).then(() => userVoices.refresh());

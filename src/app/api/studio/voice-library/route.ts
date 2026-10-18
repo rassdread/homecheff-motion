@@ -26,6 +26,12 @@ export async function GET(request: Request) {
         query: url.searchParams.get("q") ?? "",
         language: url.searchParams.get("language") ?? "",
         accent: url.searchParams.get("accent") ?? "",
+        gender: url.searchParams.get("gender") ?? "",
+        age: url.searchParams.get("age") ?? "",
+        sample:
+          url.searchParams.get("sample") === "yes" ? "yes"
+          : url.searchParams.get("sample") === "no" ? "no"
+          : "",
         page: Number(pageParam) || 0,
         pageSize: Number(url.searchParams.get("pageSize")) || 24,
       });

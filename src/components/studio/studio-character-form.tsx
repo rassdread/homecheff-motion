@@ -103,6 +103,7 @@ type StudioCharacterFormProps = {
   submitLabel: string;
   onSubmit: (values: StudioCharacterFormValues) => Promise<void>;
   backHref: string;
+  returnHref?: string | null;
 };
 
 function emptyPerformanceState(): CharacterPerformanceFormState {
@@ -381,6 +382,7 @@ export function StudioCharacterForm({
   submitLabel,
   onSubmit,
   backHref,
+  returnHref = null,
 }: StudioCharacterFormProps) {
   const t = useActiveTranslator();
   const [locale] = useLocale();
@@ -742,9 +744,9 @@ export function StudioCharacterForm({
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="character-editor-steps">
         {(
           [
-            ["look", "Uiterlijk"],
+            ["look", "Identiteit & uiterlijk"],
             ["voice", "Stem & spraak"],
-            ["personality", "Persoonlijkheid"],
+            ["personality", "Persoonlijkheid & gedrag"],
             ["save", "Opslaan & gebruiken"],
           ] as const
         ).map(([step, label]) => (
@@ -769,13 +771,61 @@ export function StudioCharacterForm({
         </div>
       ) : null}
 
+      {workflowStep === "save" ? (
+        <section className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4">
+          <h2 className="text-sm font-semibold text-zinc-950">Samenvatting</h2>
+          <div className="space-y-1 text-xs text-zinc-700">
+            {previewUrl ?
+              <p>De referentieafbeelding hierboven blijft de visuele identiteit. Vervangen gebeurt alleen als je zelf een ander beeld kiest.</p>
+            : <p>Nog geen referentieafbeelding. Die is nodig om het personage in een scène te herkennen.</p>}
+            <div className="min-w-0 space-y-1">
+              <p><span className="font-semibold">Naam.</span> {values.identity.name.trim() || "Nog geen naam."}</p>
+              <p>
+                <span className="font-semibold">Stem.</span>{" "}
+                {values.voice.voiceProfile.trim()
+                  ? `${values.voice.voiceDescription.trim() || "Gekozen stem"}, ${values.voice.voiceLanguage.toUpperCase()}, snelheid ${values.voice.speechSpeed}× voor echte spraak.`
+                  : "Nog geen stem. Aanbevolen, niet verplicht om het personage te hergebruiken."}
+              </p>
+              <p>
+                <span className="font-semibold">Persoonlijkheid.</span>{" "}
+                {values.identity.personality.trim() || "Nog leeg. Dit is promptbegeleiding voor latere scènes."}
+              </p>
+              <p>
+                <span className="font-semibold">Kleding.</span>{" "}
+                {values.identity.clothing.trim() || "Geen standaard. Een scène mag hiervan afwijken."}
+              </p>
+            </div>
+          </div>
+          <p className="text-xs text-zinc-600">
+            Opslaan bewaart ook velden van de andere stappen. Er wordt geen tweede personage gemaakt. Kies daarna ditzelfde personage in een scène; een scène overschrijft deze standaardwaarden niet.
+          </p>
+          {returnHref ?
+            <Link href={returnHref} className="inline-flex min-h-[44px] items-center text-sm font-semibold text-[#006D52] hover:underline">
+              Terug naar project
+            </Link>
+          : null}
+        </section>
+      ) : null}
+
       {identityBuilder}
 
       {mode === "create" && (createEntryPath === "design" || createEntryPath === "prompt_prefill")
         ? referenceImageCard
         : null}
 
-      {mode === "edit" && workflowStep === "look" ? referenceImageCard : null}
+      {mode === "edit" && workflowStep === "look" ? (
+        <div className="space-y-2">
+          <p className="text-xs text-zinc-600">
+            De referentieafbeelding is de visuele identiteit. Vervangen geldt voor toekomstige generaties. De huidige afbeelding blijft staan tot je zelf een andere kiest. Er wordt niets automatisch opnieuw gemaakt.
+          </p>
+          {referenceImageCard}
+        </div>
+      ) : null}
+      {workflowStep === "personality" ? (
+        <p className="text-xs text-zinc-600">
+          Expressie en beweging onder Geavanceerde instellingen zijn handmatige animatiekeuzes. Ze zijn geen automatische AI-animatie.
+        </p>
+      ) : null}
 
       {workflowStep === "save" ? (
       <details className="mt-8 rounded-2xl border border-zinc-200 bg-white p-4">

@@ -94,6 +94,7 @@ export default function StudioCharacterEditPage() {
                 initial={character}
                 submitLabel={t("studio.characters.saveChanges")}
                 backHref={`/studio/characters/${id}`}
+                returnHref={returnTo}
                 onSubmit={handleSubmit}
               />
             </div>

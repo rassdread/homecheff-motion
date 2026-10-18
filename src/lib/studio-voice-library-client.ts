@@ -90,6 +90,9 @@ export async function searchVoiceLibraryPage(params: {
   query?: string;
   language?: string;
   accent?: string;
+  gender?: string;
+  age?: string;
+  sample?: "yes" | "no" | "";
   page?: number;
   signal?: AbortSignal;
 }): Promise<VoiceLibraryPageResult> {
@@ -105,6 +108,15 @@ export async function searchVoiceLibraryPage(params: {
   }
   if (params.accent?.trim()) {
     search.set("accent", params.accent.trim());
+  }
+  if (params.gender?.trim()) {
+    search.set("gender", params.gender.trim());
+  }
+  if (params.age?.trim()) {
+    search.set("age", params.age.trim());
+  }
+  if (params.sample === "yes" || params.sample === "no") {
+    search.set("sample", params.sample);
   }
   const key = search.toString();
   const cachedPage = pageCache.get(key);

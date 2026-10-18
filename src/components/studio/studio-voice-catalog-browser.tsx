@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useSyncExternalStore } from "react";
-import {
-  getVoiceLibrarySampleState,
-  playVoiceLibrarySample,
-  subscribeVoiceLibrarySample,
-} from "@/lib/studio-voice-library-sample";
+import { StudioVoiceSampleCompare } from "@/components/studio/studio-voice-sample-compare";
 import {
   searchVoiceLibraryPage,
   type VoiceLibraryPageResult,
@@ -19,8 +14,49 @@ type Props = {
   selectedProfile: string;
   filterOptions: VoiceLibraryFilterOptions | null;
   statsNote: string;
-  onSelect: (profile: string, voiceName: string, previewUrl: string) => void;
+  onSelect: (profile: string, voiceName: string, previewUrl: string, speechSpeed: number) => void;
 };
+
+function VoiceCatalogCard({
+  voice,
+  selected,
+  onSelect,
+}: {
+  voice: VoiceLibraryPageResult["voices"][number];
+  selected: boolean;
+  onSelect: (speechSpeed: number) => void;
+}) {
+  const [speed, setSpeed] = useState(1);
+
+  return (
+    <li className={`rounded-xl border p-3 ${selected ? "border-[#0067B1] bg-sky-50" : "border-zinc-200 bg-white"}`}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-zinc-950">{voice.name}</p>
+          <p className="mt-1 text-xs text-zinc-600">
+            {[voice.language, voice.accent, voice.gender, voice.age].filter(Boolean).join(" · ")}
+          </p>
+          {voice.description ? <p className="mt-1 text-xs text-zinc-500">{voice.description}</p> : null}
+        </div>
+        {selected ?
+          <span className="rounded-full bg-[#0067B1] px-2 py-0.5 text-[10px] font-semibold uppercase text-white">
+            Geselecteerd
+          </span>
+        : null}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <StudioVoiceSampleCompare previewUrl={voice.previewUrl} label={voice.name} onSpeed={setSpeed} />
+        <button
+          type="button"
+          onClick={() => onSelect(speed)}
+          className="min-h-[44px] rounded-full bg-[#0067B1] px-3 text-sm font-semibold text-white"
+        >
+          Kies deze stem
+        </button>
+      </div>
+    </li>
+  );
+}
 
 function voiceSelected(profile: string, voiceId: string): boolean {
   return profile === voiceId || profile === `library:${voiceId}` || profile.endsWith(`:${voiceId}`);
@@ -33,14 +69,12 @@ export function StudioVoiceCatalogBrowser({
   statsNote,
   onSelect,
 }: Props) {
-  const sample = useSyncExternalStore(
-    subscribeVoiceLibrarySample,
-    getVoiceLibrarySampleState,
-    getVoiceLibrarySampleState
-  );
   const [query, setQuery] = useState("");
   const [language, setLanguage] = useState("");
   const [accent, setAccent] = useState("");
+  const [gender, setGender] = useState("");
+  const [age, setAge] = useState("");
+  const [sampleFilter, setSampleFilter] = useState<"" | "yes" | "no">("");
   const [page, setPage] = useState(0);
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const seenQuery = useRef(query);
@@ -71,6 +105,9 @@ export function StudioVoiceCatalogBrowser({
       query: debouncedQuery,
       language,
       accent,
+      gender,
+      age,
+      sample: sampleFilter,
       page,
       signal: controller.signal,
     })
@@ -93,14 +130,14 @@ export function StudioVoiceCatalogBrowser({
       cancelled = true;
       controller.abort();
     };
-  }, [active, debouncedQuery, language, accent, page]);
+  }, [active, debouncedQuery, language, accent, gender, age, sampleFilter, page]);
 
   const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize)) : 1;
 
   return (
     <div className="mt-4 space-y-3" data-testid="voice-catalog-browser">
       <p className="text-xs text-zinc-600">{statsNote}</p>
-      <div className="grid gap-2 sm:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         <input
           type="search"
           value={query}
@@ -143,6 +180,55 @@ export function StudioVoiceCatalogBrowser({
             </option>
           ))}
         </select>
+        <select
+          aria-label="Geslachtsfilter"
+          value={gender}
+          onChange={(event) => {
+            setGender(event.target.value);
+            setPage(0);
+            setLoading(true);
+          }}
+          className="min-h-[44px] rounded-lg border border-zinc-200 bg-white px-3 text-sm"
+        >
+          <option value="">Alle stemtypes</option>
+          {(filterOptions?.genders ?? []).map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.value} ({option.voiceCount})
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Leeftijdsfilter"
+          value={age}
+          onChange={(event) => {
+            setAge(event.target.value);
+            setPage(0);
+            setLoading(true);
+          }}
+          className="min-h-[44px] rounded-lg border border-zinc-200 bg-white px-3 text-sm"
+        >
+          <option value="">Alle leeftijden</option>
+          {(filterOptions?.ages ?? []).map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.value} ({option.voiceCount})
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Voorbeeldfilter"
+          value={sampleFilter}
+          onChange={(event) => {
+            const next = event.target.value;
+            setSampleFilter(next === "yes" || next === "no" ? next : "");
+            setPage(0);
+            setLoading(true);
+          }}
+          className="min-h-[44px] rounded-lg border border-zinc-200 bg-white px-3 text-sm"
+        >
+          <option value="">Met en zonder voorbeeld</option>
+          <option value="yes">Gratis voorbeeld aanwezig</option>
+          <option value="no">Geen gratis voorbeeld</option>
+        </select>
       </div>
       {loading ? <p className="text-sm text-zinc-600">Stemmen laden…</p> : null}
       {error ?
@@ -151,59 +237,17 @@ export function StudioVoiceCatalogBrowser({
         </p>
       : null}
       <ul className="grid gap-2">
-        {(result?.voices ?? []).map((voice) => {
-          const selected = voiceSelected(selectedProfile, voice.id);
-          const playing = sample.playing && sample.url === voice.previewUrl;
-          return (
-            <li
-              key={voice.id}
-              className={`rounded-xl border p-3 ${selected ? "border-[#0067B1] bg-sky-50" : "border-zinc-200 bg-white"}`}
-            >
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-zinc-950">{voice.name}</p>
-                  <p className="mt-1 text-xs text-zinc-600">
-                    {[voice.language, voice.accent, voice.gender, voice.age].filter(Boolean).join(" · ")}
-                  </p>
-                  {voice.description ?
-                    <p className="mt-1 text-xs text-zinc-500">{voice.description}</p>
-                  : null}
-                </div>
-                {selected ?
-                  <span className="rounded-full bg-[#0067B1] px-2 py-0.5 text-[10px] font-semibold uppercase text-white">
-                    Geselecteerd
-                  </span>
-                : null}
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {voice.previewUrl ?
-                  <button
-                    type="button"
-                    onClick={() => playVoiceLibrarySample(voice.previewUrl)}
-                    className="min-h-[44px] rounded-full border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-900"
-                  >
-                    {playing ? "Stop voorbeeld" : "Beluister gratis voorbeeld"}
-                  </button>
-                : <p className="text-xs text-zinc-500">Geen gratis voorbeeld beschikbaar</p>}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const profile = safeFormatLibraryVoiceProfileRef(voice.id);
-                    if (profile) {
-                      onSelect(profile, voice.name, voice.previewUrl);
-                    }
-                  }}
-                  className="min-h-[44px] rounded-full bg-[#0067B1] px-3 text-sm font-semibold text-white"
-                >
-                  Kies deze stem
-                </button>
-              </div>
-              {sample.error === "broken" && sample.url === voice.previewUrl ?
-                <p className="mt-2 text-xs text-red-800">Dit voorbeeld kan niet worden afgespeeld.</p>
-              : null}
-            </li>
-          );
-        })}
+        {(result?.voices ?? []).map((voice) => (
+          <VoiceCatalogCard
+            key={voice.id}
+            voice={voice}
+            selected={voiceSelected(selectedProfile, voice.id)}
+            onSelect={(speechSpeed) => {
+              const profile = safeFormatLibraryVoiceProfileRef(voice.id);
+              if (profile) onSelect(profile, voice.name, voice.previewUrl, speechSpeed);
+            }}
+          />
+        ))}
       </ul>
       {result && result.total === 0 && !loading ?
         <p className="text-sm text-zinc-600">Geen stemmen voor deze zoekopdracht.</p>

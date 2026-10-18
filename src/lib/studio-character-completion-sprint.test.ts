@@ -17,13 +17,14 @@ import { nl } from "@/i18n/locales/nl";
 import { en } from "@/i18n/locales/en";
 
 describe("studio-character-readiness", () => {
-  it("suggests voice when identity is filled but voice is default", () => {
+  it("asks for a reference image before a voice when the image is missing", () => {
     const view = buildCharacterReadinessView({
       mode: "create",
       identity: {
         ...emptyCharacterIdentityForm({ name: "Chef" }),
         characterType: "mascot",
         description: "Friendly kitchen mascot",
+        personality: "Warm",
       },
       referenceImageUrl: "",
       voiceEnabled: true,
@@ -31,8 +32,31 @@ describe("studio-character-readiness", () => {
       voiceStatus: "preset",
       worlds: [],
     });
-    assert.equal(view.nextStepKey, "studio.characterReadiness.next.voice");
+    assert.equal(view.nextStepKey, "studio.characterReadiness.next.reference");
     assert.ok(view.domains.some((d) => d.id === "voice" && d.status === "warning"));
+    assert.equal(view.domains.find((d) => d.id === "visualStyle")?.status, "pass");
+  });
+
+  it("does not warn that an artistic style is missing when the reference image exists", () => {
+    const view = buildCharacterReadinessView({
+      mode: "edit",
+      identity: {
+        ...emptyCharacterIdentityForm({ name: "Baker" }),
+        characterType: "human",
+        description: "Bakes cupcakes",
+        visualStyle: "",
+      },
+      referenceImageUrl: "https://example.com/baker.png",
+      voiceEnabled: false,
+      voiceProfile: "",
+      voiceStatus: "none",
+      worlds: [],
+    });
+    const style = view.domains.find((d) => d.id === "visualStyle");
+    assert.equal(style?.status, "pass");
+    assert.equal(style?.detailKey, "studio.characterReadiness.detail.visualStyleOptional");
+    assert.notEqual(view.nextStepKey, "studio.characterReadiness.next.visualStyle");
+    assert.equal(view.domains.find((d) => d.id === "referenceImage")?.status, "pass");
   });
 
   it("marks reference missing on create", () => {

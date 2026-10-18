@@ -45,7 +45,19 @@ export function stopVoiceLibrarySample(): void {
   }
 }
 
-export function playVoiceLibrarySample(url: string): void {
+function clampSampleRate(rate: number): number {
+  if (!Number.isFinite(rate)) return 1;
+  return Math.min(1.2, Math.max(0.7, rate));
+}
+
+/** Changes playback of an existing sample only. This never calls a speech provider. */
+export function setVoiceLibrarySampleRate(rate: number): void {
+  if (audio) {
+    audio.playbackRate = clampSampleRate(rate);
+  }
+}
+
+export function playVoiceLibrarySample(url: string, playbackRate = 1): void {
   const sampleUrl = url.trim();
   if (!sampleUrl) {
     setState({ url: "", playing: false, error: "missing" });
@@ -61,6 +73,7 @@ export function playVoiceLibrarySample(url: string): void {
   }
   const next = new Audio(sampleUrl);
   audio = next;
+  next.playbackRate = clampSampleRate(playbackRate);
   setState({ url: sampleUrl, playing: true, error: "" });
   next.onended = () => {
     if (audio === next) {

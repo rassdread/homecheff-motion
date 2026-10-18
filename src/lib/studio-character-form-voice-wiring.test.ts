@@ -140,6 +140,19 @@ describe("voice library discovery UX", () => {
     assert.doesNotMatch(panel, /playbackRate/);
   });
 
+  it("compares free samples locally and copies that speed into the real preview setting", () => {
+    const sample = readFileSync(join(process.cwd(), "src/lib/studio-voice-library-sample.ts"), "utf8");
+    const compare = readFileSync(join(process.cwd(), "src/components/studio/studio-voice-sample-compare.tsx"), "utf8");
+    const center = readFileSync(join(process.cwd(), "src/components/studio/studio-character-voice-center.tsx"), "utf8");
+    const panel = readFileSync(join(process.cwd(), "src/components/studio/studio-character-voice-shared-preview.tsx"), "utf8");
+    assert.match(sample, /playbackRate/);
+    assert.match(sample, /never calls a speech provider/);
+    assert.match(compare, /benadering/);
+    assert.match(center, /speechSpeed: meta\?\.speechSpeed/);
+    assert.match(panel, /echte ElevenLabs-snelheid/);
+    assert.doesNotMatch(panel, /playbackRate/);
+  });
+
   it("persona preset cards expose preview button and requestCharacterVoicePreview", () => {
     const sectionPath = join(
       process.cwd(),

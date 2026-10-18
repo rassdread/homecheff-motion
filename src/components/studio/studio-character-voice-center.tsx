@@ -36,7 +36,7 @@ import { VoiceCenterCollapsibleSection } from "@/components/studio/voice-center-
 import { StudioMyVoicesSection } from "@/components/studio/studio-my-voices-section";
 import { StudioVoiceCatalogBrowser } from "@/components/studio/studio-voice-catalog-browser";
 import { StudioCharacterVoiceSharedPreview } from "@/components/studio/studio-character-voice-shared-preview";
-import { playVoiceLibrarySample } from "@/lib/studio-voice-library-sample";
+import { StudioVoiceSampleCompare } from "@/components/studio/studio-voice-sample-compare";
 import { useOptionalVoiceLibrary } from "@/components/studio/studio-voice-library-provider";
 import { buildVoiceLibraryStats } from "@/lib/studio-voice-accent-coverage";
 import { PREVIEW_TEXT_DEBOUNCE_MS } from "@/lib/studio-voice-center-ux";
@@ -234,6 +234,52 @@ export function buildPerLanguageVoiceOverrideOptions(params: {
   return options;
 }
 
+function RecommendedPresetCard({
+  profile,
+  selected,
+  title,
+  subtitle,
+  previewUrl,
+  canModify,
+  onSelect,
+}: {
+  profile: string;
+  selected: boolean;
+  title: string;
+  subtitle: string;
+  previewUrl: string;
+  canModify: boolean;
+  onSelect: (speechSpeed: number) => void;
+}) {
+  const [speed, setSpeed] = useState(1);
+  return (
+    <li className={`rounded-xl border p-3 ${selected ? "border-[#0067B1] bg-sky-50" : "border-zinc-200 bg-white"}`}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold text-zinc-950">{title}</p>
+          <p className="mt-1 text-xs text-zinc-600">{subtitle}</p>
+        </div>
+        {selected ?
+          <span className="rounded-full bg-[#0067B1] px-2 py-0.5 text-[10px] font-semibold uppercase text-white">
+            Geselecteerd
+          </span>
+        : null}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <StudioVoiceSampleCompare previewUrl={previewUrl} label={title} onSpeed={setSpeed} />
+        <button
+          type="button"
+          disabled={!profile || !canModify}
+          onClick={() => onSelect(speed)}
+          className="min-h-[44px] rounded-full bg-[#0067B1] px-3 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          Kies deze stem
+        </button>
+      </div>
+    </li>
+  );
+}
+
 export function StudioCharacterVoiceCenter({
   characterId,
   characterName,
@@ -395,6 +441,7 @@ export function StudioCharacterVoiceCenter({
       onChange({
         ...value,
         voiceEnabled: true,
+        speechSpeed: meta?.speechSpeed ?? value.speechSpeed,
         voiceProfile: storedProfile,
         voiceDescription: meta?.personaLabelKey
           ? t(meta.personaLabelKey as never)
@@ -627,51 +674,24 @@ export function StudioCharacterVoiceCenter({
           <ul className="grid gap-2">
             {(voicePayload?.personaPresets ?? []).map((preset) => {
               const profile = safeFormatLibraryVoiceProfileRef(preset.voiceId) ?? "";
-              const selected = profile !== "" && value.voiceProfile === profile;
               return (
-                <li
+                <RecommendedPresetCard
                   key={preset.id}
-                  className={`rounded-xl border p-3 ${selected ? "border-[#0067B1] bg-sky-50" : "border-zinc-200 bg-white"}`}
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-semibold text-zinc-950">{preset.voiceName || t(preset.labelKey as never)}</p>
-                      <p className="mt-1 text-xs text-zinc-600">
-                        {t(preset.labelKey as never)} · {preset.language.toUpperCase()}
-                      </p>
-                    </div>
-                    {selected ?
-                      <span className="rounded-full bg-[#0067B1] px-2 py-0.5 text-[10px] font-semibold uppercase text-white">
-                        Geselecteerd
-                      </span>
-                    : null}
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {preset.previewUrl ?
-                      <button
-                        type="button"
-                        onClick={() => playVoiceLibrarySample(preset.previewUrl)}
-                        className="min-h-[44px] rounded-full border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-900"
-                      >
-                        Beluister gratis voorbeeld
-                      </button>
-                    : <p className="text-xs text-zinc-500">Geen gratis voorbeeld beschikbaar</p>}
-                    <button
-                      type="button"
-                      disabled={!profile || !canModify}
-                      onClick={() =>
-                        handleSelectProfile(profile, {
-                          voiceName: preset.voiceName,
-                          personaLabelKey: preset.labelKey,
-                          previewUrl: preset.previewUrl,
-                        })
-                      }
-                      className="min-h-[44px] rounded-full bg-[#0067B1] px-3 text-sm font-semibold text-white disabled:opacity-50"
-                    >
-                      Kies deze stem
-                    </button>
-                  </div>
-                </li>
+                  profile={profile}
+                  selected={profile !== "" && value.voiceProfile === profile}
+                  title={preset.voiceName || t(preset.labelKey as never)}
+                  subtitle={`${t(preset.labelKey as never)} · ${preset.language.toUpperCase()}`}
+                  previewUrl={preset.previewUrl}
+                  canModify={canModify}
+                  onSelect={(speechSpeed) =>
+                    handleSelectProfile(profile, {
+                      voiceName: preset.voiceName,
+                      personaLabelKey: preset.labelKey,
+                      previewUrl: preset.previewUrl,
+                      speechSpeed,
+                    })
+                  }
+                />
               );
             })}
           </ul>
@@ -688,8 +708,8 @@ export function StudioCharacterVoiceCenter({
               ? `${libraryStats.totalVoices} stemmen, ${libraryStats.accentCount} accenten, ${libraryStats.languageCount} talen en ${libraryStats.personaCount} persona's staan in de index (${libraryStats.catalogSource}). Dit is geen live controle of elke stem nu spraak kan maken.`
               : "De stemindex laden…"
           }
-          onSelect={(profile, voiceName, previewUrl) =>
-            handleSelectProfile(profile, { voiceName, previewUrl })
+          onSelect={(profile, voiceName, previewUrl, speechSpeed) =>
+            handleSelectProfile(profile, { voiceName, previewUrl, speechSpeed })
           }
         />
       ) : null}

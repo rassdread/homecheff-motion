@@ -115,6 +115,7 @@ export function StudioCharacterVoiceSharedPreview({
       </label>
       <p className="mt-1 text-[11px] text-zinc-500">
         Snelheid of tekst wijzigen maakt geen audio. Kies zelf wanneer je een nieuw voorbeeld wilt.
+        Beluister voorbeeld gebruikt de echte ElevenLabs-snelheid. De gratis vergelijking op een stemkaart is alleen een benadering.
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         {sampleUrl ?

@@ -40,7 +40,7 @@ describe("character preset ux", () => {
     assert.match(voice, /Aanbevolen/);
     assert.match(voice, /Alle stemmen/);
     assert.match(voice, /Mijn stemmen/);
-    assert.match(form, /Uiterlijk/);
+    assert.match(form, /Identiteit & uiterlijk/);
     assert.match(form, /Stem & spraak/);
     assert.match(form, /Geavanceerde instellingen/);
     assert.match(form, /workflowStep/);

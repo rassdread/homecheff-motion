@@ -48,6 +48,13 @@ describe("pageVoiceLibrary", () => {
     assert.equal(english.voices[0]?.previewUrl, "https://example.com/anna.mp3");
   });
 
+  it("filters gender and keeps only voices with a free sample", () => {
+    const sampled = pageVoiceLibrary(catalog, { gender: "female", sample: "yes" });
+    assert.deepEqual(sampled.voices.map((entry) => entry.id), ["a", "c"]);
+    const silent = pageVoiceLibrary(catalog, { sample: "no" });
+    assert.deepEqual(silent.voices.map((entry) => entry.id), ["b"]);
+  });
+
   it("filters a raw accent label", () => {
     const dutch = pageVoiceLibrary(catalog, { accent: "dutch" });
     assert.deepEqual(dutch.voices.map((entry) => entry.id), ["b"]);

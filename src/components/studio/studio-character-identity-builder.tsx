@@ -16,6 +16,10 @@ import {
   hasCharacterIdentityFormSuggestion,
 } from "@/lib/studio-character-identity-suggestion";
 import {
+  personalityChipSelected,
+  togglePersonalityChip,
+} from "@/lib/studio-character-personality-text";
+import {
   CHARACTER_IDENTITY_ACCESSORY_PRESETS,
   CHARACTER_IDENTITY_COLOR_THEMES,
   CHARACTER_IDENTITY_ENERGIES,
@@ -87,6 +91,7 @@ export function StudioCharacterIdentityBuilder({
     () => new Set(initialExpandedSections)
   );
   const [showMoreStyles, setShowMoreStyles] = useState(() => isAdvancedCharacterStyle(form.visualStyle));
+  const [legacyStyleOpen, setLegacyStyleOpen] = useState(() => Boolean(form.visualStyle.trim()));
   const [styleQuery, setStyleQuery] = useState("");
 
   const toggleSection = useCallback((sectionId: string) => {
@@ -140,12 +145,14 @@ export function StudioCharacterIdentityBuilder({
   const applyPreset = useCallback(
     (group: "personality" | "outfit" | "accessory" | "color", id: string) => {
       const label = t(presetKey(group, id));
-      if (group === "personality") updateField("personality", label);
-      if (group === "outfit") updateField("clothing", label);
-      if (group === "accessory") updateField("accessories", label);
+      if (group === "personality") {
+        updateField("personality", togglePersonalityChip(form.personality, label));
+      }
+      if (group === "outfit") updateField("clothing", togglePersonalityChip(form.clothing, label));
+      if (group === "accessory") updateField("accessories", togglePersonalityChip(form.accessories, label));
       if (group === "color") updateField("colorTheme", id);
     },
-    [t, updateField]
+    [form.accessories, form.clothing, form.personality, t, updateField]
   );
 
   const applyAiSuggestion = () => {
@@ -261,9 +268,11 @@ export function StudioCharacterIdentityBuilder({
         { id: "voice", title: t("studio.characterIdentity.sections.voice") },
       ].filter((section) => {
         if (!workflowStep) return true;
-        if (workflowStep === "look") return section.id === "core" || section.id === "style";
+        if (workflowStep === "look") {
+          return section.id === "core" || section.id === "style" || section.id === "look";
+        }
         if (workflowStep === "voice") return section.id === "voice";
-        if (workflowStep === "personality") return section.id === "personality" || section.id === "look";
+        if (workflowStep === "personality") return section.id === "personality";
         return section.id === "context";
       }).map((section) => {
         const open = workflowStep ? true : expandedSections.has(section.id);
@@ -331,7 +340,21 @@ export function StudioCharacterIdentityBuilder({
 
               {section.id === "style" ?
                 <>
-                  <div>
+                  <p className="text-xs text-zinc-600">
+                    Uiterlijknotities beschrijven wie je herkent. Ze vervangen de referentieafbeelding niet en genereren geen nieuw beeld.
+                  </p>
+                  <details
+                    className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2"
+                    open={legacyStyleOpen}
+                    onToggle={(event) => setLegacyStyleOpen(event.currentTarget.open)}
+                  >
+                    <summary className="cursor-pointer text-sm font-semibold text-zinc-800">
+                      Optioneel: visuele voorkeur voor beeldgeneratie
+                    </summary>
+                    <p className="mt-2 text-xs text-zinc-600">
+                      Dit bepaalt hoe een toekomstig beeld eruit kan zien, niet wie het personage is. Een opgeslagen stijl blijft bewaard. De referentieafbeelding blijft leidend.
+                    </p>
+                  <div className="mt-3">
                     <p className="text-xs font-medium text-zinc-700">
                       {t(fieldLabelKey("visualStyle"))}
                       {suggestedLabel("visualStyle")}
@@ -367,6 +390,7 @@ export function StudioCharacterIdentityBuilder({
                       {showMoreStyles ? "Minder stijlen" : "Meer stijlen"}
                     </button>
                   </div>
+                  </details>
                   <div>
                     <p className="text-xs font-medium text-zinc-700">{t(fieldLabelKey("shapeLanguage"))}</p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
@@ -426,23 +450,33 @@ export function StudioCharacterIdentityBuilder({
 
               {section.id === "personality" ?
                 <>
+                  <p className="text-xs text-zinc-600">
+                    Persoonlijkheid stuurt toekomstige scènes en prompts. Ze wijzigt de bestaande afbeelding niet en start geen automatische animatie.
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    Voorbeeld: Warm, enthusiastic and creative. Smiles while presenting cupcakes.
+                  </p>
                   <div className="flex flex-wrap gap-1.5">
-                    {CHARACTER_IDENTITY_PERSONALITY_PRESETS.map((id) => (
+                    {CHARACTER_IDENTITY_PERSONALITY_PRESETS.map((id) => {
+                      const label = t(presetKey("personality", id));
+                      const selected = personalityChipSelected(form.personality, label);
+                      return (
                       <button
                         key={id}
                         type="button"
                         disabled={!canModify}
                         onClick={() => applyPreset("personality", id)}
-                        aria-pressed={form.personality === t(presetKey("personality", id))}
+                        aria-pressed={selected}
                         className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
-                          form.personality === t(presetKey("personality", id))
+                          selected
                             ? "bg-[#006D52] text-white"
                             : "border border-zinc-200 text-zinc-700 hover:border-[#0067B1]"
                         }`}
                       >
-                        {t(presetKey("personality", id))}
+                        {label}
                       </button>
-                    ))}
+                      );
+                    })}
                   </div>
                   <label className="block">
                     <span className="text-xs font-medium text-zinc-700">
@@ -482,6 +516,9 @@ export function StudioCharacterIdentityBuilder({
                       ))}
                     </div>
                   </div>
+                  <p className="text-xs text-zinc-600">
+                    Kleding en accessoires zijn de standaard voor nieuwe scènes. Een scène mag daarvan afwijken. De referentieafbeelding verandert niet vanzelf.
+                  </p>
                   <div>
                     <p className="text-xs font-medium text-zinc-700">{t(fieldLabelKey("clothing"))}</p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
@@ -491,9 +528,9 @@ export function StudioCharacterIdentityBuilder({
                           type="button"
                           disabled={!canModify}
                           onClick={() => applyPreset("outfit", id)}
-                          aria-pressed={form.clothing === t(presetKey("outfit", id))}
+                          aria-pressed={personalityChipSelected(form.clothing, t(presetKey("outfit", id)))}
                           className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
-                            form.clothing === t(presetKey("outfit", id))
+                            personalityChipSelected(form.clothing, t(presetKey("outfit", id)))
                               ? "bg-[#006D52] text-white"
                               : "border border-zinc-200 text-zinc-700"
                           }`}
@@ -518,9 +555,9 @@ export function StudioCharacterIdentityBuilder({
                           type="button"
                           disabled={!canModify}
                           onClick={() => applyPreset("accessory", id)}
-                          aria-pressed={form.accessories === t(presetKey("accessory", id))}
+                          aria-pressed={personalityChipSelected(form.accessories, t(presetKey("accessory", id)))}
                           className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
-                            form.accessories === t(presetKey("accessory", id))
+                            personalityChipSelected(form.accessories, t(presetKey("accessory", id)))
                               ? "bg-[#006D52] text-white"
                               : "border border-zinc-200 text-zinc-700"
                           }`}
@@ -586,6 +623,9 @@ export function StudioCharacterIdentityBuilder({
 
               {section.id === "voice" ?
                 <>
+                  <p className="text-xs text-zinc-600">
+                    De stem wordt gebruikt voor toekomstige spraak, wanneer de dialoog dat ondersteunt. Opslaan bewaart de keuze. Vergrendelen houdt die stem vast in scènes; je kunt hem hier nog wijzigen en daarna opnieuw opslaan.
+                  </p>
                   <p className="text-xs text-zinc-600">
                     {t(`studio.characterIdentity.voiceStatus.${voiceStatus}`)}
                   </p>
