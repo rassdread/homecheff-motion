@@ -26,12 +26,15 @@ export type VoiceLibraryPageResult = {
   page: number;
   pageSize: number;
   languageCounts: Array<{ value: string; voiceCount: number }>;
-  accentCounts?: Array<{ value: string; labelKey: string; voiceCount: number }>;
+  accentCounts?: Array<{ value: string; labelKey: string; voiceCount: number; label?: string }>;
   localeCounts?: Array<{ value: string; label: string; voiceCount: number }>;
   suppressedAccentIds?: string[];
   genderCounts?: Array<{ value: string; labelKey: string; voiceCount: number }>;
   ageCounts?: Array<{ value: string; labelKey: string; voiceCount: number }>;
   categoryCounts?: Array<{ value: string; labelKey: string; voiceCount: number }>;
+  useCaseCounts?: Array<{ value: string; voiceCount: number }>;
+  descriptiveCounts?: Array<{ value: string; voiceCount: number }>;
+  conceptCounts?: Array<{ concept: string; exact: number; related: number }>;
   relaxed?: boolean;
 };
 

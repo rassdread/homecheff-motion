@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
+import { voiceCatalogInputFromSearchParams } from "@/lib/studio-voice-catalog-search";
 import {
   listStudioVoiceFavorites,
   setStudioVoiceFavorite,
@@ -7,21 +8,7 @@ import {
 } from "@/server/studio/studio-voice-favorites";
 
 function pageInput(url: URL) {
-  return {
-    query: url.searchParams.get("q") ?? "",
-    language: url.searchParams.get("language") ?? "",
-    accent: url.searchParams.get("accent") ?? "",
-    gender: url.searchParams.get("gender") ?? "",
-    age: url.searchParams.get("age") ?? "",
-    category: url.searchParams.get("category") ?? "",
-    locale: url.searchParams.get("locale") ?? "",
-    sample:
-      url.searchParams.get("sample") === "yes" ? "yes" as const
-      : url.searchParams.get("sample") === "no" ? "no" as const
-      : "" as const,
-    page: Number(url.searchParams.get("page")) || 0,
-    pageSize: Number(url.searchParams.get("pageSize")) || 24,
-  };
+  return voiceCatalogInputFromSearchParams(url);
 }
 
 export async function GET(request: Request) {

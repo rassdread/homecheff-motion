@@ -6,6 +6,8 @@
 
 import { CANONICAL_ACCENT_DEFINITIONS } from "@/lib/studio-voice-accent-model";
 import type { VoiceLibraryFilterOptions } from "@/lib/studio-voice-accent-model";
+import { rawAccentFilterValue, rawAccentLabel } from "@/lib/studio-voice-characteristics";
+import type { VoiceMatchMode } from "@/lib/studio-voice-characteristics";
 import { canonicalVoiceAge, canonicalVoiceLanguage, voiceGenderPreference, voiceLocaleLabel } from "@/lib/studio-voice-language";
 import { suppressedAccentIds } from "@/lib/studio-voice-filter-presentation";
 import type { VoiceLibraryPageResult } from "@/lib/studio-voice-library-page";
@@ -20,6 +22,10 @@ export type VoiceCatalogSearchInput = {
   age?: string;
   category?: string;
   locale?: string;
+  useCase?: string;
+  descriptive?: string;
+  concepts?: string[];
+  matchMode?: VoiceMatchMode;
   sample?: "yes" | "no" | "";
   page?: number;
   pageSize?: number;
@@ -37,6 +43,10 @@ export type VoiceCatalogWhere = {
   gender?: string;
   age?: string;
   category?: string;
+  useCase?: string;
+  descriptive?: string;
+  accentEquals?: string;
+  textQuery?: string;
   OR?: Array<Record<string, { contains: string; mode: "insensitive" }>>;
   providerVoiceId?: { in: string[] };
 };
@@ -67,8 +77,9 @@ export type VoiceCatalogSearchClient = {
     where: VoiceCatalogWhere;
     _count: { _all: true };
   }): Promise<Array<{ canonicalLanguage: string; _count: { _all: number } }>>;
-  groupByValue?(field: "accentId" | "locale" | "gender" | "age" | "category", where: VoiceCatalogWhere): Promise<VoiceCatalogCount[]>;
+  groupByValue?(field: "accentId" | "locale" | "gender" | "age" | "category" | "useCase" | "descriptive", where: VoiceCatalogWhere): Promise<VoiceCatalogCount[]>;
   groupByAccentLocale?(where: VoiceCatalogWhere): Promise<Array<{ accentId: string; locale: string; voiceCount: number }>>;
+  groupByRawAccent?(where: VoiceCatalogWhere): Promise<VoiceCatalogCount[]>;
 };
 
 export function isStudioVoiceCatalogDbEnabled(): boolean {
@@ -85,8 +96,12 @@ export function buildVoiceCatalogWhere(input: VoiceCatalogSearchInput): VoiceCat
   if (language) {
     where.canonicalLanguage = language;
   }
+  const rawAccent = rawAccentFilterValue(input.accent ?? "");
   const accent = input.accent?.trim() ?? "";
-  if (accent) {
+  if (rawAccent) {
+    where.accentId = "";
+    where.accentEquals = rawAccent;
+  } else if (accent) {
     where.accentId = accent;
   }
   const gender = input.gender?.trim().toLowerCase() ?? "";
@@ -105,6 +120,14 @@ export function buildVoiceCatalogWhere(input: VoiceCatalogSearchInput): VoiceCat
   if (locale) {
     where.locale = locale;
   }
+  const useCase = input.useCase?.trim().toLowerCase() ?? "";
+  if (/^[a-z0-9_]{1,40}$/.test(useCase)) {
+    where.useCase = useCase;
+  }
+  const descriptive = input.descriptive?.trim().toLowerCase() ?? "";
+  if (/^[a-z0-9_]{1,40}$/.test(descriptive)) {
+    where.descriptive = descriptive;
+  }
   if (input.sample === "no") {
     where.previewUrl = "";
   }
@@ -113,6 +136,7 @@ export function buildVoiceCatalogWhere(input: VoiceCatalogSearchInput): VoiceCat
   }
   const query = input.query?.trim() ?? "";
   if (query) {
+    where.textQuery = query.slice(0, 80);
     where.OR = [
       { name: { contains: query, mode: "insensitive" } },
       { description: { contains: query, mode: "insensitive" } },
@@ -120,6 +144,32 @@ export function buildVoiceCatalogWhere(input: VoiceCatalogSearchInput): VoiceCat
     ];
   }
   return where;
+}
+
+export function voiceCatalogInputFromSearchParams(url: URL): VoiceCatalogSearchInput {
+  const concepts = (url.searchParams.get("concepts") ?? "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  return {
+    query: url.searchParams.get("q") ?? "",
+    language: url.searchParams.get("language") ?? "",
+    accent: url.searchParams.get("accent") ?? "",
+    gender: url.searchParams.get("gender") ?? "",
+    age: url.searchParams.get("age") ?? "",
+    category: url.searchParams.get("category") ?? "",
+    locale: url.searchParams.get("locale") ?? "",
+    useCase: url.searchParams.get("useCase") ?? "",
+    descriptive: url.searchParams.get("descriptive") ?? "",
+    concepts,
+    matchMode: url.searchParams.get("matchMode") === "related" ? "related" : "strict",
+    sample:
+      url.searchParams.get("sample") === "yes" ? "yes"
+      : url.searchParams.get("sample") === "no" ? "no"
+      : "",
+    page: Number(url.searchParams.get("page")) || 0,
+    pageSize: Number(url.searchParams.get("pageSize")) || 24,
+  };
 }
 
 function whereWithout(where: VoiceCatalogWhere, keys: Array<keyof VoiceCatalogWhere>): VoiceCatalogWhere {
@@ -223,7 +273,7 @@ export async function searchVoiceCatalogWithClient(
   } as const;
   const includeFacets = input.facets !== false;
   const languageSelected = Boolean(canonicalVoiceLanguage(input.language ?? ""));
-  const [total, rows, groups, accentGroups, localeGroups, genderGroups, ageGroups, categoryGroups, accentLocalePairs] = await Promise.all([
+  const [total, rows, groups, accentGroups, localeGroups, genderGroups, ageGroups, categoryGroups, accentLocalePairs, useCaseGroups, descriptiveGroups, rawAccentGroups] = await Promise.all([
     client.count({ where }),
     client.findMany({ where, orderBy, skip: page * pageSize, take: pageSize, select }),
     includeFacets
@@ -234,10 +284,10 @@ export async function searchVoiceCatalogWithClient(
         })
       : Promise.resolve([]),
     includeFacets && client.groupByValue
-      ? client.groupByValue("accentId", whereWithout(where, ["accentId"]))
+      ? client.groupByValue("accentId", whereWithout(where, ["accentId", "accentEquals"]))
       : Promise.resolve([]),
     includeFacets && client.groupByValue
-      ? client.groupByValue("locale", whereWithout(where, ["locale", "accentId"]))
+      ? client.groupByValue("locale", whereWithout(where, ["locale", "accentId", "accentEquals"]))
       : Promise.resolve([]),
     includeFacets && languageSelected && client.groupByValue
       ? client.groupByValue("gender", whereWithout(where, ["gender"]))
@@ -249,7 +299,16 @@ export async function searchVoiceCatalogWithClient(
       ? client.groupByValue("category", whereWithout(where, ["category"]))
       : Promise.resolve([]),
     includeFacets && languageSelected && client.groupByAccentLocale
-      ? client.groupByAccentLocale(whereWithout(where, ["locale", "accentId"]))
+      ? client.groupByAccentLocale(whereWithout(where, ["locale", "accentId", "accentEquals"]))
+      : Promise.resolve([]),
+    includeFacets && client.groupByValue
+      ? client.groupByValue("useCase", whereWithout(where, ["useCase"]))
+      : Promise.resolve([]),
+    includeFacets && client.groupByValue
+      ? client.groupByValue("descriptive", whereWithout(where, ["descriptive"]))
+      : Promise.resolve([]),
+    includeFacets && client.groupByRawAccent
+      ? client.groupByRawAccent(whereWithout(where, ["accentId", "accentEquals"]))
       : Promise.resolve([]),
   ]);
   const scoped = voiceCatalogFilterOptionsFromCounts({
@@ -278,7 +337,17 @@ export async function searchVoiceCatalogWithClient(
       .filter((group) => group.canonicalLanguage)
       .map((group) => ({ value: group.canonicalLanguage, voiceCount: group._count._all }))
       .sort((a, b) => a.value.localeCompare(b.value)),
-    accentCounts: accentOptionsFromCounts(accentGroups),
+    accentCounts: [
+      ...accentOptionsFromCounts(accentGroups),
+      ...rawAccentGroups
+        .filter((item) => item.value)
+        .map((item) => ({
+          value: `raw:${item.value}`,
+          labelKey: "",
+          label: rawAccentLabel(item.value),
+          voiceCount: item.voiceCount,
+        })),
+    ],
     suppressedAccentIds: suppressedAccentIds({
       selectedLocale: input.locale,
       pairs: accentLocalePairs,
@@ -286,6 +355,8 @@ export async function searchVoiceCatalogWithClient(
     genderCounts: languageSelected ? scoped.genders : [],
     ageCounts: languageSelected ? scoped.ages : [],
     categoryCounts: languageSelected ? scoped.categories : [],
+    useCaseCounts: useCaseGroups.filter((item) => item.value),
+    descriptiveCounts: descriptiveGroups.filter((item) => item.value),
     localeCounts: localeGroups
       .filter((item) => item.value)
       .map((item) => ({ value: item.value, label: voiceLocaleLabel(item.value), voiceCount: item.voiceCount }))

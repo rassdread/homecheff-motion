@@ -85,7 +85,7 @@ export async function listStudioVoiceFavorites(
     return emptyFavoritePage(0, input.pageSize ?? 24);
   }
   const filtersActive = Boolean(
-    input.query?.trim() || input.language?.trim() || input.accent?.trim() || input.locale?.trim() || input.gender?.trim() || input.age?.trim() || input.category?.trim()
+    input.query?.trim() || input.language?.trim() || input.accent?.trim() || input.locale?.trim() || input.gender?.trim() || input.age?.trim() || input.category?.trim() || input.useCase?.trim() || input.descriptive?.trim() || (input.concepts?.length ?? 0) > 0
   );
   if (filtersActive) {
     return searchStudioVoiceCatalog({

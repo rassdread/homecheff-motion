@@ -1670,12 +1670,16 @@ model StudioVoiceCatalogEntry {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
+  characteristics StudioVoiceCharacteristic[]
+
   @@unique([provider, providerVoiceId])
   @@index([eligibilityStatus, canonicalLanguage, name])
   @@index([eligibilityStatus, accentId])
   @@index([eligibilityStatus, gender])
   @@index([eligibilityStatus, age])
   @@index([eligibilityStatus, category])
+  @@index([eligibilityStatus, useCase], map: "StudioVoiceCatalogEntry_eligibility_useCase_idx")
+  @@index([eligibilityStatus, descriptive], map: "StudioVoiceCatalogEntry_eligibility_descriptive_idx")
 }
 
 /**
@@ -1692,6 +1696,27 @@ model StudioVoiceFavorite {
 
   @@unique([userId, provider, providerVoiceId])
   @@index([userId, createdAt])
+}
+
+/**
+ * Deterministic voice-characteristic tags. Derived from stored catalog fields.
+ * Deleting a catalog row removes its tags. Favorites and characters are separate.
+ */
+model StudioVoiceCharacteristic {
+  id              String   @id
+  provider        String   @default("elevenlabs")
+  providerVoiceId String
+  concept         String
+  category        String
+  matchType       String
+  source          String
+  createdAt       DateTime @default(now())
+  catalog         StudioVoiceCatalogEntry @relation(fields: [provider, providerVoiceId], references: [provider, providerVoiceId], onDelete: Cascade)
+
+  @@unique([provider, providerVoiceId, concept, matchType], map: "StudioVoiceCharacteristic_voice_concept_match_key")
+  @@index([concept, matchType], map: "StudioVoiceCharacteristic_concept_match_idx")
+  @@index([provider, providerVoiceId], map: "StudioVoiceCharacteristic_voice_idx")
+  @@index([category, concept], map: "StudioVoiceCharacteristic_category_concept_idx")
 }
 
 /** One row per catalog sync attempt. A running row blocks a second sync. */

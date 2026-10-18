@@ -9,27 +9,13 @@ import {
 import { buildVoicePersonaPresets } from "@/lib/studio-voice-persona-presets";
 import { pageVoiceLibrary } from "@/lib/studio-voice-library-page";
 import { voiceGenderPreference } from "@/lib/studio-voice-language";
-import { isStudioVoiceCatalogDbEnabled } from "@/lib/studio-voice-catalog-search";
+import { isStudioVoiceCatalogDbEnabled, voiceCatalogInputFromSearchParams } from "@/lib/studio-voice-catalog-search";
 import { loadStudioVoiceCatalogSummary, recommendStudioVoices, searchStudioVoiceCatalog } from "@/server/studio/studio-voice-catalog-db";
 import type { VoiceLibraryCatalog } from "@/lib/studio-voice-library-catalog";
 import type { VoiceLibraryPageResult } from "@/lib/studio-voice-library-page";
 
 function voicePageInput(url: URL) {
-  return {
-    query: url.searchParams.get("q") ?? "",
-    language: url.searchParams.get("language") ?? "",
-    accent: url.searchParams.get("accent") ?? "",
-    gender: url.searchParams.get("gender") ?? "",
-    age: url.searchParams.get("age") ?? "",
-    category: url.searchParams.get("category") ?? "",
-    locale: url.searchParams.get("locale") ?? "",
-    sample:
-      url.searchParams.get("sample") === "yes" ? "yes" as const
-      : url.searchParams.get("sample") === "no" ? "no" as const
-      : "" as const,
-    page: Number(url.searchParams.get("page")) || 0,
-    pageSize: Number(url.searchParams.get("pageSize")) || 24,
-  };
+  return voiceCatalogInputFromSearchParams(url);
 }
 
 function recommendFromCatalog(catalog: VoiceLibraryCatalog, input: ReturnType<typeof voicePageInput>): VoiceLibraryPageResult {

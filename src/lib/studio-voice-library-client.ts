@@ -38,12 +38,15 @@ export type VoiceLibraryPageResult = {
   page: number;
   pageSize: number;
   languageCounts?: Array<{ value: string; voiceCount: number }>;
-  accentCounts?: Array<{ value: string; labelKey: string; voiceCount: number }>;
+  accentCounts?: Array<{ value: string; labelKey: string; voiceCount: number; label?: string }>;
   localeCounts?: Array<{ value: string; label: string; voiceCount: number }>;
   suppressedAccentIds?: string[];
   genderCounts?: Array<{ value: string; labelKey: string; voiceCount: number }>;
   ageCounts?: Array<{ value: string; labelKey: string; voiceCount: number }>;
   categoryCounts?: Array<{ value: string; labelKey: string; voiceCount: number }>;
+  useCaseCounts?: Array<{ value: string; voiceCount: number }>;
+  descriptiveCounts?: Array<{ value: string; voiceCount: number }>;
+  conceptCounts?: Array<{ concept: string; exact: number; related: number }>;
   relaxed?: boolean;
 };
 
@@ -104,6 +107,10 @@ export async function searchVoiceLibraryPage(params: {
   sample?: "yes" | "no" | "";
   category?: string;
   locale?: string;
+  useCase?: string;
+  descriptive?: string;
+  concepts?: string[];
+  matchMode?: "strict" | "related";
   recommend?: boolean;
   favorites?: boolean;
   page?: number;
@@ -137,6 +144,18 @@ export async function searchVoiceLibraryPage(params: {
   }
   if (params.locale?.trim()) {
     search.set("locale", params.locale.trim());
+  }
+  if (params.useCase?.trim()) {
+    search.set("useCase", params.useCase.trim());
+  }
+  if (params.descriptive?.trim()) {
+    search.set("descriptive", params.descriptive.trim());
+  }
+  if (params.concepts?.length) {
+    search.set("concepts", params.concepts.join(","));
+  }
+  if (params.matchMode === "related") {
+    search.set("matchMode", "related");
   }
   if (params.sample === "yes" || params.sample === "no") {
     search.set("sample", params.sample);
