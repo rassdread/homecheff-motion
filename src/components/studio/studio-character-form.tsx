@@ -7,6 +7,7 @@ import { StudioCharacterSummaryReadinessPanel } from "@/components/studio/studio
 import {
   StudioCharacterIdentityBuilder,
   type CharacterCreateEntryPath,
+  type CharacterEditorWorkflowStep,
 } from "@/components/studio/studio-character-identity-builder";
 import { StudioCharacterImagePrefillPanel } from "@/components/studio/studio-character-image-prefill-panel";
 import { StudioCharacterPromptPrefillPanel } from "@/components/studio/studio-character-prompt-prefill-panel";
@@ -403,6 +404,7 @@ export function StudioCharacterForm({
   const [previewUrl, setPreviewUrl] = useState(initial?.referenceImageUrl ?? "");
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [workflowStep, setWorkflowStep] = useState<CharacterEditorWorkflowStep>("look");
   const [error, setError] = useState("");
   const [createEntryPath, setCreateEntryPath] = useState<CharacterCreateEntryPath | null>(() => {
     if (mode !== "create") return null;
@@ -627,6 +629,7 @@ export function StudioCharacterForm({
         highlightStoryPrefill={Boolean(identityPrefill)}
         highlightImagePrefill={highlightImagePrefill}
         suggestionSource={suggestionSource}
+        workflowStep={workflowStep}
         voiceSection={
           <VoiceLibraryProvider>
             <UserVoiceLibraryProvider>
@@ -733,15 +736,51 @@ export function StudioCharacterForm({
 
       {mode === "create" && createEntryPath === "existing_image" ? referenceImageCard : null}
 
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="character-editor-steps">
+        {(
+          [
+            ["look", "Uiterlijk"],
+            ["voice", "Stem & spraak"],
+            ["personality", "Persoonlijkheid"],
+            ["save", "Opslaan & gebruiken"],
+          ] as const
+        ).map(([step, label]) => (
+          <button
+            key={step}
+            type="button"
+            aria-pressed={workflowStep === step}
+            onClick={() => setWorkflowStep(step)}
+            className={`min-h-[44px] rounded-xl px-2 text-sm font-semibold ${
+              workflowStep === step ? "bg-[#006D52] text-white" : "border border-zinc-200 bg-white text-zinc-800"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {previewUrl && workflowStep !== "look" ? (
+        <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white p-3">
+          <img src={previewUrl} alt="" className="h-16 w-12 rounded-lg object-cover" />
+          <p className="text-sm font-semibold text-zinc-900">{values.identity.name || "Personage"}</p>
+        </div>
+      ) : null}
+
       {identityBuilder}
 
       {mode === "create" && (createEntryPath === "design" || createEntryPath === "prompt_prefill")
         ? referenceImageCard
         : null}
 
-      {mode === "edit" ? referenceImageCard : null}
+      {mode === "edit" && workflowStep === "look" ? referenceImageCard : null}
 
-      <section className="mt-8 rounded-2xl border border-amber-100 bg-amber-50/40 p-4">
+      {workflowStep === "save" ? (
+      <details className="mt-8 rounded-2xl border border-zinc-200 bg-white p-4">
+        <summary className="cursor-pointer text-sm font-semibold text-zinc-900">Geavanceerde instellingen</summary>
+        <p className="mt-2 text-xs text-zinc-600">
+          Mondbeelden zijn handmatige frames. Ze starten geen automatische AI-lipsync.
+        </p>
+      <section className="mt-4 rounded-2xl border border-amber-100 bg-amber-50/40 p-4">
         <h2 className="text-sm font-semibold text-amber-950">
           {t("studio.characterPerformance.title")}
         </h2>
@@ -765,6 +804,8 @@ export function StudioCharacterForm({
           </div>
         </div>
       </section>
+      </details>
+      ) : null}
 
       {error ?
         <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">

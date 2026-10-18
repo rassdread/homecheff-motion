@@ -2,6 +2,7 @@
  * Explicit character identity prompt lines from structured tokens and canonical identity.
  */
 
+import { characterIdentityStylePrompt } from "@/lib/studio-character-identity-presets";
 import { parseStructuredKeywordsFromVisualKeywords } from "@/lib/studio-character-visual-keywords";
 import type { CanonicalCharacterIdentity } from "@/types/studio-character-canonical-references";
 import type { CharacterMemorySnapshot } from "@/types/studio-memory-snapshots";
@@ -24,7 +25,8 @@ export function buildCharacterStructuredIdentityPromptLines(
   >) {
     const value = structured[key]?.trim();
     if (value) {
-      lines.push(`${label}: ${value}.`);
+      const promptValue = key === "visualStyle" ? characterIdentityStylePrompt(value) : value;
+      lines.push(`${label}: ${promptValue}.`);
     }
   }
   return lines;

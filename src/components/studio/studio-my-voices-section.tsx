@@ -131,16 +131,24 @@ export function StudioMyVoicesSection({
       </div>
 
       {canModify ?
-        <StudioVoiceCloneWorkflow
-          voiceNameDefault={characterName}
-          language={language}
-          linkCharacterId={characterId}
-          canModify={canModify}
-          onCloneComplete={(result) => {
-            onSelectProfile(result.voiceProfileRef, { voiceName: result.clonedVoiceName });
-            void userVoices.refresh();
-          }}
-        />
+        <details className="rounded-xl border border-violet-200 bg-white px-3 py-2">
+          <summary className="cursor-pointer text-sm font-semibold text-violet-950">Eigen stem toevoegen</summary>
+          <p className="mt-2 text-xs text-violet-800">
+            Een kloon gebruikt je eigen opname, vraagt toestemming en bevestigt de Studio HC-kosten. Dit voorbeeld maakt geen kloon.
+          </p>
+          <div className="mt-3">
+            <StudioVoiceCloneWorkflow
+              voiceNameDefault={characterName}
+              language={language}
+              linkCharacterId={characterId}
+              canModify={canModify}
+              onCloneComplete={(result) => {
+                onSelectProfile(result.voiceProfileRef, { voiceName: result.clonedVoiceName });
+                void userVoices.refresh();
+              }}
+            />
+          </div>
+        </details>
       : null}
 
       {voices.length > 0 ?

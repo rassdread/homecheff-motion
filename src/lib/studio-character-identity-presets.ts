@@ -145,6 +145,40 @@ export function isAdvancedCharacterStyle(styleId: string): boolean {
   return (CHARACTER_IDENTITY_ADVANCED_STYLES as readonly string[]).includes(styleId);
 }
 
+/** Prompt phrases for known style ids. Unknown saved values stay unchanged. */
+export const CHARACTER_IDENTITY_STYLE_PROMPTS: Record<CharacterIdentityStyleId, string> = {
+  flat_cartoon: "flat cartoon with simple shapes and solid colors",
+  "2d_cartoon": "2D cartoon with clean outlines and expressive features",
+  "3d_cartoon": "3D cartoon with rounded volumes and soft lighting",
+  comic: "comic-book illustration with bold ink and graphic color",
+  storybook: "storybook illustration with gentle painted texture",
+  semi_realistic: "semi-realistic character with natural proportions",
+  cinematic: "cinematic lighting and filmic color",
+  stylized: "stylized character design with a clear graphic silhouette",
+  anime: "anime character design",
+  manga: "manga ink illustration",
+  clay: "clay animation character",
+  low_poly: "low-poly 3D character",
+  voxel: "voxel character made of visible blocks",
+  realistic: "photorealistic character",
+  cyberpunk: "cyberpunk character with neon urban styling",
+  steampunk: "steampunk character with brass and Victorian machinery",
+  noir: "film-noir character with high-contrast shadow",
+  fantasy: "fantasy character design",
+  dark_fantasy: "dark-fantasy character design",
+  horror: "horror character design",
+  dystopian: "dystopian character design",
+  post_apocalyptic: "post-apocalyptic character design",
+  sci_fi: "science-fiction character design",
+  retro_future: "retro-futurist character design",
+  experimental: "experimental character design",
+};
+
+export function characterIdentityStylePrompt(styleId: string): string {
+  const known = CHARACTER_IDENTITY_STYLE_PROMPTS[styleId as CharacterIdentityStyleId];
+  return known ?? styleId;
+}
+
 /** CSS preview tokens per style (no images). */
 export const CHARACTER_IDENTITY_STYLE_PREVIEW_TOKENS: Record<
   string,

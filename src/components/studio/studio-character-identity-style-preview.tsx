@@ -3,6 +3,7 @@
 import type { CharacterIdentityStyleId } from "@/lib/studio-character-identity-presets";
 import {
   CHARACTER_IDENTITY_STYLE_PREVIEW_TOKENS,
+  characterIdentityStylePrompt,
 } from "@/lib/studio-character-identity-presets";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
@@ -19,18 +20,21 @@ export function StudioCharacterIdentityStylePreviewCard({
   onSelect,
 }: Props) {
   const t = useActiveTranslator();
-  const tokens = CHARACTER_IDENTITY_STYLE_PREVIEW_TOKENS[styleId];
+  const tokens = CHARACTER_IDENTITY_STYLE_PREVIEW_TOKENS[styleId] ?? {
+    gradient: "from-zinc-100 via-white to-zinc-200",
+    accent: "#0067B1",
+    radius: "rounded-xl",
+  };
   const labelKey = `studio.characterIdentity.styles.${styleId}` as TranslationKey;
   const descKey = `studio.characterIdentity.stylePreview.${styleId}.description` as TranslationKey;
-  const fitKey = `studio.characterIdentity.stylePreview.${styleId}.fits` as TranslationKey;
-
-  if (!tokens) {
-    return null;
-  }
+  const description = t(descKey);
+  const explanation =
+    description === descKey ? characterIdentityStylePrompt(styleId) : description;
 
   return (
     <button
       type="button"
+      aria-pressed={selected}
       onClick={onSelect}
       className={`flex w-full flex-col overflow-hidden rounded-xl border text-left transition ${
         selected ?
@@ -52,8 +56,8 @@ export function StudioCharacterIdentityStylePreviewCard({
       </div>
       <div className="space-y-1 bg-white p-3">
         <p className="text-xs font-semibold text-zinc-900">{t(labelKey)}</p>
-        <p className="text-[10px] leading-snug text-zinc-600">{t(descKey)}</p>
-        <p className="text-[10px] font-medium text-[#006D52]">{t(fitKey)}</p>
+        <p className="text-[10px] leading-snug text-zinc-600">{explanation}</p>
+        {selected ? <p className="text-[10px] font-semibold text-[#0067B1]">Geselecteerd</p> : null}
       </div>
     </button>
   );

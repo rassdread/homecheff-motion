@@ -406,7 +406,8 @@ export function StudioCharacterVoiceCenter({
 
   const chosenVoice = hasExplicitVoiceSelection(value.voiceProfile, value.voiceNotes);
   const [bestMatchesOpen, setBestMatchesOpen] = useState(() => !chosenVoice);
-  const [personaPresetsOpen, setPersonaPresetsOpen] = useState(false);
+  const [personaPresetsOpen, setPersonaPresetsOpen] = useState(true);
+  const [voicePickerTab, setVoicePickerTab] = useState<"recommended" | "all" | "mine">("recommended");
   const [librarySectionOpen, setLibrarySectionOpen] = useState(false);
   const [myVoiceOpen, setMyVoiceOpen] = useState(false);
 
@@ -787,12 +788,39 @@ export function StudioCharacterVoiceCenter({
         </p>
       : null}
 
+      <div className="mt-4" data-testid="voice-picker">
+        <p className="text-sm font-semibold text-zinc-900">Kies een stem</p>
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          {(
+            [
+              ["recommended", "Aanbevolen"],
+              ["all", "Alle stemmen"],
+              ["mine", "Mijn stemmen"],
+            ] as const
+          ).map(([tab, label]) => (
+            <button
+              key={tab}
+              type="button"
+              aria-pressed={voicePickerTab === tab}
+              onClick={() => setVoicePickerTab(tab)}
+              className={`min-h-[44px] rounded-xl px-2 text-sm font-semibold ${
+                voicePickerTab === tab ? "bg-[#0067B1] text-white" : "border border-zinc-200 bg-white text-zinc-800"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {voicePickerTab === "recommended" ? (
+      <>
       <VoiceCenterCollapsibleSection
         title={t("studio.voiceCenter.section.bestMatches")}
         summary={t("studio.voiceCenter.summary.recommendations", {
           count: String(recommendationCount),
         })}
-        open={bestMatchesOpen}
+        open={true}
         onToggle={() => setBestMatchesOpen((open) => !open)}
       >
         {voiceLibrary?.loadingVoices ?
@@ -819,7 +847,7 @@ export function StudioCharacterVoiceCenter({
           count: String(voicePayload?.personaPresets.length ?? 0),
           group: t(personaGroupSummaryLabelKey(preferredPersonaGroupId) as never),
         })}
-        open={personaPresetsOpen}
+        open={true}
         onToggle={() => setPersonaPresetsOpen((open) => !open)}
       >
         {voicePayload ?
@@ -837,7 +865,10 @@ export function StudioCharacterVoiceCenter({
           />
         : null}
       </VoiceCenterCollapsibleSection>
+      </>
+      ) : null}
 
+      {voicePickerTab === "all" ? (
       <VoiceCenterCollapsibleSection
         title={t("studio.voiceCenter.section.library")}
         summary={
@@ -849,7 +880,7 @@ export function StudioCharacterVoiceCenter({
               })
             : t("studio.voiceLibrary.loading")
         }
-        open={librarySectionOpen}
+        open={true}
         onToggle={() => setLibrarySectionOpen((open) => !open)}
       >
         {voicePayload && voiceLibrary?.voicesReady ?
@@ -875,7 +906,7 @@ export function StudioCharacterVoiceCenter({
               canModify={canModify}
               isAdmin={isAdmin}
               marketplaceContext={marketplaceContext}
-              browseOpen={libraryBrowseOpen}
+              browseOpen={libraryBrowseOpen || voicePickerTab === "all"}
               onBrowseOpen={() => setLibraryBrowseOpen(true)}
               onSelectProfile={handleSelectProfile}
             />
@@ -884,11 +915,13 @@ export function StudioCharacterVoiceCenter({
           <p className="text-sm text-violet-700">{t("studio.voiceLibrary.loadingVoices")}</p>
         : null}
       </VoiceCenterCollapsibleSection>
+      ) : null}
 
+      {voicePickerTab === "mine" ? (
       <VoiceCenterCollapsibleSection
         title={t("studio.voiceCenter.section.myVoice")}
         summary={t("studio.voiceCenter.summary.myVoice", { count: String(cloneCount) })}
-        open={myVoiceOpen}
+        open={true}
         onToggle={() => setMyVoiceOpen((open) => !open)}
       >
         <StudioMyVoicesSection
@@ -901,6 +934,7 @@ export function StudioCharacterVoiceCenter({
         />
         <p className="mt-4 text-xs text-violet-700">{t("studio.voiceLibrary.clonesInLibraryHint")}</p>
       </VoiceCenterCollapsibleSection>
+      ) : null}
 
       <VoiceCenterCollapsibleSection
         title={t("studio.voiceCenter.advancedLanguageTitle")}

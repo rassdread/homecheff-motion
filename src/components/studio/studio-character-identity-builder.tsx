@@ -22,8 +22,8 @@ import {
   CHARACTER_IDENTITY_OUTFIT_PRESETS,
   CHARACTER_IDENTITY_PERSONALITY_PRESETS,
   CHARACTER_IDENTITY_SHAPE_LANGUAGES,
-  CHARACTER_IDENTITY_STYLE_PREVIEW_IDS,
   CHARACTER_IDENTITY_TYPES,
+  isAdvancedCharacterStyle,
   listVisibleCharacterStyles,
 } from "@/lib/studio-character-identity-presets";
 import type { StudioWorldProfileListItem } from "@/types/studio-api";
@@ -31,6 +31,8 @@ import type { StudioWorldProfileListItem } from "@/types/studio-api";
 export type StudioCharacterIdentityBuilderMode = "create" | "edit" | "workspace";
 
 export type CharacterCreateEntryPath = "design" | "existing_image" | "image_prefill" | "prompt_prefill";
+
+export type CharacterEditorWorkflowStep = "look" | "voice" | "personality" | "save";
 
 type Props = {
   mode: StudioCharacterIdentityBuilderMode;
@@ -48,6 +50,7 @@ type Props = {
   highlightStoryPrefill?: boolean;
   highlightImagePrefill?: boolean;
   suggestionSource?: "story" | "image" | "prompt";
+  workflowStep?: CharacterEditorWorkflowStep;
 };
 
 function presetKey(group: string, id: string): TranslationKey {
@@ -74,6 +77,7 @@ export function StudioCharacterIdentityBuilder({
   highlightStoryPrefill = false,
   highlightImagePrefill = false,
   suggestionSource = "story",
+  workflowStep,
 }: Props) {
   const t = useActiveTranslator();
   const [advancedFeatures] = useStudioAdvancedFeatures();
@@ -82,6 +86,8 @@ export function StudioCharacterIdentityBuilder({
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     () => new Set(initialExpandedSections)
   );
+  const [showMoreStyles, setShowMoreStyles] = useState(() => isAdvancedCharacterStyle(form.visualStyle));
+  const [styleQuery, setStyleQuery] = useState("");
 
   const toggleSection = useCallback((sectionId: string) => {
     setExpandedSections((prev) => {
@@ -120,7 +126,9 @@ export function StudioCharacterIdentityBuilder({
     : null;
 
   const completenessTier = characterIdentityCompletenessTier(completenessScore);
-  const visibleStyles = listVisibleCharacterStyles(showAdvancedStyles);
+  const visibleStyles = listVisibleCharacterStyles(
+    showMoreStyles || styleQuery.trim().length > 0 || showAdvancedStyles
+  );
 
   const updateField = useCallback(
     <K extends keyof CharacterIdentityFormValues>(key: K, value: CharacterIdentityFormValues[K]) => {
@@ -251,7 +259,15 @@ export function StudioCharacterIdentityBuilder({
         { id: "look", title: t("studio.characterIdentity.sections.look") },
         { id: "context", title: t("studio.characterIdentity.sections.context") },
         { id: "voice", title: t("studio.characterIdentity.sections.voice") },
-      ].map((section) => (
+      ].filter((section) => {
+        if (!workflowStep) return true;
+        if (workflowStep === "look") return section.id === "core" || section.id === "style";
+        if (workflowStep === "voice") return section.id === "voice";
+        if (workflowStep === "personality") return section.id === "personality" || section.id === "look";
+        return section.id === "context";
+      }).map((section) => {
+        const open = workflowStep ? true : expandedSections.has(section.id);
+        return (
         <div key={section.id} className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
           <button
             type="button"
@@ -259,10 +275,10 @@ export function StudioCharacterIdentityBuilder({
             className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-zinc-900"
           >
             {section.title}
-            <span className="text-zinc-400">{expandedSections.has(section.id) ? "−" : "+"}</span>
+            <span className="text-zinc-400">{open ? "−" : "+"}</span>
           </button>
 
-          {expandedSections.has(section.id) ?
+          {open ?
             <div className="space-y-3 border-t border-zinc-100 px-4 py-4">
               {section.id === "core" ?
                 <>
@@ -320,80 +336,91 @@ export function StudioCharacterIdentityBuilder({
                       {t(fieldLabelKey("visualStyle"))}
                       {suggestedLabel("visualStyle")}
                     </p>
+                    <input
+                      value={styleQuery}
+                      onChange={(event) => setStyleQuery(event.target.value)}
+                      placeholder="Zoek een stijl"
+                      className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    />
                     <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                      {visibleStyles.map((styleId) =>
-                        CHARACTER_IDENTITY_STYLE_PREVIEW_IDS.includes(styleId) ?
+                      {visibleStyles
+                        .filter((styleId) => {
+                          const query = styleQuery.trim().toLowerCase();
+                          if (!query) return true;
+                          const label = t(`studio.characterIdentity.styles.${styleId}` as TranslationKey).toLowerCase();
+                          return label.includes(query) || styleId.replaceAll("_", " ").includes(query);
+                        })
+                        .map((styleId) => (
                           <StudioCharacterIdentityStylePreviewCard
                             key={styleId}
                             styleId={styleId}
                             selected={form.visualStyle === styleId}
                             onSelect={() => canModify && updateField("visualStyle", styleId)}
                           />
-                        : (
-                          <button
-                            key={styleId}
-                            type="button"
-                            disabled={!canModify}
-                            onClick={() => updateField("visualStyle", styleId)}
-                            className={`rounded-lg border px-2 py-2 text-left text-xs ${
-                              form.visualStyle === styleId ?
-                                "border-[#0067B1] bg-[#0067B1]/5 font-semibold"
-                              : "border-zinc-200"
-                            }`}
-                          >
-                            {t(`studio.characterIdentity.styles.${styleId}` as TranslationKey)}
-                          </button>
-                        )
-                      )}
+                        ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowMoreStyles((open) => !open)}
+                      className="mt-3 text-sm font-semibold text-[#0067B1] hover:underline"
+                    >
+                      {showMoreStyles ? "Minder stijlen" : "Meer stijlen"}
+                    </button>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-zinc-700">{t(fieldLabelKey("shapeLanguage"))}</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {CHARACTER_IDENTITY_SHAPE_LANGUAGES.map((id) => (
+                        <button
+                          key={id}
+                          type="button"
+                          disabled={!canModify}
+                          aria-pressed={form.shapeLanguage === id}
+                          onClick={() => updateField("shapeLanguage", id)}
+                          className={`rounded-full px-3 py-1.5 text-xs font-medium ${
+                            form.shapeLanguage === id ? "bg-[#006D52] text-white" : "border border-zinc-200 text-zinc-700"
+                          }`}
+                        >
+                          {t(`studio.characterIdentity.shapes.${id}` as TranslationKey)}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                  <label className="block">
-                    <span className="text-xs font-medium text-zinc-700">
-                      {t(fieldLabelKey("shapeLanguage"))}
-                    </span>
-                    <select
-                      value={form.shapeLanguage}
-                      disabled={!canModify}
-                      onChange={(e) => updateField("shapeLanguage", e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                    >
-                      <option value="">{t("studio.characterIdentity.chooseOption")}</option>
-                      {CHARACTER_IDENTITY_SHAPE_LANGUAGES.map((id) => (
-                        <option key={id} value={id}>
-                          {t(`studio.characterIdentity.shapes.${id}` as TranslationKey)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block">
-                    <span className="text-xs font-medium text-zinc-700">{t(fieldLabelKey("energy"))}</span>
-                    <select
-                      value={form.energy}
-                      disabled={!canModify}
-                      onChange={(e) => updateField("energy", e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                    >
-                      <option value="">{t("studio.characterIdentity.chooseOption")}</option>
+                  <div>
+                    <p className="text-xs font-medium text-zinc-700">{t(fieldLabelKey("energy"))}</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
                       {CHARACTER_IDENTITY_ENERGIES.map((id) => (
-                        <option key={id} value={id}>
+                        <button
+                          key={id}
+                          type="button"
+                          disabled={!canModify}
+                          aria-pressed={form.energy === id}
+                          onClick={() => updateField("energy", id)}
+                          className={`rounded-full px-3 py-1.5 text-xs font-medium ${
+                            form.energy === id ? "bg-[#006D52] text-white" : "border border-zinc-200 text-zinc-700"
+                          }`}
+                        >
                           {t(`studio.characterIdentity.energies.${id}` as TranslationKey)}
-                        </option>
+                        </button>
                       ))}
-                    </select>
-                  </label>
-                  <label className="block">
-                    <span className="text-xs font-medium text-zinc-700">
-                      {t(fieldLabelKey("appearanceMemory"))}
-                    </span>
-                    <textarea
-                      value={form.appearanceMemory}
-                      disabled={!canModify}
-                      rows={2}
-                      onChange={(e) => updateField("appearanceMemory", e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                      placeholder={t("studio.characterIdentity.placeholders.appearanceMemory")}
-                    />
-                  </label>
+                    </div>
+                  </div>
+                  <details className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">
+                    <summary className="cursor-pointer text-sm font-semibold text-zinc-800">Meer opties</summary>
+                    <label className="mt-3 block">
+                      <span className="text-xs font-medium text-zinc-700">
+                        {t(fieldLabelKey("appearanceMemory"))}
+                      </span>
+                      <textarea
+                        value={form.appearanceMemory}
+                        disabled={!canModify}
+                        rows={2}
+                        onChange={(e) => updateField("appearanceMemory", e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
+                        placeholder={t("studio.characterIdentity.placeholders.appearanceMemory")}
+                      />
+                    </label>
+                  </details>
                 </>
               : null}
 
@@ -406,7 +433,12 @@ export function StudioCharacterIdentityBuilder({
                         type="button"
                         disabled={!canModify}
                         onClick={() => applyPreset("personality", id)}
-                        className="rounded-full border border-zinc-200 px-2.5 py-1 text-[11px] font-medium text-zinc-700 hover:border-[#0067B1]"
+                        aria-pressed={form.personality === t(presetKey("personality", id))}
+                        className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                          form.personality === t(presetKey("personality", id))
+                            ? "bg-[#006D52] text-white"
+                            : "border border-zinc-200 text-zinc-700 hover:border-[#0067B1]"
+                        }`}
                       >
                         {t(presetKey("personality", id))}
                       </button>
@@ -459,7 +491,12 @@ export function StudioCharacterIdentityBuilder({
                           type="button"
                           disabled={!canModify}
                           onClick={() => applyPreset("outfit", id)}
-                          className="rounded-full border border-zinc-200 px-2.5 py-1 text-[11px] font-medium"
+                          aria-pressed={form.clothing === t(presetKey("outfit", id))}
+                          className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                            form.clothing === t(presetKey("outfit", id))
+                              ? "bg-[#006D52] text-white"
+                              : "border border-zinc-200 text-zinc-700"
+                          }`}
                         >
                           {t(presetKey("outfit", id))}
                         </button>
@@ -481,7 +518,12 @@ export function StudioCharacterIdentityBuilder({
                           type="button"
                           disabled={!canModify}
                           onClick={() => applyPreset("accessory", id)}
-                          className="rounded-full border border-zinc-200 px-2.5 py-1 text-[11px] font-medium"
+                          aria-pressed={form.accessories === t(presetKey("accessory", id))}
+                          className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                            form.accessories === t(presetKey("accessory", id))
+                              ? "bg-[#006D52] text-white"
+                              : "border border-zinc-200 text-zinc-700"
+                          }`}
                         >
                           {t(presetKey("accessory", id))}
                         </button>
@@ -553,7 +595,8 @@ export function StudioCharacterIdentityBuilder({
             </div>
           : null}
         </div>
-      ))}
+      );
+      })}
     </div>
   );
 }
