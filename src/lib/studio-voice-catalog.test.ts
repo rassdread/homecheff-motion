@@ -130,36 +130,57 @@ describe("voice catalog database search", () => {
     assert.deepEqual(accents.map((item) => item.value), ["dutch.nederlands", "english.american"]);
   });
 
-  it("falls back to the language when gender has no match and does not load every row", async () => {
+  it("keeps a chosen voice gender strict and does not load every row", async () => {
     const calls: string[] = [];
+    const rows = [
+      { providerVoiceId: "f-1", name: "Anna", canonicalLanguage: "en", accent: "british", gender: "female", age: "young", category: "shared", description: "", previewUrl: "https://example.com/anna.mp3" },
+      { providerVoiceId: "m-1", name: "Bram", canonicalLanguage: "en", accent: "british", gender: "male", age: "young", category: "shared", description: "", previewUrl: "https://example.com/bram.mp3" },
+    ];
     const client: VoiceCatalogSearchClient = {
       async count({ where }) {
-        calls.push(where.gender ? "gender" : where.canonicalLanguage ? "language" : "any");
-        if (where.gender) return 0;
-        return where.canonicalLanguage === "nl" ? 3 : 8;
+        calls.push(where.gender || "any");
+        return rows.filter((row) => !where.gender || row.gender === where.gender).length;
       },
       async findMany(args) {
         assert.equal(args.take, 8);
-        return [{
-          providerVoiceId: "nl-1",
-          name: "Bram",
-          canonicalLanguage: args.where.canonicalLanguage || "en",
-          accent: "nederlands",
-          gender: "male",
-          age: "young",
-          category: "shared",
-          description: "",
-          previewUrl: "https://example.com/bram.mp3",
-        }];
+        return rows.filter((row) => !args.where.gender || row.gender === args.where.gender);
+      },
+      async groupBy() {
+        throw new Error("recommendations should not build facets");
+      },
+    };
+    const baker = await recommendVoiceCatalogWithClient(client, { language: "en", gender: "female" });
+    const potter = await recommendVoiceCatalogWithClient(client, { language: "en", gender: "male" });
+    const open = await recommendVoiceCatalogWithClient(client, { language: "en", gender: "" });
+    const missing = await recommendVoiceCatalogWithClient(client, { language: "en", gender: "female-baker" });
+    assert.deepEqual(baker.voices.map((voice) => voice.gender), ["female"]);
+    assert.deepEqual(potter.voices.map((voice) => voice.gender), ["male"]);
+    assert.deepEqual(open.voices.map((voice) => voice.gender), ["female", "male"]);
+    assert.equal(missing.voices.length, 2);
+    assert.equal(baker.relaxed, false);
+    assert.equal(baker.voices.length <= 8, true);
+    assert.deepEqual(calls, ["female", "male", "any", "any"]);
+  });
+
+  it("returns an empty recommendation instead of dropping the gender filter", async () => {
+    const client: VoiceCatalogSearchClient = {
+      async count({ where }) {
+        assert.equal(where.gender, "female");
+        return 0;
+      },
+      async findMany(args) {
+        assert.equal(args.take, 8);
+        assert.equal(args.where.gender, "female");
+        return [];
       },
       async groupBy() {
         throw new Error("recommendations should not build facets");
       },
     };
     const page = await recommendVoiceCatalogWithClient(client, { language: "nl", gender: "female" });
-    assert.equal(page.relaxed, true);
-    assert.equal(page.voices[0]?.id, "nl-1");
-    assert.deepEqual(calls, ["gender", "language"]);
+    assert.equal(page.total, 0);
+    assert.equal(page.voices.length, 0);
+    assert.equal(page.relaxed, false);
   });
 });
 

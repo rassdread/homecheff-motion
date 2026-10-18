@@ -8,6 +8,7 @@ import {
 } from "@/lib/studio-voice-accent-coverage";
 import { buildVoicePersonaPresets } from "@/lib/studio-voice-persona-presets";
 import { pageVoiceLibrary } from "@/lib/studio-voice-library-page";
+import { voiceGenderPreference } from "@/lib/studio-voice-language";
 import { isStudioVoiceCatalogDbEnabled } from "@/lib/studio-voice-catalog-search";
 import { loadStudioVoiceCatalogSummary, recommendStudioVoices, searchStudioVoiceCatalog } from "@/server/studio/studio-voice-catalog-db";
 import type { VoiceLibraryCatalog } from "@/lib/studio-voice-library-catalog";
@@ -32,16 +33,15 @@ function voicePageInput(url: URL) {
 }
 
 function recommendFromCatalog(catalog: VoiceLibraryCatalog, input: ReturnType<typeof voicePageInput>): VoiceLibraryPageResult {
-  const strict = pageVoiceLibrary(catalog, { language: input.language, gender: input.gender, page: 0, pageSize: 8 });
-  if (strict.total > 0) return { ...strict, relaxed: false };
-  if (input.gender.trim()) {
-    const byLanguage = pageVoiceLibrary(catalog, { language: input.language, page: 0, pageSize: 8 });
-    if (byLanguage.total > 0) return { ...byLanguage, relaxed: true };
-  }
-  if (input.language.trim()) {
-    return { ...pageVoiceLibrary(catalog, { page: 0, pageSize: 8 }), relaxed: true };
-  }
-  return { ...strict, relaxed: true };
+  return {
+    ...pageVoiceLibrary(catalog, {
+      language: input.language,
+      gender: voiceGenderPreference(input.gender),
+      page: 0,
+      pageSize: 8,
+    }),
+    relaxed: false,
+  };
 }
 
 export async function GET(request: Request) {

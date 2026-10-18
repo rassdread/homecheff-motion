@@ -104,6 +104,21 @@ export function sortVoiceLanguageOptions<T extends { value: string }>(options: T
   });
 }
 
+/** Stored catalog genders. Empty means the character has no voice-type preference. */
+export function voiceGenderPreference(raw: string | null | undefined): "female" | "male" | "" {
+  const value = (raw ?? "").trim().toLowerCase();
+  if (value === "female" || value === "male") return value;
+  return "";
+}
+
+export function voiceGenderLabel(raw: string | null | undefined): string {
+  const value = (raw ?? "").trim().toLowerCase();
+  if (value === "female") return "Vrouwelijk";
+  if (value === "male") return "Mannelijk";
+  if (value === "neutral") return "Neutraal";
+  return (raw ?? "").trim();
+}
+
 /** ElevenLabs uses both "middle aged" and "middle_aged" for the same age impression. */
 export function canonicalVoiceAge(raw: string): string {
   const value = raw.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");

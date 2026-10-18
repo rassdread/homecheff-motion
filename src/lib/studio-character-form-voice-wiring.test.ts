@@ -204,6 +204,22 @@ describe("voice library discovery UX", () => {
     assert.match(readFileSync(sectionPath, "utf8"), /min-h-\[44px\]/);
     assert.match(readFileSync(centerPath, "utf8"), /min-h-\[44px\]/);
   });
+
+  it("keeps voice gender as an explicit preference and does not replace a selected voice", () => {
+    const center = readFileSync(join(process.cwd(), "src/components/studio/studio-character-voice-center.tsx"), "utf8");
+    const form = readFileSync(join(process.cwd(), "src/components/studio/studio-character-form.tsx"), "utf8");
+    assert.match(center, /Vrouwelijk/);
+    assert.match(center, /Mannelijk/);
+    assert.match(center, /Geen voorkeur/);
+    assert.match(center, /Geen stemmen gevonden die aan je voorkeuren voldoen/);
+    assert.match(center, /Filters verruimen/);
+    assert.match(center, /voiceGenderPreference\(value\.voiceGender\)/);
+    assert.match(form, /voiceGender: values\.voice\.voiceGender/);
+    const selectStart = center.indexOf("const handleSelectProfile");
+    const selectEnd = center.indexOf("const runPreview");
+    const selectBlock = center.slice(selectStart, selectEnd);
+    assert.doesNotMatch(selectBlock, /voiceGender:/);
+  });
 });
 
 describe("buildPerLanguageVoiceOverrideOptions", () => {

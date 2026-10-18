@@ -30,7 +30,7 @@ import {
   validateVoiceProfileForSynthesis,
 } from "@/lib/studio-voice-profile-ref";
 import { searchVoiceLibraryPage, type VoiceLibraryPageResult, type VoiceLibraryPayload } from "@/lib/studio-voice-library-client";
-import { voiceLanguageLabel } from "@/lib/studio-voice-language";
+import { voiceGenderLabel, voiceGenderPreference, voiceLanguageLabel } from "@/lib/studio-voice-language";
 import { useOptionalUserVoiceLibrary } from "@/components/studio/studio-user-voice-library-provider";
 import type { UserVoiceLibrary } from "@/types/studio-user-voice-library";
 import { VoiceCenterCollapsibleSection } from "@/components/studio/voice-center-collapsible-section";
@@ -361,7 +361,7 @@ export function StudioCharacterVoiceCenter({
     const controller = new AbortController();
     void searchVoiceLibraryPage({
       language: value.voiceLanguage,
-      gender: value.voiceGender,
+      gender: voiceGenderPreference(value.voiceGender),
       recommend: true,
       pageSize: 8,
       signal: controller.signal,
@@ -666,6 +666,37 @@ export function StudioCharacterVoiceCenter({
         </p>
       : null}
 
+      <fieldset className="mt-4">
+        <legend className="text-sm font-semibold text-zinc-900">Stemtype</legend>
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          {(
+            [
+              ["", "Geen voorkeur"],
+              ["female", "Vrouwelijk"],
+              ["male", "Mannelijk"],
+            ] as const
+          ).map(([gender, label]) => (
+            <button
+              key={label}
+              type="button"
+              disabled={!canModify}
+              aria-pressed={voiceGenderPreference(value.voiceGender) === gender}
+              onClick={() => {
+                setRecommendedLoading(true);
+                onChange({ ...value, voiceGender: gender });
+              }}
+              className={`min-h-[44px] rounded-xl px-2 text-sm font-semibold ${
+                voiceGenderPreference(value.voiceGender) === gender
+                  ? "bg-[#0067B1] text-white"
+                  : "border border-zinc-200 bg-white text-zinc-800"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
       <div className="mt-4" data-testid="voice-picker">
         <p className="text-sm font-semibold text-zinc-900">Kies een stem</p>
         <div className="mt-2 grid grid-cols-3 gap-2">
@@ -697,13 +728,11 @@ export function StudioCharacterVoiceCenter({
       {voicePickerTab === "recommended" ? (
         <div className="mt-4 space-y-2">
           <p className="text-xs text-zinc-500">
-            Gebaseerd op de gekozen taal{value.voiceGender.trim() ? " en stemtype" : ""}. Dit is geen controle van de aanbieder.
+            Gebaseerd op de gekozen taal
+            {voiceGenderPreference(value.voiceGender) ? " en het gekozen stemtype" : ""}. Dit is geen controle van de aanbieder.
           </p>
           {recommendedLoading ? <p className="text-sm text-zinc-600">Aanbevolen stemmen laden…</p> : null}
           {recommendedError ? <p className="text-sm text-red-800">{recommendedError}</p> : null}
-          {recommended?.relaxed ? (
-            <p className="text-sm text-zinc-600">Geen exacte match. Dit zijn bruikbare stemmen uit de catalogus.</p>
-          ) : null}
           <ul className="grid gap-2">
             {(recommended?.voices ?? []).map((voice) => {
               const profile = safeFormatLibraryVoiceProfileRef(voice.id) ?? "";
@@ -713,7 +742,7 @@ export function StudioCharacterVoiceCenter({
                   profile={profile}
                   selected={profile !== "" && value.voiceProfile === profile}
                   title={voice.name}
-                  subtitle={[voiceLanguageLabel(voice.language), voice.accent, voice.gender].filter(Boolean).join(" · ")}
+                  subtitle={[voiceLanguageLabel(voice.language), voice.accent, voiceGenderLabel(voice.gender)].filter(Boolean).join(" · ")}
                   previewUrl={voice.previewUrl}
                   canModify={canModify}
                   onSelect={(speechSpeed) =>
@@ -728,7 +757,23 @@ export function StudioCharacterVoiceCenter({
             })}
           </ul>
           {!recommendedLoading && recommended && recommended.voices.length === 0 ? (
-            <p className="text-sm text-zinc-600">Geen aanbevolen stemmen. Open Alle stemmen om te zoeken.</p>
+            <div className="space-y-2">
+              <p className="text-sm text-zinc-600">Geen stemmen gevonden die aan je voorkeuren voldoen.</p>
+              <button
+                type="button"
+                className="min-h-[44px] rounded-xl border border-zinc-200 bg-white px-3 text-sm font-semibold text-zinc-800"
+                onClick={() => {
+                  setRecommendedLoading(true);
+                  if (voiceGenderPreference(value.voiceGender)) {
+                    onChange({ ...value, voiceGender: "" });
+                    return;
+                  }
+                  setVoicePickerTab("all");
+                }}
+              >
+                Filters verruimen
+              </button>
+            </div>
           ) : null}
         </div>
       ) : null}

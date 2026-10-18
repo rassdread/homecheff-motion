@@ -6,7 +6,7 @@
 
 import { CANONICAL_ACCENT_DEFINITIONS } from "@/lib/studio-voice-accent-model";
 import type { VoiceLibraryFilterOptions } from "@/lib/studio-voice-accent-model";
-import { canonicalVoiceAge, canonicalVoiceLanguage, voiceLocaleLabel } from "@/lib/studio-voice-language";
+import { canonicalVoiceAge, canonicalVoiceLanguage, voiceGenderPreference, voiceLocaleLabel } from "@/lib/studio-voice-language";
 import type { VoiceLibraryPageResult } from "@/lib/studio-voice-library-page";
 
 export const VOICE_CATALOG_PAGE_SIZE = 24;
@@ -263,31 +263,12 @@ export async function recommendVoiceCatalogWithClient(
   client: VoiceCatalogSearchClient,
   input: VoiceCatalogSearchInput
 ): Promise<VoiceLibraryPageResult> {
-  const language = canonicalVoiceLanguage(input.language ?? "");
-  const gender = input.gender?.trim().toLowerCase() ?? "";
-  const attempts = [{ language, gender, relaxed: false }];
-  if (gender) attempts.push({ language, gender: "", relaxed: true });
-  if (language) attempts.push({ language: "", gender: "", relaxed: true });
-  let last: VoiceLibraryPageResult | null = null;
-  for (const attempt of attempts) {
-    const page = await searchVoiceCatalogWithClient(client, {
-      language: attempt.language,
-      gender: attempt.gender,
-      page: 0,
-      pageSize: 8,
-      facets: false,
-    });
-    last = { ...page, relaxed: attempt.relaxed };
-    if (page.total > 0) {
-      return last;
-    }
-  }
-  return last ?? {
-    voices: [],
-    total: 0,
+  const page = await searchVoiceCatalogWithClient(client, {
+    language: canonicalVoiceLanguage(input.language ?? ""),
+    gender: voiceGenderPreference(input.gender),
     page: 0,
     pageSize: 8,
-    languageCounts: [],
-    relaxed: true,
-  };
+    facets: false,
+  });
+  return { ...page, relaxed: false };
 }
