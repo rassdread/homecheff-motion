@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import type { VoiceCatalogDraft } from "@/lib/studio-voice-catalog-policy";
 import {
   buildVoiceCatalogWhere,
+  recommendVoiceCatalogWithClient,
   searchVoiceCatalogWithClient,
   voiceCatalogFilterOptionsFromCounts,
   type VoiceCatalogSearchInput,
@@ -49,8 +50,12 @@ export async function loadStudioVoiceCatalogSummary() {
   };
 }
 
-export function searchStudioVoiceCatalog(input: VoiceCatalogSearchInput) {
-  const client: VoiceCatalogSearchClient = {
+export function recommendStudioVoices(input: VoiceCatalogSearchInput) {
+  return recommendVoiceCatalogWithClient(catalogSearchClient(), input);
+}
+
+function catalogSearchClient(): VoiceCatalogSearchClient {
+  return {
     count: (args) =>
       prisma.studioVoiceCatalogEntry.count({
         where: args.where as Prisma.StudioVoiceCatalogEntryWhereInput,
@@ -86,8 +91,22 @@ export function searchStudioVoiceCatalog(input: VoiceCatalogSearchInput) {
         _count: { _all: row._count._all },
       }));
     },
+    groupByValue: async (field, where) => {
+      const rows = await prisma.studioVoiceCatalogEntry.groupBy({
+        by: [field],
+        where: where as Prisma.StudioVoiceCatalogEntryWhereInput,
+        _count: { _all: true },
+      });
+      return rows.map((row) => ({
+        value: String(row[field] ?? ""),
+        voiceCount: row._count._all,
+      }));
+    },
   };
-  return searchVoiceCatalogWithClient(client, input);
+}
+
+export function searchStudioVoiceCatalog(input: VoiceCatalogSearchInput) {
+  return searchVoiceCatalogWithClient(catalogSearchClient(), input);
 }
 
 export function studioVoiceCatalogSyncClient(): VoiceCatalogSyncClient {

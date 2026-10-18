@@ -2,9 +2,9 @@
  * Page a cached voice catalog without sending every row to the browser.
  */
 
-import { filterVoiceLibrary } from "@/lib/studio-voice-accent-model";
+import { CANONICAL_ACCENT_DEFINITIONS, canonicalAccentForVoice, filterVoiceLibrary } from "@/lib/studio-voice-accent-model";
 import type { VoiceLibraryCatalog, VoiceLibraryEntry } from "@/lib/studio-voice-library-catalog";
-import { canonicalVoiceLanguage } from "@/lib/studio-voice-language";
+import { canonicalVoiceLanguage, voiceLocaleLabel } from "@/lib/studio-voice-language";
 
 export const VOICE_LIBRARY_PAGE_SIZE = 24;
 
@@ -26,6 +26,9 @@ export type VoiceLibraryPageResult = {
   page: number;
   pageSize: number;
   languageCounts: Array<{ value: string; voiceCount: number }>;
+  accentCounts?: Array<{ value: string; labelKey: string; voiceCount: number }>;
+  localeCounts?: Array<{ value: string; label: string; voiceCount: number }>;
+  relaxed?: boolean;
 };
 
 function slimVoice(voice: VoiceLibraryEntry): VoiceLibraryPageVoice {
@@ -52,6 +55,7 @@ export function pageVoiceLibrary(
     age?: string;
     sample?: "yes" | "no" | "";
     category?: string;
+    locale?: string;
     page?: number;
     pageSize?: number;
   }
@@ -97,6 +101,36 @@ export function pageVoiceLibrary(
       languageCounts.set(language, 0);
     }
   }
+  const locale = input.locale?.trim() ?? "";
+  const facetPool = filterVoiceLibrary(catalog, {
+    query,
+    gender: shared.gender,
+    age: shared.age,
+    category: shared.category,
+  }).filter((voice) => {
+    if (input.sample === "yes" && !voice.previewUrl.trim()) return false;
+    if (input.sample === "no" && voice.previewUrl.trim()) return false;
+    if (language && canonicalVoiceLanguage(voice.language || voice.labels.language || "") !== language) return false;
+    return true;
+  });
+  const localePool = locale
+    ? facetPool.filter((voice) => (voice.labels.locale || voice.labels.verified_locale || "").trim() === locale)
+    : facetPool;
+  if (locale) {
+    matches = matches.filter((voice) => (voice.labels.locale || voice.labels.verified_locale || "").trim() === locale);
+  }
+  const accentCounts = new Map<string, number>();
+  for (const voice of localePool) {
+    const accentId = canonicalAccentForVoice(voice)?.id;
+    if (!accentId) continue;
+    accentCounts.set(accentId, (accentCounts.get(accentId) ?? 0) + 1);
+  }
+  const localeCounts = new Map<string, number>();
+  for (const voice of facetPool) {
+    const code = (voice.labels.locale || voice.labels.verified_locale || "").trim();
+    if (!code) continue;
+    localeCounts.set(code, (localeCounts.get(code) ?? 0) + 1);
+  }
   matches.sort((a, b) => a.name.localeCompare(b.name, "en") || a.id.localeCompare(b.id));
   const start = page * pageSize;
   return {
@@ -107,5 +141,13 @@ export function pageVoiceLibrary(
     languageCounts: [...languageCounts.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([value, voiceCount]) => ({ value, voiceCount })),
+    accentCounts: CANONICAL_ACCENT_DEFINITIONS.filter((item) => accentCounts.has(item.id)).map((item) => ({
+      value: item.id,
+      labelKey: item.labelKey,
+      voiceCount: accentCounts.get(item.id) ?? 0,
+    })),
+    localeCounts: [...localeCounts.entries()]
+      .sort(([a], [b]) => voiceLocaleLabel(a).localeCompare(voiceLocaleLabel(b), "nl"))
+      .map(([value, voiceCount]) => ({ value, label: voiceLocaleLabel(value), voiceCount })),
   };
 }

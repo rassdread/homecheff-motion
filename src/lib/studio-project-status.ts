@@ -4,12 +4,14 @@
 
 import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
 import type { StudioProductionStageId } from "@/lib/studio-production-stages";
-import type {
-  StudioProjectHumanStatus,
-  StudioProjectHumanType,
-  StudioProjectOriginKind,
-  StudioProjectRecommendedAction,
-  StudioProjectSourceType,
+import {
+  STUDIO_PROJECT_SUMMARY_VERSION,
+  type StudioProjectHumanStatus,
+  type StudioProjectHumanType,
+  type StudioProjectOriginKind,
+  type StudioProjectRecommendedAction,
+  type StudioProjectSourceType,
+  type StudioProjectSummary,
 } from "@/types/studio-project-summary";
 
 export type StudioProjectStatusInput = {
@@ -177,6 +179,7 @@ export function resolveStudioProjectHumanType(input: {
   if (input.isImageOnly || input.sourceType === "image") return "image";
   if (input.sourceType === "storyboard" && (input.sceneCount ?? 0) > 1) return "story";
   if (input.isInstantOrMotion || input.sourceType === "motion") return "animation";
+  if (input.sourceType === "creative") return "story";
   if (input.sourceType === "storyboard") return "video";
   return "video";
 }
@@ -222,6 +225,9 @@ export function resolveStudioProjectContinueHref(input: {
   if (input.sourceType === "image") {
     return "/editor/start";
   }
+  if (input.sourceType === "creative") {
+    return `/studio/projects/${encodeURIComponent(input.sourceId)}`;
+  }
   return "/studio";
 }
 
@@ -235,6 +241,50 @@ export function compareStudioProjectSummariesByRecency(
   const c = Date.parse(b.createdAt) - Date.parse(a.createdAt);
   if (c !== 0) return c;
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+}
+
+export function creativeProjectLibrarySummary(project: {
+  id: string;
+  title: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+}): StudioProjectSummary {
+  return {
+    version: STUDIO_PROJECT_SUMMARY_VERSION,
+    id: `creative:${project.id}`,
+    sourceType: "creative",
+    sourceId: project.id,
+    title: project.title.trim(),
+    humanType: "story",
+    status: project.status === "archived" ? "archived" : "in_progress",
+    thumbnailUrl: null,
+    latestResultUrl: null,
+    lastEditedAt: project.updatedAt.toISOString(),
+    createdAt: project.createdAt.toISOString(),
+    origin: "standalone",
+    presetName: null,
+    recommendedStage: "entities",
+    recommendedAction: "open_project",
+    hasFinalOutput: false,
+    versionCount: 0,
+    languageCount: 0,
+    archived: project.status === "archived",
+    canContinue: project.status !== "archived",
+    continueHref: resolveStudioProjectContinueHref({
+      sourceType: "creative",
+      sourceId: project.id,
+    }),
+    canRename: false,
+    canDuplicate: false,
+    canArchive: false,
+    canDownload: false,
+    canOpenHomecheff: false,
+    canReturnGrowth: false,
+    returnUrl: null,
+    localOnly: false,
+    secondaryWarningKey: null,
+  };
 }
 
 export function isMotionProjectGenerating(status: string | null | undefined): boolean {

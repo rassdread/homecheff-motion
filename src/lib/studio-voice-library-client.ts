@@ -38,6 +38,9 @@ export type VoiceLibraryPageResult = {
   page: number;
   pageSize: number;
   languageCounts?: Array<{ value: string; voiceCount: number }>;
+  accentCounts?: Array<{ value: string; labelKey: string; voiceCount: number }>;
+  localeCounts?: Array<{ value: string; label: string; voiceCount: number }>;
+  relaxed?: boolean;
 };
 
 type CacheEntry = {
@@ -96,13 +99,19 @@ export async function searchVoiceLibraryPage(params: {
   age?: string;
   sample?: "yes" | "no" | "";
   category?: string;
+  locale?: string;
+  recommend?: boolean;
   page?: number;
+  pageSize?: number;
   signal?: AbortSignal;
 }): Promise<VoiceLibraryPageResult> {
   const search = new URLSearchParams({
     page: String(params.page ?? 0),
-    pageSize: "24",
+    pageSize: String(params.pageSize ?? 24),
   });
+  if (params.recommend) {
+    search.set("recommend", "1");
+  }
   if (params.query?.trim()) {
     search.set("q", params.query.trim());
   }
@@ -120,6 +129,9 @@ export async function searchVoiceLibraryPage(params: {
   }
   if (params.category?.trim()) {
     search.set("category", params.category.trim());
+  }
+  if (params.locale?.trim()) {
+    search.set("locale", params.locale.trim());
   }
   if (params.sample === "yes" || params.sample === "no") {
     search.set("sample", params.sample);

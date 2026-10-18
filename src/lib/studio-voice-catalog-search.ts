@@ -6,7 +6,7 @@
 
 import { CANONICAL_ACCENT_DEFINITIONS } from "@/lib/studio-voice-accent-model";
 import type { VoiceLibraryFilterOptions } from "@/lib/studio-voice-accent-model";
-import { canonicalVoiceAge, canonicalVoiceLanguage } from "@/lib/studio-voice-language";
+import { canonicalVoiceAge, canonicalVoiceLanguage, voiceLocaleLabel } from "@/lib/studio-voice-language";
 import type { VoiceLibraryPageResult } from "@/lib/studio-voice-library-page";
 
 export const VOICE_CATALOG_PAGE_SIZE = 24;
@@ -18,9 +18,11 @@ export type VoiceCatalogSearchInput = {
   gender?: string;
   age?: string;
   category?: string;
+  locale?: string;
   sample?: "yes" | "no" | "";
   page?: number;
   pageSize?: number;
+  facets?: boolean;
 };
 
 export type VoiceCatalogWhere = {
@@ -28,6 +30,7 @@ export type VoiceCatalogWhere = {
   availabilityStatus: "AVAILABILITY_UNKNOWN";
   previewUrl?: { not: string } | string;
   canonicalLanguage?: string;
+  locale?: string;
   accentId?: string;
   gender?: string;
   age?: string;
@@ -61,6 +64,7 @@ export type VoiceCatalogSearchClient = {
     where: VoiceCatalogWhere;
     _count: { _all: true };
   }): Promise<Array<{ canonicalLanguage: string; _count: { _all: number } }>>;
+  groupByValue?(field: "accentId" | "locale", where: VoiceCatalogWhere): Promise<VoiceCatalogCount[]>;
 };
 
 export function isStudioVoiceCatalogDbEnabled(): boolean {
@@ -93,6 +97,10 @@ export function buildVoiceCatalogWhere(input: VoiceCatalogSearchInput): VoiceCat
   if (category) {
     where.category = category;
   }
+  const locale = input.locale?.trim() ?? "";
+  if (locale) {
+    where.locale = locale;
+  }
   if (input.sample === "no") {
     where.previewUrl = "";
   }
@@ -107,10 +115,22 @@ export function buildVoiceCatalogWhere(input: VoiceCatalogSearchInput): VoiceCat
   return where;
 }
 
-function whereWithoutLanguage(where: VoiceCatalogWhere): VoiceCatalogWhere {
+function whereWithout(where: VoiceCatalogWhere, keys: Array<keyof VoiceCatalogWhere>): VoiceCatalogWhere {
   const next = { ...where };
-  delete next.canonicalLanguage;
+  for (const key of keys) {
+    delete next[key];
+  }
   return next;
+}
+
+export function accentOptionsFromCounts(counts: VoiceCatalogCount[]) {
+  const labels = new Map(CANONICAL_ACCENT_DEFINITIONS.map((item) => [item.id, item]));
+  return counts
+    .filter((item) => item.value && labels.has(item.value))
+    .map((item) => {
+      const definition = labels.get(item.value)!;
+      return { value: definition.id, labelKey: definition.labelKey, voiceCount: item.voiceCount };
+    });
 }
 
 const GENDER_LABEL_KEYS: Record<string, string> = {
@@ -194,14 +214,23 @@ export async function searchVoiceCatalogWithClient(
     description: true,
     previewUrl: true,
   } as const;
-  const [total, rows, groups] = await Promise.all([
+  const includeFacets = input.facets !== false;
+  const [total, rows, groups, accentGroups, localeGroups] = await Promise.all([
     client.count({ where }),
     client.findMany({ where, orderBy, skip: page * pageSize, take: pageSize, select }),
-    client.groupBy({
-      by: ["canonicalLanguage"],
-      where: whereWithoutLanguage(where),
-      _count: { _all: true },
-    }),
+    includeFacets
+      ? client.groupBy({
+          by: ["canonicalLanguage"],
+          where: whereWithout(where, ["canonicalLanguage"]),
+          _count: { _all: true },
+        })
+      : Promise.resolve([]),
+    includeFacets && client.groupByValue
+      ? client.groupByValue("accentId", whereWithout(where, ["accentId"]))
+      : Promise.resolve([]),
+    includeFacets && client.groupByValue
+      ? client.groupByValue("locale", whereWithout(where, ["locale", "accentId"]))
+      : Promise.resolve([]),
   ]);
   return {
     voices: rows.map((row) => ({
@@ -222,5 +251,43 @@ export async function searchVoiceCatalogWithClient(
       .filter((group) => group.canonicalLanguage)
       .map((group) => ({ value: group.canonicalLanguage, voiceCount: group._count._all }))
       .sort((a, b) => a.value.localeCompare(b.value)),
+    accentCounts: accentOptionsFromCounts(accentGroups),
+    localeCounts: localeGroups
+      .filter((item) => item.value)
+      .map((item) => ({ value: item.value, label: voiceLocaleLabel(item.value), voiceCount: item.voiceCount }))
+      .sort((a, b) => a.label.localeCompare(b.label, "nl")),
+  };
+}
+
+export async function recommendVoiceCatalogWithClient(
+  client: VoiceCatalogSearchClient,
+  input: VoiceCatalogSearchInput
+): Promise<VoiceLibraryPageResult> {
+  const language = canonicalVoiceLanguage(input.language ?? "");
+  const gender = input.gender?.trim().toLowerCase() ?? "";
+  const attempts = [{ language, gender, relaxed: false }];
+  if (gender) attempts.push({ language, gender: "", relaxed: true });
+  if (language) attempts.push({ language: "", gender: "", relaxed: true });
+  let last: VoiceLibraryPageResult | null = null;
+  for (const attempt of attempts) {
+    const page = await searchVoiceCatalogWithClient(client, {
+      language: attempt.language,
+      gender: attempt.gender,
+      page: 0,
+      pageSize: 8,
+      facets: false,
+    });
+    last = { ...page, relaxed: attempt.relaxed };
+    if (page.total > 0) {
+      return last;
+    }
+  }
+  return last ?? {
+    voices: [],
+    total: 0,
+    page: 0,
+    pageSize: 8,
+    languageCounts: [],
+    relaxed: true,
   };
 }

@@ -11,6 +11,7 @@ import {
   canonicalVoiceLanguage,
   sortVoiceLanguageOptions,
   voiceLanguageLabel,
+  voiceLocaleLabel,
 } from "@/lib/studio-voice-language";
 
 describe("voice language identifiers", () => {
@@ -35,6 +36,8 @@ describe("voice language identifiers", () => {
     assert.notEqual(voiceLanguageLabel("fil"), voiceLanguageLabel("tl"));
     assert.equal(voiceLanguageLabel("af"), "Afrikaans");
     assert.equal(voiceLanguageLabel("ckb"), "Centraal-Koerdisch");
+    assert.notEqual(voiceLocaleLabel("en-GB"), "en-GB");
+    assert.notEqual(voiceLocaleLabel("nl-NL"), "nl-NL");
     assert.equal(voiceLanguageLabel("xx"), "xx");
     assert.equal(canonicalVoiceAge("Middle Aged"), "middle_aged");
     assert.equal(canonicalVoiceAge("middle_aged"), "middle_aged");

@@ -29,7 +29,8 @@ import {
   safeFormatLibraryVoiceProfileRef,
   validateVoiceProfileForSynthesis,
 } from "@/lib/studio-voice-profile-ref";
-import type { VoiceLibraryPayload } from "@/lib/studio-voice-library-client";
+import { searchVoiceLibraryPage, type VoiceLibraryPageResult, type VoiceLibraryPayload } from "@/lib/studio-voice-library-client";
+import { voiceLanguageLabel } from "@/lib/studio-voice-language";
 import { useOptionalUserVoiceLibrary } from "@/components/studio/studio-user-voice-library-provider";
 import type { UserVoiceLibrary } from "@/types/studio-user-voice-library";
 import { VoiceCenterCollapsibleSection } from "@/components/studio/voice-center-collapsible-section";
@@ -320,6 +321,9 @@ export function StudioCharacterVoiceCenter({
     () => !hasLanguageVoiceOverrides(value.voiceProfilesByLanguage)
   );
   const [voicePickerTab, setVoicePickerTab] = useState<"recommended" | "all" | "mine">("recommended");
+  const [recommended, setRecommended] = useState<VoiceLibraryPageResult | null>(null);
+  const [recommendedLoading, setRecommendedLoading] = useState(true);
+  const [recommendedError, setRecommendedError] = useState("");
   const [sampleByProfile, setSampleByProfile] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -351,6 +355,30 @@ export function StudioCharacterVoiceCenter({
     }
     setAppliedPreviewTextOverride(previewTextInput.trim() || defaultPreviewText);
   }, [previewTextInput, previewTextTouched, defaultPreviewText]);
+
+  useEffect(() => {
+    if (voicePickerTab !== "recommended") return;
+    const controller = new AbortController();
+    void searchVoiceLibraryPage({
+      language: value.voiceLanguage,
+      gender: value.voiceGender,
+      recommend: true,
+      pageSize: 8,
+      signal: controller.signal,
+    })
+      .then((page) => {
+        if (controller.signal.aborted) return;
+        setRecommended(page);
+        setRecommendedError("");
+        setRecommendedLoading(false);
+      })
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        setRecommendedLoading(false);
+        setRecommendedError(err instanceof Error ? err.message : "Aanbevolen stemmen laden mislukt.");
+      });
+    return () => controller.abort();
+  }, [voicePickerTab, value.voiceLanguage, value.voiceGender]);
 
   const mainVoiceLang = (value.voiceLanguage as VoiceCenterLanguage) || "en";
   const mainPreviewUrl = previewByLang[mainVoiceLang];
@@ -652,7 +680,10 @@ export function StudioCharacterVoiceCenter({
               key={tab}
               type="button"
               aria-pressed={voicePickerTab === tab}
-              onClick={() => setVoicePickerTab(tab)}
+              onClick={() => {
+                setVoicePickerTab(tab);
+                if (tab === "recommended") setRecommendedLoading(true);
+              }}
               className={`min-h-[44px] rounded-xl px-2 text-sm font-semibold ${
                 voicePickerTab === tab ? "bg-[#0067B1] text-white" : "border border-zinc-200 bg-white text-zinc-800"
               }`}
@@ -665,29 +696,30 @@ export function StudioCharacterVoiceCenter({
 
       {voicePickerTab === "recommended" ? (
         <div className="mt-4 space-y-2">
-          {voiceLibrary?.loading && !voicePayload ?
-            <p className="text-sm text-zinc-600">Aanbevolen stemmen laden…</p>
-          : null}
-          {voiceLibrary?.error ?
-            <p className="text-sm text-red-800">{voiceLibrary.error}</p>
-          : null}
+          <p className="text-xs text-zinc-500">
+            Gebaseerd op de gekozen taal{value.voiceGender.trim() ? " en stemtype" : ""}. Dit is geen controle van de aanbieder.
+          </p>
+          {recommendedLoading ? <p className="text-sm text-zinc-600">Aanbevolen stemmen laden…</p> : null}
+          {recommendedError ? <p className="text-sm text-red-800">{recommendedError}</p> : null}
+          {recommended?.relaxed ? (
+            <p className="text-sm text-zinc-600">Geen exacte match. Dit zijn bruikbare stemmen uit de catalogus.</p>
+          ) : null}
           <ul className="grid gap-2">
-            {(voicePayload?.personaPresets ?? []).map((preset) => {
-              const profile = safeFormatLibraryVoiceProfileRef(preset.voiceId) ?? "";
+            {(recommended?.voices ?? []).map((voice) => {
+              const profile = safeFormatLibraryVoiceProfileRef(voice.id) ?? "";
               return (
                 <RecommendedPresetCard
-                  key={preset.id}
+                  key={voice.id}
                   profile={profile}
                   selected={profile !== "" && value.voiceProfile === profile}
-                  title={preset.voiceName || t(preset.labelKey as never)}
-                  subtitle={`${t(preset.labelKey as never)} · ${preset.language.toUpperCase()}`}
-                  previewUrl={preset.previewUrl}
+                  title={voice.name}
+                  subtitle={[voiceLanguageLabel(voice.language), voice.accent, voice.gender].filter(Boolean).join(" · ")}
+                  previewUrl={voice.previewUrl}
                   canModify={canModify}
                   onSelect={(speechSpeed) =>
                     handleSelectProfile(profile, {
-                      voiceName: preset.voiceName,
-                      personaLabelKey: preset.labelKey,
-                      previewUrl: preset.previewUrl,
+                      voiceName: voice.name,
+                      previewUrl: voice.previewUrl,
                       speechSpeed,
                     })
                   }
@@ -695,6 +727,9 @@ export function StudioCharacterVoiceCenter({
               );
             })}
           </ul>
+          {!recommendedLoading && recommended && recommended.voices.length === 0 ? (
+            <p className="text-sm text-zinc-600">Geen aanbevolen stemmen. Open Alle stemmen om te zoeken.</p>
+          ) : null}
         </div>
       ) : null}
 

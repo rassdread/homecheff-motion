@@ -15,6 +15,7 @@ import {
   resolveStudioProjectOrigin,
   resolveStudioProjectStatus,
   resolveStudioProjectTitle,
+  creativeProjectLibrarySummary,
 } from "@/lib/studio-project-status";
 import {
   LOCAL_QUICK_VIDEO_LIBRARY_CAPABILITY,
@@ -389,6 +390,32 @@ export async function listStudioProjectsForUser(
       localOnly: false,
       secondaryWarningKey: statusResult.secondaryWarningKey,
     });
+  }
+
+  const listedStoryboards = new Set(storyboards.map((row) => row.id));
+  const listedMotion = new Set(motionRows.map((row) => row.id));
+  try {
+    const creativeProjects = await prisma.studioCreativeProject.findMany({
+      where: { ownerId: params.ownerId, status: "active" },
+      orderBy: { updatedAt: "desc" },
+      take: limit,
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        storyboardId: true,
+        animationProjectId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    for (const project of creativeProjects) {
+      if (project.storyboardId && listedStoryboards.has(project.storyboardId)) continue;
+      if (project.animationProjectId && listedMotion.has(project.animationProjectId)) continue;
+      projects.push(creativeProjectLibrarySummary(project));
+    }
+  } catch {
+    sourceWarnings.push("creative_projects_unavailable");
   }
 
   projects.sort(compareStudioProjectSummariesByRecency);

@@ -82,6 +82,7 @@ export function StudioVoiceCatalogBrowser({
   const [age, setAge] = useState("");
   const [sampleFilter, setSampleFilter] = useState<"" | "yes" | "no">("");
   const [category, setCategory] = useState("");
+  const [locale, setLocale] = useState("");
   const [languageQuery, setLanguageQuery] = useState("");
   const [page, setPage] = useState(0);
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -117,6 +118,7 @@ export function StudioVoiceCatalogBrowser({
       age,
       sample: sampleFilter,
       category,
+      locale,
       page,
       signal: controller.signal,
     })
@@ -139,7 +141,7 @@ export function StudioVoiceCatalogBrowser({
       cancelled = true;
       controller.abort();
     };
-  }, [active, debouncedQuery, language, accent, gender, age, sampleFilter, category, page]);
+  }, [active, debouncedQuery, language, accent, gender, age, sampleFilter, category, locale, page]);
 
   const t = useActiveTranslator();
   const languageSource = result?.languageCounts?.length
@@ -154,7 +156,9 @@ export function StudioVoiceCatalogBrowser({
   });
 
   const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize)) : 1;
-  const filtersActive = Boolean(query || language || accent || gender || age || sampleFilter || category);
+  const filtersActive = Boolean(query || language || accent || gender || age || sampleFilter || category || locale);
+  const accentOptions = language ? (result?.accentCounts ?? []) : [];
+  const localeOptions = language ? (result?.localeCounts ?? []) : [];
 
   function resetFilters() {
     setQuery("");
@@ -167,6 +171,7 @@ export function StudioVoiceCatalogBrowser({
     setAge("");
     setSampleFilter("");
     setCategory("");
+    setLocale("");
     setPage(0);
     setLoading(true);
   }
@@ -196,6 +201,8 @@ export function StudioVoiceCatalogBrowser({
           value={language}
           onChange={(event) => {
             setLanguage(event.target.value);
+            setAccent("");
+            setLocale("");
             setPage(0);
             setLoading(true);
           }}
@@ -218,10 +225,29 @@ export function StudioVoiceCatalogBrowser({
           }}
           className="min-h-[44px] rounded-lg border border-zinc-200 bg-white px-3 text-sm"
         >
-          <option value="">Alle accenten</option>
-          {(filterOptions?.accents ?? []).map((option) => (
-            <option key={option.id} value={option.id}>
+          <option value="">{language ? "Alle accenten" : "Kies eerst een taal"}</option>
+          {accentOptions.map((option) => (
+            <option key={option.value} value={option.value}>
               {t(option.labelKey as TranslationKey)} ({option.voiceCount})
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Taalvariant"
+          value={locale}
+          disabled={!language}
+          onChange={(event) => {
+            setLocale(event.target.value);
+            setAccent("");
+            setPage(0);
+            setLoading(true);
+          }}
+          className="min-h-[44px] rounded-lg border border-zinc-200 bg-white px-3 text-sm disabled:bg-zinc-50"
+        >
+          <option value="">{language ? "Alle taalvarianten" : "Kies eerst een taal"}</option>
+          {localeOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label} ({option.voiceCount})
             </option>
           ))}
         </select>
@@ -292,6 +318,9 @@ export function StudioVoiceCatalogBrowser({
           <option value="no">Geen gratis voorbeeld</option>
         </select>
       </div>
+      <p className="text-xs text-zinc-500">
+        Taalvariant is de regio van de taal. Accent is de klank van de stem, niet een andere taal.
+      </p>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-zinc-600">
           {result ? `${result.total} stemmen in deze selectie` : "Selectie laden…"}

@@ -9,7 +9,8 @@ export type StudioProjectSourceType =
   | "motion"
   | "image"
   | "local_quick_video"
-  | "legacy";
+  | "legacy"
+  | "creative";
 
 /** Human-facing type badge — never engine/model names. */
 export type StudioProjectHumanType = "video" | "image" | "animation" | "story";

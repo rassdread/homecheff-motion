@@ -31,6 +31,7 @@ const LANGUAGE_NAME_TO_CODE: Record<string, string> = {
 };
 
 const dutchLanguageNames = new Intl.DisplayNames(["nl"], { type: "language" });
+const dutchLocaleNames = new Intl.DisplayNames(["nl"], { type: "language" });
 
 /**
  * ICU labels Filipino and Tagalog both as Filipijns.
@@ -71,6 +72,21 @@ export function voiceLanguageLabel(raw: string): string {
     return code;
   }
   return code;
+}
+
+/** Dutch name for a stored locale such as en-GB. Unknown values stay unchanged. */
+export function voiceLocaleLabel(locale: string): string {
+  const value = locale.trim();
+  if (!value) return "";
+  try {
+    const name = dutchLocaleNames.of(value);
+    if (name && name.toLowerCase() !== value.toLowerCase()) {
+      return name;
+    }
+  } catch {
+    return value;
+  }
+  return value;
 }
 
 export function sortVoiceLanguageOptions<T extends { value: string }>(options: T[]): T[] {

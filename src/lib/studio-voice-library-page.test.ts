@@ -42,6 +42,9 @@ describe("pageVoiceLibrary", () => {
   it("filters by language and search without calling a provider", () => {
     const english = pageVoiceLibrary(catalog, { language: "en", pageSize: 24 });
     assert.deepEqual(english.voices.map((entry) => entry.id), ["a", "c"]);
+    assert.equal(english.accentCounts?.some((row) => row.value.startsWith("dutch.")), false);
+    const dutch = pageVoiceLibrary(catalog, { language: "nl", pageSize: 24 });
+    assert.deepEqual(dutch.accentCounts?.map((row) => row.value), ["dutch.nederlands"]);
     const found = pageVoiceLibrary(catalog, { query: "bram" });
     assert.equal(found.total, 1);
     assert.equal(found.voices[0]?.previewUrl, "");

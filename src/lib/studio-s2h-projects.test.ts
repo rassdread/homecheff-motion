@@ -8,6 +8,7 @@ import { en } from "@/i18n/locales/en";
 import { nl } from "@/i18n/locales/nl";
 import {
   compareStudioProjectSummariesByRecency,
+  creativeProjectLibrarySummary,
   resolveStudioProjectContinueHref,
   resolveStudioProjectHumanType,
   resolveStudioProjectOrigin,
@@ -141,6 +142,16 @@ describe("S2H title / type / origin / continue", () => {
       resolveStudioProjectContinueHref({ sourceType: "motion", sourceId: "ap1" }),
       "/videos/ap1"
     );
+    const passion = creativeProjectLibrarySummary({
+      id: "cmvcbmxdp00032jryohiw8a84",
+      title: "MADE WITH PASSION",
+      status: "active",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+    });
+    assert.equal(passion.sourceId, "cmvcbmxdp00032jryohiw8a84");
+    assert.equal(passion.continueHref, "/studio/projects/cmvcbmxdp00032jryohiw8a84");
+    assert.equal(passion.title, "MADE WITH PASSION");
   });
 
   it("sort stability", () => {

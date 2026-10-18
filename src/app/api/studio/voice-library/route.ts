@@ -9,7 +9,40 @@ import {
 import { buildVoicePersonaPresets } from "@/lib/studio-voice-persona-presets";
 import { pageVoiceLibrary } from "@/lib/studio-voice-library-page";
 import { isStudioVoiceCatalogDbEnabled } from "@/lib/studio-voice-catalog-search";
-import { loadStudioVoiceCatalogSummary, searchStudioVoiceCatalog } from "@/server/studio/studio-voice-catalog-db";
+import { loadStudioVoiceCatalogSummary, recommendStudioVoices, searchStudioVoiceCatalog } from "@/server/studio/studio-voice-catalog-db";
+import type { VoiceLibraryCatalog } from "@/lib/studio-voice-library-catalog";
+import type { VoiceLibraryPageResult } from "@/lib/studio-voice-library-page";
+
+function voicePageInput(url: URL) {
+  return {
+    query: url.searchParams.get("q") ?? "",
+    language: url.searchParams.get("language") ?? "",
+    accent: url.searchParams.get("accent") ?? "",
+    gender: url.searchParams.get("gender") ?? "",
+    age: url.searchParams.get("age") ?? "",
+    category: url.searchParams.get("category") ?? "",
+    locale: url.searchParams.get("locale") ?? "",
+    sample:
+      url.searchParams.get("sample") === "yes" ? "yes" as const
+      : url.searchParams.get("sample") === "no" ? "no" as const
+      : "" as const,
+    page: Number(url.searchParams.get("page")) || 0,
+    pageSize: Number(url.searchParams.get("pageSize")) || 24,
+  };
+}
+
+function recommendFromCatalog(catalog: VoiceLibraryCatalog, input: ReturnType<typeof voicePageInput>): VoiceLibraryPageResult {
+  const strict = pageVoiceLibrary(catalog, { language: input.language, gender: input.gender, page: 0, pageSize: 8 });
+  if (strict.total > 0) return { ...strict, relaxed: false };
+  if (input.gender.trim()) {
+    const byLanguage = pageVoiceLibrary(catalog, { language: input.language, page: 0, pageSize: 8 });
+    if (byLanguage.total > 0) return { ...byLanguage, relaxed: true };
+  }
+  if (input.language.trim()) {
+    return { ...pageVoiceLibrary(catalog, { page: 0, pageSize: 8 }), relaxed: true };
+  }
+  return { ...strict, relaxed: true };
+}
 
 export async function GET(request: Request) {
   const user = await requireActiveUser();
@@ -25,20 +58,10 @@ export async function GET(request: Request) {
     if (isStudioVoiceCatalogDbEnabled()) {
       try {
         if (pageParam != null) {
-          const page = await searchStudioVoiceCatalog({
-            query: url.searchParams.get("q") ?? "",
-            language: url.searchParams.get("language") ?? "",
-            accent: url.searchParams.get("accent") ?? "",
-            gender: url.searchParams.get("gender") ?? "",
-            age: url.searchParams.get("age") ?? "",
-            category: url.searchParams.get("category") ?? "",
-            sample:
-              url.searchParams.get("sample") === "yes" ? "yes"
-              : url.searchParams.get("sample") === "no" ? "no"
-              : "",
-            page: Number(pageParam) || 0,
-            pageSize: Number(url.searchParams.get("pageSize")) || 24,
-          });
+          const input = voicePageInput(url);
+          const page = url.searchParams.get("recommend") === "1"
+            ? await recommendStudioVoices(input)
+            : await searchStudioVoiceCatalog(input);
           return NextResponse.json(page);
         }
         const summary = await loadStudioVoiceCatalogSummary();
@@ -69,20 +92,10 @@ export async function GET(request: Request) {
     }
     const catalog = await buildVoiceLibraryCatalog();
     if (pageParam != null) {
-      const page = pageVoiceLibrary(catalog, {
-        query: url.searchParams.get("q") ?? "",
-        language: url.searchParams.get("language") ?? "",
-        accent: url.searchParams.get("accent") ?? "",
-        gender: url.searchParams.get("gender") ?? "",
-        age: url.searchParams.get("age") ?? "",
-        category: url.searchParams.get("category") ?? "",
-        sample:
-          url.searchParams.get("sample") === "yes" ? "yes"
-          : url.searchParams.get("sample") === "no" ? "no"
-          : "",
-        page: Number(pageParam) || 0,
-        pageSize: Number(url.searchParams.get("pageSize")) || 24,
-      });
+      const input = voicePageInput(url);
+      const page = url.searchParams.get("recommend") === "1"
+        ? recommendFromCatalog(catalog, input)
+        : pageVoiceLibrary(catalog, input);
       return NextResponse.json(page);
     }
     const filterOptions = buildVoiceLibraryFilterOptions(catalog);

@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { classifyVoiceCatalogEligibility } from "@/lib/studio-voice-catalog-policy";
 import {
+  accentOptionsFromCounts,
   buildVoiceCatalogWhere,
+  recommendVoiceCatalogWithClient,
   searchVoiceCatalogWithClient,
   voiceCatalogFilterOptionsFromCounts,
   type VoiceCatalogSearchClient,
@@ -121,6 +123,43 @@ describe("voice catalog database search", () => {
     });
     assert.equal(options.accents[0]?.voiceCount, 4);
     assert.equal(options.languages[0]?.value, "nl");
+    const accents = accentOptionsFromCounts([
+      { value: "dutch.nederlands", voiceCount: 2 },
+      { value: "english.american", voiceCount: 9 },
+    ]);
+    assert.deepEqual(accents.map((item) => item.value), ["dutch.nederlands", "english.american"]);
+  });
+
+  it("falls back to the language when gender has no match and does not load every row", async () => {
+    const calls: string[] = [];
+    const client: VoiceCatalogSearchClient = {
+      async count({ where }) {
+        calls.push(where.gender ? "gender" : where.canonicalLanguage ? "language" : "any");
+        if (where.gender) return 0;
+        return where.canonicalLanguage === "nl" ? 3 : 8;
+      },
+      async findMany(args) {
+        assert.equal(args.take, 8);
+        return [{
+          providerVoiceId: "nl-1",
+          name: "Bram",
+          canonicalLanguage: args.where.canonicalLanguage || "en",
+          accent: "nederlands",
+          gender: "male",
+          age: "young",
+          category: "shared",
+          description: "",
+          previewUrl: "https://example.com/bram.mp3",
+        }];
+      },
+      async groupBy() {
+        throw new Error("recommendations should not build facets");
+      },
+    };
+    const page = await recommendVoiceCatalogWithClient(client, { language: "nl", gender: "female" });
+    assert.equal(page.relaxed, true);
+    assert.equal(page.voices[0]?.id, "nl-1");
+    assert.deepEqual(calls, ["gender", "language"]);
   });
 });
 

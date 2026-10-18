@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { requireActiveUser } from "@/server/auth/permissions";
 import {
   archiveCreativeProject,
@@ -19,7 +20,38 @@ export async function GET(_request: Request, context: Ctx) {
     return NextResponse.json({ error: "Not found.", code: "not_found" }, { status: 404 });
   }
   await updateCreativeProject({ projectId, ownerId: user.id, touchOpened: true });
-  return NextResponse.json({ project: serializeCreativeProject(row) });
+  const assets = await prisma.studioLibraryAsset.findMany({
+    where: { projectId, ownerId: user.id, status: { not: "deleted" } },
+    orderBy: { title: "asc" },
+    take: 40,
+    select: {
+      id: true,
+      family: true,
+      title: true,
+      status: true,
+      previewUrl: true,
+      sourceKind: true,
+      metadataJson: true,
+    },
+  });
+  const resources = assets.map((asset) => {
+    const metadata = asset.metadataJson as { characterId?: unknown } | null;
+    const characterId = typeof metadata?.characterId === "string" ? metadata.characterId : "";
+    return {
+      id: asset.id,
+      family: asset.family,
+      title: asset.title,
+      status: asset.status,
+      previewUrl: asset.previewUrl,
+      sourceKind: asset.sourceKind,
+      characterId,
+    };
+  });
+  return NextResponse.json({
+    project: serializeCreativeProject(row),
+    resources,
+    storyboardHref: row.storyboardId ? `/studio/storyboards/${row.storyboardId}` : null,
+  });
 }
 
 export async function PATCH(request: Request, context: Ctx) {
