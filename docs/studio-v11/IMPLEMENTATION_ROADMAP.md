@@ -1,5 +1,7 @@
 # Implementation roadmap
 
+V12 (`/studio/projects/[id]`) implements the shell from phase 1 without filling Passion’s null storyboard or animation links. Timeline and director execution stay later phases.
+
 No hour estimates. Complexity is relative. Do not start phase 2 until phase 1 links Passion without copying media.
 
 ## Phase 1 — Shared project workspace

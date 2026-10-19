@@ -12,6 +12,8 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 type Props = {
   initialSection?: ProjectMediaSection;
+  /** When set, the browser stays on this owned project and hides the all-projects choice. */
+  lockProjectId?: string;
 };
 
 const SECTION_KEYS: Record<ProjectMediaSection, "studio.projectMedia.section.all" | "studio.projectMedia.section.images" | "studio.projectMedia.section.videos" | "studio.projectMedia.section.audio" | "studio.projectMedia.section.processing" | "studio.projectMedia.section.failed" | "studio.projectMedia.section.archive"> = {
@@ -34,12 +36,12 @@ function formatDuration(seconds: number | null): string {
   return `${minutes}:${String(rest).padStart(2, "0")}`;
 }
 
-export function StudioProjectMediaBrowser({ initialSection = "all" }: Props) {
+export function StudioProjectMediaBrowser({ initialSection = "all", lockProjectId = "" }: Props) {
   const t = useActiveTranslator();
   const [section, setSection] = useState<ProjectMediaSection>(initialSection);
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 300);
-  const [projectId, setProjectId] = useState("");
+  const [projectId, setProjectId] = useState(lockProjectId);
   const [status, setStatus] = useState<ProjectMediaStatus | "all">("all");
   const [sort, setSort] = useState<ProjectMediaSort>("newest");
   const [page, setPage] = useState(1);
@@ -116,20 +118,22 @@ export function StudioProjectMediaBrowser({ initialSection = "all" }: Props) {
           className={studioLibraryVisual.formControlWide}
           aria-label={t("studio.projectMedia.search")}
         />
-        <select
-          value={projectId}
-          onChange={(event) => {
-            setProjectId(event.target.value);
-            setPage(1);
-          }}
-          className={studioLibraryVisual.formControl}
-          aria-label={t("studio.projectMedia.project")}
-        >
-          <option value="">{t("studio.projectMedia.allProjects")}</option>
-          {projects.map((project) => (
-            <option key={project.id} value={project.id}>{project.title}</option>
-          ))}
-        </select>
+        {lockProjectId ? null : (
+          <select
+            value={projectId}
+            onChange={(event) => {
+              setProjectId(event.target.value);
+              setPage(1);
+            }}
+            className={studioLibraryVisual.formControl}
+            aria-label={t("studio.projectMedia.project")}
+          >
+            <option value="">{t("studio.projectMedia.allProjects")}</option>
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>{project.title}</option>
+            ))}
+          </select>
+        )}
         <select
           value={status}
           onChange={(event) => {
