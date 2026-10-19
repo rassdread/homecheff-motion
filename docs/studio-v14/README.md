@@ -1,10 +1,17 @@
-# Studio V14 — dialogue persistence, prepared not deployed
+# Studio V14 — scene dialogue
 
-V14 prepares one spoken line per scene. It does not build the timeline, does not run the AI director, and does not call a paid provider.
+V14 stores one optional English spoken line on each scene. It does not build the timeline, does not run the AI director, and does not call a paid provider.
 
-The shared database was not migrated. Production stays on the V13 deployment.
+The shared database now has nullable `StudioScene.dialogueText`. Execution evidence:
 
-Read next:
+- [BACKUP_VERIFICATION.md](BACKUP_VERIFICATION.md)
+- [MIGRATION_EXECUTION_REPORT.md](MIGRATION_EXECUTION_REPORT.md)
+- [DATABASE_BEFORE_AFTER.md](DATABASE_BEFORE_AFTER.md)
+- [PRICING_TEST_RESOLUTION.md](PRICING_TEST_RESOLUTION.md)
+- [PRODUCTION_DEPLOYMENT_REPORT.md](PRODUCTION_DEPLOYMENT_REPORT.md)
+- [POST_DEPLOYMENT_VERIFICATION.md](POST_DEPLOYMENT_VERIFICATION.md)
+
+Preparation notes:
 
 - [DIALOGUE_SCHEMA_PROPOSAL.md](DIALOGUE_SCHEMA_PROPOSAL.md)
 - [MIGRATION_SQL.md](MIGRATION_SQL.md)

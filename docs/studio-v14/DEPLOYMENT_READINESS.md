@@ -1,6 +1,8 @@
 # Deployment readiness
 
-Outcome: deployment is blocked until the dialogue migration is approved and applied.
+The migration gate in this note has been passed. The execution record is [MIGRATION_EXECUTION_REPORT.md](MIGRATION_EXECUTION_REPORT.md) and [PRODUCTION_DEPLOYMENT_REPORT.md](PRODUCTION_DEPLOYMENT_REPORT.md).
+
+Historical outcome, before approval: deployment was blocked until the dialogue migration was approved and applied.
 
 Production remains:
 

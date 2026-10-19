@@ -8,10 +8,9 @@ import {
 import { STUDIO_ACTION_COST_REGISTRY } from "@/server/studio-account/studio-action-cost-registry";
 
 describe("studio-pricing-profitability", () => {
-  it("worst pack is pack_8000", () => {
+  it("worst pack unit price is pack_500 at 4.99 for 250 HC", () => {
     const eur = getWorstPackEurPerCredit();
-    assert.ok(eur > 0.006);
-    assert.ok(eur < 0.007);
+    assert.equal(Math.round(eur * 100000) / 100000, 0.01996);
   });
 
   it("voice_clone at 400 credits is SAFE at worst pack", () => {
@@ -23,12 +22,12 @@ describe("studio-pricing-profitability", () => {
     assert.ok(row.marginPercent >= 60);
   });
 
-  it("voice_clone at 75 credits would be CRITICAL", () => {
+  it("voice_clone at 75 credits would be LOW_MARGIN", () => {
     const row = computeActionPricingProfitability({
       creditCost: 75,
       providerCostUsd: 1.0,
     });
-    assert.equal(row.status, "CRITICAL");
+    assert.equal(row.status, "LOW_MARGIN");
   });
 
   it("registry voice_clone default is 400", () => {

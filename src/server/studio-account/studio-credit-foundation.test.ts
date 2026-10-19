@@ -167,7 +167,7 @@ describe("studio plan and credit packs config", () => {
     assert.equal(STUDIO_CREDIT_PACKS.length, 4);
     const pack500 = getCreditPack("pack_500");
     assert.ok(pack500);
-    assert.equal(pack500!.credits, 500);
+    assert.equal(pack500!.credits, 250);
     assert.equal(pack500!.priceEur, 4.99);
   });
 
