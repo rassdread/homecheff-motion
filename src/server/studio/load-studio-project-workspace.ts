@@ -86,6 +86,7 @@ export async function loadStudioProjectWorkspace(
               description: true,
               action: true,
               emotion: true,
+              dialogueText: true,
               selectedSceneImageId: true,
               characters: {
                 select: {
@@ -97,7 +98,7 @@ export async function loadStudioProjectWorkspace(
               sceneImages: {
                 orderBy: { createdAt: "desc" },
                 take: 8,
-                select: { id: true, status: true, imageUrl: true, thumbnailUrl: true },
+                select: { id: true, status: true, imageUrl: true, thumbnailUrl: true, generatedPrompt: true },
               },
             },
           },
@@ -217,6 +218,7 @@ export async function loadStudioProjectWorkspace(
             description: scene.description,
             action: scene.action,
             emotion: scene.emotion,
+            dialogueText: scene.dialogueText,
             subtitleText,
             imageUrl: imageUrl && imageUrl.trim() ? imageUrl : null,
             imageStatus: selected?.status ?? null,
@@ -233,6 +235,7 @@ export async function loadStudioProjectWorkspace(
               status: image.status,
               imageUrl: image.thumbnailUrl || image.imageUrl,
               selected: image.id === scene.selectedSceneImageId,
+              generatedPrompt: image.generatedPrompt,
             })),
           };
         })

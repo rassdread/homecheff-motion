@@ -233,6 +233,7 @@ function SceneForm({
   const [title, setTitle] = useState(scene.title);
   const [description, setDescription] = useState(scene.description);
   const [subtitleText, setSubtitleText] = useState(scene.subtitleText ?? "");
+  const [dialogueText, setDialogueText] = useState(scene.dialogueText ?? "");
   const [action, setAction] = useState(scene.action ?? "");
   const [emotion, setEmotion] = useState(scene.emotion ?? "");
   const [characterIds, setCharacterIds] = useState((scene.characters ?? []).map((item) => item.id));
@@ -242,7 +243,7 @@ function SceneForm({
       className="space-y-3 rounded-xl border border-zinc-200 p-4"
       onSubmit={(event) => {
         event.preventDefault();
-        onSave({ title, description, subtitleText, action, emotion, characterIds });
+        onSave({ title, description, subtitleText, dialogueText, action, emotion, characterIds });
       }}
     >
       <label className="block text-sm font-semibold text-zinc-900">{t("studio.workspace.v13.sceneTitle")}
@@ -271,12 +272,16 @@ function SceneForm({
             </li>
           ))}
         </ul>
+        <p className="mt-2 text-xs text-zinc-500">{t("studio.workspace.v14.speakerNote")}</p>
       </div>
+      <label className="block text-sm font-semibold text-zinc-900">{t("studio.workspace.v14.dialogue")}
+        <textarea className={field} rows={3} value={dialogueText} onChange={(event) => setDialogueText(event.target.value)} />
+      </label>
+      <p className="text-xs text-zinc-500">{t("studio.workspace.v14.dialogueHint")}</p>
       <label className="block text-sm font-semibold text-zinc-900">{t("studio.workspace.v13.subtitle")}
         <textarea className={field} rows={2} value={subtitleText} onChange={(event) => setSubtitleText(event.target.value)} />
       </label>
       <p className="text-xs text-zinc-500">{t("studio.workspace.v13.subtitleTiming")}</p>
-      <p className="text-xs text-zinc-500">{t("studio.workspace.v13.dialogueGap")}</p>
       {advanced ? (
         <>
           <label className="block text-sm font-semibold text-zinc-900">{t("studio.workspace.v13.action")}
@@ -285,6 +290,17 @@ function SceneForm({
           <label className="block text-sm font-semibold text-zinc-900">{t("studio.workspace.v13.emotion")}
             <input className={field} value={emotion} onChange={(event) => setEmotion(event.target.value)} />
           </label>
+          <div>
+            <p className="text-sm font-semibold text-zinc-900">{t("studio.workspace.v14.visualPrompt")}</p>
+            <p className="mt-1 text-xs text-zinc-500">{t("studio.workspace.v14.visualPromptNote")}</p>
+            {(scene.images ?? []).some((image) => image.generatedPrompt?.trim()) ? (
+              <ul className="mt-2 space-y-2">
+                {(scene.images ?? []).filter((image) => image.generatedPrompt?.trim()).map((image) => (
+                  <li key={image.id} className="rounded-lg bg-zinc-50 p-2 text-xs text-zinc-700">{image.generatedPrompt}</li>
+                ))}
+              </ul>
+            ) : <p className="mt-1 text-xs text-zinc-500">{t("studio.workspace.v14.visualPromptEmpty")}</p>}
+          </div>
         </>
       ) : (
         <button type="button" className="text-sm font-semibold text-[#0067B1]" onClick={onAdvanced}>{t("studio.workspace.v13.advanced")}</button>

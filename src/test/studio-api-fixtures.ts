@@ -78,6 +78,7 @@ export function studioSceneDetail(
     description: partial.description ?? "",
     action: partial.action ?? "",
     emotion: partial.emotion ?? "",
+    dialogueText: partial.dialogueText ?? null,
     camera: partial.camera ?? "",
     shotType: partial.shotType ?? "medium_wide",
     cameraMovement: partial.cameraMovement ?? "static",

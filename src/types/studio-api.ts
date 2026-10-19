@@ -202,6 +202,7 @@ export type StudioSceneDetail = {
   sfxAssetOverride: string;
   durationSeconds: number;
   locationId: string | null;
+  dialogueText: string | null;
   location: StudioLocationListItem | null;
   characters: StudioCharacterListItem[];
   props: StudioPropListItem[];

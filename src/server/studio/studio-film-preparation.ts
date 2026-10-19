@@ -239,7 +239,7 @@ export async function updateFilmScene(
   projectId: string,
   sceneId: string,
   viewer: Pick<SessionUser, "id" | "role">,
-  raw: { title?: string; description?: string; action?: string; emotion?: string; characterIds?: string[] },
+  raw: { title?: string; description?: string; action?: string; emotion?: string; characterIds?: string[]; dialogueText?: string | null },
 ) {
   const linked = await linkedStoryboard(ownerId, projectId);
   if ("error" in linked) return linked;

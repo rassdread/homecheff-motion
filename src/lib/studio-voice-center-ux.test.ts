@@ -75,7 +75,8 @@ describe("voice center UX wiring", () => {
       "utf8"
     );
     assert.match(panelSrc, /Beluister voorbeeld/);
-    assert.match(centerSrc, /Beluister gratis voorbeeld/);
+    assert.match(panelSrc, /Beluister gratis voorbeeld/);
+    assert.match(centerSrc, /StudioCharacterVoiceSharedPreview/);
     assert.match(centerSrc, /personaPresets/);
     assert.doesNotMatch(centerSrc, /setVoiceLibraryTab/);
     assert.doesNotMatch(centerSrc, /scheduleFullCatalogLoad/);

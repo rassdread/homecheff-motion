@@ -15114,4 +15114,10 @@ export const en: LocaleSchema = {
   "studio.workspace.v13.saveFailed": "Saving did not succeed.",
   "studio.workspace.v13.backToFilm": "Back to {title}",
   "studio.workspace.v13.filmFallback": "the film",
+  "studio.workspace.v14.dialogue": "Spoken dialogue (English)",
+  "studio.workspace.v14.dialogueHint": "This is the spoken line for this scene. It is optional. Nothing is translated or spoken aloud.",
+  "studio.workspace.v14.speakerNote": "The characters above belong to the scene. The spoken line is not saved as one character's line.",
+  "studio.workspace.v14.visualPrompt": "Image prompt",
+  "studio.workspace.v14.visualPromptNote": "This is the prompt of an existing image. It is not changed here.",
+  "studio.workspace.v14.visualPromptEmpty": "This scene has no image prompt yet.",
 };

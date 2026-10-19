@@ -1070,6 +1070,8 @@ model StudioScene {
   description          String                 @default("")
   action               String                 @default("")
   emotion              String                 @default("")
+  /** Spoken line for this scene. Not description, image prompt, subtitle, or film narration. */
+  dialogueText         String?
   camera               String                 @default("")
   /** V23: extreme_wide | wide | medium | close_up | … */
   shotType             String                 @default("")

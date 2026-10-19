@@ -35,8 +35,9 @@ export type WorkspaceScene = {
   action?: string;
   emotion?: string;
   subtitleText?: string;
+  dialogueText?: string | null;
   characters?: Array<{ id: string; name: string; referenceImageUrl: string }>;
-  images?: Array<{ id: string; status: string; imageUrl: string; selected: boolean }>;
+  images?: Array<{ id: string; status: string; imageUrl: string; selected: boolean; generatedPrompt?: string }>;
 };
 
 export type WorkspaceMediaItem = {

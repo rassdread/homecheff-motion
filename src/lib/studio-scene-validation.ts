@@ -42,6 +42,8 @@ export type StudioSceneCreateInput = {
   locationId?: string | null;
   characterIds?: string[];
   propIds?: string[];
+  /** Spoken scene line. Empty or null clears it. Omitted leaves it unchanged. */
+  dialogueText?: string | null;
   musicCueType?: string;
   musicEnergyTarget?: string;
   musicTransitionType?: string;
@@ -71,6 +73,13 @@ export type ValidationResult<T> =
 
 function trimText(value: string | undefined, max: number): string {
   return (value ?? "").trim().slice(0, max);
+}
+
+function normalizeDialogue(value: string | null | undefined): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const trimmed = trimText(value, STUDIO_SCENE_TEXT_MAX);
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 function trimField(value: string | undefined): string {
@@ -112,6 +121,7 @@ export function validateStudioSceneCreateInput(
   locationId: string | null;
   characterIds: string[];
   propIds: string[];
+  dialogueText: string | null;
 }> {
   const duration = validateDuration(raw.durationSeconds);
   if (raw.durationSeconds !== undefined && duration === undefined) {
@@ -141,6 +151,7 @@ export function validateStudioSceneCreateInput(
       locationId: raw.locationId?.trim() || null,
       characterIds: validateIdList(raw.characterIds) ?? [],
       propIds: validateIdList(raw.propIds) ?? [],
+      dialogueText: normalizeDialogue(raw.dialogueText) ?? null,
     },
   };
 }
@@ -161,6 +172,7 @@ export function validateStudioSceneUpdateInput(
   locationId?: string | null;
   characterIds?: string[];
   propIds?: string[];
+  dialogueText?: string | null;
   musicCueType?: string;
   musicEnergyTarget?: string;
   musicTransitionType?: string;
@@ -195,6 +207,7 @@ export function validateStudioSceneUpdateInput(
     locationId?: string | null;
     characterIds?: string[];
     propIds?: string[];
+    dialogueText?: string | null;
     musicCueType?: string;
     musicEnergyTarget?: string;
     musicTransitionType?: string;
@@ -226,6 +239,7 @@ export function validateStudioSceneUpdateInput(
   if (raw.description !== undefined) patch.description = trimField(raw.description);
   if (raw.action !== undefined) patch.action = trimField(raw.action);
   if (raw.emotion !== undefined) patch.emotion = trimField(raw.emotion);
+  if (raw.dialogueText !== undefined) patch.dialogueText = normalizeDialogue(raw.dialogueText) ?? null;
   if (
     raw.camera !== undefined ||
     raw.shotType !== undefined ||

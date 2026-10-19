@@ -136,6 +136,7 @@ export function mapStudioSceneToDetail(row: SceneRow): StudioSceneDetail {
     sfxAssetOverride: row.sfxAssetOverride ?? "",
     durationSeconds: row.durationSeconds,
     locationId: row.locationId,
+    dialogueText: row.dialogueText ?? null,
     location: row.location ? mapStudioLocationToListItem(row.location) : null,
     characters: row.characters.map((link) => mapStudioCharacterToListItem(link.character)),
     props: row.props.map((link) => mapStudioPropToListItem(link.prop)),
@@ -563,6 +564,7 @@ export async function createStudioScene(
       transitionToNext: validated.value.transitionToNext,
       durationSeconds: validated.value.durationSeconds,
       locationId: validated.value.locationId,
+      dialogueText: validated.value.dialogueText,
     },
   });
 

@@ -15131,4 +15131,10 @@ export const nl = {
   "studio.workspace.v13.saveFailed": "Opslaan is niet gelukt.",
   "studio.workspace.v13.backToFilm": "Terug naar {title}",
   "studio.workspace.v13.filmFallback": "het filmproject",
+  "studio.workspace.v14.dialogue": "Gesproken tekst (Engels)",
+  "studio.workspace.v14.dialogueHint": "Dit is de gesproken regel van deze scène. De tekst is niet verplicht. Er wordt niets vertaald of ingesproken.",
+  "studio.workspace.v14.speakerNote": "De personages hierboven horen bij de scène. De gesproken tekst wordt niet aan één personage vastgezet.",
+  "studio.workspace.v14.visualPrompt": "Beeldprompt",
+  "studio.workspace.v14.visualPromptNote": "Dit is de prompt van een bestaand beeld. Die wordt hier niet gewijzigd.",
+  "studio.workspace.v14.visualPromptEmpty": "Deze scène heeft nog geen beeldprompt.",
 } as const;

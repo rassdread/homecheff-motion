@@ -69,7 +69,7 @@ test("film preparation does not reserve HC, call providers, or write character m
   assert.doesNotMatch(source, /reserveStudioCredits|authorizeStudioAction|requireStudioCredits|openai|elevenlabs|vidu/i);
   assert.equal((source.match(/referenceImageUrl/g) ?? []).length, 1);
   assert.match(source, /referenceImageUrl: true/);
-  assert.doesNotMatch(source, /dialogueText|generatedPrompt/);
+  assert.doesNotMatch(source, /generatedPrompt/);
   assert.match(source, /storyboardId: null/);
   assert.match(source, /status: "draft"/);
   assert.match(source, /voiceNarrationScript/);

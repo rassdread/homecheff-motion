@@ -601,6 +601,8 @@ function proposalMockStoryboard(
       description: scene.descriptionParams.description ?? scene.descriptionParams.focus ?? "",
       action: scene.actionParams.focus ?? scene.actionParams.subject ?? "",
       emotion: scene.emotion,
+      dialogueText:
+        base.scenes.find((existing) => existing.id === scene.existingSceneId)?.dialogueText ?? null,
       camera: scene.camera,
       shotType: scene.shotType,
       cameraMovement: scene.cameraMovement,

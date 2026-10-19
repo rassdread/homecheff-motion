@@ -15,6 +15,7 @@ export async function PATCH(request: Request, context: Ctx) {
     emotion?: string;
     characterIds?: unknown;
     subtitleText?: string;
+    dialogueText?: string | null;
   } | null;
   if (!body) return NextResponse.json({ error: "Invalid JSON.", code: "validation" }, { status: 400 });
   const characterIds = Array.isArray(body.characterIds)
@@ -26,6 +27,7 @@ export async function PATCH(request: Request, context: Ctx) {
     action: body.action,
     emotion: body.emotion,
     characterIds,
+    dialogueText: typeof body.dialogueText === "string" || body.dialogueText === null ? body.dialogueText : undefined,
   });
   if ("error" in scene) {
     return NextResponse.json({ error: scene.error.message, code: scene.error.code }, { status: scene.error.httpStatus });
