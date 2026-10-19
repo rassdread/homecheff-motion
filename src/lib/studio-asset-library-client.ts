@@ -83,27 +83,58 @@ export async function fetchUserUploadLibrary(): Promise<
   return json.ok ? { ok: true, uploads: json.uploads } : { ok: false };
 }
 
-export async function fetchOwnedProjectMedia(): Promise<
+export async function fetchProjectMediaLibrary(params: {
+  section: string;
+  q: string;
+  projectId: string;
+  status: string;
+  sort: string;
+  page: number;
+  untitled: string;
+}): Promise<
   | {
       ok: true;
-      sceneImages: import("@/lib/studio-owned-project-media").OwnedSceneImageRecord[];
-      animationImages: import("@/lib/studio-owned-project-media").OwnedAnimationImageRecord[];
-      videos: import("@/lib/studio-owned-project-media").OwnedPlayableVideoRecord[];
+      items: import("@/lib/studio-project-media-library").ProjectMediaItem[];
+      total: number;
+      page: number;
+      pageSize: number;
+      counts: Record<string, number>;
+      projects: Array<{ id: string; title: string }>;
     }
   | { ok: false }
 > {
-  const res = await fetch("/api/studio/owned-project-media", { cache: "no-store" });
+  const search = new URLSearchParams({
+    section: params.section,
+    q: params.q,
+    projectId: params.projectId,
+    status: params.status,
+    sort: params.sort,
+    page: String(params.page),
+    untitled: params.untitled,
+  });
+  const res = await fetch(`/api/studio/owned-project-media?${search.toString()}`, { cache: "no-store" });
   if (!res.ok) {
     return { ok: false };
   }
   const json = (await res.json()) as {
     ok: boolean;
-    sceneImages: import("@/lib/studio-owned-project-media").OwnedSceneImageRecord[];
-    animationImages: import("@/lib/studio-owned-project-media").OwnedAnimationImageRecord[];
-    videos: import("@/lib/studio-owned-project-media").OwnedPlayableVideoRecord[];
+    items: import("@/lib/studio-project-media-library").ProjectMediaItem[];
+    total: number;
+    page: number;
+    pageSize: number;
+    counts: Record<import("@/lib/studio-project-media-library").ProjectMediaSection, number>;
+    projects: Array<{ id: string; title: string }>;
   };
   return json.ok
-    ? { ok: true, sceneImages: json.sceneImages, animationImages: json.animationImages, videos: json.videos }
+    ? {
+        ok: true,
+        items: json.items,
+        total: json.total,
+        page: json.page,
+        pageSize: json.pageSize,
+        counts: json.counts,
+        projects: json.projects,
+      }
     : { ok: false };
 }
 

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { StudioAssetLibrary } from "@/components/studio/studio-asset-library";
+import { StudioProjectMediaBrowser } from "@/components/studio/studio-project-media-browser";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { StudioLibraryPageHero } from "@/components/studio/studio-library-page-hero";
 import { useActiveTranslator } from "@/i18n/client";
@@ -62,6 +63,24 @@ export function StudioAssetsHubSection({ section }: Props) {
                 {t("studio.assetsHub.videos.recentCount", { count: String(videoCount) })}
               </p>
             : null}
+            <div className="mt-8">
+              <StudioProjectMediaBrowser initialSection="videos" />
+            </div>
+          </section>
+        </main>
+      </StudioAuthGate>
+    );
+  }
+
+  if (section.section === "generated") {
+    return (
+      <StudioAuthGate>
+        <main className={studioLibraryVisual.pageMain}>
+          <section className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-8">
+            <HubSectionHeader section={section} />
+            <div className="mt-4">
+              <StudioProjectMediaBrowser initialSection="all" />
+            </div>
           </section>
         </main>
       </StudioAuthGate>

@@ -94,7 +94,7 @@ export function StudioAssetDetailView({
           href={asset.projectHref}
           className="mt-3 inline-flex min-h-[44px] items-center text-sm font-semibold text-[#006D52] hover:underline"
         >
-          {t("videos.open")}
+          {t("studio.projectMedia.openProject")}
         </Link>
       : null}
 
