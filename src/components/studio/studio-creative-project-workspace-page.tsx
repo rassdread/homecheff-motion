@@ -40,7 +40,17 @@ export function StudioCreativeProjectWorkspacePage() {
       {error ? <p className="mx-auto max-w-xl px-6 py-16 text-sm text-red-200">{error}</p> : null}
       {!workspace && !error ? <p className="px-6 py-16 text-sm text-white/80">{t("studio.workspace.v12.loading")}</p> : null}
       {workspace ? (
-        <StudioUnifiedProjectWorkspace workspace={workspace} initialSection={search.get("section")} />
+        <StudioUnifiedProjectWorkspace
+          workspace={workspace}
+          initialSection={search.get("section")}
+          onReload={() => {
+            void fetch(`/api/studio/projects/${projectId}/workspace`, { credentials: "include", cache: "no-store" })
+              .then((response) => response.json())
+              .then((body: { workspace?: ProjectWorkspaceView }) => {
+                if (body.workspace) setWorkspace(body.workspace);
+              });
+          }}
+        />
       ) : null}
     </StudioAuthGate>
   );

@@ -4,6 +4,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { parseSubtitleEntriesJson } from "@/lib/studio-subtitle-track";
 import {
   assembleProjectWorkspace,
   type ProjectWorkspaceView,
@@ -75,6 +76,7 @@ export async function loadStudioProjectWorkspace(
         where: { id: project.storyboardId, ownerId },
         select: {
           id: true,
+          voiceNarrationScript: true,
           scenes: {
             orderBy: { order: "asc" },
             select: {
@@ -82,15 +84,30 @@ export async function loadStudioProjectWorkspace(
               order: true,
               title: true,
               description: true,
+              action: true,
+              emotion: true,
+              selectedSceneImageId: true,
+              characters: {
+                select: {
+                  character: {
+                    select: { id: true, name: true, referenceImageUrl: true, ownerId: true },
+                  },
+                },
+              },
               sceneImages: {
                 orderBy: { createdAt: "desc" },
-                take: 1,
-                select: { status: true, imageUrl: true, thumbnailUrl: true },
+                take: 8,
+                select: { id: true, status: true, imageUrl: true, thumbnailUrl: true },
               },
             },
           },
           voices: {
             select: { id: true, language: true, status: true, audioUrl: true },
+          },
+          subtitleTracks: {
+            where: { language: "nl" },
+            take: 1,
+            select: { entriesJson: true },
           },
         },
       })
@@ -175,6 +192,9 @@ export async function loadStudioProjectWorkspace(
       updatedAt: project.updatedAt.toISOString(),
       storyboardLinked: Boolean(storyboard),
       animationLinked: Boolean(animation),
+      storyboardId: storyboard?.id ?? null,
+      animationProjectId: animation?.id ?? null,
+      narratorScript: storyboard?.voiceNarrationScript ?? "",
     },
     characters,
     assets: assets.map((asset) => ({
@@ -186,15 +206,34 @@ export async function loadStudioProjectWorkspace(
     })),
     scenes: storyboard
       ? storyboard.scenes.map((scene) => {
-          const image = scene.sceneImages[0];
-          const imageUrl = image?.thumbnailUrl || image?.imageUrl || null;
+          const subtitleEntries = parseSubtitleEntriesJson(storyboard.subtitleTracks[0]?.entriesJson);
+          const subtitleText = subtitleEntries.find((entry) => entry.sceneId === scene.id)?.text ?? "";
+          const selected = scene.sceneImages.find((image) => image.id === scene.selectedSceneImageId) ?? scene.sceneImages[0];
+          const imageUrl = selected?.thumbnailUrl || selected?.imageUrl || null;
           return {
             id: scene.id,
             order: scene.order,
             title: scene.title,
             description: scene.description,
+            action: scene.action,
+            emotion: scene.emotion,
+            subtitleText,
             imageUrl: imageUrl && imageUrl.trim() ? imageUrl : null,
-            imageStatus: image?.status ?? null,
+            imageStatus: selected?.status ?? null,
+            characters: scene.characters
+              .map((link) => link.character)
+              .filter((character) => character.ownerId === ownerId)
+              .map((character) => ({
+                id: character.id,
+                name: character.name,
+                referenceImageUrl: character.referenceImageUrl,
+              })),
+            images: scene.sceneImages.map((image) => ({
+              id: image.id,
+              status: image.status,
+              imageUrl: image.thumbnailUrl || image.imageUrl,
+              selected: image.id === scene.selectedSceneImageId,
+            })),
           };
         })
       : [],

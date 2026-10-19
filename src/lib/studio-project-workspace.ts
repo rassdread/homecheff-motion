@@ -32,6 +32,11 @@ export type WorkspaceScene = {
   description: string;
   imageUrl: string | null;
   imageStatus: string | null;
+  action?: string;
+  emotion?: string;
+  subtitleText?: string;
+  characters?: Array<{ id: string; name: string; referenceImageUrl: string }>;
+  images?: Array<{ id: string; status: string; imageUrl: string; selected: boolean }>;
 };
 
 export type WorkspaceMediaItem = {
@@ -77,6 +82,9 @@ export type ProjectWorkspaceView = {
     updatedAt: string;
     storyboardLinked: boolean;
     animationLinked: boolean;
+    storyboardId?: string | null;
+    animationProjectId?: string | null;
+    narratorScript?: string;
   };
   characters: WorkspaceCharacter[];
   scenes: WorkspaceScene[];

@@ -10,6 +10,7 @@ import {
   type ProjectWorkspaceView,
   type WorkspaceSection,
 } from "@/lib/studio-project-workspace";
+import { StudioProjectScenePanel } from "@/components/studio/studio-project-scene-panel";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 
 const NAV = [
@@ -26,6 +27,7 @@ const SECTIONS: WorkspaceSection[] = ["overview", "scenes", "characters", "media
 type Props = {
   workspace: ProjectWorkspaceView;
   initialSection?: string | null;
+  onReload?: () => void;
 };
 
 function formatWhen(value: string, locale: string): string {
@@ -34,7 +36,7 @@ function formatWhen(value: string, locale: string): string {
   return date.toLocaleString(locale);
 }
 
-export function StudioUnifiedProjectWorkspace({ workspace, initialSection }: Props) {
+export function StudioUnifiedProjectWorkspace({ workspace, initialSection, onReload }: Props) {
   const t = useActiveTranslator();
   const [locale] = useLocale();
   const [section, setSection] = useState<WorkspaceSection>(
@@ -163,7 +165,7 @@ export function StudioUnifiedProjectWorkspace({ workspace, initialSection }: Pro
               </div>
               <div className="p-5 sm:p-6">
                 {section === "overview" ? <Overview workspace={workspace} locale={locale} t={t} /> : null}
-                {section === "scenes" ? <Scenes workspace={workspace} link={link} t={t} /> : null}
+                {section === "scenes" ? <StudioProjectScenePanel workspace={workspace} onReload={onReload ?? (() => undefined)} /> : null}
                 {section === "characters" ? (
                   <Characters
                     workspace={workspace}
@@ -250,53 +252,6 @@ function Overview({
         </ul>
       ) : null}
       <JobList jobs={workspace.jobs} t={t} />
-    </div>
-  );
-}
-
-function Scenes({
-  workspace,
-  link,
-  t,
-}: {
-  workspace: ProjectWorkspaceView;
-  link: (id: string) => string;
-  t: Translate;
-}) {
-  if (!workspace.project.storyboardLinked) {
-    return (
-      <Empty
-        text={t("studio.workspace.v12.scenesEmpty")}
-        href={link("newStoryboard")}
-        action={t("studio.workspace.v12.openStoryboardStart")}
-        note={t("studio.workspace.v12.scenesNotLinked")}
-      />
-    );
-  }
-  return (
-    <div className="space-y-4">
-      {workspace.scenes.length === 0 ? <p className="text-sm text-zinc-600">{t("studio.workspace.v12.scenesNone")}</p> : null}
-      <ol className="space-y-3">
-        {workspace.scenes.map((scene) => (
-          <li key={scene.id} className="flex gap-3 rounded-xl border border-zinc-200 p-3">
-            {scene.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={scene.imageUrl} alt="" className="h-16 w-16 rounded-lg object-cover" />
-            ) : (
-              <span className="h-16 w-16 rounded-lg bg-zinc-100" />
-            )}
-            <div>
-              <p className="text-sm font-semibold text-zinc-900">{scene.order}. {scene.title || t("studio.workspace.v12.untitledScene")}</p>
-              {scene.description ? <p className="mt-1 text-sm text-zinc-600">{scene.description}</p> : null}
-              <p className="mt-1 text-xs text-zinc-500">{scene.imageStatus ? t("studio.workspace.v12.imageStatus", { status: scene.imageStatus }) : t("studio.workspace.v12.noSceneImage")}</p>
-            </div>
-          </li>
-        ))}
-      </ol>
-      <div className="flex flex-wrap gap-3">
-        {link("storyboardEditor") ? <TextLink href={link("storyboardEditor")}>{t("studio.workspace.v12.openAdvancedStoryboard")}</TextLink> : null}
-        {link("classicStoryboard") ? <TextLink href={link("classicStoryboard")}>{t("studio.workspace.v12.openClassicStoryboard")}</TextLink> : null}
-      </div>
     </div>
   );
 }
