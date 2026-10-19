@@ -83,6 +83,30 @@ export async function fetchUserUploadLibrary(): Promise<
   return json.ok ? { ok: true, uploads: json.uploads } : { ok: false };
 }
 
+export async function fetchOwnedProjectMedia(): Promise<
+  | {
+      ok: true;
+      sceneImages: import("@/lib/studio-owned-project-media").OwnedSceneImageRecord[];
+      animationImages: import("@/lib/studio-owned-project-media").OwnedAnimationImageRecord[];
+      videos: import("@/lib/studio-owned-project-media").OwnedPlayableVideoRecord[];
+    }
+  | { ok: false }
+> {
+  const res = await fetch("/api/studio/owned-project-media", { cache: "no-store" });
+  if (!res.ok) {
+    return { ok: false };
+  }
+  const json = (await res.json()) as {
+    ok: boolean;
+    sceneImages: import("@/lib/studio-owned-project-media").OwnedSceneImageRecord[];
+    animationImages: import("@/lib/studio-owned-project-media").OwnedAnimationImageRecord[];
+    videos: import("@/lib/studio-owned-project-media").OwnedPlayableVideoRecord[];
+  };
+  return json.ok
+    ? { ok: true, sceneImages: json.sceneImages, animationImages: json.animationImages, videos: json.videos }
+    : { ok: false };
+}
+
 export async function fetchGeneratedReferenceHistory(): Promise<
   { ok: true; data: GeneratedReferenceHistoryItem[] } | { ok: false; error: string }
 > {

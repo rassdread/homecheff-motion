@@ -16,6 +16,7 @@ import {
 import {
   fetchAssetLibraryPreferences,
   fetchGeneratedReferenceHistory,
+  fetchOwnedProjectMedia,
   fetchUserUploadLibrary,
 } from "@/lib/studio-asset-library-client";
 import { fetchUserAudioLibraryApi } from "@/lib/studio-audio-library-client";
@@ -118,7 +119,7 @@ export function StudioAssetLibrary({
     }
     setLoading(true);
     setError("");
-    const [chars, locs, props, worlds, prefs, history, uploads, audioLib, voiceLib] = await Promise.all([
+    const [chars, locs, props, worlds, prefs, history, uploads, audioLib, voiceLib, projectMedia] = await Promise.all([
       fetchStudioCharacters(),
       fetchStudioLocations(),
       fetchStudioProps(),
@@ -136,6 +137,7 @@ export function StudioAssetLibrary({
           ? { ok: true as const, voices: json.library.voices as import("@/types/studio-user-voice-library").UserVoiceLibraryEntry[] }
           : { ok: false as const };
       }),
+      fetchOwnedProjectMedia(),
     ]);
     if (!chars.ok || !locs.ok || !props.ok || !worlds.ok) {
       setError(t("studio.mediaAsset.error.loadFailed"));
@@ -180,6 +182,14 @@ export function StudioAssetLibrary({
       userUploads: uploads.ok ? uploads.uploads : [],
       userAudioAssets: audioLib.ok ? audioLib.data.assets : [],
       userVoiceClones: voiceLib.ok ? voiceLib.voices : [],
+      projectMedia: projectMedia.ok
+        ? {
+            untitledLabel: t("videos.untitledProject"),
+            sceneImages: projectMedia.sceneImages,
+            animationImages: projectMedia.animationImages,
+            videos: projectMedia.videos,
+          }
+        : undefined,
       isAdmin,
       showSystemAssets: showSystemAssets && isAdmin,
     });
@@ -412,7 +422,7 @@ export function StudioAssetLibrary({
                     }
                     modifiedLabel={asset.updatedAt ? new Date(asset.updatedAt).toLocaleDateString() : undefined}
                     thumbnailUrl={asset.previewUrl}
-                    thumbnailFallback={asset.category.slice(0, 3)}
+                    thumbnailFallback={asset.sourceRef.entityType === "animation_video" ? "video" : asset.category.slice(0, 3)}
                     selected={selectedId === asset.id}
                     onClick={() => setSelectedId(asset.id)}
                   />

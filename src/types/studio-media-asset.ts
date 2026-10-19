@@ -33,7 +33,17 @@ export type StudioAssetStatus = "active" | "draft" | "archived";
 export type StudioReferenceAcceptance = "draft" | "accepted" | "rejected";
 
 export type StudioAssetSourceRef = {
-  entityType: "character" | "location" | "prop" | "world" | "scene_image" | "audio_catalog" | "voice_preset" | "brand_catalog";
+  entityType:
+    | "character"
+    | "location"
+    | "prop"
+    | "world"
+    | "scene_image"
+    | "animation_image"
+    | "animation_video"
+    | "audio_catalog"
+    | "voice_preset"
+    | "brand_catalog";
   entityId: string;
 };
 
@@ -51,8 +61,10 @@ export type StudioAsset = {
   sourceRef: StudioAssetSourceRef;
   previewUrl?: string | null;
   collectionIds: string[];
-  /** Downloadable image URL when preview exists */
+  /** Downloadable image or video URL when a file exists */
   downloadUrl?: string | null;
+  /** Existing project or video page for this asset. */
+  projectHref?: string | null;
   storageKey?: string | null;
   origin?: StudioAssetOrigin;
   visibility?: StudioAssetVisibility;

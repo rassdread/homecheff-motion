@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActiveTranslator } from "@/i18n/client";
 import { StudioAssetLibraryActions } from "@/components/studio/studio-asset-library-actions";
 import { StudioAssetLifecycleActions } from "@/components/studio/studio-asset-lifecycle-actions";
@@ -51,7 +52,9 @@ export function StudioAssetDetailView({
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             {asset.sourceRef.entityType === "world"
               ? t("studio.mediaAsset.tab.world")
-              : t(`studio.mediaAsset.tab.${asset.category}` as never)}
+              : asset.sourceRef.entityType === "animation_video"
+                ? t("studio.assetsHub.section.videos")
+                : t(`studio.mediaAsset.tab.${asset.category}` as never)}
           </p>
           <h3 className="mt-1 text-base font-semibold text-slate-900">{asset.name}</h3>
           {isCanonicalBase ?
@@ -71,12 +74,28 @@ export function StudioAssetDetailView({
         : null}
       </div>
 
-      {asset.previewUrl ?
+      {asset.sourceRef.entityType === "animation_video" && asset.downloadUrl ?
+        <video
+          controls
+          playsInline
+          poster={asset.previewUrl ?? undefined}
+          src={asset.downloadUrl}
+          className="mt-3 max-h-64 w-full rounded-xl border border-slate-100 bg-black"
+        />
+      : asset.previewUrl ?
         <img
           src={asset.previewUrl}
           alt={asset.name}
           className="mt-3 max-h-48 w-full rounded-xl border border-slate-100 object-cover"
         />
+      : null}
+      {asset.projectHref ?
+        <Link
+          href={asset.projectHref}
+          className="mt-3 inline-flex min-h-[44px] items-center text-sm font-semibold text-[#006D52] hover:underline"
+        >
+          {t("videos.open")}
+        </Link>
       : null}
 
       <dl className="mt-4 space-y-2 text-xs text-slate-700">

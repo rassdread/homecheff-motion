@@ -18,6 +18,8 @@ import type { UserAudioLibraryAsset } from "@/types/studio-user-audio-library";
 import type { UserLibraryUploadRecord } from "@/types/studio-user-upload-library";
 import type { UserVoiceLibraryEntry } from "@/types/studio-user-voice-library";
 import type { StudioAsset } from "@/types/studio-media-asset";
+import { mapOwnedProjectMediaToLibraryAssets } from "@/lib/studio-owned-project-media";
+import type { OwnedProjectMediaInput } from "@/lib/studio-owned-project-media";
 
 export function assembleUserStudioAssetRegistry(params: {
   userId: string;
@@ -46,6 +48,7 @@ export function assembleUserStudioAssetRegistry(params: {
   userUploads?: UserLibraryUploadRecord[];
   userAudioAssets?: UserAudioLibraryAsset[];
   userVoiceClones?: UserVoiceLibraryEntry[];
+  projectMedia?: Omit<OwnedProjectMediaInput, "ownerId">;
   isAdmin?: boolean;
   showSystemAssets?: boolean;
 }): StudioAsset[] {
@@ -74,6 +77,12 @@ export function assembleUserStudioAssetRegistry(params: {
       ...buildUserUploadRegistryAssets(uniqueUploads, params.userId),
       ...buildUserAudioLibraryRegistryAssets(params.userAudioAssets ?? [], params.userId),
       ...buildUserVoiceCloneRegistryAssets(params.userVoiceClones ?? [], params.userId),
+      ...(params.projectMedia
+        ? mapOwnedProjectMediaToLibraryAssets({
+            ownerId: params.userId,
+            ...params.projectMedia,
+          })
+        : []),
     ]),
     params.userId
   );
