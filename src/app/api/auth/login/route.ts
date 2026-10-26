@@ -4,7 +4,13 @@ import { callMarketplaceLegacyMigrate } from "@/lib/identity/legacy-migrate-clie
 import { homecheffIdentityOrigin } from "@/lib/identity/sso/exchange-client";
 import { prisma } from "@/lib/prisma";
 import { apiServiceUnavailable } from "@/server/api-error-response";
-import { verifyPassword } from "@/server/auth/session";
+import {
+  canUsePreviewLocalPasswordLogin,
+  decidePreviewLocalCredentials,
+  isTrustedPreviewLoginOrigin,
+  PREVIEW_LOCAL_INVALID_CREDENTIALS,
+} from "@/server/auth/preview-local-auth";
+import { createSession, verifyPassword } from "@/server/auth/session";
 
 type LoginPayload = {
   email?: string;
@@ -13,9 +19,78 @@ type LoginPayload = {
 };
 
 /**
+ * Isolated Preview password login. Runs only when the server flag, the trusted
+ * Preview deployment, and the central-identity gates all allow it.
+ */
+async function previewLocalPasswordLogin(request: Request): Promise<NextResponse> {
+  if (!isTrustedPreviewLoginOrigin(request.headers.get("origin"))) {
+    return NextResponse.json({ error: "Forbidden.", code: "UNTRUSTED_ORIGIN" }, { status: 403 });
+  }
+
+  let payload: LoginPayload;
+  try {
+    payload = (await request.json()) as LoginPayload;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
+
+  const email = payload.email?.trim().toLowerCase() ?? "";
+  const password = payload.password ?? "";
+  if (!email || !password) {
+    return NextResponse.json(
+      { error: "Invalid credentials.", code: "MISSING_CREDENTIALS" },
+      { status: 400 },
+    );
+  }
+
+  let user;
+  try {
+    user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true, passwordHash: true, isActive: true },
+    });
+  } catch (error) {
+    return apiServiceUnavailable("auth/login", error);
+  }
+
+  const decision = decidePreviewLocalCredentials({ email, password, user });
+  if (decision.kind === "invalid_credentials") {
+    return NextResponse.json(PREVIEW_LOCAL_INVALID_CREDENTIALS, { status: 401 });
+  }
+  if (decision.kind === "inactive") {
+    return NextResponse.json(
+      { error: "Account is disabled.", code: "USER_INACTIVE" },
+      { status: 403 },
+    );
+  }
+  if (decision.kind !== "session") {
+    return NextResponse.json(
+      { error: "Invalid credentials.", code: "MISSING_CREDENTIALS" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    await createSession(decision.userId);
+  } catch (error) {
+    return apiServiceUnavailable("auth/login:createSession", error);
+  }
+
+  return NextResponse.json(
+    { user: { id: decision.userId, email: decision.email } },
+    { status: 200 },
+  );
+}
+
+/**
  * Legacy Studio credential → canonical HomeCheff JIT migration when SSO is live.
+ * Isolated Preview may use local password login only through the server gate above.
  */
 export async function POST(request: Request) {
+  if (canUsePreviewLocalPasswordLogin()) {
+    return previewLocalPasswordLogin(request);
+  }
+
   let payload: LoginPayload;
   try {
     payload = (await request.json()) as LoginPayload;

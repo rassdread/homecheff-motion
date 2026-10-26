@@ -7,6 +7,7 @@ import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { invalidateAuthSessionCache } from "@/lib/auth-session-client";
+import { isStudioOnlyLogoutScope } from "@/lib/identity/preview-logout-scope";
 import {
   clearStudioIdentityBoundClientResidue,
   postStudioAuthChannel,
@@ -90,7 +91,7 @@ export function AppShellUserBar({ compact = false }: Props) {
   }, [session.user]);
 
   const handleLogout = useCallback(async () => {
-    let idpLogoutUrl = "https://homecheff.eu/api/auth/ecosystem-logout";
+    let logoutBody: { idpLogoutUrl?: string; scope?: string } | null = null;
     try {
       const res = await fetch("/api/auth/logout", {
         method: "POST",
@@ -98,23 +99,26 @@ export function AppShellUserBar({ compact = false }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ecosystem: true }),
       });
-      const j = (await res.json().catch(() => null)) as { idpLogoutUrl?: string } | null;
-      if (typeof j?.idpLogoutUrl === "string" && j.idpLogoutUrl.startsWith("https://")) {
-        idpLogoutUrl = j.idpLogoutUrl;
-      }
+      logoutBody = (await res.json().catch(() => null)) as { idpLogoutUrl?: string; scope?: string } | null;
     } catch {
       /* still continue */
     }
-    try {
-      await fetch(idpLogoutUrl, {
-        method: "POST",
-        credentials: "include",
-        mode: "cors",
-        cache: "no-store",
-        headers: { "Content-Type": "application/json" },
-      });
-    } catch {
-      /* product session already cleared */
+    if (!isStudioOnlyLogoutScope(logoutBody?.scope)) {
+      let idpLogoutUrl = "https://homecheff.eu/api/auth/ecosystem-logout";
+      if (typeof logoutBody?.idpLogoutUrl === "string" && logoutBody.idpLogoutUrl.startsWith("https://")) {
+        idpLogoutUrl = logoutBody.idpLogoutUrl;
+      }
+      try {
+        await fetch(idpLogoutUrl, {
+          method: "POST",
+          credentials: "include",
+          mode: "cors",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch {
+        /* product session already cleared */
+      }
     }
     clearStudioIdentityBoundClientResidue();
     invalidateAuthSessionCache();

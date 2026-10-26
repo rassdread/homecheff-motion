@@ -47,3 +47,11 @@ export function isStudioJitProvisioningEnabled(
 ): boolean {
   return isCentralSsoLive(flags) && flags.CENTRAL_SSO_JIT_PROVISIONING;
 }
+
+/**
+ * Explicit isolated-Preview opt-in. Only the exact string "true" enables it.
+ * This is not a central-identity flag and must not be inferred from NODE_ENV.
+ */
+export function isStudioPreviewLocalLoginEnabled(): boolean {
+  return process.env.STUDIO_PREVIEW_LOCAL_LOGIN?.trim() === "true";
+}

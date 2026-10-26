@@ -4,6 +4,7 @@ import {
   getCentralIdentityFlags,
   isCentralSsoLive,
   isLegacyStudioLoginEnabled,
+  isStudioPreviewLocalLoginEnabled,
 } from "@/lib/identity/flags";
 import {
   homecheffForgotPasswordHref,
@@ -45,11 +46,13 @@ describe("SP.2B Studio SSO flags", () => {
         CENTRAL_SSO_ENABLED: undefined,
         CENTRAL_IDENTITY_REQUIRED: undefined,
         LEGACY_STUDIO_LOGIN_ENABLED: undefined,
+        STUDIO_PREVIEW_LOCAL_LOGIN: undefined,
       },
       () => {
         const flags = getCentralIdentityFlags();
         assert.equal(isCentralSsoLive(flags), false);
         assert.equal(isLegacyStudioLoginEnabled(flags), true);
+        assert.equal(isStudioPreviewLocalLoginEnabled(), false);
       },
     );
   });
