@@ -3,7 +3,11 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it } from "node:test";
 import { isStudioPreviewLocalLoginEnabled } from "@/lib/identity/flags";
-import { isStudioOnlyLogoutScope } from "@/lib/identity/preview-logout-scope";
+import {
+  isStudioOnlyLogoutScope,
+  PRODUCTION_IDENTITY_LOGOUT_URL,
+  resolveClientIdentityLogout,
+} from "@/lib/identity/preview-logout-scope";
 import { hashPassword } from "@/server/auth/session";
 import {
   AUTHORIZED_STUDIO_PREVIEW_PROJECT_ID,
@@ -199,11 +203,71 @@ describe("preview logout isolation", () => {
   });
 });
 
+describe("client identity logout", () => {
+  const ecosystem = {
+    scope: "ecosystem",
+    idpLogoutUrl: "https://homecheff.eu/api/auth/ecosystem-logout",
+  };
+
+  it("does not call production after a successful preview logout", () => {
+    const decision = resolveClientIdentityLogout({
+      previewLogoutIsolated: true,
+      attempt: { outcome: "success", scope: "studio_only" },
+    });
+    assert.equal(decision.callProduction, false);
+    assert.equal(decision.url, null);
+  });
+
+  it("does not call production when preview logout fails on the network", () => {
+    const decision = resolveClientIdentityLogout({
+      previewLogoutIsolated: true,
+      attempt: { outcome: "network_failure" },
+    });
+    assert.equal(decision.callProduction, false);
+    assert.equal(decision.url, null);
+  });
+
+  it("does not call production when preview logout returns an HTTP error", () => {
+    const decision = resolveClientIdentityLogout({
+      previewLogoutIsolated: true,
+      attempt: { outcome: "http_failure", ...ecosystem },
+    });
+    assert.equal(decision.callProduction, false);
+    assert.equal(decision.url, null);
+  });
+
+  it("keeps the production ecosystem logout after a successful production logout", () => {
+    const decision = resolveClientIdentityLogout({
+      previewLogoutIsolated: false,
+      attempt: { outcome: "success", ...ecosystem },
+    });
+    assert.equal(decision.callProduction, true);
+    assert.equal(decision.url, PRODUCTION_IDENTITY_LOGOUT_URL);
+  });
+
+  it("keeps the production fallback when production logout fails", () => {
+    const network = resolveClientIdentityLogout({
+      previewLogoutIsolated: false,
+      attempt: { outcome: "network_failure" },
+    });
+    const http = resolveClientIdentityLogout({
+      previewLogoutIsolated: false,
+      attempt: { outcome: "http_failure" },
+    });
+    assert.equal(network.callProduction, true);
+    assert.equal(network.url, PRODUCTION_IDENTITY_LOGOUT_URL);
+    assert.equal(http.callProduction, true);
+    assert.equal(http.url, PRODUCTION_IDENTITY_LOGOUT_URL);
+  });
+});
+
 describe("auth route wiring", () => {
   it("keeps local login behind the gate and clears the session before logout", () => {
     const login = readFileSync(resolve(process.cwd(), "src/app/api/auth/login/route.ts"), "utf8");
     const logout = readFileSync(resolve(process.cwd(), "src/app/api/auth/logout/route.ts"), "utf8");
     const bar = readFileSync(resolve(process.cwd(), "src/components/layout/app-shell-user-bar.tsx"), "utf8");
+    const shell = readFileSync(resolve(process.cwd(), "src/components/layout/app-shell.tsx"), "utf8");
+    const scope = readFileSync(resolve(process.cwd(), "src/lib/identity/preview-logout-scope.ts"), "utf8");
 
     const previewFn = login.slice(
       login.indexOf("async function previewLocalPasswordLogin"),
@@ -217,7 +281,11 @@ describe("auth route wiring", () => {
     assert.ok(logout.indexOf("await clearSession()") < logout.indexOf("studioLogoutResponse("));
     assert.match(logout, /resolveStudioLogoutScope/);
 
-    assert.match(bar, /if \(!isStudioOnlyLogoutScope\(logoutBody\?\.scope\)\)/);
+    assert.match(shell, /canUsePreviewLocalPasswordLogin\(\)/);
+    assert.match(shell, /previewLogoutIsolated=\{previewLogoutIsolated\}/);
+    assert.match(bar, /resolveClientIdentityLogout\(\{ previewLogoutIsolated, attempt \}\)/);
+    assert.doesNotMatch(bar, /homecheff\.eu\/api\/auth\/ecosystem-logout/);
+    assert.match(scope, /homecheff\.eu\/api\/auth\/ecosystem-logout/);
     assert.match(bar, /postStudioAuthChannel\(\{ type: "logout" \}\)/);
   });
 });

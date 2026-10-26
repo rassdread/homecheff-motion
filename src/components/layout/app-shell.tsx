@@ -7,6 +7,7 @@ import type { Locale } from "@/i18n";
 import { StudioSessionIdentityGuard } from "@/components/identity/studio-session-identity-guard";
 import { StudioAffiliateReferralBinder } from "@/components/affiliate/studio-affiliate-referral-binder";
 import { StudioUtmCapture } from "@/components/acquisition/studio-utm-capture";
+import { canUsePreviewLocalPasswordLogin } from "@/server/auth/preview-local-auth";
 
 type AppShellProps = {
   children: ReactNode;
@@ -14,6 +15,7 @@ type AppShellProps = {
 };
 
 export function AppShell({ children, locale }: AppShellProps) {
+  const previewLogoutIsolated = canUsePreviewLocalPasswordLogin();
   return (
     <LocaleSeedProvider locale={locale}>
     <StudioSessionIdentityGuard>
@@ -25,7 +27,7 @@ export function AppShell({ children, locale }: AppShellProps) {
           <StudioUtmCapture />
         </Suspense>
         <div className="flex min-w-0 w-full flex-col overflow-visible">
-          <AppShellChrome>{children}</AppShellChrome>
+          <AppShellChrome previewLogoutIsolated={previewLogoutIsolated}>{children}</AppShellChrome>
         </div>
       </div>
     </StudioSessionIdentityGuard>

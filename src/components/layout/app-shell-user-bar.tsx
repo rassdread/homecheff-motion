@@ -7,7 +7,10 @@ import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { invalidateAuthSessionCache } from "@/lib/auth-session-client";
-import { isStudioOnlyLogoutScope } from "@/lib/identity/preview-logout-scope";
+import {
+  resolveClientIdentityLogout,
+  type ClientLogoutAttempt,
+} from "@/lib/identity/preview-logout-scope";
 import {
   clearStudioIdentityBoundClientResidue,
   postStudioAuthChannel,
@@ -59,9 +62,11 @@ function roleLabelKey(role: string): "nav.role.admin" | "nav.role.power" | "nav.
 
 type Props = {
   compact?: boolean;
+  /** Server-computed from trusted deployment configuration. Defaults to production behavior. */
+  previewLogoutIsolated?: boolean;
 };
 
-export function AppShellUserBar({ compact = false }: Props) {
+export function AppShellUserBar({ compact = false, previewLogoutIsolated = false }: Props) {
   const t = useActiveTranslator();
   const [locale] = useLocale();
   const session = useAuthSession();
@@ -91,7 +96,7 @@ export function AppShellUserBar({ compact = false }: Props) {
   }, [session.user]);
 
   const handleLogout = useCallback(async () => {
-    let logoutBody: { idpLogoutUrl?: string; scope?: string } | null = null;
+    let attempt: ClientLogoutAttempt = { outcome: "network_failure" };
     try {
       const res = await fetch("/api/auth/logout", {
         method: "POST",
@@ -99,17 +104,22 @@ export function AppShellUserBar({ compact = false }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ecosystem: true }),
       });
-      logoutBody = (await res.json().catch(() => null)) as { idpLogoutUrl?: string; scope?: string } | null;
+      const logoutBody = (await res.json().catch(() => null)) as {
+        idpLogoutUrl?: string;
+        scope?: string;
+      } | null;
+      attempt = {
+        outcome: res.ok ? "success" : "http_failure",
+        scope: logoutBody?.scope,
+        idpLogoutUrl: logoutBody?.idpLogoutUrl,
+      };
     } catch {
-      /* still continue */
+      attempt = { outcome: "network_failure" };
     }
-    if (!isStudioOnlyLogoutScope(logoutBody?.scope)) {
-      let idpLogoutUrl = "https://homecheff.eu/api/auth/ecosystem-logout";
-      if (typeof logoutBody?.idpLogoutUrl === "string" && logoutBody.idpLogoutUrl.startsWith("https://")) {
-        idpLogoutUrl = logoutBody.idpLogoutUrl;
-      }
+    const identityLogout = resolveClientIdentityLogout({ previewLogoutIsolated, attempt });
+    if (identityLogout.callProduction) {
       try {
-        await fetch(idpLogoutUrl, {
+        await fetch(identityLogout.url, {
           method: "POST",
           credentials: "include",
           mode: "cors",
@@ -124,7 +134,7 @@ export function AppShellUserBar({ compact = false }: Props) {
     invalidateAuthSessionCache();
     postStudioAuthChannel({ type: "logout" });
     window.location.href = "/login";
-  }, []);
+  }, [previewLogoutIsolated]);
 
   useEffect(() => {
     if (!open) {

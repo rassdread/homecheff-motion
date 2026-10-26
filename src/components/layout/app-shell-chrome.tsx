@@ -16,7 +16,13 @@ import { brand } from "@/lib/brand";
 import { isPx4aItemCreatorPath, isPx4aStandaloneCreatorPath } from "@/lib/photo-video/item-handoff";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 
-export function AppShellChrome({ children }: { children: ReactNode }) {
+export function AppShellChrome({
+  children,
+  previewLogoutIsolated = false,
+}: {
+  children: ReactNode;
+  previewLogoutIsolated?: boolean;
+}) {
   const pathname = usePathname() ?? "";
   const itemJourney = isPx4aItemCreatorPath(pathname);
   const standaloneCreator = isPx4aStandaloneCreatorPath(pathname);
@@ -60,10 +66,10 @@ export function AppShellChrome({ children }: { children: ReactNode }) {
             <LanguageSwitch />
             {standaloneCreator ? null : <GlobalCreditIndicator />}
             <div className="hidden lg:block">
-              <AppShellUserBar />
+              <AppShellUserBar previewLogoutIsolated={previewLogoutIsolated} />
             </div>
             <div className="relative flex min-w-0 items-center gap-1 lg:hidden">
-              <AppShellUserBar compact />
+              <AppShellUserBar compact previewLogoutIsolated={previewLogoutIsolated} />
               <AppShellPrimaryNav variant="mobile" />
             </div>
           </div>
