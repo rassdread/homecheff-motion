@@ -18,7 +18,16 @@ export type AssistantExecutionStepActionId =
   | AssistantV4ExecutableActionId
   | "use_existing_asset"
   | "use_preset_default"
-  | "open_motion_wizard";
+  | "open_motion_wizard"
+  | "open_film_project"
+  | "open_storyboard"
+  | "select_scene"
+  | "select_project_character"
+  | "open_timeline"
+  | "inspect_project_media"
+  | "prepare_render"
+  | "generate_scene_video"
+  | "generate_scene_voice";
 
 export const ASSISTANT_V4_BLOCKED_ACTIONS = [
   "create_publish_export",
@@ -37,6 +46,15 @@ const EXECUTION_MODE_BY_ACTION: Record<AssistantExecutionStepActionId, Assistant
   prepare_vehicle: "requires_user_review",
   prepare_music: "requires_user_review",
   prepare_sfx: "requires_user_review",
+  open_film_project: "requires_user_review",
+  open_storyboard: "requires_user_review",
+  select_scene: "requires_user_review",
+  select_project_character: "requires_user_review",
+  open_timeline: "requires_user_review",
+  inspect_project_media: "requires_user_review",
+  prepare_render: "requires_user_review",
+  generate_scene_video: "requires_user_review",
+  generate_scene_voice: "requires_user_review",
 };
 
 const CREDIT_ESTIMATE_BY_ACTION: Record<AssistantExecutionStepActionId, number> = {
@@ -51,6 +69,15 @@ const CREDIT_ESTIMATE_BY_ACTION: Record<AssistantExecutionStepActionId, number> 
   prepare_vehicle: 2,
   prepare_music: 0,
   prepare_sfx: 0,
+  open_film_project: 0,
+  open_storyboard: 0,
+  select_scene: 0,
+  select_project_character: 0,
+  open_timeline: 0,
+  inspect_project_media: 0,
+  prepare_render: 0,
+  generate_scene_video: 0,
+  generate_scene_voice: 0,
 };
 
 export function getAssistantExecutionMode(

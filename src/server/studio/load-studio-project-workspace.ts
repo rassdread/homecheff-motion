@@ -32,6 +32,8 @@ export async function loadStudioProjectWorkspace(
         title: true,
         status: true,
         previewUrl: true,
+        downloadUrl: true,
+        sourceKind: true,
         metadataJson: true,
       },
     }),
@@ -244,6 +246,16 @@ export async function loadStudioProjectWorkspace(
         status: item.status,
         downloadUrl: item.finalVideoUrl,
       })),
+      ...assets
+        .filter((asset) => asset.family === "video" && asset.sourceKind === "timeline_export" && asset.status === "active" && asset.downloadUrl.trim())
+        .map((asset) => ({
+          id: asset.id,
+          label: asset.title || project.title,
+          status: "completed",
+          downloadUrl: asset.downloadUrl.startsWith("file:")
+            ? `/api/studio/projects/${project.id}/library/${asset.id}/file`
+            : asset.downloadUrl,
+        })),
     ],
     jobs,
     links,

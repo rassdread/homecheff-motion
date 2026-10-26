@@ -12,9 +12,11 @@ type CharacterOption = { id: string; name: string; referenceImageUrl: string };
 
 export function StudioProjectScenePanel({
   workspace,
+  initialSceneId,
   onReload,
 }: {
   workspace: ProjectWorkspaceView;
+  initialSceneId?: string | null;
   onReload: () => void;
 }) {
   const t = useActiveTranslator();
@@ -24,7 +26,9 @@ export function StudioProjectScenePanel({
   const [options, setOptions] = useState<Option[] | null>(null);
   const [pendingId, setPendingId] = useState("");
   const [animations, setAnimations] = useState<Option[] | null>(null);
-  const [selectedId, setSelectedId] = useState(workspace.scenes[0]?.id ?? "");
+  const [selectedId, setSelectedId] = useState(
+    workspace.scenes.some((scene) => scene.id === initialSceneId) ? (initialSceneId as string) : (workspace.scenes[0]?.id ?? ""),
+  );
   const scene = workspace.scenes.find((item) => item.id === selectedId) ?? workspace.scenes[0] ?? null;
   const [advanced, setAdvanced] = useState(false);
   const [characters, setCharacters] = useState<CharacterOption[] | null>(null);

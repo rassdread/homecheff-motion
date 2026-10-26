@@ -82,6 +82,26 @@ export function buildTimedVolumeExpression(params: {
   return expr;
 }
 
+/** Same step used by the export volume expression. */
+export const MUSIC_UNDER_VOICE_GAIN = 0.35;
+
+/** Linear gain at one timeline time. Matches the export's hard between() duck. */
+export function duckedLinearGain(params: {
+  baseVolume: number;
+  envelopes: DuckingEnvelopeSeconds[];
+  gainKey: "musicGain" | "ambienceGain";
+  timeSeconds: number;
+}): number {
+  const base = Math.max(0, Math.min(2, params.baseVolume));
+  const merged = mergeDuckingEnvelopes(params.envelopes);
+  for (const envelope of merged) {
+    if (params.timeSeconds >= envelope.startSeconds && params.timeSeconds <= envelope.endSeconds) {
+      return base * Math.max(0, Math.min(1, envelope[params.gainKey]));
+    }
+  }
+  return base;
+}
+
 export function buildTimedVolumeFilter(params: {
   baseVolume: number;
   envelopes: DuckingEnvelopeSeconds[];

@@ -10,7 +10,9 @@ import {
   type ProjectWorkspaceView,
   type WorkspaceSection,
 } from "@/lib/studio-project-workspace";
+import { StudioProjectFilmEditor } from "@/components/studio/studio-project-film-editor";
 import { StudioProjectScenePanel } from "@/components/studio/studio-project-scene-panel";
+import { StudioProjectTimeline } from "@/components/studio/studio-project-timeline";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 
 const NAV = [
@@ -22,11 +24,13 @@ const NAV = [
   { id: "exports", href: null, section: "export" as const },
 ] as const;
 
-const SECTIONS: WorkspaceSection[] = ["overview", "scenes", "characters", "media", "audio", "export"];
+const SECTIONS: WorkspaceSection[] = ["overview", "scenes", "characters", "media", "audio", "timeline", "export"];
 
 type Props = {
   workspace: ProjectWorkspaceView;
   initialSection?: string | null;
+  initialSceneId?: string | null;
+  initialCharacterId?: string | null;
   onReload?: () => void;
 };
 
@@ -36,7 +40,7 @@ function formatWhen(value: string, locale: string): string {
   return date.toLocaleString(locale);
 }
 
-export function StudioUnifiedProjectWorkspace({ workspace, initialSection, onReload }: Props) {
+export function StudioUnifiedProjectWorkspace({ workspace, initialSection, initialSceneId, initialCharacterId, onReload }: Props) {
   const t = useActiveTranslator();
   const [locale] = useLocale();
   const [section, setSection] = useState<WorkspaceSection>(
@@ -45,7 +49,11 @@ export function StudioUnifiedProjectWorkspace({ workspace, initialSection, onRel
   const [navOpen, setNavOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
   const [mediaProjectId, setMediaProjectId] = useState(workspace.mediaProjectIds[0] ?? "");
-  const [selectedCharacterId, setSelectedCharacterId] = useState(workspace.characters[0]?.id ?? "");
+  const [selectedCharacterId, setSelectedCharacterId] = useState(
+    workspace.characters.some((item) => item.id === initialCharacterId)
+      ? (initialCharacterId as string)
+      : (workspace.characters[0]?.id ?? ""),
+  );
 
   const selectedCharacter = workspace.characters.find((item) => item.id === selectedCharacterId) ?? workspace.characters[0] ?? null;
   const previewImage =
@@ -165,7 +173,18 @@ export function StudioUnifiedProjectWorkspace({ workspace, initialSection, onRel
               </div>
               <div className="p-5 sm:p-6">
                 {section === "overview" ? <Overview workspace={workspace} locale={locale} t={t} /> : null}
-                {section === "scenes" ? <StudioProjectScenePanel workspace={workspace} onReload={onReload ?? (() => undefined)} /> : null}
+                {section === "scenes" ? (
+                  <>
+                    <StudioProjectScenePanel
+                      workspace={workspace}
+                      initialSceneId={initialSceneId}
+                      onReload={onReload ?? (() => undefined)}
+                    />
+                    <div className="mt-6">
+                      <StudioProjectFilmEditor workspace={workspace} />
+                    </div>
+                  </>
+                ) : null}
                 {section === "characters" ? (
                   <Characters
                     workspace={workspace}
@@ -184,6 +203,13 @@ export function StudioUnifiedProjectWorkspace({ workspace, initialSection, onRel
                   />
                 ) : null}
                 {section === "audio" ? <Audio workspace={workspace} link={link} t={t} /> : null}
+                {section === "timeline" ? (
+                  <StudioProjectTimeline
+                    projectId={workspace.project.id}
+                    music={workspace.music.map((item) => ({ id: item.id, title: item.title }))}
+                    soundEffects={workspace.soundEffects.map((item) => ({ id: item.id, title: item.title }))}
+                  />
+                ) : null}
                 {section === "export" ? <Exports workspace={workspace} link={link} t={t} /> : null}
               </div>
             </section>
@@ -404,7 +430,7 @@ function Exports({
   t: Translate;
 }) {
   const ready = workspace.exports.filter((item) => item.downloadUrl);
-  if (!workspace.project.animationLinked || ready.length === 0) {
+  if (ready.length === 0) {
     return <Empty text={t("studio.workspace.v12.exportEmpty")} note={t("studio.workspace.v12.exportNote")} />;
   }
   return (

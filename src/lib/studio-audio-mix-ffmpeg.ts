@@ -19,6 +19,8 @@ export function buildStudioAudioMixFilterComplex(params: {
     | "musicFadeOutSeconds"
     | "discreteSfx"
     | "musicSourceOffsetSeconds"
+    | "musicStartSeconds"
+    | "musicDurationSeconds"
     | "duckingEnvelopes"
   >;
   hasVoice: boolean;
@@ -48,12 +50,22 @@ export function buildStudioAudioMixFilterComplex(params: {
   }
 
   if (params.hasMusic) {
-    let musicChain = `[${inputIndex}:a]aloop=loop=-1:size=2e+09,atrim=${sourceOffset.toFixed(3)}:${(sourceOffset + dur).toFixed(3)},asetpts=PTS-STARTPTS`;
+    const musicStart = Math.max(0, params.plan.musicStartSeconds ?? 0);
+    const hasWindow = params.plan.musicDurationSeconds != null || musicStart > 0.001;
+    const contentSeconds = hasWindow
+      ? Math.max(0.05, Math.min(params.plan.musicDurationSeconds ?? dur, Math.max(0.05, dur - musicStart)))
+      : dur;
+    const fadeOutAt = hasWindow ? Math.max(0, contentSeconds - fo) : fadeOutStart;
+    let musicChain = `[${inputIndex}:a]aloop=loop=-1:size=2e+09,atrim=${sourceOffset.toFixed(3)}:${(sourceOffset + contentSeconds).toFixed(3)},asetpts=PTS-STARTPTS`;
     if (fi > 0) {
       musicChain += `,afade=t=in:st=0:d=${fi.toFixed(3)}`;
     }
     if (fo > 0) {
-      musicChain += `,afade=t=out:st=${fadeOutStart.toFixed(3)}:d=${fo.toFixed(3)}`;
+      musicChain += `,afade=t=out:st=${fadeOutAt.toFixed(3)}:d=${fo.toFixed(3)}`;
+    }
+    if (musicStart > 0.001) {
+      const delayMs = Math.round(musicStart * 1000);
+      musicChain += `,adelay=${delayMs}|${delayMs},apad,atrim=0:${dur.toFixed(3)}`;
     }
     musicChain += `,${buildTimedVolumeFilter({
       baseVolume: params.plan.musicVolume,

@@ -73,6 +73,15 @@ function labelKeyForAction(actionId: AssistantExecutionStepActionId): AssistantE
     prepare_vehicle: "assistant.execution.step.prepareVehicle",
     prepare_music: "assistant.execution.step.prepareMusic",
     prepare_sfx: "assistant.execution.step.prepareSfx",
+    open_film_project: "assistant.execution.step.openFilmProject",
+    open_storyboard: "assistant.execution.step.openStoryboard",
+    select_scene: "assistant.execution.step.selectScene",
+    select_project_character: "assistant.execution.step.selectCharacter",
+    open_timeline: "assistant.execution.step.openTimeline",
+    inspect_project_media: "assistant.execution.step.inspectMedia",
+    prepare_render: "assistant.execution.step.prepareRender",
+    generate_scene_video: "assistant.execution.step.generateSceneVideo",
+    generate_scene_voice: "assistant.execution.step.generateSceneVoice",
   };
   return map[actionId];
 }

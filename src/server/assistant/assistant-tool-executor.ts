@@ -252,6 +252,67 @@ export function executeAssistantPlanStep(input: ExecuteAssistantPlanStepInput): 
     );
   }
 
+  if (
+    step.actionId === "open_film_project" ||
+    step.actionId === "open_storyboard" ||
+    step.actionId === "select_scene" ||
+    step.actionId === "select_project_character" ||
+    step.actionId === "open_timeline" ||
+    step.actionId === "inspect_project_media" ||
+    step.actionId === "prepare_render"
+  ) {
+    const projectId = step.input.projectId?.trim() ?? "";
+    if (!projectId) {
+      return failStep(plan, running, "Choose a film project first.", { retryable: false });
+    }
+    const section =
+      step.actionId === "open_storyboard" || step.actionId === "select_scene"
+        ? "scenes"
+        : step.actionId === "select_project_character"
+          ? "characters"
+          : step.actionId === "open_timeline"
+            ? "timeline"
+            : step.actionId === "inspect_project_media"
+              ? "media"
+              : step.actionId === "prepare_render"
+                ? "export"
+                : "overview";
+    const params = new URLSearchParams({ section });
+    if (step.actionId === "select_scene" && step.input.sceneId) params.set("scene", step.input.sceneId);
+    if (step.actionId === "select_project_character" && step.input.characterId) {
+      params.set("character", step.input.characterId);
+    }
+    const route = `/studio/projects/${encodeURIComponent(projectId)}?${params.toString()}`;
+    return completeStep(
+      plan,
+      running,
+      {
+        handoffRoute: route,
+        projectId,
+        fusionBootstrap:
+          step.actionId === "prepare_render"
+            ? {
+                width: 720,
+                height: 1280,
+                aspectRatio: "9:16",
+                burnSubtitles: true,
+                executesRender: false,
+                paidProviderCalls: 0,
+              }
+            : { sceneId: step.input.sceneId ?? null, characterId: step.input.characterId ?? null },
+      },
+    );
+  }
+
+  if (step.actionId === "generate_scene_video" || step.actionId === "generate_scene_voice") {
+    return failStep(
+      plan,
+      running,
+      "Paid generation stays on the existing provider service and wallet gate. The director did not call it.",
+      { retryable: false, skipAllowed: true },
+    );
+  }
+
   if (step.actionId === "prepare_music" || step.actionId === "prepare_sfx") {
     const preset = step.input.presetId ? getMotionActionPreset(step.input.presetId) : null;
     const assetName = step.actionId === "prepare_music" ? "Music suggestion" : "SFX suggestion";

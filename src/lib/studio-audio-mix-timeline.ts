@@ -46,6 +46,10 @@ export type StudioAudioMixPlan = {
   /** S2E timeline fingerprint — 0 provider rebuilds when hash matches. */
   timelineHash?: string | null;
   musicSourceOffsetSeconds?: number;
+  /** Seconds of silence before the music bed. Omitted means the bed starts immediately. */
+  musicStartSeconds?: number;
+  /** Length of the music bed. Omitted means the bed fills the mix. */
+  musicDurationSeconds?: number;
 };
 
 export type StudioAudioMixHandoffPlan = StudioAudioMixPlan & {

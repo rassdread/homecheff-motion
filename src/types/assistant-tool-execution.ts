@@ -36,6 +36,8 @@ export type AssistantExecutionStepInput = {
   fusionArchetype?: string;
   projectId?: string | null;
   prefillId?: string;
+  sceneId?: string;
+  characterId?: string;
 };
 
 export type AssistantExecutionStepOutput = {
@@ -60,7 +62,20 @@ export type AssistantExecutionStepOutput = {
 export type AssistantExecutionStep = {
   id: string;
   order: number;
-  actionId: AssistantActionId | "use_existing_asset" | "use_preset_default" | "open_motion_wizard";
+  actionId:
+    | AssistantActionId
+    | "use_existing_asset"
+    | "use_preset_default"
+    | "open_motion_wizard"
+    | "open_film_project"
+    | "open_storyboard"
+    | "select_scene"
+    | "select_project_character"
+    | "open_timeline"
+    | "inspect_project_media"
+    | "prepare_render"
+    | "generate_scene_video"
+    | "generate_scene_voice";
   labelKey: `assistant.execution.step.${string}`;
   descriptionKey?: `assistant.execution.step.${string}`;
   required: boolean;

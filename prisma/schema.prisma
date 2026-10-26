@@ -1429,6 +1429,7 @@ model StudioCreativeProject {
   collections          StudioAssetCollection[]
   brandKits            StudioBrandKit[]
   promptPresets        StudioPromptPreset[]
+  timeline             StudioTimeline?
 
   @@index([ownerId, updatedAt])
   @@index([ownerId, status])
@@ -1749,4 +1750,66 @@ model StudioAssetUsageEvent {
 
   @@index([assetId, createdAt])
   @@index([entityType, entityId])
+}
+
+/** One editable timeline per film project. Clips reference existing media. */
+model StudioTimeline {
+  id              String               @id @default(cuid())
+  projectId       String               @unique
+  project         StudioCreativeProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  revision        Int                  @default(0)
+  simpleMode      Boolean              @default(true)
+  previewLanguage String               @default("")
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  tracks          StudioTimelineTrack[]
+}
+
+model StudioTimelineTrack {
+  id              String             @id @default(cuid())
+  timelineId      String
+  timeline        StudioTimeline     @relation(fields: [timelineId], references: [id], onDelete: Cascade)
+  /** VIDEO | DIALOGUE | NARRATION | MUSIC | SFX | SUBTITLE */
+  type            String
+  sortOrder       Int
+  muted           Boolean            @default(false)
+  volume          Int                @default(100)
+  /** BCP 47 tag for a subtitle track. Empty for other tracks. */
+  language        String             @default("")
+  /** draft | ready. Subtitle tracks only. */
+  subtitleStatus  String             @default("draft")
+  previewEnabled  Boolean            @default(true)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  clips           StudioTimelineClip[]
+
+  @@unique([timelineId, type, language])
+  @@unique([timelineId, sortOrder])
+  @@index([timelineId, sortOrder])
+}
+
+/** A placed reference. Deleting it does not delete the source asset. */
+model StudioTimelineClip {
+  id              String             @id @default(cuid())
+  trackId         String
+  track           StudioTimelineTrack @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  startMs         Int
+  durationMs      Int
+  inMs            Int                @default(0)
+  outMs           Int?
+  /**
+   * scene | scene_image | library_asset | animation_transition | animation_export | narration_script
+   */
+  sourceKind      String
+  sourceId        String             @default("")
+  /** Subtitle cue text when the film has no storyboard. Otherwise empty. */
+  text            String             @default("")
+  volume          Int                @default(100)
+  muted           Boolean            @default(false)
+  clientRequestId String             @default("")
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([trackId, startMs])
+  @@index([trackId, clientRequestId])
 }

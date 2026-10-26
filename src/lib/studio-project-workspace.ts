@@ -9,6 +9,7 @@ export const WORKSPACE_SECTIONS = [
   "characters",
   "media",
   "audio",
+  "timeline",
   "export",
 ] as const;
 

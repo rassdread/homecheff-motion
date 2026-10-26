@@ -1,0 +1,102 @@
+import { prisma } from "@/lib/prisma";
+import {
+  TIMELINE_EXPORT_CAPABILITY,
+  canCancelTimelineExport,
+} from "@/lib/studio-timeline-export-status";
+
+type JobRow = {
+  id: string;
+  status: string;
+  metadataJson: unknown;
+};
+
+function projectIdOf(metadataJson: unknown): string {
+  if (!metadataJson || typeof metadataJson !== "object") return "";
+  const value = (metadataJson as { projectId?: unknown }).projectId;
+  return typeof value === "string" ? value : "";
+}
+
+export async function startTimelineExportJob(input: {
+  ownerId: string;
+  storyboardId: string;
+  projectId: string;
+}) {
+  return prisma.studioGenerationJob.create({
+    data: {
+      ownerId: input.ownerId,
+      storyboardId: input.storyboardId,
+      capability: TIMELINE_EXPORT_CAPABILITY,
+      actionType: "timeline_export",
+      status: "processing",
+      executionMode: "sync",
+      providerAdapter: "ffmpeg",
+      idempotencyKey: `timeline-export:${input.projectId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
+      creditCost: 0,
+      creditsReserved: 0,
+      creditsCharged: 0,
+      chargeFinalized: true,
+      startedAt: new Date(),
+      metadataJson: { projectId: input.projectId },
+    },
+    select: { id: true, status: true },
+  });
+}
+
+export async function readTimelineExportJob(jobId: string, ownerId: string): Promise<JobRow | null> {
+  return prisma.studioGenerationJob.findFirst({
+    where: { id: jobId, ownerId, capability: TIMELINE_EXPORT_CAPABILITY },
+    select: { id: true, status: true, metadataJson: true },
+  });
+}
+
+export async function finishTimelineExportJob(input: {
+  jobId: string;
+  ownerId: string;
+  outcome: "succeeded" | "failed" | "cancelled";
+  errorCode?: string;
+}) {
+  const now = new Date();
+  const data =
+    input.outcome === "succeeded"
+      ? { status: "succeeded", completedAt: now, errorCode: "", errorMessageSafe: "" }
+      : input.outcome === "cancelled"
+        ? { status: "cancelled", cancelledAt: now, errorCode: "cancelled", errorMessageSafe: "Export was cancelled." }
+        : {
+            status: "failed",
+            failedAt: now,
+            errorCode: input.errorCode || "export_failed",
+            errorMessageSafe: "Export did not finish.",
+          };
+  await prisma.studioGenerationJob.updateMany({
+    where: {
+      id: input.jobId,
+      ownerId: input.ownerId,
+      capability: TIMELINE_EXPORT_CAPABILITY,
+      status: { in: ["pending", "queued", "processing", "cancel_requested"] },
+    },
+    data,
+  });
+}
+
+export async function cancelTimelineExportJob(input: { jobId: string; ownerId: string; projectId: string }) {
+  const job = await readTimelineExportJob(input.jobId, input.ownerId);
+  if (!job || projectIdOf(job.metadataJson) !== input.projectId) {
+    return { ok: false as const, code: "not_found", httpStatus: 404 };
+  }
+  if (job.status === "cancelled" || job.status === "cancel_requested") {
+    return { ok: true as const, code: "already_cancelled", httpStatus: 200 };
+  }
+  if (!canCancelTimelineExport(job.status)) {
+    return { ok: false as const, code: "not_cancellable", httpStatus: 409 };
+  }
+  await prisma.studioGenerationJob.updateMany({
+    where: { id: job.id, ownerId: input.ownerId, status: job.status },
+    data: {
+      status: "cancelled",
+      cancelledAt: new Date(),
+      errorCode: "cancelled",
+      errorMessageSafe: "Export was cancelled.",
+    },
+  });
+  return { ok: true as const, code: "cancelled", httpStatus: 200 };
+}
