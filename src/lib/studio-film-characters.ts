@@ -28,6 +28,11 @@ export function uniqueSceneCharacterIds(characterIds: string[]): string[] {
   return [...new Set(characterIds.map((id) => id.trim()).filter(Boolean))];
 }
 
+/** Ids the film scene writer must reject. Existing film members are not in this list. */
+export function rejectedFilmCharacterIds(requested: string[], allowed: ReadonlySet<string>): string[] {
+  return requested.filter((id) => !allowed.has(id));
+}
+
 export function normalizeFilmRequestKey(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const key = value.trim();

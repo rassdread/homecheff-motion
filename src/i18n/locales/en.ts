@@ -5054,6 +5054,7 @@ export const en: LocaleSchema = {
   "studio.projects.cta.create": "Make something",
   "studio.projects.cta.newFilm": "New film",
   "studio.projects.cta.newFilmTitle": "New film",
+  "studio.projects.cta.filmTitle": "Film title",
   "studio.projects.empty.title": "No projects yet.",
   "studio.projects.empty.hint": "Start from Studio Home — your work will show up here.",
   "studio.projects.loading": "Loading projects",

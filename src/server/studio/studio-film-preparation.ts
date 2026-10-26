@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import {
   characterIdsFromLibraryAssets,
   normalizeFilmRequestKey,
+  rejectedFilmCharacterIds,
   uniqueSceneCharacterIds,
 } from "@/lib/studio-film-characters";
 import { decideLink, decideStoryboardCreate, mergeSceneSubtitleLine } from "@/lib/studio-project-linking";
@@ -88,6 +89,8 @@ export async function createOwnedFilmProject(input: {
 
   const created = await prisma.$transaction(async (tx) => {
     if (requestKey) {
+      // Database lock shared by every app instance. Not an in-memory lock.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`film:${input.ownerId}:${requestKey}`}, 0))`;
       const raced = await findOwnedFilmByRequestKey(input.ownerId, requestKey, tx);
       if (raced) {
         return {
@@ -333,12 +336,12 @@ export async function attachFilmAnimation(input: {
   return { animationProjectId: animation!.id, attached: true };
 }
 
-export async function listOwnedFilmCharacters(ownerId: string, projectId: string) {
+async function resolveFilmCharacterIds(ownerId: string, projectId: string): Promise<Set<string> | null> {
   const project = await prisma.studioCreativeProject.findFirst({
     where: { id: projectId, ownerId },
     select: { id: true, storyboardId: true },
   });
-  if (!project) return [];
+  if (!project) return null;
 
   const assets = await prisma.studioLibraryAsset.findMany({
     where: { projectId: project.id, ownerId, family: "character", status: { not: "deleted" } },
@@ -358,8 +361,12 @@ export async function listOwnedFilmCharacters(ownerId: string, projectId: string
     });
     for (const link of assigned) ids.add(link.characterId);
   }
+  return ids;
+}
 
-  if (ids.size === 0) return [];
+export async function listOwnedFilmCharacters(ownerId: string, projectId: string) {
+  const ids = await resolveFilmCharacterIds(ownerId, projectId);
+  if (!ids || ids.size === 0) return [];
   return prisma.studioCharacter.findMany({
     where: { ownerId, id: { in: [...ids] } },
     orderBy: { name: "asc" },
@@ -389,6 +396,18 @@ export async function updateFilmScene(
   const linked = await linkedStoryboard(ownerId, projectId);
   if ("error" in linked) return linked;
   const characterIds = raw.characterIds ? uniqueSceneCharacterIds(raw.characterIds) : undefined;
+  if (characterIds) {
+    const allowed = await resolveFilmCharacterIds(ownerId, projectId);
+    if (!allowed) return fail("not_found", "Not found.", 404);
+    const outside = rejectedFilmCharacterIds(characterIds, allowed);
+    if (outside.length > 0) {
+      return fail(
+        "character_not_in_film",
+        "A character must belong to this film before it can be assigned to a scene.",
+        400,
+      );
+    }
+  }
   return updateStudioScene(linked.storyboardId, sceneId, viewer, { ...raw, characterIds });
 }
 

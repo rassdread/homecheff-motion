@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   characterIdsFromLibraryAssets,
   normalizeFilmRequestKey,
+  rejectedFilmCharacterIds,
   uniqueSceneCharacterIds,
 } from "@/lib/studio-film-characters";
 import { decideStoryboardCreate } from "@/lib/studio-project-linking";
@@ -35,6 +36,8 @@ test("project characters come from character library assets and ignore unrelated
 });
 
 test("scene assignment is idempotent and removal is only a missing id", () => {
+  assert.deepEqual(rejectedFilmCharacterIds(["a", "outside"], new Set(["a", "legacy"])), ["outside"]);
+  assert.deepEqual(rejectedFilmCharacterIds(["legacy"], new Set(["legacy"])), []);
   assert.deepEqual(uniqueSceneCharacterIds(["a", "a", " b ", ""]), ["a", "b"]);
   const assigned = uniqueSceneCharacterIds(["a", "b"]);
   const repeated = uniqueSceneCharacterIds([...assigned, "a"]);
@@ -96,6 +99,8 @@ test("film creation, assignment, and master confirmation reuse existing services
     preparation.indexOf("async function findOwnedFilmByRequestKey"),
   );
   assert.match(filmCreate, /prisma\.\$transaction/);
+  assert.match(filmCreate, /pg_advisory_xact_lock/);
+  assert.match(preparation, /character_not_in_film/);
   assert.doesNotMatch(filmCreate, /animationProjectId|editorCanvasProjectId|homeCheffProjectId/);
   assert.match(preparation, /decideStoryboardCreate/);
   assert.match(preparation, /uniqueSceneCharacterIds/);
