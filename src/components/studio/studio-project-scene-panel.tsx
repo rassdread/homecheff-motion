@@ -264,7 +264,9 @@ function SceneForm({
               ) : null}
               <label className="flex items-center gap-2">
                 <input type="checkbox" checked={characterIds.includes(character.id)} onChange={(event) => {
-                  setCharacterIds((current) => event.target.checked ? [...current, character.id] : current.filter((id) => id !== character.id));
+                  setCharacterIds((current) => event.target.checked
+                    ? (current.includes(character.id) ? current : [...current, character.id])
+                    : current.filter((id) => id !== character.id));
                 }} />
                 {character.name}
               </label>

@@ -11,6 +11,6 @@ export async function GET(_request: Request, context: Ctx) {
   const { projectId } = await context.params;
   const project = await getCreativeProjectForOwner(projectId, user.id);
   if (!project) return NextResponse.json({ error: "Not found.", code: "not_found" }, { status: 404 });
-  const characters = await listOwnedFilmCharacters(user.id);
+  const characters = await listOwnedFilmCharacters(user.id, projectId);
   return NextResponse.json({ projectId, characters });
 }

@@ -4,6 +4,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { characterIdsFromLibraryAssets } from "@/lib/studio-film-characters";
 import { parseSubtitleEntriesJson } from "@/lib/studio-subtitle-track";
 import {
   assembleProjectWorkspace,
@@ -12,12 +13,6 @@ import {
 import { studioClassicEditorHref, studioWorkspaceHref } from "@/lib/studio-workspace-href";
 import { getCreativeProjectForOwner } from "@/server/studio-library/creative-project-service";
 import { getOwnerAudioLibrary } from "@/server/studio/studio-user-audio-library-service";
-
-function characterIdFromMetadata(metadataJson: unknown): string {
-  if (!metadataJson || typeof metadataJson !== "object") return "";
-  const value = (metadataJson as { characterId?: unknown }).characterId;
-  return typeof value === "string" ? value : "";
-}
 
 export async function loadStudioProjectWorkspace(
   ownerId: string,
@@ -46,14 +41,7 @@ export async function loadStudioProjectWorkspace(
     }),
   ]);
 
-  const characterIds = [
-    ...new Set(
-      assets
-        .filter((asset) => asset.family === "character")
-        .map((asset) => characterIdFromMetadata(asset.metadataJson))
-        .filter(Boolean),
-    ),
-  ];
+  const characterIds = characterIdsFromLibraryAssets(assets);
 
   const characters = characterIds.length
     ? await prisma.studioCharacter.findMany({

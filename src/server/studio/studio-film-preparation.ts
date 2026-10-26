@@ -3,7 +3,13 @@
  * Free writes only. No providers, no credit reservation, no master-image updates.
  */
 
+import type { PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import {
+  characterIdsFromLibraryAssets,
+  normalizeFilmRequestKey,
+  uniqueSceneCharacterIds,
+} from "@/lib/studio-film-characters";
 import { decideLink, decideStoryboardCreate, mergeSceneSubtitleLine } from "@/lib/studio-project-linking";
 import { parseSubtitleEntriesJson } from "@/lib/studio-subtitle-track";
 import { getCreativeProjectForOwner } from "@/server/studio-library/creative-project-service";
@@ -40,6 +46,119 @@ async function linkedStoryboard(ownerId: string, projectId: string) {
   });
   if (!storyboard) return fail("not_found", "Not found.", 404);
   return { project: film.project, storyboardId: storyboard.id };
+}
+
+/**
+ * Explicit film creation. General creative-project creation does not call this.
+ * A repeated idempotency key reuses the same owned film and its storyboard.
+ * Projects that were not created here are not updated.
+ */
+export async function createOwnedFilmProject(input: {
+  ownerId: string;
+  title: string;
+  description?: string;
+  idempotencyKey?: unknown;
+}) {
+  const title = input.title.trim().slice(0, 160);
+  if (!title) return fail("validation", "title is required.", 400);
+  const description = (input.description ?? "").trim().slice(0, 4000);
+  const requestKey = normalizeFilmRequestKey(input.idempotencyKey);
+
+  if (requestKey) {
+    const existing = await findOwnedFilmByRequestKey(input.ownerId, requestKey);
+    if (existing) {
+      if (existing.storyboardId) {
+        return {
+          projectId: existing.id,
+          storyboardId: existing.storyboardId,
+          title: existing.title,
+          created: false,
+        };
+      }
+      const linked = await createFilmStoryboard(input.ownerId, existing.id);
+      if ("error" in linked) return linked;
+      return {
+        projectId: existing.id,
+        storyboardId: linked.storyboardId,
+        title: existing.title,
+        created: false,
+      };
+    }
+  }
+
+  const created = await prisma.$transaction(async (tx) => {
+    if (requestKey) {
+      const raced = await findOwnedFilmByRequestKey(input.ownerId, requestKey, tx);
+      if (raced) {
+        return {
+          projectId: raced.id,
+          storyboardId: raced.storyboardId,
+          title: raced.title,
+          created: false as const,
+        };
+      }
+    }
+    const project = await tx.studioCreativeProject.create({
+      data: {
+        ownerId: input.ownerId,
+        title,
+        description,
+        status: "active",
+        lastOpenedAt: new Date(),
+        metadataJson: {
+          projectKind: "film",
+          ...(requestKey ? { filmRequestKey: requestKey } : {}),
+        },
+      },
+    });
+    const storyboard = await tx.studioStoryboard.create({
+      data: {
+        ownerId: input.ownerId,
+        title,
+        description,
+      },
+    });
+    await tx.studioCreativeProject.update({
+      where: { id: project.id },
+      data: { storyboardId: storyboard.id },
+    });
+    return {
+      projectId: project.id,
+      storyboardId: storyboard.id,
+      title: project.title,
+      created: true as const,
+    };
+  });
+
+  if (created.storyboardId) return created;
+  const linked = await createFilmStoryboard(input.ownerId, created.projectId);
+  if ("error" in linked) return linked;
+  if (!linked.storyboardId) {
+    return fail("storyboard_required", "This film has no storyboard yet.", 409);
+  }
+  return {
+    projectId: created.projectId,
+    storyboardId: linked.storyboardId,
+    title: created.title,
+    created: false,
+  };
+}
+
+async function findOwnedFilmByRequestKey(
+  ownerId: string,
+  requestKey: string,
+  tx: PrismaClient | Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0] = prisma,
+) {
+  return tx.studioCreativeProject.findFirst({
+    where: {
+      ownerId,
+      AND: [
+        { metadataJson: { path: ["projectKind"], equals: "film" } },
+        { metadataJson: { path: ["filmRequestKey"], equals: requestKey } },
+      ],
+    },
+    select: { id: true, title: true, storyboardId: true },
+  });
 }
 
 export async function createFilmStoryboard(ownerId: string, projectId: string) {
@@ -214,9 +333,35 @@ export async function attachFilmAnimation(input: {
   return { animationProjectId: animation!.id, attached: true };
 }
 
-export async function listOwnedFilmCharacters(ownerId: string) {
+export async function listOwnedFilmCharacters(ownerId: string, projectId: string) {
+  const project = await prisma.studioCreativeProject.findFirst({
+    where: { id: projectId, ownerId },
+    select: { id: true, storyboardId: true },
+  });
+  if (!project) return [];
+
+  const assets = await prisma.studioLibraryAsset.findMany({
+    where: { projectId: project.id, ownerId, family: "character", status: { not: "deleted" } },
+    select: { family: true, metadataJson: true },
+    take: 200,
+  });
+  const ids = new Set(characterIdsFromLibraryAssets(assets));
+
+  if (project.storyboardId) {
+    const assigned = await prisma.studioSceneCharacter.findMany({
+      where: {
+        scene: { storyboard: { id: project.storyboardId, ownerId } },
+        character: { ownerId },
+      },
+      select: { characterId: true },
+      take: 400,
+    });
+    for (const link of assigned) ids.add(link.characterId);
+  }
+
+  if (ids.size === 0) return [];
   return prisma.studioCharacter.findMany({
-    where: { ownerId },
+    where: { ownerId, id: { in: [...ids] } },
     orderBy: { name: "asc" },
     take: 100,
     select: { id: true, name: true, referenceImageUrl: true },
@@ -243,7 +388,8 @@ export async function updateFilmScene(
 ) {
   const linked = await linkedStoryboard(ownerId, projectId);
   if ("error" in linked) return linked;
-  return updateStudioScene(linked.storyboardId, sceneId, viewer, raw);
+  const characterIds = raw.characterIds ? uniqueSceneCharacterIds(raw.characterIds) : undefined;
+  return updateStudioScene(linked.storyboardId, sceneId, viewer, { ...raw, characterIds });
 }
 
 export async function reorderFilmScenes(

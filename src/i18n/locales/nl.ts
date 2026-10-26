@@ -5047,6 +5047,8 @@ export const nl = {
   "studio.projects.title": "Mijn projecten",
   "studio.projects.subtitle": "Ga verder waar je was, of open een afgewerkte video.",
   "studio.projects.cta.create": "Iets maken",
+  "studio.projects.cta.newFilm": "Nieuwe film",
+  "studio.projects.cta.newFilmTitle": "Nieuwe film",
   "studio.projects.empty.title": "Nog geen projecten.",
   "studio.projects.empty.hint": "Begin via Studio Home — hier verschijnen je projecten.",
   "studio.projects.loading": "Projecten laden",

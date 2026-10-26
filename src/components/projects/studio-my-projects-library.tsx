@@ -5,7 +5,8 @@
  */
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import type {
@@ -66,6 +67,9 @@ function actionLabelKey(action: StudioProjectRecommendedAction): TranslationKey 
 
 export function StudioMyProjectsLibrary() {
   const t = useActiveTranslator();
+  const router = useRouter();
+  const filmRequestKey = useRef("");
+  const [creatingFilm, setCreatingFilm] = useState(false);
   const [projects, setProjects] = useState<StudioProjectSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -128,12 +132,46 @@ export function StudioMyProjectsLibrary() {
           </h1>
           <p className="mt-1 text-sm text-zinc-600">{t("studio.projects.subtitle")}</p>
         </div>
-        <Link
-          href="/studio"
-          className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#006D52] px-5 text-sm font-semibold text-white hover:bg-[#005a44]"
-        >
-          {t("studio.projects.cta.create")}
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#006D52] px-5 text-sm font-semibold text-[#006D52] hover:bg-[#006D52]/5 disabled:opacity-60"
+            disabled={creatingFilm}
+            onClick={() => {
+              if (!filmRequestKey.current) filmRequestKey.current = crypto.randomUUID();
+              setCreatingFilm(true);
+              setError("");
+              void fetch("/api/studio/films", {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  title: t("studio.projects.cta.newFilmTitle"),
+                  idempotencyKey: filmRequestKey.current,
+                }),
+              })
+                .then(async (response) => {
+                  const body = (await response.json().catch(() => ({}))) as { projectId?: string };
+                  if (!response.ok || !body.projectId) {
+                    setError(t("studio.projects.error.load"));
+                    return;
+                  }
+                  filmRequestKey.current = "";
+                  router.push(`/studio/projects/${body.projectId}?section=scenes`);
+                })
+                .catch(() => setError(t("studio.projects.error.load")))
+                .finally(() => setCreatingFilm(false));
+            }}
+          >
+            {t("studio.projects.cta.newFilm")}
+          </button>
+          <Link
+            href="/studio"
+            className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#006D52] px-5 text-sm font-semibold text-white hover:bg-[#005a44]"
+          >
+            {t("studio.projects.cta.create")}
+          </Link>
+        </div>
       </header>
 
       {error ? (
