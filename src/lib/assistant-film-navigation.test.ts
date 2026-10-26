@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getAssistantExecutionCreditEstimate, getAssistantExecutionMode } from "@/lib/assistant-tool-execution-mode";
+import { getActionCost } from "@/server/studio-account/studio-action-cost-registry";
 import { executeAssistantPlanStep } from "@/server/assistant/assistant-tool-executor";
 import type { AssistantExecutionPlan, AssistantExecutionStep } from "@/types/assistant-tool-execution";
 
@@ -66,14 +67,24 @@ test("confirmed scene and character selection keep their ids", () => {
   assert.equal(characterResult.handoffRoute, "/studio/projects/film_1?section=characters&character=baker");
 });
 
-test("director does not call paid generation", () => {
-  for (const actionId of ["generate_scene_video", "generate_scene_voice"] as const) {
+test("director prepares generation without calling a provider", () => {
+  const expectations = [
+    ["generate_scene_video", "motion_render", getActionCost("motion_render")?.defaultCreditCost ?? 0],
+    ["generate_scene_voice", "voice_generation", getActionCost("voice_generation")?.defaultCreditCost ?? 0],
+  ] as const;
+  for (const [actionId, actionType, credits] of expectations) {
     const action = step(actionId, { projectId: "film_1", sceneId: "scene_9" });
+    const waiting = executeAssistantPlanStep({ plan: filmPlan(action), stepId: action.id, confirmed: false });
+    assert.equal(waiting.status, "waiting_for_confirmation");
+    assert.equal(waiting.providerCalls, 0);
     const result = executeAssistantPlanStep({ plan: filmPlan(action), stepId: action.id, confirmed: true });
-    assert.equal(result.status, "failed");
+    assert.equal(result.status, "completed");
     assert.equal(result.providerCalls, 0);
     assert.equal(result.creditsConsumed, 0);
-    assert.match(result.step.error ?? "", /wallet gate/);
+    assert.equal(result.step.output?.fusionBootstrap?.executesProvider, false);
+    assert.equal(result.step.output?.fusionBootstrap?.actionType, actionType);
+    assert.equal(result.step.output?.fusionBootstrap?.estimatedCredits, credits);
+    assert.equal(result.handoffRoute, "/studio/projects/film_1?section=scenes&scene=scene_9");
   }
 });
 

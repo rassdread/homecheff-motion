@@ -6,6 +6,7 @@ import {
   isVideoRenderAction,
 } from "@/lib/assistant-tool-execution-mode";
 import { getMotionActionPreset } from "@/lib/motion-action-presets";
+import { getActionCost } from "@/server/studio-account/studio-action-cost-registry";
 import { getActionPresetRequirement } from "@/lib/action-preset-requirements";
 import type {
   AssistantExecutionPlan,
@@ -305,12 +306,26 @@ export function executeAssistantPlanStep(input: ExecuteAssistantPlanStepInput): 
   }
 
   if (step.actionId === "generate_scene_video" || step.actionId === "generate_scene_voice") {
-    return failStep(
-      plan,
-      running,
-      "Paid generation stays on the existing provider service and wallet gate. The director did not call it.",
-      { retryable: false, skipAllowed: true },
-    );
+    const projectId = step.input.projectId?.trim() ?? "";
+    const sceneId = step.input.sceneId?.trim() ?? "";
+    if (!projectId || !sceneId) {
+      return failStep(plan, running, "Choose a film scene before preparing generation.", { retryable: false });
+    }
+    const actionType = step.actionId === "generate_scene_video" ? "motion_render" : "voice_generation";
+    const cost = getActionCost(actionType);
+    const route = `/studio/projects/${encodeURIComponent(projectId)}?section=scenes&scene=${encodeURIComponent(sceneId)}`;
+    return completeStep(plan, running, {
+      handoffRoute: route,
+      projectId,
+      fusionBootstrap: {
+        preparesGeneration: true,
+        executesProvider: false,
+        paidProviderCalls: 0,
+        actionType,
+        estimatedCredits: cost?.defaultCreditCost ?? 0,
+        requiresExplicitConfirmation: true,
+      },
+    });
   }
 
   if (step.actionId === "prepare_music" || step.actionId === "prepare_sfx") {
