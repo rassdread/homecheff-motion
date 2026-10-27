@@ -339,7 +339,7 @@ export function StudioAiHomeComposer() {
   };
 
   const completeProjectHandoff = async (kind: "film" | "existing") => {
-    if (busy) return;
+    if (busy || !auth.resolved) return;
     if (!auth.user) {
       rememberDraft();
       router.push(`/login?next=${encodeURIComponent("/studio")}`);
@@ -618,7 +618,7 @@ export function StudioAiHomeComposer() {
           estimatedCredits={estimatedCredits}
           balanceAfter={balanceAfter}
           allowed={allowed || plan.free || Boolean(editorHref)}
-          loading={busy}
+          loading={busy || !auth.resolved}
           projectHandoff={projectHandoff}
           editorIntent={editorIntent}
           onConfirm={onConfirmMake}
