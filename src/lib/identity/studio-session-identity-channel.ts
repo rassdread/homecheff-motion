@@ -4,6 +4,8 @@
  * Never trust channel payload for authorization — always re-fetch /api/auth/session.
  */
 
+import { clearStudioPrivateClientContext } from "@/lib/studio-home-composer-context";
+
 export const STUDIO_AUTH_CHANNEL = "homecheff-studio-auth";
 export const STUDIO_AUTH_USER_STORAGE_KEY = "studio_auth_user_id";
 
@@ -44,6 +46,7 @@ export function readRememberedStudioAuthUserId(): string | null {
 
 /** Clear identity-bound Studio client residue (keep language prefs). */
 export function clearStudioIdentityBoundClientResidue(): void {
+  clearStudioPrivateClientContext();
   if (typeof window === "undefined") return;
   const lsKeys = [
     "hc-instant-wizard:v1",

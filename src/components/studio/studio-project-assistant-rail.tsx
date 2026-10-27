@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useActiveTranslator } from "@/i18n/client";
+import { readStudioAiHomeIntentPlan, readStudioAiHomeIntentProject } from "@/lib/studio-ai-home-intent";
 import { proposeStudioV23Command, type StudioV23SceneContext } from "@/lib/studio-v23-actions";
 import { flushPendingSceneEdits } from "@/lib/studio-v23-pending-edits";
 import { studioVisual } from "@/lib/studio-visual-tokens";
@@ -18,6 +19,15 @@ type Quote = {
   durationSeconds?: number;
   characterIdentityLock?: false;
 };
+
+function subscribeStoredIntent(): () => void {
+  return () => undefined;
+}
+
+function originatingPromptFor(projectId: string): string {
+  const plan = readStudioAiHomeIntentProject() === projectId ? readStudioAiHomeIntentPlan() : null;
+  return plan?.originalPrompt?.trim() ?? "";
+}
 
 type ActionResponse = {
   ok: boolean;
@@ -59,6 +69,11 @@ export function StudioProjectAssistantRail({
 }) {
   const t = useActiveTranslator();
   const router = useRouter();
+  const originatingPrompt = useSyncExternalStore(
+    subscribeStoredIntent,
+    () => originatingPromptFor(projectId),
+    () => "",
+  );
   const [draft, setDraft] = useState("");
   const [proposal, setProposal] = useState<ReturnType<typeof proposeStudioV23Command> | null>(null);
   const [result, setResult] = useState<ActionResponse | null>(null);
@@ -144,6 +159,11 @@ export function StudioProjectAssistantRail({
       </ul>
       {collapsed ? null : (
         <>
+          {originatingPrompt ? (
+            <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-800" data-testid="studio-v23-originating-intent">
+              {originatingPrompt}
+            </p>
+          ) : null}
           <label className="block text-sm text-zinc-700" htmlFor="studio-v23-assistant-input">
             {t("studio.v23.assistant.placeholder")}
           </label>

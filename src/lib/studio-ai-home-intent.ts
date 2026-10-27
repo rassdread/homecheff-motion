@@ -750,6 +750,8 @@ export function buildStudioAiHomeIntentPlan(
 
 /** Persist plan for handoff consumers (Phase 4 post-gen reuse). */
 export const STUDIO_AI_HOME_PLAN_STORAGE_KEY = "hc-studio-ai-home-intent-plan-v1";
+/** Project that owns the stored plan. Other projects must not inherit it. */
+export const STUDIO_AI_HOME_PLAN_PROJECT_KEY = "hc-studio-ai-home-intent-project-v1";
 
 export function storeStudioAiHomeIntentPlan(plan: StudioIntentPlan): void {
   if (typeof window === "undefined") return;
@@ -766,6 +768,24 @@ export function readStudioAiHomeIntentPlan(): StudioIntentPlan | null {
     const raw = sessionStorage.getItem(STUDIO_AI_HOME_PLAN_STORAGE_KEY);
     if (!raw) return null;
     return JSON.parse(raw) as StudioIntentPlan;
+  } catch {
+    return null;
+  }
+}
+
+export function bindStudioAiHomeIntentProject(projectId: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(STUDIO_AI_HOME_PLAN_PROJECT_KEY, projectId);
+  } catch {
+    /* ignore quota */
+  }
+}
+
+export function readStudioAiHomeIntentProject(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return sessionStorage.getItem(STUDIO_AI_HOME_PLAN_PROJECT_KEY);
   } catch {
     return null;
   }

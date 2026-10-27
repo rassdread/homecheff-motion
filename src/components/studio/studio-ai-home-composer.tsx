@@ -11,9 +11,15 @@ import {
   fetchStudioBrandKitsForHome,
 } from "@/lib/studio-ai-home-client";
 import {
+  bindStudioAiHomeIntentProject,
   buildStudioAiHomeIntentPlan,
   storeStudioAiHomeIntentPlan,
 } from "@/lib/studio-ai-home-intent";
+import {
+  publishStudioHomeComposerContext,
+  STUDIO_HOME_DRAFT_KEY,
+  subscribeStudioHomeComposerPrompt,
+} from "@/lib/studio-home-composer-context";
 import {
   classifyStudioCreativeIntent,
   creativeIntentHandoffHref,
@@ -47,7 +53,7 @@ function trackAiHomeEvent(event: string, detail?: Record<string, unknown>) {
 
 type PickerKind = "media" | "character" | "product" | "brand" | null;
 
-const HOME_DRAFT_KEY = "hc_studio_ai_home_draft";
+const HOME_DRAFT_KEY = STUDIO_HOME_DRAFT_KEY;
 
 type HomeDraft = {
   prompt?: string;
@@ -70,15 +76,6 @@ function readHomeDraft(): HomeDraft | null {
     homeDraftCache = null;
   }
   return homeDraftCache;
-}
-
-function clearHomeDraft(): void {
-  homeDraftCache = null;
-  try {
-    sessionStorage.removeItem(HOME_DRAFT_KEY);
-  } catch {
-    /* ignore */
-  }
 }
 
 function writeHomeDraft(value: HomeDraft): void {
@@ -118,6 +115,25 @@ export function StudioAiHomeComposer() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [estimatedCredits, setEstimatedCredits] = useState<number | null>(null);
+
+  useEffect(() => subscribeStudioHomeComposerPrompt((next) => {
+    setPrompt(next);
+    setPlan(null);
+    setMissingHint(null);
+  }), []);
+
+  useEffect(() => {
+    publishStudioHomeComposerContext({
+      prompt,
+      attachments: attachments.map((item) => ({ kind: item.kind, id: item.id, name: item.name })),
+    });
+    if (!draftApplied && !prompt.trim() && attachments.length === 0 && !inspirationId) return;
+    try {
+      writeHomeDraft({ prompt, attachments, inspirationId });
+    } catch {
+      /* ignore quota */
+    }
+  }, [attachments, draftApplied, inspirationId, prompt]);
   const [allowed, setAllowed] = useState(true);
   const [balanceAfter, setBalanceAfter] = useState<number | null>(null);
   const [showAllInspiration, setShowAllInspiration] = useState(false);
@@ -128,10 +144,6 @@ export function StudioAiHomeComposer() {
   const visibleInspiration = showAllInspiration
     ? STUDIO_AI_HOME_INSPIRATION
     : STUDIO_AI_HOME_INSPIRATION.slice(0, STUDIO_AI_HOME_INSPIRATION_PRIMARY_COUNT);
-
-  useEffect(() => {
-    if (draftApplied) clearHomeDraft();
-  }, [draftApplied]);
 
   useEffect(() => {
     if (!auth.resolved || !auth.user) {
@@ -365,6 +377,7 @@ export function StudioAiHomeComposer() {
           return;
         }
         storeStudioAiHomeIntentPlan(plan!);
+        bindStudioAiHomeIntentProject(payload.projectId);
         router.push(`/studio/projects/${payload.projectId}?section=overview&workflow=film`);
         return;
       }
