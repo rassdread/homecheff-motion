@@ -96,6 +96,37 @@ describe("preview local login flag", () => {
     });
   });
 
+  it("allows one explicitly matched isolated preview project and rejects a mismatch", () => {
+    withEnv(
+      authorizedPreviewEnv({
+        VERCEL_PROJECT_ID: "prj_isolated_v25",
+        STUDIO_ISOLATED_PREVIEW_PROJECT_ID: "prj_isolated_v25",
+      }),
+      () => {
+        assert.equal(canUsePreviewLocalPasswordLogin(), true);
+      },
+    );
+    withEnv(
+      authorizedPreviewEnv({
+        VERCEL_PROJECT_ID: "prj_other",
+        STUDIO_ISOLATED_PREVIEW_PROJECT_ID: "prj_isolated_v25",
+      }),
+      () => {
+        assert.equal(canUsePreviewLocalPasswordLogin(), false);
+      },
+    );
+    withEnv(
+      authorizedPreviewEnv({
+        VERCEL_ENV: "production",
+        VERCEL_PROJECT_ID: "prj_isolated_v25",
+        STUDIO_ISOLATED_PREVIEW_PROJECT_ID: "prj_isolated_v25",
+      }),
+      () => {
+        assert.equal(canUsePreviewLocalPasswordLogin(), false);
+      },
+    );
+  });
+
   it("refuses a local session when central SSO is live", () => {
     withEnv(
       authorizedPreviewEnv({

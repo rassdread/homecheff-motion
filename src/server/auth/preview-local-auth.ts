@@ -29,7 +29,10 @@ export type PreviewLocalCredentialDecision =
 export function isAuthorizedStudioPreviewDeployment(): boolean {
   const env = process.env.VERCEL_ENV?.trim();
   const projectId = process.env.VERCEL_PROJECT_ID?.trim();
-  return env === "preview" && projectId === AUTHORIZED_STUDIO_PREVIEW_PROJECT_ID;
+  if (env !== "preview" || !projectId) return false;
+  if (projectId === AUTHORIZED_STUDIO_PREVIEW_PROJECT_ID) return true;
+  const isolated = process.env.STUDIO_ISOLATED_PREVIEW_PROJECT_ID?.trim();
+  return Boolean(isolated) && isolated === projectId;
 }
 
 export function canUsePreviewLocalPasswordLogin(): boolean {
