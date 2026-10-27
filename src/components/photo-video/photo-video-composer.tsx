@@ -355,7 +355,7 @@ export function PhotoVideoComposer({
       });
       return true;
     },
-    [draftContext, setComposition, setSelectedOverlayId, setPickingMusic]
+    [draftContext, setCatalogOpen, setComposition, setPickingMusic, setResumeOffer, setSelectedOverlayId, setSelectedPhotoId]
   );
 
   useEffect(() => {
@@ -790,13 +790,10 @@ export function PhotoVideoComposer({
   const phoneLandscape = posture === "phone-landscape";
   const hasSelection = Boolean(selectedPhotoId);
 
-  useEffect(() => {
-    if (posture !== "desktop" && hasSelection) {
-      setGlobalExpanded(false);
-    } else if (!hasSelection) {
-      setGlobalExpanded(true);
-    }
-  }, [hasSelection, posture]);
+  const forcedGlobalExpanded = posture !== "desktop" && hasSelection ? false : !hasSelection ? true : null;
+  if (forcedGlobalExpanded !== null && globalExpanded !== forcedGlobalExpanded) {
+    setGlobalExpanded(forcedGlobalExpanded);
+  }
   const exportReady = ready && !duration.videoOverBudget;
   const durationChipValue =
     composition.durationMode === "auto" ? "auto" : String(composition.durationSeconds);

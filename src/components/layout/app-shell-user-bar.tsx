@@ -71,14 +71,14 @@ export function AppShellUserBar({ compact = false, previewLogoutIsolated = false
   const [locale] = useLocale();
   const session = useAuthSession();
   const [open, setOpen] = useState(false);
-  const [affiliateAccess, setAffiliateAccess] = useState<boolean | null>(null);
+  const [affiliateForUser, setAffiliateForUser] = useState<{ userId: string; access: boolean } | null>(null);
+  const affiliateAccess =
+    session.user && affiliateForUser?.userId === session.user.id ? affiliateForUser.access : null;
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!session.user) {
-      setAffiliateAccess(null);
-      return;
-    }
+    const user = session.user;
+    if (!user) return;
     let cancelled = false;
     void fetch("/api/me/affiliate/self", { credentials: "include", cache: "no-store" })
       .then(async (res) => {
@@ -87,7 +87,7 @@ export function AppShellUserBar({ compact = false, previewLogoutIsolated = false
           dashboardAccess?: boolean;
         } | null;
         if (cancelled || !res.ok || !json || typeof json.dashboardAccess !== "boolean") return;
-        setAffiliateAccess(json.dashboardAccess);
+        setAffiliateForUser({ userId: user.id, access: json.dashboardAccess });
       })
       .catch(() => undefined);
     return () => {

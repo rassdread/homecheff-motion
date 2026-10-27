@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
@@ -45,6 +45,45 @@ function trackAiHomeEvent(event: string, detail?: Record<string, unknown>) {
 
 type PickerKind = "media" | "character" | "product" | "brand" | null;
 
+const HOME_DRAFT_KEY = "hc_studio_ai_home_draft";
+
+type HomeDraft = {
+  prompt?: string;
+  attachments?: StudioIntentPlanAttachment[];
+  inspirationId?: StudioAiHomeInspirationId | null;
+};
+
+let homeDraftCache: HomeDraft | null | undefined;
+
+function subscribeHomeDraft(): () => void {
+  return () => undefined;
+}
+
+function readHomeDraft(): HomeDraft | null {
+  if (homeDraftCache !== undefined) return homeDraftCache;
+  try {
+    const raw = sessionStorage.getItem(HOME_DRAFT_KEY);
+    homeDraftCache = raw ? (JSON.parse(raw) as HomeDraft) : null;
+  } catch {
+    homeDraftCache = null;
+  }
+  return homeDraftCache;
+}
+
+function clearHomeDraft(): void {
+  homeDraftCache = null;
+  try {
+    sessionStorage.removeItem(HOME_DRAFT_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+function writeHomeDraft(value: HomeDraft): void {
+  homeDraftCache = undefined;
+  sessionStorage.setItem(HOME_DRAFT_KEY, JSON.stringify(value));
+}
+
 export function StudioAiHomeComposer() {
   const t = useActiveTranslator();
   const [locale] = useLocale();
@@ -53,9 +92,21 @@ export function StudioAiHomeComposer() {
   const promptId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const restoredDraft = useSyncExternalStore(subscribeHomeDraft, readHomeDraft, () => null);
+  const [draftApplied, setDraftApplied] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [attachments, setAttachments] = useState<StudioIntentPlanAttachment[]>([]);
   const [inspirationId, setInspirationId] = useState<StudioAiHomeInspirationId | null>(null);
+  if (!draftApplied && restoredDraft) {
+    setDraftApplied(true);
+    if (typeof restoredDraft.prompt === "string" && restoredDraft.prompt.trim()) {
+      setPrompt(restoredDraft.prompt);
+    }
+    if (Array.isArray(restoredDraft.attachments) && restoredDraft.attachments.length > 0) {
+      setAttachments(restoredDraft.attachments);
+    }
+    if (restoredDraft.inspirationId) setInspirationId(restoredDraft.inspirationId);
+  }
   const [characters, setCharacters] = useState<StudioCharacterListItem[]>([]);
   const [props, setProps] = useState<StudioPropListItem[]>([]);
   const [brands, setBrands] = useState<Array<{ id: string; name: string; url?: string | null }>>([]);
@@ -77,28 +128,8 @@ export function StudioAiHomeComposer() {
     : STUDIO_AI_HOME_INSPIRATION.slice(0, STUDIO_AI_HOME_INSPIRATION_PRIMARY_COUNT);
 
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem("hc_studio_ai_home_draft");
-      if (!raw) return;
-      const draft = JSON.parse(raw) as {
-        prompt?: string;
-        attachments?: StudioIntentPlanAttachment[];
-        inspirationId?: StudioAiHomeInspirationId | null;
-      };
-      sessionStorage.removeItem("hc_studio_ai_home_draft");
-      if (typeof draft.prompt === "string" && draft.prompt.trim()) {
-        setPrompt(draft.prompt);
-      }
-      if (Array.isArray(draft.attachments) && draft.attachments.length > 0) {
-        setAttachments(draft.attachments);
-      }
-      if (draft.inspirationId) {
-        setInspirationId(draft.inspirationId);
-      }
-    } catch {
-      /* ignore */
-    }
-  }, []);
+    if (draftApplied) clearHomeDraft();
+  }, [draftApplied]);
 
   useEffect(() => {
     if (!auth.resolved || !auth.user) {
@@ -282,10 +313,7 @@ export function StudioAiHomeComposer() {
 
   const rememberDraft = () => {
     try {
-      sessionStorage.setItem(
-        "hc_studio_ai_home_draft",
-        JSON.stringify({ prompt, attachments, inspirationId })
-      );
+      writeHomeDraft({ prompt, attachments, inspirationId });
     } catch {
       /* ignore */
     }
@@ -423,10 +451,7 @@ export function StudioAiHomeComposer() {
                   }
                   if (!auth.user) {
                     try {
-                      sessionStorage.setItem(
-                        "hc_studio_ai_home_draft",
-                        JSON.stringify({ prompt, attachments, inspirationId })
-                      );
+                      writeHomeDraft({ prompt, attachments, inspirationId });
                     } catch {
                       /* ignore */
                     }

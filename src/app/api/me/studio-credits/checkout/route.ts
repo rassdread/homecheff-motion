@@ -13,7 +13,7 @@ import { assertStudioNlSelfServiceCheckout } from "@/lib/billing/studio-nl-eligi
 import {
   isCentralStudioPaidCheckoutEnabled,
   isCentralStudioTechnicalReady,
-  useLegacyMotionStripeCheckout,
+  isLegacyMotionStripeCheckoutEnabled,
 } from "@/lib/studio-central-billing-flags";
 import { createCentralStudioCheckout } from "@/lib/studio-homecheff-hc-fetch";
 import { readStudioUtmFromCookies } from "@/server/acquisition/read-studio-utm-cookie";
@@ -114,7 +114,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, url: data.checkoutUrl, sessionId: data.checkoutSessionId, central: true });
     }
 
-    if (!useLegacyMotionStripeCheckout()) {
+    if (!isLegacyMotionStripeCheckoutEnabled()) {
       return NextResponse.json(
         {
           error: "Legacy Studio checkout is retired.",

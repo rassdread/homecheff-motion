@@ -21,6 +21,6 @@ export function isLegacyStudioCheckoutRetired(): boolean {
 }
 
 /** Legacy Motion Stripe checkout — only when central prep is not deployed. */
-export function useLegacyMotionStripeCheckout(): boolean {
+export function isLegacyMotionStripeCheckoutEnabled(): boolean {
   return !isCentralStudioTechnicalReady() && !isCentralStudioPaidCheckoutEnabled();
 }

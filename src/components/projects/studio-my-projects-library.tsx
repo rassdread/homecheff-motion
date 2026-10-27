@@ -6,7 +6,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import type {
@@ -65,6 +65,17 @@ function actionLabelKey(action: StudioProjectRecommendedAction): TranslationKey 
   return `studio.projects.action.${action}` as TranslationKey;
 }
 
+function readProjectLocale(): string {
+  const lang = document.documentElement.lang || "nl";
+  return lang.startsWith("en") ? "en" : "nl";
+}
+
+function subscribeProjectLocale(onStoreChange: () => void): () => void {
+  const observer = new MutationObserver(onStoreChange);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
+  return () => observer.disconnect();
+}
+
 export function StudioMyProjectsLibrary() {
   const t = useActiveTranslator();
   const router = useRouter();
@@ -76,16 +87,7 @@ export function StudioMyProjectsLibrary() {
   const [error, setError] = useState("");
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
-  const [locale, setLocale] = useState("nl");
-
-  useEffect(() => {
-    try {
-      const lang = document.documentElement.lang || "nl";
-      setLocale(lang.startsWith("en") ? "en" : "nl");
-    } catch {
-      /* ignore */
-    }
-  }, []);
+  const locale = useSyncExternalStore(subscribeProjectLocale, readProjectLocale, () => "nl");
 
   const load = useCallback(async (cursor?: string | null, append = false) => {
     setLoading(true);
@@ -118,8 +120,31 @@ export function StudioMyProjectsLibrary() {
   }, [t]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let cancelled = false;
+    void fetch("/api/studio/projects?limit=40", { credentials: "include" })
+      .then(async (res) => {
+        if (cancelled) return;
+        if (!res.ok) {
+          setError(t("studio.projects.error.load"));
+          setProjects([]);
+          setLoading(false);
+          return;
+        }
+        const data = (await res.json()) as { projects: StudioProjectSummary[]; nextCursor: string | null };
+        setProjects(data.projects);
+        setNextCursor(data.nextCursor);
+        trackProjectsEvent("studio_projects_view", { count: data.projects.length });
+        setLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setError(t("studio.projects.error.load"));
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [t]);
 
   const displayTitle = (p: StudioProjectSummary) =>
     p.title.trim() || t("studio.projects.fallbackTitle");

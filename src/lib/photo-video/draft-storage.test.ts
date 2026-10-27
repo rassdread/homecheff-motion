@@ -114,9 +114,20 @@ describe("PX.4A.3 photo-video draft + funnel", () => {
   });
 
   it("records privacy-safe funnel events without payloads", () => {
-    if (typeof globalThis.localStorage === "undefined") {
+    const hostStorage = globalThis.localStorage;
+    let storageWorks = typeof hostStorage !== "undefined";
+    if (storageWorks) {
+      try {
+        hostStorage.setItem("__hc_storage_probe", "1");
+        storageWorks = hostStorage.getItem("__hc_storage_probe") === "1";
+        hostStorage.removeItem("__hc_storage_probe");
+      } catch {
+        storageWorks = false;
+      }
+    }
+    if (!storageWorks) {
       const store = new Map<string, string>();
-      // @ts-expect-error test shim
+      // @ts-expect-error test shim for hosts whose localStorage cannot round-trip
       globalThis.localStorage = {
         getItem: (k: string) => store.get(k) ?? null,
         setItem: (k: string, v: string) => {

@@ -6,7 +6,7 @@ import {
   isCentralStudioPaidCheckoutEnabled,
   isCentralStudioTechnicalReady,
   isLegacyStudioCheckoutRetired,
-  useLegacyMotionStripeCheckout,
+  isLegacyMotionStripeCheckoutEnabled,
 } from "@/lib/studio-central-billing-flags";
 import { motionRenderAuthoritativeCredits } from "@/lib/studio-video-hc-pricing";
 import {
@@ -44,7 +44,7 @@ describe("Studio NL B2C technical blocker closeout (motion)", () => {
     process.env.CENTRAL_STUDIO_TECHNICAL_READY = "1";
     delete process.env.CENTRAL_STUDIO_PUBLIC_ACQUISITION_ENABLED;
     assert.equal(isLegacyStudioCheckoutRetired(), true);
-    assert.equal(useLegacyMotionStripeCheckout(), false);
+    assert.equal(isLegacyMotionStripeCheckoutEnabled(), false);
     if (prev) process.env.CENTRAL_STUDIO_TECHNICAL_READY = prev;
     else delete process.env.CENTRAL_STUDIO_TECHNICAL_READY;
   });
