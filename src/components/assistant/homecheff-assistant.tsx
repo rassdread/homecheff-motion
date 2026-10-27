@@ -21,17 +21,21 @@ export function HomeCheffAssistant() {
     return null;
   }
 
+  const filmWorkspaceHasAssistant = pathname?.includes("/studio/projects/") === true;
+
   return (
     <>
-      <button
-        type="button"
-        aria-expanded={open}
-        className="fixed bottom-4 right-4 z-40 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-[#006D52]/35 bg-gradient-to-r from-[#006D52] to-[#0067B1] px-4 text-xs font-semibold text-white shadow-lg lg:hidden"
-        data-testid="homecheff-assistant-fab-mobile"
-        onClick={() => setOpen(true)}
-      >
-        {t("assistant.fabShort" as never)}
-      </button>
+      {filmWorkspaceHasAssistant ? null : (
+        <button
+          type="button"
+          aria-expanded={open}
+          className="fixed bottom-4 right-4 z-40 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-[#006D52]/35 bg-gradient-to-r from-[#006D52] to-[#0067B1] px-4 text-xs font-semibold text-white shadow-lg lg:hidden"
+          data-testid="homecheff-assistant-fab-mobile"
+          onClick={() => setOpen(true)}
+        >
+          {t("assistant.fabShort" as never)}
+        </button>
+      )}
 
       <MotionBottomSheet
         open={open}
