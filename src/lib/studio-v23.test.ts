@@ -497,5 +497,7 @@ describe("V23 preservation", () => {
   it("keeps the development cache out of the production build directory", () => {
     const config = readFileSync("next.config.ts", "utf8");
     assert.match(config, /NODE_ENV === "development" \? "\.next-dev" : "\.next"/);
+    const eslintConfig = readFileSync("eslint.config.mjs", "utf8");
+    assert.match(eslintConfig, /\.next-dev\/\*\*/);
   });
 });
