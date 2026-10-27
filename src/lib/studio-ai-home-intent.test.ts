@@ -114,6 +114,13 @@ describe("Studio AI-first home — IntentPlan", () => {
     const fromPhoto = buildStudioAiHomeIntentPlan({ prompt: "Ik wil een personage maken van deze foto." });
     assert.equal(fromPhoto.recommendedPipeline, "character_from_reference");
 
+    const reopen = buildStudioAiHomeIntentPlan({ prompt: "Open mijn laatste project." });
+    assert.equal(reopen.missingRequired.length, 0);
+    assert.equal(reopen.free, true);
+    assert.equal(reopen.billingActionType, null);
+    const reopenEn = buildStudioAiHomeIntentPlan({ prompt: "Open my last project." });
+    assert.equal(reopenEn.missingRequired.length, 0);
+
     const vague = buildStudioAiHomeIntentPlan({ prompt: "Maak iets moois." });
     assert.equal(vague.missingQuestionKey, "studio.aiHome.missing.medium");
     const vagueOverride = buildStudioAiHomeIntentPlan({

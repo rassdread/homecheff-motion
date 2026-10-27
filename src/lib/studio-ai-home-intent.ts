@@ -192,6 +192,19 @@ function resolvePipelineFromHeuristics(input: {
   const creative = classifyStudioCreativeIntent(text);
   const mediaUrl = input.attachments.find((item) => item.kind === "media" && item.url)?.url ?? null;
 
+  if (creative === "OPEN_EXISTING_PROJECT") {
+    return {
+      pipeline: "experience",
+      purpose: "create",
+      target: "video",
+      actionId: "unknown",
+      videoIntent: null,
+      experienceId: null,
+      billingActionType: null,
+      free: true,
+    };
+  }
+
   if (creative === "AUDIO") {
     return {
       pipeline: "audio_library",
