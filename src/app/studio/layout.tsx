@@ -1,8 +1,10 @@
 import { JsonLd } from "@/components/seo/json-ld";
 import { CommercialSeoEnrichment } from "@/components/seo/commercial-seo-enrichment";
+import { StudioProjectReturnLink } from "@/components/studio/studio-project-return-link";
 import { buildSoftwareApplicationJsonLd } from "@/lib/seo/structured-data";
 import { PUBLIC_PAGE_SEO } from "@/lib/seo/public-pages";
 import { buildPageMetadata } from "@/lib/seo/site-metadata";
+import { Suspense } from "react";
 
 const seo = PUBLIC_PAGE_SEO.studio;
 
@@ -30,6 +32,9 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
   return (
     <>
       <JsonLd data={STUDIO_SCHEMA} />
+      <Suspense fallback={null}>
+        <StudioProjectReturnLink />
+      </Suspense>
       {children}
       <CommercialSeoEnrichment variant="studio" />
     </>

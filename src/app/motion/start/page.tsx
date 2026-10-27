@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { safeStudioProjectReturnTo } from "@/lib/studio-return-to";
 
 type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -22,10 +23,17 @@ export default async function MotionStartPage({ searchParams }: Props) {
   const preset = qs.get("preset");
   const showcaseItem = qs.get("showcaseItem");
   const photoIntent = qs.get("photoIntent");
+  const returnTo = safeStudioProjectReturnTo(qs.get("returnTo"));
+  qs.delete("returnTo");
+  const withReturn = (path: string) => {
+    if (!returnTo) return path;
+    const joiner = path.includes("?") ? "&" : "?";
+    return `${path}${joiner}returnTo=${encodeURIComponent(returnTo)}`;
+  };
   if (preset || showcaseItem || photoIntent || qs.get("prefill")) {
     const suffix = qs.toString();
-    redirect(suffix ? `/animate/instant?${suffix}` : "/animate/instant");
+    redirect(withReturn(suffix ? `/animate/instant?${suffix}` : "/animate/instant"));
   }
   const category = qs.get("category");
-  redirect(category ? `/motion?category=${category}` : "/motion");
+  redirect(withReturn(category ? `/motion?category=${category}` : "/motion"));
 }

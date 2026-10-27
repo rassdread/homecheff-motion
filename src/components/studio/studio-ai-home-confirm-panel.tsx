@@ -13,6 +13,7 @@ export function StudioAiHomeConfirmPanel({
   onConfirm,
   onAdjust,
   onAdvanced,
+  projectHandoff = null,
 }: {
   plan: StudioIntentPlan;
   estimatedCredits: number | null;
@@ -22,6 +23,7 @@ export function StudioAiHomeConfirmPanel({
   onConfirm: () => void;
   onAdjust: () => void;
   onAdvanced: () => void;
+  projectHandoff?: "film" | "existing" | null;
 }) {
   const t = useActiveTranslator();
   const characters = plan.attachments.filter((a) => a.kind === "character");
@@ -91,14 +93,18 @@ export function StudioAiHomeConfirmPanel({
       </ul>
 
       <div className="rounded-xl bg-zinc-50 px-3 py-2 text-sm" data-testid="studio-ai-home-confirm-cost">
-        {plan.free ?
+        {projectHandoff === "film" ?
+          <p className="font-medium text-zinc-900" data-testid="studio-v23-film-review">{t("studio.v23.home.filmReview")}</p>
+        : projectHandoff === "existing" ?
+          <p className="font-medium text-zinc-900">{t("studio.v23.home.openLast")}</p>
+        : plan.free ?
           <p className="font-medium text-[#006D52]">{t("studio.aiHome.confirm.free")}</p>
         : estimatedCredits != null ?
           <p className="font-medium text-zinc-900">
             {t("studio.aiHome.confirm.estimatedCost", { credits: String(estimatedCredits) })}
           </p>
         : <p className="text-zinc-600">{t("studio.aiHome.confirm.costPending")}</p>}
-        {!plan.free && !allowed ?
+        {!projectHandoff && !plan.free && !allowed ?
           <p className="mt-1 text-sm text-red-700" data-testid="studio-ai-home-insufficient-hc">
             {t("studio.aiHome.confirm.insufficient")}
             {typeof balanceAfter === "number" ?
@@ -112,7 +118,7 @@ export function StudioAiHomeConfirmPanel({
         <button
           type="button"
           data-testid="studio-ai-home-confirm-make"
-          disabled={loading || (!plan.free && !allowed)}
+          disabled={loading || (!projectHandoff && !plan.free && !allowed)}
           onClick={onConfirm}
           className={`min-h-[48px] flex-1 px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${studioVisual.btnGradientPrimary}`}
         >

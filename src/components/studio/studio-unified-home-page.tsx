@@ -12,7 +12,19 @@ import {
 } from "@/lib/studio-slice1a-home";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import { StudioAiHomeComposer } from "@/components/studio/studio-ai-home-composer";
+import { creativeProjectKind } from "@/lib/studio-v23-intent";
+import { fetchStudioAccountJson } from "@/lib/studio-account-client";
 import type { UserStudioDashboardReport } from "@/types/studio-profitability";
+
+type RecentCreativeProject = {
+  id: string;
+  title: string;
+  status: string;
+  updatedAt: string;
+  storyboardId?: string | null;
+  animationProjectId?: string | null;
+  editorCanvasProjectId?: string | null;
+};
 
 function trackStudioHomeEvent(event: string) {
   if (typeof window === "undefined") return;
@@ -80,6 +92,8 @@ export function StudioUnifiedHomePage() {
   const auth = useAuthSession();
   const [shell, setShell] = useState<UserStudioDashboardReport | null>(null);
   const [continueError, setContinueError] = useState(false);
+  const [recentProjects, setRecentProjects] = useState<RecentCreativeProject[]>([]);
+  const [credits, setCredits] = useState<number | null>(null);
 
   useEffect(() => {
     trackStudioHomeEvent("studio_home_view");
@@ -106,6 +120,33 @@ export function StudioUnifiedHomePage() {
     };
   }, [auth.resolved, auth.user]);
 
+  useEffect(() => {
+    if (!auth.resolved || !auth.user) {
+      queueMicrotask(() => {
+        setRecentProjects([]);
+        setCredits(null);
+      });
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const [projectsResponse, account] = await Promise.all([
+        fetch("/api/studio/creative-projects?recent=1&limit=6", { credentials: "include", cache: "no-store" }),
+        fetchStudioAccountJson({ view: "summary" }),
+      ]);
+      if (cancelled) return;
+      if (projectsResponse.ok) {
+        const body = (await projectsResponse.json()) as { projects?: RecentCreativeProject[] };
+        setRecentProjects(body.projects ?? []);
+      }
+      const spendable = account?.canonicalBalance?.spendable;
+      setCredits(typeof spendable === "number" ? spendable : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [auth.resolved, auth.user]);
+
   const continueItems = (shell?.continueWorking ?? []).slice(0, STUDIO_HOME_CONTINUE_MAX);
   const hasContinue = continueItems.length > 0;
 
@@ -115,14 +156,54 @@ export function StudioUnifiedHomePage() {
       data-testid="studio-unified-home"
     >
       <div className="mx-auto w-full max-w-3xl px-4 pb-10 pt-3 sm:px-6 sm:pb-12 sm:pt-6">
-        <header className="mb-3 space-y-0.5 sm:mb-4 [@media(max-height:500px)]:mb-1">
+        <header className="mb-3 flex items-start justify-between gap-3 sm:mb-4">
+          <div className="space-y-0.5">
           <p className="text-xs font-semibold uppercase tracking-wide text-[#006D52] [@media(max-height:500px)]:hidden">
             {brand.studioProductName}
           </p>
           <p className="sr-only">{t("studio.slice1a.hero.subtitle")}</p>
+          </div>
+          <Link
+            href="/account/credits"
+            data-testid="studio-v23-credits"
+            className="inline-flex min-h-11 items-center rounded-full border border-zinc-200 bg-white px-3 text-sm font-semibold text-zinc-800"
+          >
+            {credits == null ? t("studio.v23.credits") : `${credits} HC`}
+          </Link>
         </header>
 
         <StudioAiHomeComposer />
+
+        {auth.resolved && auth.user ? (
+          <section className="mt-8 space-y-3" data-testid="studio-v23-recent">
+            <h2 className="text-sm font-semibold text-zinc-900">{t("studio.v23.recent.title")}</h2>
+            {recentProjects.length === 0 ? (
+              <p className="text-sm text-zinc-600">{t("studio.v23.recent.empty")}</p>
+            ) : (
+              <ul className="divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white">
+                {recentProjects.map((project) => {
+                  const kind = creativeProjectKind(project);
+                  return (
+                    <li key={project.id}>
+                      <Link
+                        href={`/studio/projects/${project.id}`}
+                        data-testid="studio-v23-recent-item"
+                        className="flex min-h-[52px] flex-col justify-center gap-0.5 px-4 py-3 hover:bg-zinc-50 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <span className="text-sm font-medium text-zinc-900">
+                          {t(`studio.v23.recent.kind.${kind}`)} — {project.title}
+                        </span>
+                        <span className="text-xs text-zinc-500">
+                          {project.status} · {new Date(project.updatedAt).toLocaleString()} · {t("studio.v23.recent.continue")}
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        ) : null}
 
         {auth.resolved && auth.user && hasContinue ?
           <section className="mt-8 space-y-3" data-testid="studio-home-continue">

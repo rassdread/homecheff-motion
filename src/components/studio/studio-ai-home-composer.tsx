@@ -15,6 +15,12 @@ import {
   storeStudioAiHomeIntentPlan,
 } from "@/lib/studio-ai-home-intent";
 import {
+  classifyStudioCreativeIntent,
+  filmDescriptionFromPrompt,
+  filmRequestKey,
+  filmTitleFromPrompt,
+} from "@/lib/studio-v23-intent";
+import {
   STUDIO_AI_HOME_INSPIRATION,
   STUDIO_AI_HOME_INSPIRATION_PRIMARY_COUNT,
   type StudioAiHomeInspirationId,
@@ -250,18 +256,19 @@ export function StudioAiHomeComposer() {
     }
   };
 
+  const creativeIntent = classifyStudioCreativeIntent(prompt);
+  const projectHandoff =
+    creativeIntent === "FILM" ? "film" : creativeIntent === "OPEN_EXISTING_PROJECT" ? "existing" : null;
+
   const onConfirmMake = () => {
     if (!plan) return;
+    if (projectHandoff) {
+      void completeProjectHandoff(projectHandoff);
+      return;
+    }
     if (!plan.free && !allowed) return;
     if (!auth.user && !plan.free) {
-      try {
-        sessionStorage.setItem(
-          "hc_studio_ai_home_draft",
-          JSON.stringify({ prompt, attachments, inspirationId })
-        );
-      } catch {
-        /* ignore */
-      }
+      rememberDraft();
       router.push(`/login?next=${encodeURIComponent("/studio")}`);
       return;
     }
@@ -271,6 +278,61 @@ export function StudioAiHomeComposer() {
       href: plan.handoffHref,
     });
     router.push(plan.handoffHref);
+  };
+
+  const rememberDraft = () => {
+    try {
+      sessionStorage.setItem(
+        "hc_studio_ai_home_draft",
+        JSON.stringify({ prompt, attachments, inspirationId })
+      );
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const completeProjectHandoff = async (kind: "film" | "existing") => {
+    if (busy) return;
+    if (!auth.user) {
+      rememberDraft();
+      router.push(`/login?next=${encodeURIComponent("/studio")}`);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      if (kind === "film") {
+        const response = await fetch("/api/studio/films", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: filmTitleFromPrompt(prompt),
+            description: filmDescriptionFromPrompt(prompt),
+            idempotencyKey: filmRequestKey(prompt),
+          }),
+        });
+        const payload = (await response.json().catch(() => ({}))) as { projectId?: string; error?: string };
+        if (!response.ok || !payload.projectId) {
+          setError(payload.error || t("studio.aiHome.error.generic"));
+          return;
+        }
+        storeStudioAiHomeIntentPlan(plan!);
+        router.push(`/studio/projects/${payload.projectId}?section=overview&workflow=film`);
+        return;
+      }
+      const response = await fetch("/api/studio/creative-projects?recent=1&limit=1", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      const payload = (await response.json().catch(() => ({}))) as { projects?: Array<{ id: string }> };
+      const projectId = payload.projects?.[0]?.id;
+      router.push(projectId ? `/studio/projects/${projectId}` : "/projects");
+    } catch {
+      setError(t("studio.aiHome.error.generic"));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const productProps = props.filter((p) =>
@@ -513,6 +575,7 @@ export function StudioAiHomeComposer() {
           balanceAfter={balanceAfter}
           allowed={allowed || plan.free}
           loading={busy}
+          projectHandoff={projectHandoff}
           onConfirm={onConfirmMake}
           onAdjust={() => {
             setPlan(null);
