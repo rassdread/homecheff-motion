@@ -270,7 +270,7 @@
 
 @media (min-width: 1280px) {
   .home-hero-grid {
-    min-height: calc(100dvh - var(--studio-header-height) - 32px);
+    min-height: auto;
   }
 }
 

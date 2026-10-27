@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { StudioAiHomeComposer } from "@/components/studio/studio-ai-home-composer";
 import { UniverseBackground } from "@/components/suite/universe/universe-background";
 import { UniverseHeroCopy } from "@/components/suite/universe/universe-hero-copy";
 import { UniverseDestinationLinks } from "@/components/suite/universe/universe-destination-links";
@@ -45,7 +46,16 @@ export function UniverseHomePage() {
       <UniverseBackground reducedMotion={reducedMotion} parallax={parallax} />
 
       <div className="relative z-10 w-full">
-        <section className="home-hero-grid" data-testid="home-hero-grid">
+        <div
+          className="relative z-10 mx-auto w-full max-w-3xl px-4 pb-8 pt-6 sm:px-6"
+          data-testid="universe-home-composer"
+        >
+          <div className="rounded-3xl bg-white px-4 py-5 text-zinc-900 shadow-lg sm:px-6">
+            <StudioAiHomeComposer />
+          </div>
+        </div>
+
+      <section className="home-hero-grid" data-testid="home-hero-grid">
           <div className="home-hero-copy min-w-0">
             <UniverseHeroCopy
               isAuthenticated={isAuthenticated}
@@ -65,6 +75,10 @@ export function UniverseHomePage() {
           <UniverseDestinationLinks isAuthenticated={isAuthenticated} />
         </div>
 
+        <section className="home-after-hero" data-testid="home-after-hero">
+          <UniverseHomeSections />
+        </section>
+
         <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6" data-testid="home-conversion-block">
           {isAuthenticated ? (
             <ConversionSurface pageType="homepage" variant="hero" source="homepage_showcase" />
@@ -72,10 +86,6 @@ export function UniverseHomePage() {
             <GuestConversionStrip source="homepage_showcase" variant="hero" />
           )}
         </div>
-
-        <section className="home-after-hero" data-testid="home-after-hero">
-          <UniverseHomeSections />
-        </section>
       </div>
     </div>
   );
