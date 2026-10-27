@@ -98,7 +98,7 @@ export function StudioProjectAssistantRail({
     setProposal(next);
     setResult(null);
     if (next.kind !== "action") {
-      setNote(t("studio.v23.assistant.clarify"));
+      setNote(t(next.messageKey ?? "studio.v23.assistant.clarify"));
       return;
     }
     if (!next.quote) return;

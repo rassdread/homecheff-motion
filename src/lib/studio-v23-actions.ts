@@ -186,8 +186,17 @@ export function resolveSceneReference(
   return { clarify: true };
 }
 
+export type StudioV23ClarifyKey =
+  | "studio.v23.assistant.clarify"
+  | "studio.v23.assistant.askDialogue"
+  | "studio.v23.assistant.askVolume"
+  | "studio.v23.assistant.needExactText"
+  | "studio.v23.assistant.chooseImage"
+  | "studio.v23.assistant.chooseCharacter"
+  | "studio.v23.assistant.chooseVoice";
+
 export type StudioV23Proposal =
-  | { kind: "clarify" }
+  | { kind: "clarify"; messageKey?: StudioV23ClarifyKey }
   | { kind: "action"; request: Record<string, unknown>; summary: string; destructive: boolean; quote: boolean };
 
 export function proposeStudioV23Command(input: {
@@ -202,44 +211,42 @@ export function proposeStudioV23Command(input: {
 
   const scene = resolveSceneReference(textValue, input.scenes, input.selectedSceneId);
   const sceneId = "sceneId" in scene ? scene.sceneId : null;
+  const quoted = quotedReplacement(input.text);
 
-  if (hasCommand(textValue, ["voeg een scène toe", "voeg een scene toe", "add a scene", "nieuwe scène", "new scene"])) {
+  if (/(voeg .*sc[eè]ne|nieuwe sc[eè]ne|nog een sc[eè]ne|add (?:a |another )?scene|new scene|maak een nieuwe sc[eè]ne)/.test(textValue)) {
     return action("ADD_SCENE", { projectId: input.projectId, title: "Nieuwe scène" }, "Add a scene", false, false);
   }
 
-  if (hasCommand(textValue, ["maak de dialoog korter", "shorten the dialogue", "korter dialoog"])) {
-    if (!sceneId) return { kind: "clarify" };
-    const current = input.scenes.find((item) => item.id === sceneId)?.dialogueText ?? "";
-    const next = shortenDialogue(current);
-    if (!next) return { kind: "clarify" };
+  if (/(open (?:mijn |de )?tijdlijn|open the timeline)/.test(textValue)) {
+    return action("OPEN_TIMELINE", { projectId: input.projectId }, "Open the timeline", false, false);
+  }
+
+  if (/(zet de laatste sc[eè]ne vooraan|draai de (?:sc[eè]ne)?volgorde om|draai de volgorde om|reverse the scenes|reverse the scene order|reverse the story order)/.test(textValue)) {
+    return action("REVERSE_TIMELINE_STORY", { projectId: input.projectId }, "Reverse the timeline story order", true, false);
+  }
+
+  const volume = musicVolume(textValue);
+  if (volume === "ask") return { kind: "clarify", messageKey: "studio.v23.assistant.askVolume" };
+  if (typeof volume === "number") {
     return action(
-      "UPDATE_SCENE",
-      { projectId: input.projectId, sceneId, dialogueText: next },
-      "Shorten the selected scene dialogue",
+      "UPDATE_TIMELINE_VOLUME",
+      { projectId: input.projectId, volume },
+      `Set music volume to ${volume}`,
       false,
       false,
     );
   }
 
-  if (hasCommand(textValue, ["verander de beschrijving", "change the description", "update description"])) {
-    if (!sceneId) return { kind: "clarify" };
-    return { kind: "clarify" };
-  }
-
-  if (hasCommand(textValue, ["zet de laatste scène vooraan", "reverse the scenes", "draai de volgorde om"])) {
-    return action("REVERSE_TIMELINE_STORY", { projectId: input.projectId }, "Reverse the timeline story order", true, false);
-  }
-
-  if (hasCommand(textValue, ["open mijn tijdlijn", "open the timeline", "open tijdlijn"])) {
-    return action("OPEN_TIMELINE", { projectId: input.projectId }, "Open the timeline", false, false);
-  }
-
-  if (hasCommand(textValue, ["offerte video", "video quote", "quote video", "bereid video voor"])) {
+  if (/(offerte video|video quote|quote video|bereid video voor|maak een video van deze sc[eè]ne|animeer deze sc[eè]ne|generate a scene video)/.test(textValue)) {
     if (!sceneId) return { kind: "clarify" };
     return action("QUOTE_SCENE_VIDEO", { projectId: input.projectId, sceneId }, "Prepare a video quote", false, true);
   }
 
-  if (hasCommand(textValue, ["offerte stem", "voice quote", "quote voice", "bereid stem voor"])) {
+  if (/(gebruik deze stem|use this voice)/.test(textValue)) {
+    return { kind: "clarify", messageKey: "studio.v23.assistant.chooseVoice" };
+  }
+
+  if (/(offerte stem|voice quote|quote voice|bereid stem voor|maak een voice-over|generate dialogue|genereer dialoog)/.test(textValue)) {
     if (!sceneId) return { kind: "clarify" };
     return action(
       "QUOTE_SCENE_DIALOGUE",
@@ -254,6 +261,77 @@ export function proposeStudioV23Command(input: {
     );
   }
 
+  if (/(als referentie|as a reference|as reference|selecteer deze foto|use this image|deze foto voor het personage|this photo for the character)/.test(textValue)) {
+    return { kind: "clarify", messageKey: "studio.v23.assistant.chooseImage" };
+  }
+
+  if (/(voeg dit personage toe|gebruik dit personage|assign this character|use this character)/.test(textValue)) {
+    if (!input.selectedCharacterId || !sceneId) {
+      return { kind: "clarify", messageKey: "studio.v23.assistant.chooseCharacter" };
+    }
+    return action(
+      "ASSIGN_CHARACTER",
+      { projectId: input.projectId, sceneId, characterId: input.selectedCharacterId, characterIds: [input.selectedCharacterId] },
+      "Assign the selected character",
+      false,
+      false,
+    );
+  }
+
+  if (/(selecteer sc[eè]ne|open sc[eè]ne|select scene|open scene)/.test(textValue)) {
+    if (!sceneId) return { kind: "clarify" };
+    return action("SELECT_SCENE", { projectId: input.projectId, sceneId }, "Select the scene", false, false);
+  }
+
+  if (/(maak de dialoog korter|shorten the dialogue|korter dialoog|make the dialogue shorter)/.test(textValue)) {
+    if (!sceneId) return { kind: "clarify" };
+    const current = input.scenes.find((item) => item.id === sceneId)?.dialogueText ?? "";
+    const next = shortenDialogue(current);
+    if (!next) return { kind: "clarify" };
+    return action(
+      "UPDATE_SCENE",
+      { projectId: input.projectId, sceneId, dialogueText: next },
+      "Shorten the selected scene dialogue",
+      false,
+      false,
+    );
+  }
+
+  if (/(dialoog|dialogue|tekst|text)/.test(textValue) && /(langer|longer|vertaal|translate)/.test(textValue)) {
+    return { kind: "clarify", messageKey: "studio.v23.assistant.needExactText" };
+  }
+
+  if (quoted && /(dialoog|dialogue|deze tekst|this text|tekst|text)/.test(textValue)) {
+    if (!sceneId) return { kind: "clarify" };
+    return action(
+      "UPDATE_SCENE",
+      { projectId: input.projectId, sceneId, dialogueText: quoted },
+      "Replace the scene dialogue",
+      false,
+      false,
+    );
+  }
+
+  if (/(pas de dialoog|wijzig de dialoog|verander de dialoog|change the dialogue|adjust the dialogue|herschrijf deze sc[eè]ne)/.test(textValue)) {
+    return { kind: "clarify", messageKey: "studio.v23.assistant.askDialogue" };
+  }
+
+  if (/(verander de beschrijving|change the description|update description|wijzig de beschrijving)/.test(textValue)) {
+    if (!sceneId) return { kind: "clarify" };
+    if (!quoted) return { kind: "clarify", messageKey: "studio.v23.assistant.needExactText" };
+    return action(
+      "UPDATE_SCENE",
+      { projectId: input.projectId, sceneId, description: quoted },
+      "Replace the scene description",
+      false,
+      false,
+    );
+  }
+
+  if (/(spannender|more exciting|pas sc[eè]ne|wijzig sc[eè]ne|change the selected scene)/.test(textValue)) {
+    return { kind: "clarify", messageKey: "studio.v23.assistant.needExactText" };
+  }
+
   if (hasCommand(textValue, ["open media", "open bibliotheek", "open library"])) {
     return action("OPEN_MEDIA_LIBRARY", { projectId: input.projectId }, "Open project media", false, false);
   }
@@ -263,6 +341,26 @@ export function proposeStudioV23Command(input: {
   }
 
   return { kind: "clarify" };
+}
+
+function quotedReplacement(raw: string): string | null {
+  const match = raw.match(/['"]([^'"]{1,500})['"]/);
+  const value = match?.[1]?.trim() ?? "";
+  return value || null;
+}
+
+function musicVolume(textValue: string): number | "ask" | null {
+  const mentionsMusic = /(muziek|music|volume)/.test(textValue);
+  if (!mentionsMusic) return null;
+  const percent = textValue.match(/(\d{1,3})\s*(?:%|procent|percent)/);
+  const numbers = [...textValue.matchAll(/(\d{1,3})/g)];
+  const raw = percent?.[1] ?? numbers.at(-1)?.[1];
+  if (!raw) {
+    return /(zachter|softer|harder|louder|verlaag|verhoog|turn .* down|turn .* up)/.test(textValue) ? "ask" : null;
+  }
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 0 || value > 100) return "ask";
+  return value;
 }
 
 function hasCommand(textValue: string, needles: string[]): boolean {

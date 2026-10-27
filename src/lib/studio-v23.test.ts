@@ -7,6 +7,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
   classifyStudioCreativeIntent,
+  creativeIntentHandoffHref,
   creativeProjectKind,
   filmRequestKey,
   filmTitleFromPrompt,
@@ -100,6 +101,28 @@ describe("V23 creative intent", () => {
     assert.equal(classifyStudioCreativeIntent("Ontwerp een personage."), "CHARACTER");
     assert.equal(classifyStudioCreativeIntent("Maak een voice-over."), "VOICE");
     assert.equal(classifyStudioCreativeIntent("Open mijn laatste project."), "OPEN_EXISTING_PROJECT");
+    assert.equal(classifyStudioCreativeIntent("Ontwerp een poster."), "IMAGE");
+    assert.equal(classifyStudioCreativeIntent("Animeer deze afbeelding."), "ANIMATION");
+    assert.equal(classifyStudioCreativeIntent("Genereer achtergrondmuziek."), "AUDIO");
+    assert.equal(classifyStudioCreativeIntent("Maak een geluidseffect."), "AUDIO");
+    assert.equal(classifyStudioCreativeIntent("Make an image."), "IMAGE");
+    assert.equal(classifyStudioCreativeIntent("Design a character."), "CHARACTER");
+  });
+
+  it("opens an existing editor and keeps the request", () => {
+    assert.match(creativeIntentHandoffHref("IMAGE", "Ontwerp een poster.") ?? "", /\/editor\/start\?idea=/);
+    assert.match(creativeIntentHandoffHref("IMAGE_EDIT", "Bewerk deze foto.") ?? "", /\/editor\/start\?idea=/);
+    assert.match(creativeIntentHandoffHref("VIDEO", "Maak een video.") ?? "", /\/studio\/experience\?idea=/);
+    assert.match(creativeIntentHandoffHref("VIDEO", "Maak een video van deze foto.") ?? "", /\/studio\/photo-video\?idea=/);
+    assert.equal(creativeIntentHandoffHref("ANIMATION", "Maak een animatie van mijn foto.")?.startsWith("/motion?idea="), true);
+    assert.match(
+      creativeIntentHandoffHref("ANIMATION", "Animeer deze foto.", { mediaUrl: "https://cdn.example/still.jpg" }) ?? "",
+      /\/motion\/start\?/,
+    );
+    assert.match(creativeIntentHandoffHref("VOICE", "Maak een voice-over voor mijn reclame.") ?? "", /\/studio\/assets\/media\/voices\?idea=/);
+    assert.match(creativeIntentHandoffHref("AUDIO", "Genereer achtergrondmuziek.") ?? "", /\/studio\/assets\/media\/audio\?idea=/);
+    assert.match(creativeIntentHandoffHref("CHARACTER", "Ontwerp een personage met donker krullend haar.") ?? "", /\/studio\/characters\/new\?idea=/);
+    assert.equal(creativeIntentHandoffHref("FILM", "Maak een promotiefilm."), null);
   });
 
   it("does not turn a photo video or image into a film", () => {
@@ -296,8 +319,101 @@ describe("V23 assistant actions", () => {
       selectedCharacterId: null,
     });
     assert.equal(adapt.kind, "clarify");
+    if (adapt.kind === "clarify") assert.equal(adapt.messageKey, "studio.v23.assistant.askDialogue");
     assert.equal(ambiguous.kind, "clarify");
     assert.equal(shortenDialogue("Eerst dit. Daarna nog een zin."), "Eerst dit.");
+  });
+});
+
+describe("V23 assistant language", () => {
+  const scenes = [
+    { id: "s1", order: 1, title: "Een", dialogueText: "Eerst dit. Daarna nog een zin." },
+    { id: "s2", order: 2, title: "Twee", dialogueText: "Alleen twee." },
+  ];
+  const base = { projectId: "film-1", scenes, selectedSceneId: "s1", selectedCharacterId: "char-1" };
+
+  it("maps scene, timeline, volume, and quote phrases to existing actions", () => {
+    const add = proposeStudioV23Command({ ...base, text: "Ik wil nog een scène." });
+    assert.equal(add.kind, "action");
+    if (add.kind === "action") assert.equal(add.request.action, "ADD_SCENE");
+
+    const englishAdd = proposeStudioV23Command({ ...base, text: "Add another scene." });
+    assert.equal(englishAdd.kind, "action");
+    if (englishAdd.kind === "action") assert.equal(englishAdd.request.action, "ADD_SCENE");
+
+    const reverse = proposeStudioV23Command({ ...base, text: "Draai de scènevolgorde om." });
+    assert.equal(reverse.kind, "action");
+    if (reverse.kind === "action") {
+      assert.equal(reverse.request.action, "REVERSE_TIMELINE_STORY");
+      assert.equal(reverse.destructive, true);
+    }
+
+    const englishReverse = proposeStudioV23Command({ ...base, text: "Reverse the story order." });
+    assert.equal(englishReverse.kind, "action");
+
+    const volume = proposeStudioV23Command({ ...base, text: "Zet het muziekvolume op 35%." });
+    assert.equal(volume.kind, "action");
+    if (volume.kind === "action") {
+      assert.equal(volume.request.action, "UPDATE_TIMELINE_VOLUME");
+      assert.equal(volume.request.volume, 35);
+      assert.equal(volume.quote, false);
+    }
+
+    const englishVolume = proposeStudioV23Command({ ...base, text: "Set music volume to 35 percent." });
+    assert.equal(englishVolume.kind, "action");
+    if (englishVolume.kind === "action") assert.equal(englishVolume.request.volume, 35);
+
+    const softer = proposeStudioV23Command({ ...base, text: "Maak de muziek zachter." });
+    assert.equal(softer.kind, "clarify");
+    if (softer.kind === "clarify") assert.equal(softer.messageKey, "studio.v23.assistant.askVolume");
+
+    const video = proposeStudioV23Command({ ...base, text: "Maak een video van deze scène." });
+    assert.equal(video.kind, "action");
+    if (video.kind === "action") {
+      assert.equal(video.request.action, "QUOTE_SCENE_VIDEO");
+      assert.equal(video.quote, true);
+    }
+
+    const voice = proposeStudioV23Command({ ...base, text: "Generate dialogue." });
+    assert.equal(voice.kind, "action");
+    if (voice.kind === "action") assert.equal(voice.request.action, "QUOTE_SCENE_DIALOGUE");
+  });
+
+  it("asks for exact text instead of inventing dialogue", () => {
+    const longer = proposeStudioV23Command({ ...base, text: "Maak de dialoog langer." });
+    assert.equal(longer.kind, "clarify");
+    if (longer.kind === "clarify") assert.equal(longer.messageKey, "studio.v23.assistant.needExactText");
+
+    const translated = proposeStudioV23Command({ ...base, text: "Translate the dialogue to English." });
+    assert.equal(translated.kind, "clarify");
+    if (translated.kind === "clarify") assert.equal(translated.messageKey, "studio.v23.assistant.needExactText");
+
+    const sceneTwo = proposeStudioV23Command({ ...base, selectedSceneId: null, text: "Wijzig de dialoog van scène twee." });
+    assert.equal(sceneTwo.kind, "clarify");
+    if (sceneTwo.kind === "clarify") assert.equal(sceneTwo.messageKey, "studio.v23.assistant.askDialogue");
+
+    const replacement = proposeStudioV23Command({ ...base, text: "Verander deze tekst in 'Welkom bij HomeCheff'." });
+    assert.equal(replacement.kind, "action");
+    if (replacement.kind === "action") {
+      assert.equal(replacement.request.action, "UPDATE_SCENE");
+      assert.equal(replacement.request.dialogueText, "Welkom bij HomeCheff");
+      assert.equal(replacement.request.sceneId, "s1");
+    }
+
+    const assigned = proposeStudioV23Command({ ...base, text: "Gebruik dit personage." });
+    assert.equal(assigned.kind, "action");
+    if (assigned.kind === "action") assert.equal(assigned.request.action, "ASSIGN_CHARACTER");
+
+    const missingCharacter = proposeStudioV23Command({ ...base, selectedCharacterId: null, text: "Assign this character." });
+    assert.equal(missingCharacter.kind, "clarify");
+
+    const reference = proposeStudioV23Command({ ...base, text: "Gebruik deze afbeelding als referentie." });
+    assert.equal(reference.kind, "clarify");
+    if (reference.kind === "clarify") assert.equal(reference.messageKey, "studio.v23.assistant.chooseImage");
+
+    const voicePick = proposeStudioV23Command({ ...base, text: "Gebruik deze stem." });
+    assert.equal(voicePick.kind, "clarify");
+    if (voicePick.kind === "clarify") assert.equal(voicePick.messageKey, "studio.v23.assistant.chooseVoice");
   });
 });
 
