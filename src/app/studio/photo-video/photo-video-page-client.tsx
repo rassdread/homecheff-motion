@@ -9,7 +9,7 @@ const PhotoVideoComposer = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="mx-auto max-w-2xl px-4 py-16 text-sm text-zinc-500">…</div>
+      <div className="mx-auto max-w-6xl px-4 py-16 text-sm text-zinc-700">…</div>
     ),
   }
 );
@@ -23,8 +23,8 @@ function PreservedPhotoVideoIdea() {
 export function PhotoVideoPageClient() {
   return (
     <main className="min-h-[70vh] flex-1 bg-gradient-to-b from-zinc-50 to-white">
-      <div className="mx-auto max-w-2xl px-4 py-10">
-        <Suspense fallback={<div className="py-16 text-sm text-zinc-500">…</div>}>
+      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
+        <Suspense fallback={<div className="py-16 text-sm text-zinc-700">…</div>}>
           <PreservedPhotoVideoIdea />
           <PhotoVideoComposer />
         </Suspense>

@@ -6,6 +6,7 @@ import { useActiveTranslator } from "@/i18n/client";
 import { moveSceneId } from "@/lib/studio-project-linking";
 import type { ProjectWorkspaceView } from "@/lib/studio-project-workspace";
 import { studioVisual } from "@/lib/studio-visual-tokens";
+import { filmSceneWizardLinks } from "@/lib/studio-v27-workflow-routes";
 
 type Option = { id: string; title: string; createdAt: string; sceneCount?: number; status?: string; linkedFilmId: string | null; linkedFilmTitle: string | null };
 type CharacterOption = { id: string; name: string; referenceImageUrl: string };
@@ -199,6 +200,7 @@ export function StudioProjectScenePanel({
               .then((body: { characters?: CharacterOption[] }) => setCharacters(body.characters ?? []));
           }}
           busy={busy}
+          storyboardId={workspace.project.storyboardId}
           onSave={(body) => patch(`/api/studio/projects/${projectId}/scenes/${scene.id}`, body)}
           onSelectImage={(imageId) => post(`/api/studio/projects/${projectId}/scenes/${scene.id}/select-image`, { imageId })}
         />
@@ -226,6 +228,7 @@ function SceneForm({
   onAdvanced,
   onLoadCharacters,
   busy,
+  storyboardId,
   onSave,
   onSelectImage,
 }: {
@@ -236,6 +239,7 @@ function SceneForm({
   onAdvanced: () => void;
   onLoadCharacters: () => void;
   busy: boolean;
+  storyboardId?: string | null;
   onSave: (body: Record<string, unknown>) => void;
   onSelectImage: (imageId: string) => void;
 }) {
@@ -247,7 +251,20 @@ function SceneForm({
   const [action, setAction] = useState(scene.action ?? "");
   const [emotion, setEmotion] = useState(scene.emotion ?? "");
   const [characterIds, setCharacterIds] = useState((scene.characters ?? []).map((item) => item.id));
-  const field = "mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900";
+  const field = "mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-600";
+  const wizardLinks = filmSceneWizardLinks({
+    projectId,
+    sceneId: scene.id,
+    storyboardId,
+    idea: description || scene.description,
+    imageUrl: scene.imageUrl,
+  });
+  const wizardLabel: Record<string, string> = {
+    FILM_SCENE_IMAGE: t("studio.v27.scene.openImage"),
+    FILM_SCENE_ANIMATION: t("studio.v27.scene.openAnimation"),
+    FILM_SCENE_AUDIO: t("studio.v27.scene.openAudio"),
+    FILM_STORYBOARD: t("studio.v27.scene.openStoryboard"),
+  };
   return (
     <form
       className="space-y-3 rounded-xl border border-zinc-200 p-4"
@@ -333,6 +350,17 @@ function SceneForm({
           ))}
         </ul>
       ) : <p className="text-sm text-zinc-600">{t("studio.workspace.v12.noSceneImage")}</p>}
+      <div className="flex flex-wrap gap-2" data-testid="studio-v27-scene-wizards">
+        {wizardLinks.map((link) => (
+          <Link
+            key={link.workflowId}
+            href={link.href}
+            className="inline-flex min-h-11 items-center rounded-full border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#006D52]"
+          >
+            {wizardLabel[link.workflowId]}
+          </Link>
+        ))}
+      </div>
       <button type="submit" className={studioVisual.btnGradientPrimary} disabled={busy}>{t("studio.workspace.v13.save")}</button>
     </form>
   );

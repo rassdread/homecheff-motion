@@ -7,6 +7,7 @@ import {
   storeAssistantPrefillPackage,
 } from "@/lib/assistant-prefill-storage";
 import { buildMotionHubPrefillPackage } from "@/lib/motion-hub-navigation";
+import { mergePresetPromptWithUserIdea } from "@/lib/studio-v27-workflow-routes";
 import { isMotionActionPresetId } from "@/lib/motion-action-presets";
 import type { MotionHubPhotoIntentId } from "@/types/motion-studio-hub";
 
@@ -54,6 +55,13 @@ export function MotionHubQueryPrefillApplier() {
     });
     if (!pkg) {
       return;
+    }
+    const idea = searchParams.get("idea");
+    if (idea?.trim() && pkg.promptDraft) {
+      pkg.promptDraft = mergePresetPromptWithUserIdea(pkg.promptDraft, idea);
+      if (pkg.motion) {
+        pkg.motion.scenePrompt = mergePresetPromptWithUserIdea(pkg.motion.scenePrompt || pkg.promptDraft, idea);
+      }
     }
 
     appliedRef.current = true;

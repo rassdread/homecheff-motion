@@ -30,7 +30,7 @@ export const studioVisual = {
   langOptionActive: "",
   langOptionInactive: "",
   /** User bar */
-  userEmail: "truncate text-xs text-white/60 sm:text-sm",
+  userEmail: "truncate text-xs text-white/90 sm:text-sm",
   btnGhost:
     "shrink-0 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-xs font-medium text-white/80 transition-colors hover:border-white/25 hover:bg-white/10 sm:px-3 sm:py-1.5 sm:text-sm",
   btnPrimary:
@@ -60,8 +60,8 @@ export const studioVisual = {
   cardOnDarkMuted:
     "rounded-2xl border border-white/12 bg-[#041428]/55 p-5 text-white/90 backdrop-blur-md",
   headingOnDark: "text-white font-bold tracking-tight",
-  subheadingOnDark: "text-white/85",
-  bodyOnDark: "text-white/75",
+  subheadingOnDark: "text-white/90",
+  bodyOnDark: "text-white/90",
   /** Hub/list cards — soft glass on cinematic bg */
   cardLight:
     "rounded-2xl border border-white/15 bg-white/[0.94] p-6 text-zinc-900 shadow-[0_16px_48px_-24px_rgba(0,0,0,0.45)] backdrop-blur-md",

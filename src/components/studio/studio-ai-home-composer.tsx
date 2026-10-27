@@ -33,6 +33,10 @@ import {
   STUDIO_AI_HOME_INSPIRATION_PRIMARY_COUNT,
   type StudioAiHomeInspirationId,
 } from "@/lib/studio-ai-home-inspiration";
+import {
+  inspirationWizardHref,
+  rememberStudioWorkflow,
+} from "@/lib/studio-v27-workflow-routes";
 import { fetchStudioCharacters } from "@/lib/studio-characters-client";
 import { fetchStudioProps } from "@/lib/studio-props-client";
 import { studioVisual } from "@/lib/studio-visual-tokens";
@@ -207,14 +211,35 @@ export function StudioAiHomeComposer() {
     setPlan(null);
   }, []);
 
+  const openInspirationWizard = (id: StudioAiHomeInspirationId, idea: string) => {
+    const media = attachments.find((item) => item.kind === "media" && item.url);
+    const character = attachments.find((item) => item.kind === "character");
+    const target = inspirationWizardHref(id, {
+      idea,
+      mediaUrl: media?.url,
+      characterId: character?.id,
+    });
+    const nextPlan = buildStudioAiHomeIntentPlan({
+      prompt: idea,
+      attachments,
+      inspirationId: id,
+      locale: locale === "en" ? "en" : "nl",
+    });
+    storeStudioAiHomeIntentPlan({ ...nextPlan, handoffHref: target.href });
+    rememberStudioWorkflow({ id, href: target.href });
+    trackAiHomeEvent("studio_ai_home_inspiration", { id, href: target.href });
+    router.push(target.href);
+  };
+
   const onPickInspiration = (id: StudioAiHomeInspirationId) => {
     const row = STUDIO_AI_HOME_INSPIRATION.find((e) => e.id === id);
     if (!row) return;
+    const prefill = t(row.prefillKey);
     setInspirationId(id);
-    setPrompt(t(row.prefillKey));
+    setPrompt(prefill);
     setPlan(null);
     setMissingHint(null);
-    trackAiHomeEvent("studio_ai_home_inspiration", { id });
+    openInspirationWizard(id, prefill);
   };
 
   const onMediaFiles = (files: FileList | null) => {
@@ -316,6 +341,22 @@ export function StudioAiHomeComposer() {
     if (!plan) return;
     if (projectHandoff) {
       void completeProjectHandoff(projectHandoff);
+      return;
+    }
+    if (inspirationId) {
+      const target = inspirationWizardHref(inspirationId, {
+        idea: prompt,
+        mediaUrl: attachments.find((item) => item.kind === "media" && item.url)?.url,
+        characterId: attachments.find((item) => item.kind === "character")?.id,
+      });
+      if (!auth.user && !plan.free) rememberDraft();
+      storeStudioAiHomeIntentPlan({ ...plan, handoffHref: target.href });
+      rememberStudioWorkflow({ id: inspirationId, href: target.href });
+      trackAiHomeEvent("studio_ai_home_make", {
+        pipeline: plan.recommendedPipeline,
+        href: target.href,
+      });
+      router.push(target.href);
       return;
     }
     if (editorHref) {
@@ -660,10 +701,10 @@ export function StudioAiHomeComposer() {
                   data-testid={`studio-ai-home-inspiration-${item.id}`}
                   aria-pressed={active}
                   onClick={() => onPickInspiration(item.id)}
-                  className={`min-h-[40px] rounded-full border px-3 text-xs font-semibold sm:text-sm ${
+                  className={`min-h-[40px] rounded-full border px-3 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#006D52] sm:text-sm ${
                     active
-                      ? "border-[#006D52] bg-[#006D52]/10 text-[#006D52]"
-                      : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
+                      ? "border-[#006D52] bg-[#006D52]/15 text-[#054b39]"
+                      : "border-zinc-300 bg-white text-zinc-800 hover:border-zinc-400"
                   }`}
                 >
                   {t(item.titleKey)}

@@ -346,6 +346,7 @@ export function StudioProductionBriefFlow() {
   const searchParams = useSearchParams();
   const editorSessionId = searchParams.get("editorSession")?.trim() ?? "";
   const hcProjectId = searchParams.get("hcProject")?.trim() ?? "";
+  const ideaFromQuery = searchParams.get("idea")?.trim().slice(0, 500) ?? "";
   const { prefill, hasPrefill, clearPrefill } = useAssistantWizardPrefill();
   const prefillAppliedRef = useRef(false);
   const [step, setStep] = useState<FlowStep>("idea");
@@ -386,6 +387,11 @@ export function StudioProductionBriefFlow() {
       setIdea("Promotievideo voor HomeCheff");
     }
   }, [prefill]);
+
+  useEffect(() => {
+    if (!ideaFromQuery) return;
+    setIdea((prev) => (prev.trim() ? prev : ideaFromQuery));
+  }, [ideaFromQuery]);
 
   useEffect(() => {
     if (!editorSessionId) {

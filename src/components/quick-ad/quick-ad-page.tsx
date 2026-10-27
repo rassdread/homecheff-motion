@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { createTrackedObjectUrl } from "@/lib/blob-object-url-lifecycle";
 import { exportPublishProject } from "@/lib/publish-export-client";
 import {
@@ -65,10 +66,24 @@ function ScenePreview({
 }
 
 export function QuickAdPage() {
+  return (
+    <Suspense fallback={null}>
+      <QuickAdPageBody />
+    </Suspense>
+  );
+}
+
+function QuickAdPageBody() {
+  const params = useSearchParams();
+  const idea = params.get("idea")?.trim().slice(0, 500) ?? "";
+  const sourceImage = params.get("sourceImage")?.trim() ?? "";
+  const initialPhoto = /^https?:\/\//i.test(sourceImage) ? sourceImage : null;
   const [phase, setPhase] = useState<Phase>("compose");
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [photoName, setPhotoName] = useState<string | null>(null);
-  const [story, setStory] = useState("");
+  const [photoUrl, setPhotoUrl] = useState<string | null>(initialPhoto);
+  const [photoName, setPhotoName] = useState<string | null>(
+    initialPhoto ? initialPhoto.split("/").pop() || "reference" : null,
+  );
+  const [story, setStory] = useState(idea);
   const [platforms, setPlatforms] = useState<QuickAdPlatform[]>(["instagram", "facebook"]);
   const [project, setProject] = useState<PublishProject | null>(null);
   const [intent, setIntent] = useState<QuickAdIntent | null>(null);
@@ -199,7 +214,7 @@ export function QuickAdPage() {
 
   return (
     <div
-      className="mx-auto min-h-[100dvh] w-full max-w-lg px-4 pb-28 pt-6 sm:pb-10"
+      className="mx-auto min-h-[100dvh] w-full max-w-3xl px-4 pb-28 pt-6 sm:pb-10 lg:max-w-5xl"
       data-testid="quick-ad-page"
     >
       <div className="mb-6 flex items-center justify-between gap-3">
@@ -230,7 +245,7 @@ export function QuickAdPage() {
                 <img
                   src={photoUrl}
                   alt={photoName ?? "Foto"}
-                  className="max-h-40 rounded-lg object-contain"
+                  className="max-h-40 rounded-lg object-contain lg:max-h-72"
                 />
               ) : (
                 <span className="text-sm font-medium text-zinc-700">+ Foto toevoegen</span>

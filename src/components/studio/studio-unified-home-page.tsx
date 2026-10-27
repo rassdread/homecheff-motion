@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
@@ -14,6 +14,8 @@ import { CANONICAL_HOMEPAGE_COMPONENT } from "@/lib/homepage-render-trace";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import { StudioAiHomeComposer } from "@/components/studio/studio-ai-home-composer";
 import { fetchStudioAccountJson } from "@/lib/studio-account-client";
+import { STUDIO_AI_HOME_INSPIRATION } from "@/lib/studio-ai-home-inspiration";
+import { getRecentWorkflowSnapshot, subscribeRecentWorkflows } from "@/lib/studio-v27-workflow-routes";
 import type { StudioHistoryAction, StudioHistoryKind } from "@/lib/studio-v24-history";
 import type { UserStudioDashboardReport } from "@/types/studio-profitability";
 
@@ -96,6 +98,11 @@ export function StudioUnifiedHomePage() {
   const [continueError, setContinueError] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [credits, setCredits] = useState<number | null>(null);
+  const recentWorkflows = useSyncExternalStore(
+    subscribeRecentWorkflows,
+    getRecentWorkflowSnapshot,
+    getRecentWorkflowSnapshot,
+  );
 
   useEffect(() => {
     trackStudioHomeEvent("studio_home_view");
@@ -158,7 +165,7 @@ export function StudioUnifiedHomePage() {
       data-testid="studio-unified-home"
       data-homepage-component={CANONICAL_HOMEPAGE_COMPONENT}
     >
-      <div className="mx-auto w-full max-w-3xl px-4 pb-10 pt-3 sm:px-6 sm:pb-12 sm:pt-6">
+      <div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-3 sm:px-6 sm:pb-12 sm:pt-6">
         <header className="mb-3 flex items-start justify-between gap-3 sm:mb-4">
           <div className="space-y-0.5">
           <p className="text-xs font-semibold uppercase tracking-wide text-[#006D52] [@media(max-height:500px)]:hidden">
@@ -175,93 +182,46 @@ export function StudioUnifiedHomePage() {
           </Link>
         </header>
 
-        <StudioAiHomeComposer />
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-8 xl:grid-cols-[minmax(0,1fr)_22rem]">
+          <div className="min-w-0">
+            <StudioAiHomeComposer />
 
-        {auth.resolved && auth.user ? (
-          <section className="mt-8 space-y-3" data-testid="studio-v24-history">
-            <h2 className="text-sm font-semibold text-zinc-900">{t("studio.v24.history.title")}</h2>
-            {history.length === 0 ? (
-              <p className="text-sm text-zinc-600">{t("studio.v24.history.empty")}</p>
-            ) : (
-              <ul className="divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white">
-                {history.map((item) => (
-                  <li key={item.id}>
-                    <Link
-                      href={item.href}
-                      data-testid="studio-v24-history-item"
-                      className="flex min-h-[52px] items-center gap-3 px-4 py-3 hover:bg-zinc-50"
-                    >
-                      {item.previewUrl ? (
-                        <img src={item.previewUrl} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
-                      ) : (
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-sm font-semibold text-zinc-500" data-testid="studio-v24-history-fallback">
-                          {item.title.slice(0, 1).toUpperCase()}
+            {auth.resolved && auth.user && hasContinue ?
+              <section className="mt-8 space-y-3" data-testid="studio-home-continue">
+                <h2 className="text-sm font-semibold text-zinc-900">{t("studio.slice1a.continue.title")}</h2>
+                <ul className="divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white">
+                  {continueItems.map((item) => (
+                    <li key={`${item.kind}-${item.id}`}>
+                      <Link
+                        href={item.href}
+                        prefetch={false}
+                        data-testid="studio-home-continue-item"
+                        onClick={() => trackStudioHomeEvent("studio_continue_open")}
+                        className="flex min-h-[52px] flex-col justify-center gap-0.5 px-4 py-3 hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#006D52] sm:flex-row sm:items-center sm:justify-between"
+                        aria-label={`${t(`studio.home.continueKind.${item.kind}` as never)} — ${item.title}`}
+                      >
+                        <span className="text-sm font-medium text-zinc-900">
+                          {t(`studio.home.continueKind.${item.kind}` as never)} — {item.title}
                         </span>
-                      )}
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-zinc-900">{item.title}</span>
-                        <span className="block text-xs text-zinc-500">
-                          {t(`studio.v24.kind.${item.kind}`)} · {new Date(item.updatedAt).toLocaleDateString()}
-                          {item.status ? ` · ${item.status}` : ""}
+                        <span className="text-xs text-zinc-700">
+                          {new Date(item.updatedAt).toLocaleString()}
                         </span>
-                      </span>
-                      <span className="shrink-0 text-xs font-semibold text-[#006D52]">{t(`studio.v24.action.${item.action}`)}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        ) : null}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            : continueError ?
+              <p className="mt-6 text-sm text-zinc-700" data-testid="studio-home-continue-error">
+                {t("studio.slice1a.continue.error")}
+              </p>
+            : null}
+          </div>
 
-        {auth.resolved && auth.user && hasContinue ?
-          <section className="mt-8 space-y-3" data-testid="studio-home-continue">
-            <h2 className="text-sm font-semibold text-zinc-900">{t("studio.slice1a.continue.title")}</h2>
-            <ul className="divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white">
-              {continueItems.map((item) => (
-                <li key={`${item.kind}-${item.id}`}>
-                  <Link
-                    href={item.href}
-                    prefetch={false}
-                    data-testid="studio-home-continue-item"
-                    onClick={() => trackStudioHomeEvent("studio_continue_open")}
-                    className="flex min-h-[52px] flex-col justify-center gap-0.5 px-4 py-3 hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#006D52] sm:flex-row sm:items-center sm:justify-between"
-                    aria-label={`${t(`studio.home.continueKind.${item.kind}` as never)} — ${item.title}`}
-                  >
-                    <span className="text-sm font-medium text-zinc-900">
-                      {t(`studio.home.continueKind.${item.kind}` as never)} — {item.title}
-                    </span>
-                    <span className="text-xs text-zinc-500">
-                      {new Date(item.updatedAt).toLocaleString()}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        : continueError ?
-          <p className="mt-6 text-sm text-zinc-500" data-testid="studio-home-continue-error">
-            {t("studio.slice1a.continue.error")}
-          </p>
-        : null}
-
-        <details className="mt-10 group" data-testid="studio-home-more">
-          <summary className="cursor-pointer list-none text-sm font-semibold text-zinc-700 underline-offset-2 hover:text-zinc-900 hover:underline [&::-webkit-details-marker]:hidden">
-            <span className="inline-flex min-h-[44px] items-center gap-2">
-              {t("studio.aiHome.moreCapabilities")}
-              <span aria-hidden className="text-zinc-400 transition group-open:rotate-90">
-                ›
-              </span>
-            </span>
-          </summary>
-
-          <div className="mt-4 space-y-6 border-t border-zinc-100 pt-4">
-            <section className="space-y-3" data-testid="studio-home-intents">
-              <h2 className="text-sm font-semibold text-zinc-900">
-                {t("studio.aiHome.shortcuts.title")}
-              </h2>
-              <p className="text-xs text-zinc-500">{t("studio.aiHome.shortcuts.subtitle")}</p>
-              <ul className="grid gap-2 sm:grid-cols-2">
+          <aside className="mt-8 min-w-0 space-y-6 lg:mt-0" data-testid="studio-v27-home-aside">
+            <section className="space-y-3" data-testid="studio-home-intents" data-studio-v27="quick-start">
+              <h2 className="text-sm font-semibold text-zinc-900">{t("studio.v27.quickStart")}</h2>
+              <ul className="grid gap-2">
                 {STUDIO_HOME_INTENTS.map((intent) => (
                   <li key={intent.id}>
                     <IntentCard
@@ -278,12 +238,93 @@ export function StudioUnifiedHomePage() {
               </ul>
             </section>
 
+            {auth.resolved && auth.user ? (
+              <section className="space-y-3" data-testid="studio-v24-history">
+                <h2 className="text-sm font-semibold text-zinc-900">{t("studio.v24.history.title")}</h2>
+                {history.length === 0 ? (
+                  <p className="text-sm text-zinc-700">{t("studio.v24.history.empty")}</p>
+                ) : (
+                  <ul className="divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white">
+                    {history.map((item) => (
+                      <li key={item.id}>
+                        <Link
+                          href={item.href}
+                          data-testid="studio-v24-history-item"
+                          className="flex min-h-[52px] items-center gap-3 px-4 py-3 hover:bg-zinc-50"
+                        >
+                          {item.previewUrl ? (
+                            <img src={item.previewUrl} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+                          ) : (
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-sm font-semibold text-zinc-700" data-testid="studio-v24-history-fallback">
+                              {item.title.slice(0, 1).toUpperCase()}
+                            </span>
+                          )}
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium text-zinc-900">{item.title}</span>
+                            <span className="block text-xs text-zinc-700">
+                              {t(`studio.v24.kind.${item.kind}`)} · {new Date(item.updatedAt).toLocaleDateString()}
+                              {item.status ? ` · ${item.status}` : ""}
+                            </span>
+                          </span>
+                          <span className="shrink-0 text-xs font-semibold text-[#006D52]">{t(`studio.v24.action.${item.action}`)}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            ) : null}
+
+            <section className="space-y-3" data-testid="studio-v27-recent-workflows">
+              <h2 className="text-sm font-semibold text-zinc-900">{t("studio.v27.recentWorkflows")}</h2>
+              {recentWorkflows.length === 0 ? (
+                <p className="text-sm text-zinc-700">{t("studio.v27.recentWorkflowsEmpty")}</p>
+              ) : (
+                <ul className="divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white">
+                  {recentWorkflows.map((item) => {
+                    const chip = STUDIO_AI_HOME_INSPIRATION.find((entry) => entry.id === item.id);
+                    return (
+                      <li key={`${item.id}-${item.at}`}>
+                        <Link href={item.href} className="flex min-h-[52px] items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-zinc-900 hover:bg-zinc-50">
+                          <span>{chip ? t(chip.titleKey) : item.id}</span>
+                          <span className="text-xs text-zinc-700">{new Date(item.at).toLocaleDateString()}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+
+            <section className="space-y-3" data-testid="studio-v27-assets">
+              <h2 className="text-sm font-semibold text-zinc-900">{t("studio.v27.assets")}</h2>
+              <ul className="grid gap-2">
+                <li><Link className="inline-flex min-h-11 items-center text-sm font-semibold text-[#054b39] underline-offset-2 hover:underline" href="/studio/characters">{t("studio.v27.assets.characters")}</Link></li>
+                <li><Link className="inline-flex min-h-11 items-center text-sm font-semibold text-[#054b39] underline-offset-2 hover:underline" href="/studio/assets">{t("studio.v27.assets.images")}</Link></li>
+                <li><Link className="inline-flex min-h-11 items-center text-sm font-semibold text-[#054b39] underline-offset-2 hover:underline" href="/studio/assets/media/voices">{t("studio.v27.assets.voices")}</Link></li>
+                <li><Link className="inline-flex min-h-11 items-center text-sm font-semibold text-[#054b39] underline-offset-2 hover:underline" href="/studio/assets/media/audio">{t("studio.v27.assets.audio")}</Link></li>
+              </ul>
+            </section>
+          </aside>
+        </div>
+
+        <details className="mt-10 group" data-testid="studio-home-more">
+          <summary className="cursor-pointer list-none text-sm font-semibold text-zinc-800 underline-offset-2 hover:text-zinc-950 hover:underline [&::-webkit-details-marker]:hidden">
+            <span className="inline-flex min-h-[44px] items-center gap-2">
+              {t("studio.aiHome.moreCapabilities")}
+              <span aria-hidden className="text-zinc-700 transition group-open:rotate-90">
+                ›
+              </span>
+            </span>
+          </summary>
+
+          <div className="mt-4 space-y-6 border-t border-zinc-200 pt-4">
             <p className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-6">
               <Link
                 href="/studio/simple"
                 prefetch={false}
                 data-testid="studio-home-simple"
-                className="inline-flex min-h-[44px] items-center text-sm font-medium text-zinc-600 underline-offset-2 hover:text-zinc-900 hover:underline"
+                className="inline-flex min-h-[44px] items-center text-sm font-medium text-zinc-800 underline-offset-2 hover:text-zinc-950 hover:underline"
               >
                 {t("studio.slice1a.simple.hub")} →
               </Link>
@@ -291,7 +332,7 @@ export function StudioUnifiedHomePage() {
                 href={STUDIO_HOME_ADVANCED_HREF}
                 prefetch={false}
                 data-testid="studio-home-advanced"
-                className="inline-flex min-h-[44px] items-center text-sm font-medium text-zinc-600 underline-offset-2 hover:text-zinc-900 hover:underline"
+                className="inline-flex min-h-[44px] items-center text-sm font-medium text-zinc-800 underline-offset-2 hover:text-zinc-950 hover:underline"
               >
                 {t("studio.slice1a.advanced.tools")} →
               </Link>

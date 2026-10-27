@@ -502,18 +502,17 @@ function buildHandoffHref(input: {
     const params = new URLSearchParams();
     if (idea) params.set("idea", idea);
     params.set("sourceImage", media.url);
+    params.set("photoIntent", "photo_to_video");
     if (character?.id) params.set("characterId", character.id);
     return `/motion/start?${params.toString()}`;
   }
 
   if (input.pipeline === "editor") {
-    if (input.experienceId === "BUSINESS_LOGO_PLACEMENT") {
-      return inspirationExperienceHref(input.experienceId, idea);
-    }
     const params = new URLSearchParams();
     if (idea) params.set("idea", idea);
     if (media?.url) params.set("sourceImage", media.url);
     if (character?.id) params.set("characterId", character.id);
+    if (input.experienceId) params.set("experience", input.experienceId);
     const qs = params.toString();
     return qs ? `/editor/start?${qs}` : "/editor/start";
   }
@@ -527,6 +526,26 @@ function buildHandoffHref(input: {
       idea,
       sourceImage: media?.url ?? null,
     });
+  }
+
+  if (input.experienceId === "CREATIVE_STORYBOARD" || input.experienceId === "CREATIVE_PRESENTATION") {
+    const params = new URLSearchParams();
+    if (idea) params.set("idea", idea);
+    params.set("experience", input.experienceId);
+    return `/studio/storyboards/new?${params.toString()}`;
+  }
+
+  if (input.experienceId === "SOCIAL_REELS") {
+    const params = new URLSearchParams();
+    if (idea) params.set("idea", idea);
+    params.set("photoIntent", "photo_to_video");
+    params.set("experience", "SOCIAL_REELS");
+    if (media?.url && /^https?:\/\//i.test(media.url)) params.set("sourceImage", media.url);
+    return `/animate/instant?${params.toString()}`;
+  }
+
+  if (input.experienceId === "BUSINESS_COMMERCIAL") {
+    return idea ? `/studio/quick-ad?${new URLSearchParams({ idea }).toString()}` : "/studio/quick-ad";
   }
 
   if (input.experienceId) {

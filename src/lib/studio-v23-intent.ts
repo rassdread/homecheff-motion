@@ -69,6 +69,8 @@ export function isExplicitFilmRequest(text: string): boolean {
     /\bvolledige film\b/.test(text) ||
     /\bmaak een film\b/.test(text) ||
     /\bmake a film\b/.test(text) ||
+    /\bfilm maken\b/.test(text) ||
+    /\been film\b/.test(text) ||
     /\bfilm van\b/.test(text) ||
     /\ba film\b/.test(text)
   );
@@ -173,6 +175,8 @@ export function classifyStudioCreativeIntent(prompt: string): StudioCreativeInte
       "quick video",
       "slideshow",
       "filmpje",
+      "reclamevideo",
+      "advertentievideo",
       "maak een video",
       "make a video",
     ])
@@ -207,15 +211,41 @@ export function creativeIntentHandoffHref(
     case "VIDEO":
       if (
         has(text, [
+          "reclame",
+          "advertentie",
+          "advertisement",
+          "commercial",
+          "productadvertentie",
+          "product ad",
+        ])
+      ) {
+        return withIdea("/studio/quick-ad", prompt);
+      }
+      if (
+        has(text, [
           "deze foto",
           "this photo",
           "van deze foto",
           "from this photo",
           "foto naar video",
           "photo to video",
+          "snelle video",
+          "quick video",
+          "slideshow",
         ])
       ) {
         return withIdea("/studio/photo-video", prompt);
+      }
+      if (has(text, ["reels", "instagram", "tiktok", "social-media", "social media"])) {
+        const params = new URLSearchParams();
+        const idea = prompt.trim().slice(0, 500);
+        if (idea) params.set("idea", idea);
+        params.set("photoIntent", "photo_to_video");
+        params.set("experience", "SOCIAL_REELS");
+        if (extras?.mediaUrl && /^https?:\/\//i.test(extras.mediaUrl)) {
+          params.set("sourceImage", extras.mediaUrl);
+        }
+        return `/animate/instant?${params.toString()}`;
       }
       return withIdea("/studio/experience", prompt);
     case "ANIMATION":
@@ -224,6 +254,7 @@ export function creativeIntentHandoffHref(
         const idea = prompt.trim().slice(0, 500);
         if (idea) params.set("idea", idea);
         params.set("sourceImage", extras.mediaUrl);
+        params.set("photoIntent", "photo_to_video");
         return `/motion/start?${params.toString()}`;
       }
       return withIdea("/motion", prompt);

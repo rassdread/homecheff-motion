@@ -118,6 +118,21 @@ function nextHrefForPack(
       params.set("style", "clean_business");
       params.set("photoIntent", "photo_to_video");
       return `/animate/instant?${params.toString()}`;
+    case "SOCIAL_REELS":
+    case "SOCIAL_TIKTOK":
+    case "SOCIAL_SHORTS":
+    case "SOCIAL_INSTAGRAM":
+      params.set("photoIntent", "photo_to_video");
+      return `/animate/instant?${params.toString()}`;
+    case "CREATIVE_STORYBOARD":
+    case "CREATIVE_PRESENTATION":
+      return `/studio/storyboards/new?${params.toString()}`;
+    case "BUSINESS_COMMERCIAL":
+      return `/studio/quick-ad?${params.toString()}`;
+    case "BUSINESS_PRODUCT":
+    case "BUSINESS_LOGO_PLACEMENT":
+    case "BUSINESS_BRANDING":
+      return `/editor/start?${params.toString()}`;
     default:
       return `/studio/experience?experience=${experienceId}&mode=${mode.toLowerCase()}`;
   }
