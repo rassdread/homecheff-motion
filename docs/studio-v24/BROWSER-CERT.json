@@ -1,0 +1,132 @@
+{
+  "commit": "64be8f8bd948d93bbf711885fa482e27568ff36f",
+  "database": "homecheff_film_cert_v24",
+  "steps": [
+    {
+      "name": "login_a",
+      "ok": true,
+      "detail": "200"
+    },
+    {
+      "name": "history_lists_existing_records",
+      "ok": true,
+      "detail": "Browser generated voice\nStem · 10/27/2026 · active\nAudio afspelen | Browser historical character\nPersonage · 10/27/2026\nPersonage openen | B\nBrowser historical image\nBeeld · 10/27/2026 · active\nAfbeelding bewerken | B\nBrowser historical animation\nAnimatie · 10/27/2026 · draft\nAnimatie openen | B\nBrowser historical film\nFilm · 10/27/2026\nProject openen"
+    },
+    {
+      "name": "historical_storyboard_opens_unified",
+      "ok": true,
+      "detail": "https://127.0.0.1:3460/studio/projects/cmvqsisan0017dhcaj2wv241h?workflow=film"
+    },
+    {
+      "name": "storyboard_edit_persists",
+      "ok": true,
+      "detail": "scenes=1 pointers=1 project=cmvqsisan0017dhcaj2wv241h"
+    },
+    {
+      "name": "historical_animation_opens_unified",
+      "ok": true,
+      "detail": "https://127.0.0.1:3460/studio/projects/cmvqsiv5o001bdhcact5gqb2u?workflow=video"
+    },
+    {
+      "name": "historical_image_editor",
+      "ok": true,
+      "detail": " in één scene ONTDEK 🧓 Hoe zie jij eruit op je 80e? Bekijk jezelf ouder — zonder technische setup Probeer HomeCheff Studio Onderdeel van HomeCheff · CREATE-laag · Arrias Beheer B.V. HomeCheff — Everybody Eats. Kansen via CREATE · SELL · GROW · PROMOTE — geen gegarandeerd inkomen. Iedereen eet mee. Prijzen FAQ Help Voorwaarden Privacy Cookies Over Ecosysteem Werken bij HC Credits Contact Affiliate"
+    },
+    {
+      "name": "historical_character",
+      "ok": true,
+      "detail": "HomeCheff Studio Studio Mijn projecten Account Meer Ontdek HomeCheff· Studio NL EN 0 CREDITS Gratis Details V24-browser-a-1793111886005 GEBRUIKER ▼ Je credits raken op. Je hebt nog 0 credits (onder 20). Credits kopen Plan upgraden Sluiten ←"
+    },
+    {
+      "name": "read_only_voice_asset",
+      "ok": true,
+      "detail": "Terug naar Studio\n\nSTEM\n\nBrowser generated voice\n\nDit is een bestaand mediabestand. Je kunt het bekijken of hergebruiken. Het wordt niet als bewerkbaar project behandeld.\n\nB\n\nAudio"
+    },
+    {
+      "name": "legacy_escape_hatch",
+      "ok": true,
+      "detail": "https://127.0.0.1:3460/studio?storyboardId=cmvqsiq6x000bdhzb77a21htw&legacy=1&hcProject=hcproj_1793111897464_moxuz6tu"
+    },
+    {
+      "name": "legacy_/editor",
+      "ok": true,
+      "detail": "https://127.0.0.1:3460/editor status=200"
+    },
+    {
+      "name": "legacy_/editor/start",
+      "ok": true,
+      "detail": "https://127.0.0.1:3460/editor/start status=200"
+    },
+    {
+      "name": "legacy_/animate",
+      "ok": true,
+      "detail": "https://127.0.0.1:3460/motion status=200"
+    },
+    {
+      "name": "legacy_/motion",
+      "ok": true,
+      "detail": "https://127.0.0.1:3460/motion status=200"
+    },
+    {
+      "name": "legacy_/publish",
+      "ok": true,
+      "detail": "https://127.0.0.1:3460/publish status=200"
+    },
+    {
+      "name": "legacy_/studio/photo-video",
+      "ok": true,
+      "detail": "https://127.0.0.1:3460/studio/photo-video status=200"
+    },
+    {
+      "name": "legacy_/studio/assets",
+      "ok": true,
+      "detail": "https://127.0.0.1:3460/studio/assets status=200"
+    },
+    {
+      "name": "legacy_/studio/characters",
+      "ok": true,
+      "detail": "https://127.0.0.1:3460/studio/characters status=200"
+    },
+    {
+      "name": "desktop_1440",
+      "ok": true,
+      "detail": "homeOverflow=false overflow=false box=164.671875x44@313"
+    },
+    {
+      "name": "tablet_1024",
+      "ok": true,
+      "detail": "homeOverflow=false overflow=false box=119.265625x64@313"
+    },
+    {
+      "name": "tablet_768",
+      "ok": true,
+      "detail": "homeOverflow=false overflow=false box=164.671875x44@73"
+    },
+    {
+      "name": "mobile_390",
+      "ok": true,
+      "detail": "homeOverflow=false overflow=false box=164.671875x44@61"
+    },
+    {
+      "name": "mobile_360",
+      "ok": true,
+      "detail": "homeOverflow=false overflow=false box=164.671875x44@61"
+    },
+    {
+      "name": "logout_clears_access",
+      "ok": true,
+      "detail": "logout=200 workspace=401"
+    },
+    {
+      "name": "cross_user",
+      "ok": true,
+      "detail": "history=200 open=404"
+    },
+    {
+      "name": "preservation_and_zero_spend",
+      "ok": true,
+      "detail": "balance=0 ledger=0"
+    }
+  ],
+  "failed": 0
+}
