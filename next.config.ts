@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 const buildTime = new Date().toISOString();
 
 const nextConfig: NextConfig = {
+  // A production `next build` writes `.next`. Reusing that folder for `next dev`
+  // makes existing API routes render the not-found page. Development keeps its own cache.
+  distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next",
   env: {
     NEXT_PUBLIC_BUILD_TIME: buildTime,
     NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA: process.env.VERCEL_GIT_COMMIT_SHA ?? "",
