@@ -45,6 +45,7 @@ export function StudioCreativeProjectWorkspacePage() {
           initialSection={search.get("section")}
           initialSceneId={search.get("scene")}
           initialCharacterId={search.get("character")}
+          initialWorkflow={search.get("workflow")}
           onReload={() => {
             void fetch(`/api/studio/projects/${projectId}/workspace`, { credentials: "include", cache: "no-store" })
               .then((response) => response.json())

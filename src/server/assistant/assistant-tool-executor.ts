@@ -8,6 +8,8 @@ import {
 import { getMotionActionPreset } from "@/lib/motion-action-presets";
 import { getActionCost } from "@/server/studio-account/studio-action-cost-registry";
 import { getActionPresetRequirement } from "@/lib/action-preset-requirements";
+import type { SessionUser } from "@/server/auth/session";
+import { executeOwnedStudioV23Body } from "@/server/studio/studio-v23-actions";
 import type {
   AssistantExecutionPlan,
   AssistantExecutionResult,
@@ -407,4 +409,11 @@ export function executeAssistantPlanSequential(
   }
 
   return { plan: currentPlan, results };
+}
+
+export async function executeAssistantV23Action(input: {
+  user: Pick<SessionUser, "id" | "email" | "role">;
+  body: unknown;
+}) {
+  return executeOwnedStudioV23Body(input);
 }

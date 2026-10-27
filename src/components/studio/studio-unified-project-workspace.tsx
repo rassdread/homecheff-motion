@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { StudioProjectMediaBrowser } from "@/components/studio/studio-project-media-browser";
+import { StudioProjectAssistantRail } from "@/components/studio/studio-project-assistant-rail";
 import { useLocale, useActiveTranslator } from "@/i18n/client";
 import { ECOSYSTEM_BRAND_MARK_URL } from "@/lib/ecosystem-navigation/contract";
 import {
@@ -14,6 +15,15 @@ import { StudioProjectFilmEditor } from "@/components/studio/studio-project-film
 import { StudioProjectScenePanel } from "@/components/studio/studio-project-scene-panel";
 import { StudioProjectTimeline } from "@/components/studio/studio-project-timeline";
 import { studioVisual } from "@/lib/studio-visual-tokens";
+import {
+  parseStudioWorkflow,
+  workflowDefaultSection,
+  workflowLegacyHref,
+  workflowPrimarySections,
+  workspaceSelectionSearch,
+  type StudioWorkflow,
+} from "@/lib/studio-v23-intent";
+import { planStudioWorkspaceLayout, type StudioWorkspaceLayoutPlan } from "@/lib/studio-workspace-posture";
 
 const NAV = [
   { id: "dashboard", href: "/studio", section: null },
@@ -31,6 +41,7 @@ type Props = {
   initialSection?: string | null;
   initialSceneId?: string | null;
   initialCharacterId?: string | null;
+  initialWorkflow?: string | null;
   onReload?: () => void;
 };
 
@@ -40,40 +51,69 @@ function formatWhen(value: string, locale: string): string {
   return date.toLocaleString(locale);
 }
 
-export function StudioUnifiedProjectWorkspace({ workspace, initialSection, initialSceneId, initialCharacterId, onReload }: Props) {
+export function StudioUnifiedProjectWorkspace({
+  workspace,
+  initialSection,
+  initialSceneId,
+  initialCharacterId,
+  initialWorkflow,
+  onReload,
+}: Props) {
   const t = useActiveTranslator();
   const [locale] = useLocale();
+  const workflow: StudioWorkflow = parseStudioWorkflow(initialWorkflow) ?? "film";
   const [section, setSection] = useState<WorkspaceSection>(
-    isWorkspaceSection(initialSection) ? initialSection : "overview",
+    isWorkspaceSection(initialSection) ? initialSection : workflowDefaultSection(workflow),
   );
   const [navOpen, setNavOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
+  const [assistantCollapsed, setAssistantCollapsed] = useState(false);
+  const [posture, setPosture] = useState<StudioWorkspaceLayoutPlan | null>(null);
   const [mediaProjectId, setMediaProjectId] = useState(workspace.mediaProjectIds[0] ?? "");
   const [selectedCharacterId, setSelectedCharacterId] = useState(
     workspace.characters.some((item) => item.id === initialCharacterId)
       ? (initialCharacterId as string)
       : (workspace.characters[0]?.id ?? ""),
   );
+  const [selectedSceneId, setSelectedSceneId] = useState(initialSceneId ?? "");
+
+  useEffect(() => {
+    const apply = () => setPosture(planStudioWorkspaceLayout(window.innerWidth, window.innerHeight));
+    apply();
+    window.addEventListener("resize", apply);
+    return () => window.removeEventListener("resize", apply);
+  }, []);
 
   const selectedCharacter = workspace.characters.find((item) => item.id === selectedCharacterId) ?? workspace.characters[0] ?? null;
+  const selectedScene = workspace.scenes.find((scene) => scene.id === selectedSceneId) ?? workspace.scenes[0] ?? null;
   const previewImage =
     selectedCharacter?.referenceImageUrl ||
     workspace.scenes.find((scene) => scene.imageUrl)?.imageUrl ||
     workspace.media[0]?.previewUrl ||
     "";
   const previewVideo = workspace.exports.find((item) => item.status === "completed" && item.downloadUrl)?.downloadUrl ?? "";
+  const primarySections = new Set(workflowPrimarySections(workflow));
+  const legacyHref = workflowLegacyHref(workflow, workspace.project.id);
 
   const link = useMemo(() => {
     const map = new Map(workspace.links.map((item) => [item.id, item.href]));
     return (id: string) => map.get(id) ?? "";
   }, [workspace.links]);
 
+  function writeSelection(patch: { section?: string | null; scene?: string | null; character?: string | null; workflow?: string | null }) {
+    const next = workspaceSelectionSearch(window.location.search, patch);
+    window.history.replaceState(null, "", `${window.location.pathname}${next}`);
+  }
+
   function chooseSection(next: WorkspaceSection) {
     setSection(next);
     setNavOpen(false);
-    const url = new URL(window.location.href);
-    url.searchParams.set("section", next);
-    window.history.replaceState(null, "", url.toString());
+    writeSelection({ section: next, workflow, scene: selectedScene?.id ?? null, character: selectedCharacter?.id ?? null });
+  }
+
+  function chooseCharacter(id: string) {
+    setSelectedCharacterId(id);
+    writeSelection({ section, workflow, scene: selectedScene?.id ?? null, character: id });
   }
 
   const navButton = (id: (typeof NAV)[number]["id"], active: boolean) =>
@@ -107,8 +147,12 @@ export function StudioUnifiedProjectWorkspace({ workspace, initialSection, initi
   );
 
   return (
-    <div className="min-h-screen bg-[#041428] text-zinc-900 lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
-      <aside className="hidden border-r border-white/10 bg-[#041428] lg:block">{sidebar}</aside>
+    <div
+      className="min-h-screen bg-[#041428] pb-24 text-zinc-900 min-[1024px]:grid min-[1024px]:grid-cols-[240px_minmax(0,1fr)] min-[1024px]:pb-0"
+      data-studio-posture={posture?.posture ?? "compact"}
+      data-testid="studio-v23-workspace"
+    >
+      <aside className={`${posture && !posture.showInlineLeftRail ? "hidden" : "hidden min-[1024px]:block"} border-r border-white/10 bg-[#041428]`}>{sidebar}</aside>
       <div className="min-w-0">
         <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-white/10 bg-[#041428]/95 px-4 py-3 text-white backdrop-blur">
           <div className="flex min-w-0 items-center gap-2">
@@ -132,7 +176,7 @@ export function StudioUnifiedProjectWorkspace({ workspace, initialSection, initi
             aria-expanded={contextOpen}
             onClick={() => setContextOpen(true)}
           >
-            {t("studio.workspace.v12.details")}
+            {t("studio.v23.assistant.title")}
           </button>
         </header>
         {navOpen ? (
@@ -141,8 +185,38 @@ export function StudioUnifiedProjectWorkspace({ workspace, initialSection, initi
           </div>
         ) : null}
 
-        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-[1024px]:grid min-[1024px]:grid-cols-[minmax(0,1fr)_320px] min-[1440px]:grid-cols-[minmax(0,1fr)_360px]">
           <main className="min-w-0 px-4 py-5 sm:px-6">
+            <div className="mb-4 flex flex-wrap items-center gap-2" data-testid="studio-v23-workflow">
+              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white">
+                {t(`studio.v23.workflow.${workflow}`)}
+              </span>
+              {legacyHref ? (
+                <Link href={legacyHref} className="inline-flex min-h-11 items-center text-sm font-semibold text-white underline-offset-2 hover:underline">
+                  {t("studio.v23.workflow.legacy")}
+                </Link>
+              ) : null}
+            </div>
+            <div className="mb-4 flex gap-2 overflow-x-auto" data-testid="studio-v23-simple-actions">
+              {(
+                [
+                  ["media", "studio.v23.simple.image"],
+                  ["scenes", "studio.v23.simple.video"],
+                  ["audio", "studio.v23.simple.voice"],
+                  ["timeline", "studio.v23.simple.timeline"],
+                  ["export", "studio.v23.simple.export"],
+                ] as const
+              ).map(([target, label]) => (
+                <button
+                  key={target}
+                  type="button"
+                  className="inline-flex min-h-11 items-center rounded-full border border-white/20 px-3 text-sm font-semibold text-white"
+                  onClick={() => chooseSection(target)}
+                >
+                  {t(label)}
+                </button>
+              ))}
+            </div>
             <div className="flex gap-2 overflow-x-auto pb-4" role="tablist" aria-label={t("studio.workspace.v12.sectionsLabel")}>
               {SECTIONS.map((item) => (
                 <button
@@ -150,6 +224,7 @@ export function StudioUnifiedProjectWorkspace({ workspace, initialSection, initi
                   type="button"
                   role="tab"
                   aria-selected={section === item}
+                  data-primary={primarySections.has(item) ? "true" : "false"}
                   className={section === item ? studioVisual.editorTabActive : studioVisual.editorTabInactive}
                   onClick={() => chooseSection(item)}
                 >
@@ -177,8 +252,12 @@ export function StudioUnifiedProjectWorkspace({ workspace, initialSection, initi
                   <>
                     <StudioProjectScenePanel
                       workspace={workspace}
-                      initialSceneId={initialSceneId}
+                      initialSceneId={selectedScene?.id ?? initialSceneId}
                       onReload={onReload ?? (() => undefined)}
+                      onSceneChange={(sceneId) => {
+                        setSelectedSceneId(sceneId);
+                        writeSelection({ section: "scenes", workflow, scene: sceneId, character: selectedCharacter?.id ?? null });
+                      }}
                     />
                     <div className="mt-6">
                       <StudioProjectFilmEditor workspace={workspace} />
@@ -189,7 +268,7 @@ export function StudioUnifiedProjectWorkspace({ workspace, initialSection, initi
                   <Characters
                     workspace={workspace}
                     selectedId={selectedCharacter?.id ?? ""}
-                    onSelect={setSelectedCharacterId}
+                    onSelect={chooseCharacter}
                     t={t}
                   />
                 ) : null}
@@ -217,6 +296,11 @@ export function StudioUnifiedProjectWorkspace({ workspace, initialSection, initi
           <Context
             workspace={workspace}
             character={selectedCharacter}
+            scene={selectedScene}
+            section={section}
+            workflow={workflow}
+            assistantCollapsed={assistantCollapsed}
+            onToggleAssistant={() => setAssistantCollapsed((value) => !value)}
             link={link}
             open={contextOpen}
             onClose={() => setContextOpen(false)}
@@ -224,6 +308,34 @@ export function StudioUnifiedProjectWorkspace({ workspace, initialSection, initi
           />
         </div>
       </div>
+      <nav
+        className="fixed inset-x-0 bottom-0 z-30 flex border-t border-zinc-200 bg-white px-2 pb-[max(0.25rem,env(safe-area-inset-bottom))] min-[768px]:hidden"
+        aria-label={t("studio.workspace.v12.sectionsLabel")}
+      >
+        {(
+          [
+            ["overview", "studio.workspace.v12.section.overview"],
+            ["scenes", "studio.workspace.v12.section.scenes"],
+            ["timeline", "studio.workspace.v12.section.timeline"],
+          ] as const
+        ).map(([target, label]) => (
+          <button
+            key={target}
+            type="button"
+            className="min-h-11 flex-1 text-xs font-semibold text-zinc-800"
+            onClick={() => chooseSection(target)}
+          >
+            {t(label)}
+          </button>
+        ))}
+        <button
+          type="button"
+          className="min-h-11 flex-1 text-xs font-semibold text-zinc-800"
+          onClick={() => setContextOpen(true)}
+        >
+          {t("studio.v23.assistant.title")}
+        </button>
+      </nav>
     </div>
   );
 }
@@ -293,10 +405,14 @@ function Characters({
   onSelect: (id: string) => void;
   t: Translate;
 }) {
+  const [referenceId, setReferenceId] = useState("");
+  const [referenceNote, setReferenceNote] = useState("");
   if (workspace.characters.length === 0) {
     return <Empty text={t("studio.workspace.v12.charactersEmpty")} href="/studio/characters" action={t("studio.workspace.v12.openCharacters")} />;
   }
+  const images = workspace.media.filter((item) => item.family === "image");
   return (
+    <div className="space-y-4">
     <ul className="grid gap-3 sm:grid-cols-2">
       {workspace.characters.map((character) => (
         <li key={character.id}>
@@ -324,6 +440,52 @@ function Characters({
         </li>
       ))}
     </ul>
+    {images.length > 0 && selectedId ? (
+      <div className="space-y-2" data-testid="studio-v23-reference-picker">
+        <p className="text-sm font-semibold text-zinc-900">{t("studio.v23.reference.use")}</p>
+        <ul className="flex gap-2 overflow-x-auto">
+          {images.map((item) => (
+            <li key={item.id}>
+              <button
+                type="button"
+                aria-pressed={referenceId === item.id}
+                className={`min-h-11 rounded-xl border p-2 text-left text-xs ${referenceId === item.id ? "border-[#0067B1]" : "border-zinc-200"}`}
+                onClick={() => setReferenceId(item.id)}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={item.previewUrl} alt="" className="h-16 w-16 rounded-lg object-cover" />
+                <span className="mt-1 block max-w-16 truncate">{item.title}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <button
+          type="button"
+          className={`${studioVisual.btnGradientPrimary} min-h-11 px-3 text-sm`}
+          disabled={!referenceId}
+          onClick={() => {
+            void fetch("/api/studio/assistant/actions", {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "ASSOCIATE_CHARACTER_REFERENCE",
+                confirmed: true,
+                projectId: workspace.project.id,
+                characterId: selectedId,
+                assetId: referenceId,
+              }),
+            }).then((response) => {
+              setReferenceNote(response.ok ? t("studio.v23.reference.saved") : t("studio.v23.save.error"));
+            });
+          }}
+        >
+          {t("studio.v23.assistant.confirm")}
+        </button>
+        {referenceNote ? <p className="text-sm text-zinc-700">{referenceNote}</p> : null}
+      </div>
+    ) : null}
+    </div>
   );
 }
 
@@ -454,6 +616,11 @@ function Exports({
 function Context({
   workspace,
   character,
+  scene,
+  section,
+  workflow,
+  assistantCollapsed,
+  onToggleAssistant,
   link,
   open,
   onClose,
@@ -461,6 +628,11 @@ function Context({
 }: {
   workspace: ProjectWorkspaceView;
   character: ProjectWorkspaceView["characters"][number] | null;
+  scene: ProjectWorkspaceView["scenes"][number] | null;
+  section: WorkspaceSection;
+  workflow: StudioWorkflow;
+  assistantCollapsed: boolean;
+  onToggleAssistant: () => void;
   link: (id: string) => string;
   open: boolean;
   onClose: () => void;
@@ -508,10 +680,27 @@ function Context({
           </TextLink>
         </section>
       ) : null}
-      <section className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
-        <h2 className="text-sm font-bold text-zinc-900">{t("studio.workspace.v12.directorTitle")}</h2>
-        <p className="mt-1 text-sm leading-6 text-zinc-700">{t("studio.workspace.v12.directorBody")}</p>
-        <p className="mt-2 text-xs font-semibold text-zinc-500">{t("studio.workspace.v12.directorNotExecuting")}</p>
+      <section className="rounded-xl border border-zinc-200 bg-zinc-50 p-3" data-workflow={workflow}>
+        <StudioProjectAssistantRail
+          projectId={workspace.project.id}
+          projectTitle={workspace.project.title}
+          sectionLabel={t(`studio.workspace.v12.section.${section}`)}
+          section={section}
+          sceneId={scene?.id ?? null}
+          sceneTitle={scene ? `${scene.order}. ${scene.title}` : null}
+          characterId={character?.id ?? null}
+          characterName={character?.name ?? null}
+          scenes={workspace.scenes.map((item) => ({
+            id: item.id,
+            order: item.order,
+            title: item.title,
+            dialogueText: item.dialogueText,
+          }))}
+          balance={workspace.hcAvailable}
+          collapsed={assistantCollapsed}
+          onToggle={onToggleAssistant}
+        />
+        <p className="mt-3 text-xs font-semibold text-zinc-500">{t("studio.workspace.v12.directorNotExecuting")}</p>
       </section>
       {link("characterMasters") ? <TextLink href={link("characterMasters")}>{t("studio.workspace.v12.masterTools")}</TextLink> : null}
     </div>

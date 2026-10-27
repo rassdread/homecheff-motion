@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { StudioFilmEditorPanel } from "@/components/studio/studio-film-editor-panel";
+import { useActiveTranslator } from "@/i18n/client";
 import { filmDocumentFromCreativeProject } from "@/lib/studio-creative-film-document";
+import { beginPendingSceneEdit, finishPendingSceneEdit } from "@/lib/studio-v23-pending-edits";
 import type { StudioFilmProjectDocument } from "@/lib/studio-film-pipeline";
 import type { ProjectWorkspaceView } from "@/lib/studio-project-workspace";
 
@@ -11,6 +13,7 @@ import type { ProjectWorkspaceView } from "@/lib/studio-project-workspace";
  * The project title is kept. Dialogue and subtitles save through the existing scene route.
  */
 export function StudioProjectFilmEditor({ workspace }: { workspace: ProjectWorkspaceView }) {
+  const t = useActiveTranslator();
   const seeded = useMemo(
     () =>
       filmDocumentFromCreativeProject({
@@ -27,13 +30,24 @@ export function StudioProjectFilmEditor({ workspace }: { workspace: ProjectWorks
     [workspace],
   );
   const [film, setFilm] = useState<StudioFilmProjectDocument | null>(workspace.scenes.length > 0 ? seeded : null);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   if (workspace.scenes.length === 0) {
     return null;
   }
 
   return (
-    <StudioFilmEditorPanel
+    <div className="space-y-2">
+      <p className="text-xs font-semibold text-zinc-500" data-testid="studio-v23-save-state">
+        {saveState === "saving"
+          ? t("studio.v23.save.saving")
+          : saveState === "error"
+            ? t("studio.v23.save.error")
+            : saveState === "saved"
+              ? t("studio.v23.save.saved")
+              : ""}
+      </p>
+      <StudioFilmEditorPanel
       film={film ? { ...film, title: workspace.project.title } : seeded}
       music={workspace.music.map((item) => ({
         id: item.id,
@@ -60,6 +74,17 @@ export function StudioProjectFilmEditor({ workspace }: { workspace: ProjectWorks
           const subtitleChanged = before.dutchSubtitle !== scene.dutchSubtitle;
           const titleChanged = before.englishTitle !== scene.englishTitle;
           if (!dialogueChanged && !subtitleChanged && !titleChanged) continue;
+          const fields = [
+            ...(titleChanged ? ["title"] : []),
+            ...(dialogueChanged ? ["dialogueText"] : []),
+            ...(subtitleChanged ? ["subtitleText"] : []),
+          ];
+          const pendingId = beginPendingSceneEdit({
+            projectId: workspace.project.id,
+            sceneId: scene.id,
+            fields,
+          });
+          setSaveState("saving");
           void fetch(`/api/studio/projects/${workspace.project.id}/scenes/${scene.id}`, {
             method: "PATCH",
             credentials: "include",
@@ -69,9 +94,18 @@ export function StudioProjectFilmEditor({ workspace }: { workspace: ProjectWorks
               ...(dialogueChanged ? { dialogueText: scene.englishDialogue } : {}),
               ...(subtitleChanged ? { subtitleText: scene.dutchSubtitle } : {}),
             }),
-          });
+          })
+            .then((response) => {
+              finishPendingSceneEdit(pendingId, response.ok);
+              setSaveState(response.ok ? "saved" : "error");
+            })
+            .catch(() => {
+              finishPendingSceneEdit(pendingId, false);
+              setSaveState("error");
+            });
         }
       }}
     />
+    </div>
   );
 }

@@ -14,10 +14,12 @@ export function StudioProjectScenePanel({
   workspace,
   initialSceneId,
   onReload,
+  onSceneChange,
 }: {
   workspace: ProjectWorkspaceView;
   initialSceneId?: string | null;
   onReload: () => void;
+  onSceneChange?: (sceneId: string) => void;
 }) {
   const t = useActiveTranslator();
   const projectId = workspace.project.id;
@@ -30,6 +32,10 @@ export function StudioProjectScenePanel({
     workspace.scenes.some((scene) => scene.id === initialSceneId) ? (initialSceneId as string) : (workspace.scenes[0]?.id ?? ""),
   );
   const scene = workspace.scenes.find((item) => item.id === selectedId) ?? workspace.scenes[0] ?? null;
+
+  useEffect(() => {
+    if (selectedId) onSceneChange?.(selectedId);
+  }, [onSceneChange, selectedId]);
   const [advanced, setAdvanced] = useState(false);
   const [characters, setCharacters] = useState<CharacterOption[] | null>(null);
 
