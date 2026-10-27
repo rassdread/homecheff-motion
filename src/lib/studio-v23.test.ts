@@ -465,7 +465,7 @@ describe("V23 preservation", () => {
     const workspace = readFileSync("src/components/studio/studio-unified-project-workspace.tsx", "utf8");
     const server = readFileSync("src/server/studio/studio-v23-actions.ts", "utf8");
     assert.match(home, /StudioAiHomeComposer/);
-    assert.match(home, /\/api\/studio\/creative-projects\?recent=1/);
+    assert.match(home, /\/api\/studio\/history\?limit=12/);
     assert.match(composer, /classifyStudioCreativeIntent/);
     assert.match(composer, /\/api\/studio\/films/);
     assert.match(composer, /plan\.handoffHref/);

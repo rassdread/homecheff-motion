@@ -164,6 +164,12 @@ export async function loadStudioProjectWorkspace(
   if (animation) {
     links.push({ id: "animation", href: `/videos/${encodeURIComponent(animation.id)}` });
   }
+  if (project.editorCanvasProjectId) {
+    links.push({
+      id: "imageEditor",
+      href: `/editor/start?session=${encodeURIComponent(project.editorCanvasProjectId)}&restoreServer=1`,
+    });
+  }
   if (project.title === "MADE WITH PASSION") {
     links.push({
       id: "characterMasters",

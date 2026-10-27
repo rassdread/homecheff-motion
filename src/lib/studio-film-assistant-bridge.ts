@@ -12,6 +12,7 @@ export type StudioFilmAssistantContext = {
   projectTitle: string;
   section: string;
   sectionLabel: string;
+  workflow?: string | null;
   sceneId: string | null;
   sceneTitle: string | null;
   characterId: string | null;

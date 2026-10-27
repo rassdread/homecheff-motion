@@ -97,6 +97,7 @@ export function StudioUnifiedProjectWorkspace({
       projectTitle: workspace.project.title,
       section,
       sectionLabel: t(`studio.workspace.v12.section.${section}`),
+      workflow,
       sceneId: selectedScene?.id ?? null,
       sceneTitle: selectedScene ? `${selectedScene.order}. ${selectedScene.title}` : null,
       characterId: selectedCharacter?.id ?? null,
@@ -110,7 +111,7 @@ export function StudioUnifiedProjectWorkspace({
       balance: workspace.hcAvailable,
     });
     return () => publishStudioFilmAssistantContext(null);
-  }, [section, selectedCharacter, selectedScene, t, workspace]);
+  }, [section, selectedCharacter, selectedScene, t, workflow, workspace]);
   const previewImage =
     selectedCharacter?.referenceImageUrl ||
     workspace.scenes.find((scene) => scene.imageUrl)?.imageUrl ||
@@ -192,7 +193,7 @@ export function StudioUnifiedProjectWorkspace({
             </button>
             <div className="min-w-0">
               <p className="text-xs text-white/70">{t("studio.workspace.v12.projectEyebrow")}</p>
-              <h1 className="truncate text-lg font-bold tracking-tight">{workspace.project.title}</h1>
+              <h1 className="truncate text-lg font-bold tracking-tight" data-testid="studio-v24-project" data-project-id={workspace.project.id} data-workflow={workflow} data-scene-id={selectedScene?.id ?? ""}>{workspace.project.title}</h1>
             </div>
           </div>
           <button
@@ -543,6 +544,11 @@ function Media({
             </button>
           ))}
         </div>
+      ) : null}
+      {link("imageEditor") ? (
+        <a href={link("imageEditor")} className="inline-flex min-h-11 items-center text-sm font-semibold text-[#006D52]">
+          {t("studio.v24.action.edit_image")}
+        </a>
       ) : null}
       {mediaProjectId ? (
         <StudioProjectMediaBrowser key={mediaProjectId} lockProjectId={mediaProjectId} />

@@ -12,18 +12,19 @@ import {
 } from "@/lib/studio-slice1a-home";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import { StudioAiHomeComposer } from "@/components/studio/studio-ai-home-composer";
-import { creativeProjectKind } from "@/lib/studio-v23-intent";
 import { fetchStudioAccountJson } from "@/lib/studio-account-client";
+import type { StudioHistoryAction, StudioHistoryKind } from "@/lib/studio-v24-history";
 import type { UserStudioDashboardReport } from "@/types/studio-profitability";
 
-type RecentCreativeProject = {
+type HistoryItem = {
   id: string;
   title: string;
-  status: string;
+  kind: StudioHistoryKind;
+  action: StudioHistoryAction;
+  href: string;
+  previewUrl: string | null;
   updatedAt: string;
-  storyboardId?: string | null;
-  animationProjectId?: string | null;
-  editorCanvasProjectId?: string | null;
+  status: string | null;
 };
 
 function trackStudioHomeEvent(event: string) {
@@ -92,7 +93,7 @@ export function StudioUnifiedHomePage() {
   const auth = useAuthSession();
   const [shell, setShell] = useState<UserStudioDashboardReport | null>(null);
   const [continueError, setContinueError] = useState(false);
-  const [recentProjects, setRecentProjects] = useState<RecentCreativeProject[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [credits, setCredits] = useState<number | null>(null);
 
   useEffect(() => {
@@ -123,7 +124,7 @@ export function StudioUnifiedHomePage() {
   useEffect(() => {
     if (!auth.resolved || !auth.user) {
       queueMicrotask(() => {
-        setRecentProjects([]);
+        setHistory([]);
         setCredits(null);
       });
       return;
@@ -131,13 +132,13 @@ export function StudioUnifiedHomePage() {
     let cancelled = false;
     void (async () => {
       const [projectsResponse, account] = await Promise.all([
-        fetch("/api/studio/creative-projects?recent=1&limit=6", { credentials: "include", cache: "no-store" }),
+        fetch("/api/studio/history?limit=12", { credentials: "include", cache: "no-store" }),
         fetchStudioAccountJson({ view: "summary" }),
       ]);
       if (cancelled) return;
       if (projectsResponse.ok) {
-        const body = (await projectsResponse.json()) as { projects?: RecentCreativeProject[] };
-        setRecentProjects(body.projects ?? []);
+        const body = (await projectsResponse.json()) as { items?: HistoryItem[] };
+        setHistory(body.items ?? []);
       }
       const spendable = account?.canonicalBalance?.spendable;
       setCredits(typeof spendable === "number" ? spendable : null);
@@ -175,31 +176,37 @@ export function StudioUnifiedHomePage() {
         <StudioAiHomeComposer />
 
         {auth.resolved && auth.user ? (
-          <section className="mt-8 space-y-3" data-testid="studio-v23-recent">
-            <h2 className="text-sm font-semibold text-zinc-900">{t("studio.v23.recent.title")}</h2>
-            {recentProjects.length === 0 ? (
-              <p className="text-sm text-zinc-600">{t("studio.v23.recent.empty")}</p>
+          <section className="mt-8 space-y-3" data-testid="studio-v24-history">
+            <h2 className="text-sm font-semibold text-zinc-900">{t("studio.v24.history.title")}</h2>
+            {history.length === 0 ? (
+              <p className="text-sm text-zinc-600">{t("studio.v24.history.empty")}</p>
             ) : (
               <ul className="divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white">
-                {recentProjects.map((project) => {
-                  const kind = creativeProjectKind(project);
-                  return (
-                    <li key={project.id}>
-                      <Link
-                        href={`/studio/projects/${project.id}`}
-                        data-testid="studio-v23-recent-item"
-                        className="flex min-h-[52px] flex-col justify-center gap-0.5 px-4 py-3 hover:bg-zinc-50 sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <span className="text-sm font-medium text-zinc-900">
-                          {t(`studio.v23.recent.kind.${kind}`)} — {project.title}
+                {history.map((item) => (
+                  <li key={item.id}>
+                    <Link
+                      href={item.href}
+                      data-testid="studio-v24-history-item"
+                      className="flex min-h-[52px] items-center gap-3 px-4 py-3 hover:bg-zinc-50"
+                    >
+                      {item.previewUrl ? (
+                        <img src={item.previewUrl} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+                      ) : (
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-sm font-semibold text-zinc-500" data-testid="studio-v24-history-fallback">
+                          {item.title.slice(0, 1).toUpperCase()}
                         </span>
-                        <span className="text-xs text-zinc-500">
-                          {project.status} · {new Date(project.updatedAt).toLocaleString()} · {t("studio.v23.recent.continue")}
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-zinc-900">{item.title}</span>
+                        <span className="block text-xs text-zinc-500">
+                          {t(`studio.v24.kind.${item.kind}`)} · {new Date(item.updatedAt).toLocaleDateString()}
+                          {item.status ? ` · ${item.status}` : ""}
                         </span>
-                      </Link>
-                    </li>
-                  );
-                })}
+                      </span>
+                      <span className="shrink-0 text-xs font-semibold text-[#006D52]">{t(`studio.v24.action.${item.action}`)}</span>
+                    </Link>
+                  </li>
+                ))}
               </ul>
             )}
           </section>

@@ -2,7 +2,6 @@
  * S2H — Pure project status / title / continue resolvers (0 provider calls).
  */
 
-import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
 import type { StudioProductionStageId } from "@/lib/studio-production-stages";
 import {
   STUDIO_PROJECT_SUMMARY_VERSION,
@@ -208,22 +207,23 @@ export function resolveStudioProjectContinueHref(input: {
   hasFinalOutput?: boolean;
 }): string {
   if (input.sourceType === "storyboard") {
-    const stage =
-      input.recommendedStage ?? (input.hasFinalOutput ? "finish" : "story");
-    return studioWorkspaceHref(input.sourceId, {
-      stage,
-      continueInStudio: true,
-    });
+    const params = new URLSearchParams();
+    const stage = input.recommendedStage ?? (input.hasFinalOutput ? "finish" : "story");
+    if (stage) params.set("stage", stage);
+    const query = params.toString();
+    return `/studio/open/storyboard/${encodeURIComponent(input.sourceId)}${query ? `?${query}` : ""}`;
   }
   if (input.sourceType === "motion" || input.motionProjectId) {
     const id = input.motionProjectId ?? input.sourceId;
-    return `/videos/${encodeURIComponent(id)}`;
+    return `/studio/open/animation/${encodeURIComponent(id)}`;
   }
   if (input.sourceType === "local_quick_video") {
     return "/studio/photo-video?resume=1";
   }
   if (input.sourceType === "image") {
-    return "/editor/start";
+    return input.sourceId
+      ? `/studio/open/image/${encodeURIComponent(input.sourceId)}`
+      : "/editor/start";
   }
   if (input.sourceType === "creative") {
     return `/studio/projects/${encodeURIComponent(input.sourceId)}`;

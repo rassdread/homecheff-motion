@@ -150,7 +150,7 @@ export function StudioProjectScenePanel({
         </button>
         {workspace.project.storyboardId ? (
           <>
-            <Link href={`/studio?storyboardId=${encodeURIComponent(workspace.project.storyboardId)}`} className="inline-flex min-h-11 items-center text-sm font-semibold text-[#006D52]">
+            <Link href={`/studio/open/storyboard/${encodeURIComponent(workspace.project.storyboardId)}`} className="inline-flex min-h-11 items-center text-sm font-semibold text-[#006D52]">
               {t("studio.workspace.v12.openAdvancedStoryboard")}
             </Link>
             <Link href={`/studio/storyboards/${workspace.project.storyboardId}/classic`} className="inline-flex min-h-11 items-center text-sm font-semibold text-[#006D52]">

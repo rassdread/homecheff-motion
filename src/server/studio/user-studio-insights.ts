@@ -250,7 +250,7 @@ export async function buildUserStudioHomeShell(userId: string): Promise<UserStud
     id: row.id,
     kind: "storyboard" as const,
     title: row.title?.trim() || "Storyboard",
-    href: `/studio?storyboardId=${encodeURIComponent(row.id)}`,
+    href: `/studio/open/storyboard/${encodeURIComponent(row.id)}`,
     at: row.createdAt.toISOString(),
   }));
 
@@ -271,7 +271,7 @@ export async function buildUserStudioHomeShell(userId: string): Promise<UserStud
       id: row.id,
       kind: "storyboard" as const,
       title: row.title?.trim() || "Storyboard",
-      href: `/studio?storyboardId=${encodeURIComponent(row.id)}`,
+      href: `/studio/open/storyboard/${encodeURIComponent(row.id)}`,
       updatedAt: row.updatedAt.toISOString(),
     }));
   }
@@ -456,7 +456,7 @@ export async function buildUserStudioDashboard(userId: string): Promise<UserStud
       at: row.createdAt.toISOString(),
       kind: "project_created",
       title: row.title?.trim() || "Motion project",
-      href: `/videos/${row.id}`,
+      href: `/studio/open/animation/${encodeURIComponent(row.id)}`,
     });
   }
   for (const row of recentStoryboards) {
@@ -465,7 +465,7 @@ export async function buildUserStudioDashboard(userId: string): Promise<UserStud
       at: row.createdAt.toISOString(),
       kind: "storyboard_created",
       title: row.title?.trim() || "Storyboard",
-      href: `/studio?storyboardId=${encodeURIComponent(row.id)}`,
+      href: `/studio/open/storyboard/${encodeURIComponent(row.id)}`,
     });
   }
   for (const row of recentCharacters) {
@@ -559,7 +559,7 @@ export async function buildUserStudioDashboard(userId: string): Promise<UserStud
     id: row.id,
     kind: "storyboard" as const,
     title: row.title?.trim() || "Storyboard",
-    href: `/studio?storyboardId=${encodeURIComponent(row.id)}`,
+    href: `/studio/open/storyboard/${encodeURIComponent(row.id)}`,
     at: row.createdAt.toISOString(),
   }));
 
@@ -579,7 +579,7 @@ export async function buildUserStudioDashboard(userId: string): Promise<UserStud
       id: row.id,
       kind: "storyboard" as const,
       title: row.title?.trim() || "Storyboard",
-      href: `/studio?storyboardId=${encodeURIComponent(row.id)}`,
+      href: `/studio/open/storyboard/${encodeURIComponent(row.id)}`,
       updatedAt: row.updatedAt.toISOString(),
     }));
   }

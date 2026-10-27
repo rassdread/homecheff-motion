@@ -8,10 +8,17 @@ import { useActiveTranslator } from "@/i18n/client";
 import type { ProjectWorkspaceView } from "@/lib/studio-project-workspace";
 
 export function StudioCreativeProjectWorkspacePage() {
-  const t = useActiveTranslator();
   const params = useParams<{ projectId: string }>();
+  return (
+    <StudioAuthGate>
+      <ProjectWorkspaceLoader key={params.projectId} projectId={params.projectId} />
+    </StudioAuthGate>
+  );
+}
+
+function ProjectWorkspaceLoader({ projectId }: { projectId: string }) {
+  const t = useActiveTranslator();
   const search = useSearchParams();
-  const projectId = params.projectId;
   const [workspace, setWorkspace] = useState<ProjectWorkspaceView | null>(null);
   const [error, setError] = useState("");
 
@@ -36,7 +43,7 @@ export function StudioCreativeProjectWorkspacePage() {
   }, [projectId, t]);
 
   return (
-    <StudioAuthGate>
+    <>
       {error ? <p className="mx-auto max-w-xl px-6 py-16 text-sm text-red-200">{error}</p> : null}
       {!workspace && !error ? <p className="px-6 py-16 text-sm text-white/80">{t("studio.workspace.v12.loading")}</p> : null}
       {workspace ? (
@@ -55,6 +62,6 @@ export function StudioCreativeProjectWorkspacePage() {
           }}
         />
       ) : null}
-    </StudioAuthGate>
+    </>
   );
 }

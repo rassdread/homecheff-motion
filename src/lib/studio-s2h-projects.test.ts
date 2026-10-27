@@ -135,12 +135,10 @@ describe("S2H title / type / origin / continue", () => {
       sourceId: "sb1",
       recommendedStage: "visuals",
     });
-    assert.ok(href.includes("storyboardId=sb1"));
-    assert.ok(href.includes("stage=visuals"));
-    assert.ok(href.includes("continueInStudio=1"));
+    assert.equal(href, "/studio/open/storyboard/sb1?stage=visuals");
     assert.equal(
       resolveStudioProjectContinueHref({ sourceType: "motion", sourceId: "ap1" }),
-      "/videos/ap1"
+      "/studio/open/animation/ap1"
     );
     const passion = creativeProjectLibrarySummary({
       id: "cmvcbmxdp00032jryohiw8a84",
