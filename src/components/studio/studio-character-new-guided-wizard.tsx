@@ -33,17 +33,20 @@ type Props = {
   projectId?: string | null;
   projectTitle?: string | null;
   storyboardId?: string | null;
+  initialIdea?: string | null;
 };
 
-export function StudioCharacterNewGuidedWizard({ projectId, projectTitle, storyboardId }: Props) {
+export function StudioCharacterNewGuidedWizard({ projectId, projectTitle, storyboardId, initialIdea }: Props) {
   const t = useActiveTranslator();
   const [locale] = useLocale();
   const router = useRouter();
   const { prefill, hasPrefill, clearPrefill } = useAssistantWizardPrefill();
   const prefillAppliedRef = useRef(false);
-  const [state, setState] = useState<CharacterNewWizardState>(() =>
-    createEmptyCharacterNewWizardState({ id: projectId, title: projectTitle })
-  );
+  const [state, setState] = useState<CharacterNewWizardState>(() => {
+    const empty = createEmptyCharacterNewWizardState({ id: projectId, title: projectTitle });
+    const idea = initialIdea?.trim().slice(0, 500) ?? "";
+    return idea ? { ...empty, idea } : empty;
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 

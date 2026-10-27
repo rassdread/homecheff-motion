@@ -70,7 +70,9 @@ describe("Studio AI-first home — IntentPlan", () => {
     });
     assert.equal(withPrefill.recommendedPipeline, "photo_video");
     assert.equal(withPrefill.free, true);
-    assert.equal(withPrefill.handoffHref, "/studio/photo-video");
+    const photoVideoHref = new URL(withPrefill.handoffHref, "https://studio.local");
+    assert.equal(photoVideoHref.pathname, "/studio/photo-video");
+    assert.equal(photoVideoHref.searchParams.get("idea"), "Maak van mijn foto's een snelle video.");
     assert.equal(withPrefill.billingActionType, null);
     assert.equal(plan.recommendedPipeline, "photo_video");
   });
@@ -82,6 +84,40 @@ describe("Studio AI-first home — IntentPlan", () => {
     assert.equal(plan.recommendedPipeline, "editor");
     assert.equal(plan.target, "image");
     assert.match(plan.handoffHref, /\/editor\/start/);
+  });
+
+  it("routes standalone creative requests to existing editors", () => {
+    const voice = buildStudioAiHomeIntentPlan({ prompt: "Maak een voice-over voor mijn reclame." });
+    assert.equal(voice.recommendedPipeline, "voice_library");
+    assert.equal(voice.free, true);
+    assert.match(voice.handoffHref, /\/studio\/assets\/media\/voices\?idea=/);
+
+    const audio = buildStudioAiHomeIntentPlan({ prompt: "Genereer achtergrondmuziek." });
+    assert.equal(audio.recommendedPipeline, "audio_library");
+    assert.match(audio.handoffHref, /\/studio\/assets\/media\/audio\?idea=/);
+    assert.doesNotMatch(audio.handoffHref, /\/editor\/start/);
+
+    const character = buildStudioAiHomeIntentPlan({ prompt: "Ontwerp een personage met donker krullend haar." });
+    assert.equal(character.recommendedPipeline, "character_new");
+    assert.match(character.handoffHref, /\/studio\/characters\/new\?idea=/);
+    assert.equal(character.free, true);
+
+    const animation = buildStudioAiHomeIntentPlan({ prompt: "Maak een animatie van mijn foto." });
+    assert.equal(animation.recommendedPipeline, "motion");
+    assert.match(animation.handoffHref, /^\/motion\?idea=/);
+    assert.equal(animation.free, true);
+
+    const photoVideo = buildStudioAiHomeIntentPlan({ prompt: "Maak een video van deze foto." });
+    assert.equal(photoVideo.recommendedPipeline, "photo_video");
+    assert.match(photoVideo.handoffHref, /\/studio\/photo-video\?idea=/);
+
+    const fromPhoto = buildStudioAiHomeIntentPlan({ prompt: "Ik wil een personage maken van deze foto." });
+    assert.equal(fromPhoto.recommendedPipeline, "character_from_reference");
+
+    const vague = buildStudioAiHomeIntentPlan({ prompt: "Maak iets moois." });
+    assert.equal(vague.missingQuestionKey, "studio.aiHome.missing.medium");
+    const advert = buildStudioAiHomeIntentPlan({ prompt: "Maak een reclame." });
+    assert.equal(advert.missingQuestionKey, "studio.aiHome.missing.advertisement");
   });
 
   it("routes animation prompts to motion", () => {

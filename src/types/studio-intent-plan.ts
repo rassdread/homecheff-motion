@@ -29,7 +29,9 @@ export type StudioIntentRecommendedPipeline =
   | "orchestrator"
   | "quick_ad"
   | "character_new"
-  | "character_from_reference";
+  | "character_from_reference"
+  | "voice_library"
+  | "audio_library";
 
 export type StudioIntentPlanAttachmentKind = "media" | "character" | "product" | "brand";
 

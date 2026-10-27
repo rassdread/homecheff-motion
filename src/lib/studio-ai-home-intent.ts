@@ -7,6 +7,7 @@ import { getAssistantAction, type AssistantActionId } from "@/lib/assistant-acti
 import { buildAssistantActionRoute } from "@/lib/assistant-route-builder";
 import { matchAssistantIntent } from "@/lib/assistant-intent-router";
 import { detectStudioVideoIntent, buildStudioStartHref } from "@/lib/studio-video-intents";
+import { classifyStudioCreativeIntent, creativeIntentHandoffHref } from "@/lib/studio-v23-intent";
 import {
   inspirationExperienceHref,
   studioAiHomeInspiration,
@@ -34,6 +35,38 @@ export type BuildStudioAiHomeIntentInput = {
 
 function includesAny(hay: string, needles: string[]): boolean {
   return needles.some((n) => hay.includes(n));
+}
+
+function needsCreativeClarification(text: string, attachments: StudioIntentPlanAttachment[]): boolean {
+  const hasMedium = includesAny(text, [
+    "afbeelding",
+    "image",
+    "foto",
+    "photo",
+    "poster",
+    "video",
+    "animatie",
+    "animation",
+    "animeer",
+    "film",
+    "personage",
+    "character",
+    "stem",
+    "voice",
+    "muziek",
+    "music",
+    "geluid",
+    "sound",
+  ]);
+  if (
+    includesAny(text, ["iets moois", "something nice", "something beautiful", "maak iets", "make something", "verras me", "surprise me"]) &&
+    !hasMedium
+  ) {
+    return true;
+  }
+  const bareAd = includesAny(text, ["reclame", "advertentie", "advertisement", "commercial", " ad "]);
+  const adMedium = includesAny(text, ["video", "foto", "photo", "afbeelding", "image", "film", "animatie", "animation", "poster"]);
+  return bareAd && !adMedium && !hasMedia(attachments);
 }
 
 function normalize(text: string): string {
@@ -156,6 +189,76 @@ function resolvePipelineFromHeuristics(input: {
   }
 
   const text = input.text;
+  const creative = classifyStudioCreativeIntent(text);
+  const mediaUrl = input.attachments.find((item) => item.kind === "media" && item.url)?.url ?? null;
+
+  if (creative === "AUDIO") {
+    return {
+      pipeline: "audio_library",
+      purpose: "create",
+      target: "unknown",
+      actionId: "unknown",
+      videoIntent: null,
+      experienceId: null,
+      billingActionType: null,
+      free: true,
+    };
+  }
+
+  if (creative === "VOICE") {
+    return {
+      pipeline: "voice_library",
+      purpose: "create",
+      target: "unknown",
+      actionId: "unknown",
+      videoIntent: null,
+      experienceId: null,
+      billingActionType: null,
+      free: true,
+    };
+  }
+
+  if (
+    creative === "CHARACTER" &&
+    !includesAny(text, ["van deze foto", "from this photo", "from reference", "referentie", "reference image"])
+  ) {
+    return {
+      pipeline: "character_new",
+      purpose: "create",
+      target: "character",
+      actionId: "create_character",
+      videoIntent: null,
+      experienceId: null,
+      billingActionType: null,
+      free: true,
+    };
+  }
+
+  if (creative === "ANIMATION" && !mediaUrl) {
+    return {
+      pipeline: "motion",
+      purpose: "animation",
+      target: "video",
+      actionId: "create_motion_video",
+      videoIntent: null,
+      experienceId: "CREATIVE_ANIMATION",
+      billingActionType: null,
+      free: true,
+    };
+  }
+
+  if (needsCreativeClarification(text, input.attachments)) {
+    return {
+      pipeline: "experience",
+      purpose: "unknown",
+      target: "unknown",
+      actionId: "unknown",
+      videoIntent: null,
+      experienceId: null,
+      billingActionType: null,
+      free: true,
+    };
+  }
 
   if (
     includesAny(text, [
@@ -167,6 +270,8 @@ function resolvePipelineFromHeuristics(input: {
       "slideshow",
       "van deze foto's",
       "from these photos",
+      "video van deze foto",
+      "video from this photo",
     ]) ||
     (hasMedia(input.attachments) &&
       includesAny(text, ["video", "filmpje", "reel"]) &&
@@ -219,7 +324,7 @@ function resolvePipelineFromHeuristics(input: {
       "product photo",
       "productfoto maken",
     ]) &&
-    !includesAny(text, ["video", "animatie", "animation", "reel", "advertentie", "advertisement", "reclame"])
+    !includesAny(text, ["video", "animatie", "animation", "reel", "advertentie", "advertisement", "reclame", "muziek", "music", "geluid", "sound"])
   ) {
     return {
       pipeline: "editor",
@@ -233,7 +338,7 @@ function resolvePipelineFromHeuristics(input: {
     };
   }
 
-  if (includesAny(text, ["animatie", "animation", "animate", "motion", "tot leven"])) {
+  if (includesAny(text, ["animatie", "animation", "animate", "animeer", "motion", "tot leven"])) {
     return {
       pipeline: "motion",
       purpose: "animation",
@@ -302,7 +407,7 @@ function resolvePipelineFromHeuristics(input: {
     };
   }
 
-  if (includesAny(text, ["beeld", "afbeelding", "image", "foto maken", "make a photo", "design"])) {
+  if (includesAny(text, ["beeld", "afbeelding", "image", "foto maken", "make a photo", "design", "poster"])) {
     return {
       pipeline: "editor",
       purpose: "create",
@@ -353,7 +458,12 @@ function buildHandoffHref(input: {
   const media = input.attachments.find((a) => a.kind === "media" && a.url);
 
   if (input.pipeline === "photo_video") {
-    return "/studio/photo-video";
+    return idea ? `/studio/photo-video?${new URLSearchParams({ idea }).toString()}` : "/studio/photo-video";
+  }
+
+  if (input.pipeline === "audio_library" || input.pipeline === "voice_library") {
+    const intent = input.pipeline === "audio_library" ? "AUDIO" : "VOICE";
+    return creativeIntentHandoffHref(intent, input.prompt) ?? "/studio";
   }
 
   if (input.pipeline === "quick_ad") {
@@ -373,12 +483,14 @@ function buildHandoffHref(input: {
   }
 
   if (input.pipeline === "motion") {
+    if (!media?.url) {
+      return creativeIntentHandoffHref("ANIMATION", input.prompt) ?? "/motion";
+    }
     const params = new URLSearchParams();
     if (idea) params.set("idea", idea);
-    if (media?.url) params.set("sourceImage", media.url);
+    params.set("sourceImage", media.url);
     if (character?.id) params.set("characterId", character.id);
-    const qs = params.toString();
-    return qs ? `/motion/start?${qs}` : "/motion/start";
+    return `/motion/start?${params.toString()}`;
   }
 
   if (input.pipeline === "editor") {
@@ -394,7 +506,7 @@ function buildHandoffHref(input: {
   }
 
   if (input.pipeline === "character_new") {
-    return buildAssistantActionRoute("create_character", { idea });
+    return creativeIntentHandoffHref("CHARACTER", input.prompt) ?? "/studio/characters/new";
   }
 
   if (input.pipeline === "character_from_reference") {
@@ -543,6 +655,11 @@ export function buildStudioAiHomeIntentPlan(
   if (!prompt && !input.inspirationId) {
     missingRequired.push("prompt");
     missingQuestionKey = "studio.aiHome.missing.prompt";
+  } else if (purpose === "unknown" && actionId === "unknown" && prompt && !input.inspirationId) {
+    missingRequired.push("medium");
+    missingQuestionKey = includesAny(text, ["reclame", "advertentie", "advertisement", "commercial"])
+      ? "studio.aiHome.missing.advertisement"
+      : "studio.aiHome.missing.medium";
   }
 
   if (

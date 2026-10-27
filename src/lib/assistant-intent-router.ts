@@ -179,6 +179,8 @@ export function matchAssistantIntent(
     return { kind: "query", query: "project_assets" };
   }
 
+  const wantsMovingPicture = includesAny(text, ["video", "animatie", "animation", "filmpje", "reel", "animeer"]);
+  const wantsCharacter = includesAny(text, ["personage", "character", "karakter"]);
   if (
     includesAny(text, [
       "van deze foto",
@@ -189,7 +191,8 @@ export function matchAssistantIntent(
       "referentie",
       "reference image",
       "foto personage",
-    ])
+    ]) &&
+    !(wantsMovingPicture && !wantsCharacter)
   ) {
     return {
       kind: "action",

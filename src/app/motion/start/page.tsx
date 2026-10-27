@@ -34,6 +34,13 @@ export default async function MotionStartPage({ searchParams }: Props) {
     const suffix = qs.toString();
     redirect(withReturn(suffix ? `/animate/instant?${suffix}` : "/animate/instant"));
   }
+  const forward = new URLSearchParams();
   const category = qs.get("category");
-  redirect(withReturn(category ? `/motion?category=${category}` : "/motion"));
+  const idea = qs.get("idea");
+  const sourceImage = qs.get("sourceImage");
+  if (category) forward.set("category", category);
+  if (idea) forward.set("idea", idea);
+  if (sourceImage) forward.set("sourceImage", sourceImage);
+  const suffix = forward.toString();
+  redirect(withReturn(suffix ? `/motion?${suffix}` : "/motion"));
 }

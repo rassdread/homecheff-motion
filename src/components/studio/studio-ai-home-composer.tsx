@@ -16,9 +16,11 @@ import {
 } from "@/lib/studio-ai-home-intent";
 import {
   classifyStudioCreativeIntent,
+  creativeIntentHandoffHref,
   filmDescriptionFromPrompt,
   filmRequestKey,
   filmTitleFromPrompt,
+  type StudioCreativeIntent,
 } from "@/lib/studio-v23-intent";
 import {
   STUDIO_AI_HOME_INSPIRATION,
@@ -290,11 +292,28 @@ export function StudioAiHomeComposer() {
   const creativeIntent = classifyStudioCreativeIntent(prompt);
   const projectHandoff =
     creativeIntent === "FILM" ? "film" : creativeIntent === "OPEN_EXISTING_PROJECT" ? "existing" : null;
+  const editorIntent: StudioCreativeIntent | null =
+    creativeIntent && creativeIntent !== "FILM" && creativeIntent !== "OPEN_EXISTING_PROJECT" ? creativeIntent : null;
+  const editorHref = editorIntent
+    ? creativeIntentHandoffHref(editorIntent, prompt, {
+        mediaUrl: attachments.find((item) => item.kind === "media" && item.url)?.url ?? null,
+      })
+    : null;
 
   const onConfirmMake = () => {
     if (!plan) return;
     if (projectHandoff) {
       void completeProjectHandoff(projectHandoff);
+      return;
+    }
+    if (editorHref) {
+      if (!auth.user) rememberDraft();
+      storeStudioAiHomeIntentPlan({ ...plan, handoffHref: editorHref });
+      trackAiHomeEvent("studio_ai_home_make", {
+        pipeline: plan.recommendedPipeline,
+        href: editorHref,
+      });
+      router.push(editorHref);
       return;
     }
     if (!plan.free && !allowed) return;
@@ -598,17 +617,18 @@ export function StudioAiHomeComposer() {
           plan={plan}
           estimatedCredits={estimatedCredits}
           balanceAfter={balanceAfter}
-          allowed={allowed || plan.free}
+          allowed={allowed || plan.free || Boolean(editorHref)}
           loading={busy}
           projectHandoff={projectHandoff}
+          editorIntent={editorIntent}
           onConfirm={onConfirmMake}
           onAdjust={() => {
             setPlan(null);
             trackAiHomeEvent("studio_ai_home_adjust");
           }}
           onAdvanced={() => {
-            storeStudioAiHomeIntentPlan(plan);
-            router.push(plan.handoffHref);
+            storeStudioAiHomeIntentPlan({ ...plan, handoffHref: editorHref ?? plan.handoffHref });
+            router.push(editorHref ?? plan.handoffHref);
           }}
         />
       : null}

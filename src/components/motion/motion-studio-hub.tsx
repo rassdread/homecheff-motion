@@ -25,6 +25,14 @@ export function MotionStudioHub() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get("category");
+  const idea = (searchParams.get("idea") ?? "").trim().slice(0, 500);
+  const motionHref = (category?: string) => {
+    const params = new URLSearchParams();
+    if (category) params.set("category", category);
+    if (idea) params.set("idea", idea);
+    const query = params.toString();
+    return query ? `/motion?${query}` : "/motion";
+  };
   const activeCategory: MotionHubCategoryId | null = isMotionHubCategoryId(categoryParam)
     ? categoryParam
     : null;
@@ -56,7 +64,7 @@ export function MotionStudioHub() {
     if (!pkg) {
       return;
     }
-    storeAssistantPrefillPackage(pkg);
+    storeAssistantPrefillPackage(idea ? { ...pkg, promptDraft: idea } : pkg);
     router.push(buildAssistantPrefillRoute(pkg.targetRoute, pkg.id));
   };
 
@@ -76,6 +84,11 @@ export function MotionStudioHub() {
           {t("motionHub.title" as never)}
         </h1>
         <p className="mt-2 text-sm text-zinc-600 sm:text-base">{t("motionHub.lead" as never)}</p>
+        {idea ?
+          <p className="mt-3 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800" data-testid="studio-v23-preserved-idea">
+            {idea}
+          </p>
+        : null}
 
         {!activeCategory ? (
           <>
@@ -86,7 +99,7 @@ export function MotionStudioHub() {
               {MOTION_HUB_CATEGORIES.map((category) => (
                 <Link
                   key={category.id}
-                  href={`/motion?category=${category.id}`}
+                  href={motionHref(category.id)}
                   data-category-id={category.id}
                   className={`flex w-full flex-col items-start rounded-2xl border p-4 text-left transition hover:shadow-md ${studioVisual.editorSurface}`}
                 >
@@ -103,7 +116,7 @@ export function MotionStudioHub() {
         ) : (
           <>
             <Link
-              href="/motion"
+              href={motionHref()}
               className="mt-6 inline-block text-sm font-medium text-[#006D52] hover:underline"
             >
               ← {t("motionHub.backToCategories" as never)}

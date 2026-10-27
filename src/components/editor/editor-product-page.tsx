@@ -532,5 +532,13 @@ export function EditorProductPage() {
     return <EditorStartScreen onOpenDocument={openDocument} />;
   }
 
-  return <EditorStartScreen onOpenDocument={openDocument} />;
+  const preservedIdea = searchParams.get("idea")?.trim().slice(0, 500) ?? "";
+  return (
+    <>
+      {preservedIdea ?
+        <p className="px-4 pt-4 text-sm text-zinc-800" data-testid="studio-v23-preserved-idea">{preservedIdea}</p>
+      : null}
+      <EditorStartScreen onOpenDocument={openDocument} />
+    </>
+  );
 }

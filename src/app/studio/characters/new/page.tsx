@@ -121,6 +121,7 @@ function StudioCharacterNewPageContent() {
         projectId={searchParams.get("projectId")}
         projectTitle={searchParams.get("projectTitle")}
         storyboardId={searchParams.get("storyboardId")}
+        initialIdea={searchParams.get("idea")}
       />
     );
   }

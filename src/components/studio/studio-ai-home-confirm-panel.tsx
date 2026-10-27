@@ -1,5 +1,6 @@
 "use client";
 
+import type { StudioCreativeIntent } from "@/lib/studio-v23-intent";
 import type { StudioIntentPlan } from "@/types/studio-intent-plan";
 import { useActiveTranslator } from "@/i18n/client";
 import { studioVisual } from "@/lib/studio-visual-tokens";
@@ -14,6 +15,7 @@ export function StudioAiHomeConfirmPanel({
   onAdjust,
   onAdvanced,
   projectHandoff = null,
+  editorIntent = null,
 }: {
   plan: StudioIntentPlan;
   estimatedCredits: number | null;
@@ -24,6 +26,7 @@ export function StudioAiHomeConfirmPanel({
   onAdjust: () => void;
   onAdvanced: () => void;
   projectHandoff?: "film" | "existing" | null;
+  editorIntent?: StudioCreativeIntent | null;
 }) {
   const t = useActiveTranslator();
   const characters = plan.attachments.filter((a) => a.kind === "character");
@@ -97,6 +100,8 @@ export function StudioAiHomeConfirmPanel({
           <p className="font-medium text-zinc-900" data-testid="studio-v23-film-review">{t("studio.v23.home.filmReview")}</p>
         : projectHandoff === "existing" ?
           <p className="font-medium text-zinc-900">{t("studio.v23.home.openLast")}</p>
+        : editorIntent ?
+          <p className="font-medium text-zinc-900" data-testid="studio-v23-editor-handoff">{t("studio.aiHome.confirm.editorNote")}</p>
         : plan.free ?
           <p className="font-medium text-[#006D52]">{t("studio.aiHome.confirm.free")}</p>
         : estimatedCredits != null ?
@@ -104,7 +109,7 @@ export function StudioAiHomeConfirmPanel({
             {t("studio.aiHome.confirm.estimatedCost", { credits: String(estimatedCredits) })}
           </p>
         : <p className="text-zinc-600">{t("studio.aiHome.confirm.costPending")}</p>}
-        {!projectHandoff && !plan.free && !allowed ?
+        {!projectHandoff && !editorIntent && !plan.free && !allowed ?
           <p className="mt-1 text-sm text-red-700" data-testid="studio-ai-home-insufficient-hc">
             {t("studio.aiHome.confirm.insufficient")}
             {typeof balanceAfter === "number" ?
@@ -118,11 +123,11 @@ export function StudioAiHomeConfirmPanel({
         <button
           type="button"
           data-testid="studio-ai-home-confirm-make"
-          disabled={loading || (!projectHandoff && !plan.free && !allowed)}
+          disabled={loading || (!projectHandoff && !editorIntent && !plan.free && !allowed)}
           onClick={onConfirm}
           className={`min-h-[48px] flex-1 px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${studioVisual.btnGradientPrimary}`}
         >
-          {loading ? t("studio.aiHome.confirm.loading") : t("studio.aiHome.confirm.make")}
+          {loading ? t("studio.aiHome.confirm.loading") : t(editorConfirmKey(editorIntent))}
         </button>
         <button
           type="button"
@@ -143,4 +148,25 @@ export function StudioAiHomeConfirmPanel({
       </div>
     </section>
   );
+}
+
+function editorConfirmKey(intent: StudioCreativeIntent | null | undefined): "studio.aiHome.confirm.make" | "studio.aiHome.confirm.openImage" | "studio.aiHome.confirm.openImageEdit" | "studio.aiHome.confirm.openVideo" | "studio.aiHome.confirm.openAnimation" | "studio.aiHome.confirm.openVoice" | "studio.aiHome.confirm.openAudio" | "studio.aiHome.confirm.openCharacter" {
+  switch (intent) {
+    case "IMAGE":
+      return "studio.aiHome.confirm.openImage";
+    case "IMAGE_EDIT":
+      return "studio.aiHome.confirm.openImageEdit";
+    case "VIDEO":
+      return "studio.aiHome.confirm.openVideo";
+    case "ANIMATION":
+      return "studio.aiHome.confirm.openAnimation";
+    case "VOICE":
+      return "studio.aiHome.confirm.openVoice";
+    case "AUDIO":
+      return "studio.aiHome.confirm.openAudio";
+    case "CHARACTER":
+      return "studio.aiHome.confirm.openCharacter";
+    default:
+      return "studio.aiHome.confirm.make";
+  }
 }

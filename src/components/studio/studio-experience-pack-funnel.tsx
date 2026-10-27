@@ -45,6 +45,7 @@ export function StudioExperiencePackFunnel() {
   const preset = searchParams.get("preset");
   const flow = searchParams.get("flow");
   const mode = parseMode(searchParams.get("mode"));
+  const preservedIdea = (searchParams.get("idea") ?? "").trim().slice(0, 500);
 
   const [answers, setAnswers] = useState<CreativeIntentAnswers>({});
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +88,9 @@ export function StudioExperiencePackFunnel() {
     const packs = toDirectorPackNodes(P0_EXPERIENCE_PACKS);
     return (
       <div className="mx-auto w-full max-w-5xl space-y-10 px-4 py-10">
+        {preservedIdea ?
+          <p className="text-sm text-zinc-800" data-testid="studio-v23-preserved-idea">{preservedIdea}</p>
+        : null}
         <StudioPx4aFreeCreatorBanner />
         <StudioPx3IntentChooser />
         <section className="space-y-3" data-testid="px3-pack-chooser">

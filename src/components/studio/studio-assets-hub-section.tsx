@@ -9,7 +9,8 @@ import { useActiveTranslator } from "@/i18n/client";
 import type { AssetsHubSectionDef } from "@/lib/studio-asset-hub-sections";
 import { studioLibraryVisual } from "@/lib/studio-library-visual";
 import type { AnimationProjectListResponse } from "@/types/animation-api";
-import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 
 type Props = {
   section: AssetsHubSectionDef;
@@ -92,6 +93,11 @@ export function StudioAssetsHubSection({ section }: Props) {
       <main className={studioLibraryVisual.pageMain}>
         <section className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-8">
           <HubSectionHeader section={section} />
+          {section.section === "voices" || section.section === "audio" ?
+            <Suspense fallback={null}>
+              <PreservedAssetIdea />
+            </Suspense>
+          : null}
           <div className="mt-4">
             <StudioAssetLibrary
               layout="page"
@@ -105,6 +111,12 @@ export function StudioAssetsHubSection({ section }: Props) {
       </main>
     </StudioAuthGate>
   );
+}
+
+function PreservedAssetIdea() {
+  const idea = (useSearchParams().get("idea") ?? "").trim().slice(0, 500);
+  if (!idea) return null;
+  return <p className="mt-3 text-sm text-zinc-800" data-testid="studio-v23-preserved-idea">{idea}</p>;
 }
 
 function HubSectionHeader({ section }: { section: AssetsHubSectionDef }) {

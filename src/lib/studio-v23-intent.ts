@@ -130,7 +130,17 @@ export function classifyStudioCreativeIntent(prompt: string): StudioCreativeInte
     return "IMAGE_EDIT";
   }
 
-  if (has(text, ["animatie", "animation", "animate", "tot leven", "bring this photo to life"])) {
+  if (
+    has(text, [
+      "animatie",
+      "animation",
+      "animate",
+      "animeer",
+      "tot leven",
+      "bring this photo to life",
+      "bring this image to life",
+    ])
+  ) {
     return "ANIMATION";
   }
 
@@ -145,6 +155,7 @@ export function classifyStudioCreativeIntent(prompt: string): StudioCreativeInte
       "make a photo",
       "make an image",
       "productfoto",
+      "poster",
       "logo",
     ]) &&
     !has(text, ["video", "reel", "animatie", "animation"])
@@ -170,6 +181,62 @@ export function classifyStudioCreativeIntent(prompt: string): StudioCreativeInte
   }
 
   return null;
+}
+
+function withIdea(path: string, prompt: string): string {
+  const idea = prompt.trim().slice(0, 500);
+  if (!idea) return path;
+  const params = new URLSearchParams({ idea });
+  return `${path}?${params.toString()}`;
+}
+
+/**
+ * Opens an existing editor. Does not create a film project or start a provider.
+ * Returns null for film and "open my project", which have their own handoff.
+ */
+export function creativeIntentHandoffHref(
+  intent: StudioCreativeIntent,
+  prompt: string,
+  extras?: { mediaUrl?: string | null },
+): string | null {
+  const text = normalize(prompt);
+  switch (intent) {
+    case "IMAGE":
+    case "IMAGE_EDIT":
+      return withIdea("/editor/start", prompt);
+    case "VIDEO":
+      if (
+        has(text, [
+          "deze foto",
+          "this photo",
+          "van deze foto",
+          "from this photo",
+          "foto naar video",
+          "photo to video",
+        ])
+      ) {
+        return withIdea("/studio/photo-video", prompt);
+      }
+      return withIdea("/studio/experience", prompt);
+    case "ANIMATION":
+      if (extras?.mediaUrl) {
+        const params = new URLSearchParams();
+        const idea = prompt.trim().slice(0, 500);
+        if (idea) params.set("idea", idea);
+        params.set("sourceImage", extras.mediaUrl);
+        return `/motion/start?${params.toString()}`;
+      }
+      return withIdea("/motion", prompt);
+    case "VOICE":
+      return withIdea("/studio/assets/media/voices", prompt);
+    case "AUDIO":
+      return withIdea("/studio/assets/media/audio", prompt);
+    case "CHARACTER":
+      return withIdea("/studio/characters/new", prompt);
+    case "FILM":
+    case "OPEN_EXISTING_PROJECT":
+      return null;
+  }
 }
 
 export function filmTitleFromPrompt(prompt: string): string {
