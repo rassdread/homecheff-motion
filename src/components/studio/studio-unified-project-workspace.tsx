@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { StudioProjectMediaBrowser } from "@/components/studio/studio-project-media-browser";
 import { StudioProjectAssistantRail } from "@/components/studio/studio-project-assistant-rail";
+import { useOptionalHomeCheffAssistant } from "@/components/assistant/homecheff-assistant-provider";
+import { publishStudioFilmAssistantContext } from "@/lib/studio-film-assistant-bridge";
 import { useLocale, useActiveTranslator } from "@/i18n/client";
 import { ECOSYSTEM_BRAND_MARK_URL } from "@/lib/ecosystem-navigation/contract";
 import {
@@ -60,6 +62,7 @@ export function StudioUnifiedProjectWorkspace({
   onReload,
 }: Props) {
   const t = useActiveTranslator();
+  const globalAssistant = useOptionalHomeCheffAssistant();
   const [locale] = useLocale();
   const workflow: StudioWorkflow = parseStudioWorkflow(initialWorkflow) ?? "film";
   const [section, setSection] = useState<WorkspaceSection>(
@@ -86,6 +89,28 @@ export function StudioUnifiedProjectWorkspace({
 
   const selectedCharacter = workspace.characters.find((item) => item.id === selectedCharacterId) ?? workspace.characters[0] ?? null;
   const selectedScene = workspace.scenes.find((scene) => scene.id === selectedSceneId) ?? workspace.scenes[0] ?? null;
+
+  useEffect(() => {
+    publishStudioFilmAssistantContext({
+      projectType: "creative_film",
+      projectId: workspace.project.id,
+      projectTitle: workspace.project.title,
+      section,
+      sectionLabel: t(`studio.workspace.v12.section.${section}`),
+      sceneId: selectedScene?.id ?? null,
+      sceneTitle: selectedScene ? `${selectedScene.order}. ${selectedScene.title}` : null,
+      characterId: selectedCharacter?.id ?? null,
+      characterName: selectedCharacter?.name ?? null,
+      scenes: workspace.scenes.map((item) => ({
+        id: item.id,
+        order: item.order,
+        title: item.title,
+        dialogueText: item.dialogueText,
+      })),
+      balance: workspace.hcAvailable,
+    });
+    return () => publishStudioFilmAssistantContext(null);
+  }, [section, selectedCharacter, selectedScene, t, workspace]);
   const previewImage =
     selectedCharacter?.referenceImageUrl ||
     workspace.scenes.find((scene) => scene.imageUrl)?.imageUrl ||
@@ -174,7 +199,7 @@ export function StudioUnifiedProjectWorkspace({
             type="button"
             className="inline-flex h-11 items-center rounded-full border border-white/20 px-3 text-sm font-semibold lg:hidden"
             aria-expanded={contextOpen}
-            onClick={() => setContextOpen(true)}
+            onClick={() => (globalAssistant ? globalAssistant.setOpen(true) : setContextOpen(true))}
           >
             {t("studio.v23.assistant.title")}
           </button>
@@ -197,7 +222,7 @@ export function StudioUnifiedProjectWorkspace({
                 </Link>
               ) : null}
             </div>
-            <div className="mb-4 flex gap-2 overflow-x-auto" data-testid="studio-v23-simple-actions">
+            <div className="mb-4 flex flex-wrap gap-2" data-testid="studio-v23-simple-actions">
               {(
                 [
                   ["media", "studio.v23.simple.image"],
@@ -210,14 +235,14 @@ export function StudioUnifiedProjectWorkspace({
                 <button
                   key={target}
                   type="button"
-                  className="inline-flex min-h-11 items-center rounded-full border border-white/20 px-3 text-sm font-semibold text-white"
+                  className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-white/20 px-3 text-sm font-semibold text-white"
                   onClick={() => chooseSection(target)}
                 >
                   {t(label)}
                 </button>
               ))}
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-4" role="tablist" aria-label={t("studio.workspace.v12.sectionsLabel")}>
+            <div className="flex flex-wrap gap-2 pb-4" role="tablist" aria-label={t("studio.workspace.v12.sectionsLabel")}>
               {SECTIONS.map((item) => (
                 <button
                   key={item}
@@ -299,6 +324,7 @@ export function StudioUnifiedProjectWorkspace({
             scene={selectedScene}
             section={section}
             workflow={workflow}
+            embedAssistant={!globalAssistant}
             assistantCollapsed={assistantCollapsed}
             onToggleAssistant={() => setAssistantCollapsed((value) => !value)}
             link={link}
@@ -331,7 +357,7 @@ export function StudioUnifiedProjectWorkspace({
         <button
           type="button"
           className="min-h-11 flex-1 text-xs font-semibold text-zinc-800"
-          onClick={() => setContextOpen(true)}
+          onClick={() => (globalAssistant ? globalAssistant.setOpen(true) : setContextOpen(true))}
         >
           {t("studio.v23.assistant.title")}
         </button>
@@ -619,6 +645,7 @@ function Context({
   scene,
   section,
   workflow,
+  embedAssistant,
   assistantCollapsed,
   onToggleAssistant,
   link,
@@ -631,6 +658,7 @@ function Context({
   scene: ProjectWorkspaceView["scenes"][number] | null;
   section: WorkspaceSection;
   workflow: StudioWorkflow;
+  embedAssistant: boolean;
   assistantCollapsed: boolean;
   onToggleAssistant: () => void;
   link: (id: string) => string;
@@ -680,28 +708,30 @@ function Context({
           </TextLink>
         </section>
       ) : null}
-      <section className="rounded-xl border border-zinc-200 bg-zinc-50 p-3" data-workflow={workflow}>
-        <StudioProjectAssistantRail
-          projectId={workspace.project.id}
-          projectTitle={workspace.project.title}
-          sectionLabel={t(`studio.workspace.v12.section.${section}`)}
-          section={section}
-          sceneId={scene?.id ?? null}
-          sceneTitle={scene ? `${scene.order}. ${scene.title}` : null}
-          characterId={character?.id ?? null}
-          characterName={character?.name ?? null}
-          scenes={workspace.scenes.map((item) => ({
-            id: item.id,
-            order: item.order,
-            title: item.title,
-            dialogueText: item.dialogueText,
-          }))}
-          balance={workspace.hcAvailable}
-          collapsed={assistantCollapsed}
-          onToggle={onToggleAssistant}
-        />
-        <p className="mt-3 text-xs font-semibold text-zinc-500">{t("studio.workspace.v12.directorNotExecuting")}</p>
-      </section>
+      {embedAssistant ? (
+        <section className="rounded-xl border border-zinc-200 bg-zinc-50 p-3" data-workflow={workflow}>
+          <StudioProjectAssistantRail
+            projectId={workspace.project.id}
+            projectTitle={workspace.project.title}
+            sectionLabel={t(`studio.workspace.v12.section.${section}`)}
+            section={section}
+            sceneId={scene?.id ?? null}
+            sceneTitle={scene ? `${scene.order}. ${scene.title}` : null}
+            characterId={character?.id ?? null}
+            characterName={character?.name ?? null}
+            scenes={workspace.scenes.map((item) => ({
+              id: item.id,
+              order: item.order,
+              title: item.title,
+              dialogueText: item.dialogueText,
+            }))}
+            balance={workspace.hcAvailable}
+            collapsed={assistantCollapsed}
+            onToggle={onToggleAssistant}
+          />
+          <p className="mt-3 text-xs font-semibold text-zinc-500">{t("studio.workspace.v12.directorNotExecuting")}</p>
+        </section>
+      ) : null}
       {link("characterMasters") ? <TextLink href={link("characterMasters")}>{t("studio.workspace.v12.masterTools")}</TextLink> : null}
     </div>
   );

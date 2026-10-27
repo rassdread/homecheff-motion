@@ -1,4 +1,8 @@
 import assert from "node:assert/strict";
+import {
+  publishStudioFilmAssistantContext,
+  readStudioFilmAssistantContext,
+} from "@/lib/studio-film-assistant-bridge";
 import { readFileSync, existsSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
@@ -284,6 +288,14 @@ describe("V23 assistant actions", () => {
       selectedSceneId: null,
       selectedCharacterId: null,
     });
+    const adapt = proposeStudioV23Command({
+      text: "Pas de dialoog van deze scène aan",
+      projectId: "film-1",
+      scenes,
+      selectedSceneId: "scene-2",
+      selectedCharacterId: null,
+    });
+    assert.equal(adapt.kind, "clarify");
     assert.equal(ambiguous.kind, "clarify");
     assert.equal(shortenDialogue("Eerst dit. Daarna nog een zin."), "Eerst dit.");
   });
@@ -301,6 +313,28 @@ describe("V23 pending manual edits", () => {
   });
 });
 
+describe("V23 film assistant bridge", () => {
+  it("publishes creative film context and clears it", () => {
+    publishStudioFilmAssistantContext({
+      projectType: "creative_film",
+      projectId: "film-1",
+      projectTitle: "Made With Passion",
+      section: "scenes",
+      sectionLabel: "Scènes",
+      sceneId: "scene-3",
+      sceneTitle: "3. Keuken",
+      characterId: null,
+      characterName: null,
+      scenes: [],
+      balance: 0,
+    });
+    assert.equal(readStudioFilmAssistantContext()?.projectType, "creative_film");
+    assert.equal(readStudioFilmAssistantContext()?.sceneId, "scene-3");
+    publishStudioFilmAssistantContext(null);
+    assert.equal(readStudioFilmAssistantContext(), null);
+  });
+});
+
 describe("V23 preservation", () => {
   it("keeps the home composer, project workspace, and legacy routes", () => {
     const home = readFileSync("src/components/studio/studio-unified-home-page.tsx", "utf8");
@@ -315,6 +349,10 @@ describe("V23 preservation", () => {
     assert.match(workspace, /overview/);
     assert.match(workspace, /timeline/);
     assert.match(workspace, /StudioProjectAssistantRail/);
+    assert.match(workspace, /publishStudioFilmAssistantContext/);
+    const sidebar = readFileSync("src/components/growth/growth-sidebar.tsx", "utf8");
+    assert.match(sidebar, /StudioFilmAssistantHost/);
+    assert.match(sidebar, /AssistantChatPanel/);
     assert.doesNotMatch(server, /startFilmSceneVideo|startFilmSceneDialogue/);
     for (const route of [
       "src/app/editor/page.tsx",

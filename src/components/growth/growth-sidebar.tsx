@@ -5,6 +5,7 @@ import { useCallback, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { AssistantHistoryPanel } from "@/components/assistant/assistant-history-panel";
 import { AssistantChatPanel } from "@/components/assistant/assistant-chat-panel";
+import { StudioFilmAssistantHost, useStudioFilmAssistantContext } from "@/components/studio/studio-film-assistant-host";
 import { AssistantRecommendationCards } from "@/components/assistant/assistant-recommendation-cards";
 import { StudioCopilotContextBar } from "@/components/assistant/studio-copilot-context-bar";
 import { StudioCopilotHeader } from "@/components/assistant/studio-copilot-header";
@@ -58,6 +59,7 @@ export function GrowthSidebar({ variant = "sidebar", onClose }: Props) {
   const { suggestions, startRecommendation, loadingContext, memory, copilotLayout, copilotLayoutHydrated, setCopilotPlacement, minimizeCopilot } =
     useHomeCheffAssistant();
   const isSheet = variant === "sheet";
+  const filmAssistant = useStudioFilmAssistantContext();
   const loginLink = loginHref(pathname);
 
   const forYou = useMemo(
@@ -149,23 +151,31 @@ export function GrowthSidebar({ variant = "sidebar", onClose }: Props) {
       )}
 
       <div className={`flex min-h-0 flex-1 flex-col ${isSheet ? "overflow-y-auto" : ""}`}>
-        <section
-          className={`flex min-h-0 flex-1 flex-col px-3 py-2 ${
-            isSheet ? "min-h-[240px]" : ""
-          }`}
-          data-testid="growth-sidebar-chat"
-        >
-          <AssistantChatPanel
-            sidebarMode
-            placement={isSheet ? "sheet" : copilotLayout.placement}
-            compact={copilotLayout.compactMode}
-            onClose={onClose}
-          />
-        </section>
+        {filmAssistant ? (
+          <section className="flex min-h-0 flex-1 flex-col" data-testid="growth-sidebar-chat">
+            <StudioFilmAssistantHost onCollapse={minimizeCopilot} />
+          </section>
+        ) : (
+          <section
+            className={`flex min-h-0 flex-1 flex-col px-3 py-2 ${
+              isSheet ? "min-h-[240px]" : ""
+            }`}
+            data-testid="growth-sidebar-chat"
+          >
+            <AssistantChatPanel
+              sidebarMode
+              placement={isSheet ? "sheet" : copilotLayout.placement}
+              compact={copilotLayout.compactMode}
+              onClose={onClose}
+            />
+          </section>
+        )}
 
-        <AssistantHistoryPanel
-          collapsedDefault={copilotLayoutHydrated ? copilotLayout.collapsedRecent : true}
-        />
+        {filmAssistant ? null : (
+          <AssistantHistoryPanel
+            collapsedDefault={copilotLayoutHydrated ? copilotLayout.collapsedRecent : true}
+          />
+        )}
 
         {!showPublicUi ? null : (
           <GrowthSidebarSection
