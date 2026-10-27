@@ -11,7 +11,6 @@ import {
 } from "@/types/studio-copilot-layout";
 import { shallowRecordEqual } from "@/lib/external-store-snapshot";
 import { normalizeAssistantRoutePathname } from "@/lib/homecheff-assistant-flag";
-import { isStudioPrimaryHomePath } from "@/lib/studio-primary-home";
 
 let memoryLayoutStore: string | null = null;
 
@@ -202,10 +201,6 @@ export function shouldShowSideCopilotPanel(
     return false;
   }
   if (shouldHideSideCopilotOnEditor(layout.placement, pathname)) {
-    return false;
-  }
-  // Primary AI home: composer is the sole AI entry — do not compete with Help sidebar.
-  if (isStudioPrimaryHomePath(pathname)) {
     return false;
   }
   return true;

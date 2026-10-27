@@ -1,11 +1,11 @@
 "use client";
 
-import { UniverseHomePage } from "@/components/suite/universe/universe-home-page";
+import { StudioUnifiedHomePage } from "@/components/studio/studio-unified-home-page";
 
 /**
- * Canonical "/" page — always UniverseHomePage.
- * Auth changes homepage content (hero copy, sections), never the shell or component.
+ * Canonical "/" page — the same Studio home as /studio.
+ * Auth does not swap this component.
  */
 export function HomePage() {
-  return <UniverseHomePage />;
+  return <StudioUnifiedHomePage />;
 }

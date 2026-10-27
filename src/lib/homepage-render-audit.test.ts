@@ -30,9 +30,10 @@ describe("homepage render audit", () => {
     assert.doesNotMatch(pageSource, /HomeEcosystemPage|LegacyHomeRedirect|StudioLandingRoute/);
   });
 
-  it("canonical HomePage always renders UniverseHomePage", () => {
+  it("canonical HomePage always renders StudioUnifiedHomePage", () => {
     const homePageSource = read("src/components/landing/home-page.tsx");
-    assert.match(homePageSource, /UniverseHomePage/);
+    assert.match(homePageSource, /StudioUnifiedHomePage/);
+    assert.doesNotMatch(homePageSource, /UniverseHomePage/);
     assert.doesNotMatch(homePageSource, /LegacyHomeRedirect/);
     assert.doesNotMatch(homePageSource, /HomeEcosystemPage/);
     assert.doesNotMatch(homePageSource, /isHomeCheffProductSuiteNavEnabled/);
@@ -48,7 +49,7 @@ describe("homepage render audit", () => {
     assert.equal(loggedOut.resolution.pageComponent, loggedIn.resolution.pageComponent);
   });
 
-  it("assistant disabled still uses UniverseHomePage without sidebar shell", () => {
+  it("assistant disabled still uses the canonical homepage without sidebar shell", () => {
     const resolution = resolveHomepageRender({
       suiteNavEnabled: true,
       assistantEnabled: false,
@@ -87,10 +88,11 @@ describe("homepage render audit", () => {
     assert.match(read("src/components/layout/app-shell.tsx"), /data-route-shell="app-shell"/);
     assert.match(read("src/components/assistant/homecheff-assistant-mount.tsx"), /data-assistant-mount/);
     assert.match(read("src/components/growth/growth-sidebar-layout.tsx"), /data-growth-sidebar-layout="true"/);
-    const universe = read("src/components/suite/universe/universe-home-page.tsx");
-    assert.match(universe, /data-homepage-component=\{CANONICAL_HOMEPAGE_COMPONENT\}/);
-    assert.match(universe, /data-auth-mode=\{authMode\}/);
+    const home = read("src/components/studio/studio-unified-home-page.tsx");
+    assert.match(home, /data-homepage-component=\{CANONICAL_HOMEPAGE_COMPONENT\}/);
+    assert.match(home, /StudioAiHomeComposer/);
     assert.match(read("src/components/growth/growth-sidebar.tsx"), /data-testid="growth-sidebar"/);
+    assert.match(read("src/components/growth/growth-sidebar.tsx"), /StudioHomeContextPanel/);
   });
 
   it("logged-out homepage root is scroll-safe without page floor trap", () => {
@@ -101,15 +103,14 @@ describe("homepage render audit", () => {
     assert.doesNotMatch(universe, /\bh-screen\b/);
   });
 
-  it("below-hero sections remain on canonical homepage", () => {
-    const universe = read("src/components/suite/universe/universe-home-page.tsx");
-    assert.match(universe, /data-testid="home-after-hero"/);
-    assert.match(universe, /UniverseDestinationLinks/);
-    assert.doesNotMatch(universe, /UniverseHomeSpaceShowcase/);
-    assert.match(universe, /UniverseHomeSections/);
-    const sections = read("src/components/suite/universe/universe-home-sections.tsx");
-    assert.match(sections, /universe-home-capabilities/);
-    assert.match(sections, /universe-home-recent-projects/);
+  it("canonical homepage is one composer plus project history, not the old welcome page", () => {
+    const home = read("src/components/landing/home-page.tsx");
+    const unified = read("src/components/studio/studio-unified-home-page.tsx");
+    assert.match(home, /StudioUnifiedHomePage/);
+    assert.doesNotMatch(home, /UniverseHomePage|UniverseHeroCopy|UniverseDestinationLinks/);
+    assert.match(unified, /StudioAiHomeComposer/);
+    assert.match(unified, /studio-v24-history/);
+    assert.doesNotMatch(unified, /UniverseHeroCopy|UniverseDestinationLinks/);
   });
 
   it("logged-out public discovery cards are static catalog entries", () => {
@@ -127,6 +128,7 @@ describe("homepage render audit", () => {
   it("logged-out recommendation click routes to login, not private library fetch", () => {
     const sidebar = read("src/components/growth/growth-sidebar.tsx");
     assert.match(sidebar, /handleRecommendationSelect/);
+    assert.match(sidebar, /if \(canonicalHome\) \{\s*requestStudioHomeComposerPrompt/);
     assert.match(sidebar, /window\.location\.assign\(loginLink\)/);
     assert.match(sidebar, /buildPublicHomepageDiscoveryRecommendations/);
     const provider = read("src/components/assistant/homecheff-assistant-provider.tsx");

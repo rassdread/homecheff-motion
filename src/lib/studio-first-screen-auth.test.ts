@@ -5,11 +5,12 @@ import { isStudioPrimaryHomePath } from "@/lib/studio-primary-home";
 import { UNIVERSE_PLANETS } from "@/lib/universe-home-config";
 
 describe("studio first-screen + orbit removal contracts", () => {
-  it("primary home path matches exact /studio only", () => {
+  it("primary home path is / and /studio, not a nested workspace", () => {
+    assert.equal(isStudioPrimaryHomePath("/"), true);
     assert.equal(isStudioPrimaryHomePath("/studio"), true);
     assert.equal(isStudioPrimaryHomePath("/studio/"), true);
     assert.equal(isStudioPrimaryHomePath("/studio/characters"), false);
-    assert.equal(isStudioPrimaryHomePath("/"), false);
+    assert.equal(isStudioPrimaryHomePath("/studio/projects/film"), false);
   });
 
   it("unified home collapses shortcuts behind details", () => {

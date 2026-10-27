@@ -5,7 +5,7 @@
 
 import { isHomeCheffAssistantEnabled, isHomeCheffAssistantRoute } from "@/lib/homecheff-assistant-flag";
 
-export const CANONICAL_HOMEPAGE_COMPONENT = "universe-home-page" as const;
+export const CANONICAL_HOMEPAGE_COMPONENT = "studio-unified-home" as const;
 
 export const HOMEPAGE_ROUTE_FILE = "src/app/page.tsx" as const;
 
@@ -14,7 +14,7 @@ export const HOMEPAGE_SHELL_CHAIN = [
   "src/components/layout/app-shell.tsx → HomeCheffAssistantMount",
   "src/components/assistant/homecheff-assistant-mount.tsx → HomeCheffAssistantProvider + GrowthSidebarLayout",
   "src/components/growth/growth-sidebar-layout.tsx → main + GrowthSidebar",
-  `src/components/suite/universe/universe-home-page.tsx → ${CANONICAL_HOMEPAGE_COMPONENT}`,
+  `src/components/studio/studio-unified-home-page.tsx → ${CANONICAL_HOMEPAGE_COMPONENT}`,
 ] as const;
 
 export type HomepageAuthMode = "logged-in" | "logged-out" | "unknown";
@@ -28,7 +28,7 @@ export type HomepageRenderFlags = {
 export type HomepageRenderResolution = {
   routeFile: typeof HOMEPAGE_ROUTE_FILE;
   pageComponent: typeof CANONICAL_HOMEPAGE_COMPONENT;
-  homepageImport: "UniverseHomePage";
+  homepageImport: "StudioUnifiedHomePage";
   usesAppShell: true;
   usesGrowthSidebarLayout: boolean;
   usesAssistantProvider: boolean;
@@ -46,7 +46,7 @@ export function resolveHomepageRender(
   return {
     routeFile: HOMEPAGE_ROUTE_FILE,
     pageComponent: CANONICAL_HOMEPAGE_COMPONENT,
-    homepageImport: "UniverseHomePage",
+    homepageImport: "StudioUnifiedHomePage",
     usesAppShell: true,
     usesGrowthSidebarLayout: assistantOn,
     usesAssistantProvider: assistantOn,

@@ -14,9 +14,6 @@ describe("universe homepage growth sidebar layout", () => {
     assert.match(source, /home-hero-grid/);
     assert.match(source, /home-hero-copy/);
     assert.match(source, /home-universe-zone/);
-    assert.match(source, /StudioAiHomeComposer/);
-    assert.match(source, /universe-home-composer[\s\S]*home-hero-grid/);
-    assert.match(source, /UniverseHomeSections[\s\S]*home-conversion-block/);
     assert.match(source, /data-testid="home-hero-grid"/);
     assert.match(source, /data-testid="home-universe-zone"/);
   });

@@ -20,12 +20,14 @@ function read(path: string): string {
 }
 
 describe("homepage route consolidation", () => {
-  it("/ uses canonical HomePage → UniverseHomePage", () => {
+  it("/ uses canonical HomePage → StudioUnifiedHomePage", () => {
     const page = read("src/app/page.tsx");
     const home = read("src/components/landing/home-page.tsx");
+    const studio = read("src/components/suite/studio-landing-route.tsx");
     assert.match(page, /HomePage/);
-    assert.match(home, /UniverseHomePage/);
-    assert.doesNotMatch(home, /MaakOrSuiteStartPage/);
+    assert.match(home, /StudioUnifiedHomePage/);
+    assert.doesNotMatch(home, /UniverseHomePage|MaakOrSuiteStartPage/);
+    assert.match(studio, /StudioUnifiedHomePage/);
   });
 
   it("/maak permanently redirects to /", () => {
@@ -34,14 +36,13 @@ describe("homepage route consolidation", () => {
     assert.doesNotMatch(maak, /MaakOrSuiteStartPage|UniverseHomePage/);
   });
 
-  it("logged-out and logged-in share UniverseHomePage on /", () => {
-    const universe = read("src/components/suite/universe/universe-home-page.tsx");
-    assert.match(universe, /data-page=\{pageMarker\}/);
-    assert.match(universe, /studio-homepage/);
-    assert.match(universe, /public-homepage/);
-    assert.match(universe, /data-homepage-component=\{CANONICAL_HOMEPAGE_COMPONENT\}/);
-    assert.match(universe, /data-auth-mode=\{authMode\}/);
-    assert.doesNotMatch(read("src/components/landing/home-page.tsx"), /isAuthenticated.*UniverseHomePage/);
+  it("logged-out and logged-in share StudioUnifiedHomePage on /", () => {
+    const home = read("src/components/landing/home-page.tsx");
+    const unified = read("src/components/studio/studio-unified-home-page.tsx");
+    assert.match(unified, /data-homepage-component=\{CANONICAL_HOMEPAGE_COMPONENT\}/);
+    assert.match(unified, /StudioAiHomeComposer/);
+    assert.doesNotMatch(home, /isAuthenticated/);
+    assert.doesNotMatch(home, /UniverseHomePage/);
   });
 
   it("/maak was not assistant-enabled (root cause of scroll/sidebar divergence)", () => {
@@ -79,7 +80,7 @@ describe("homepage route consolidation", () => {
 
   it("legacy alias path is documented", () => {
     assert.equal(LEGACY_HOMEPAGE_ALIAS_PATH, "/maak");
-    assert.equal(CANONICAL_HOMEPAGE_COMPONENT, "universe-home-page");
+    assert.equal(CANONICAL_HOMEPAGE_COMPONENT, "studio-unified-home");
   });
 
   it("homepage root is scroll-safe with growth sidebar shell", () => {

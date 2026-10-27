@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { StudioAiHomeComposer } from "@/components/studio/studio-ai-home-composer";
 import { UniverseBackground } from "@/components/suite/universe/universe-background";
 import { UniverseHeroCopy } from "@/components/suite/universe/universe-hero-copy";
 import { UniverseDestinationLinks } from "@/components/suite/universe/universe-destination-links";
@@ -13,11 +12,11 @@ import { UniverseHomeSections } from "@/components/suite/universe/universe-home-
 import { ConversionSurface, GuestConversionStrip } from "@/components/billing/conversion-surface";
 import "./universe-home.css";
 import { growthSidebarLayoutClasses } from "@/lib/growth-sidebar-layout";
-import { CANONICAL_HOMEPAGE_COMPONENT, resolveHomepageAuthMode } from "@/lib/homepage-render-trace";
+import { resolveHomepageAuthMode } from "@/lib/homepage-render-trace";
 
 /**
- * Canonical "/" homepage — AI-first entry, no decorative orbit/planet navigation.
- * Former planet destinations remain via UniverseDestinationLinks + sections.
+ * Earlier marketing homepage. `/` now renders StudioUnifiedHomePage.
+ * This component remains for the unused legacy start wrapper only.
  */
 export function UniverseHomePage() {
   const session = useAuthSession();
@@ -40,22 +39,13 @@ export function UniverseHomePage() {
       className={`universe-animate ${growthSidebarLayoutClasses.pageRoot} flex flex-col overflow-x-hidden text-white`}
       data-testid="universe-home-page"
       data-page={pageMarker}
-      data-homepage-component={CANONICAL_HOMEPAGE_COMPONENT}
+      data-homepage-component="universe-home-page"
       data-auth-mode={authMode}
     >
       <UniverseBackground reducedMotion={reducedMotion} parallax={parallax} />
 
       <div className="relative z-10 w-full">
-        <div
-          className="relative z-10 mx-auto w-full max-w-3xl px-4 pb-8 pt-6 sm:px-6"
-          data-testid="universe-home-composer"
-        >
-          <div className="rounded-3xl bg-white px-4 py-5 text-zinc-900 shadow-lg sm:px-6">
-            <StudioAiHomeComposer />
-          </div>
-        </div>
-
-      <section className="home-hero-grid" data-testid="home-hero-grid">
+        <section className="home-hero-grid" data-testid="home-hero-grid">
           <div className="home-hero-copy min-w-0">
             <UniverseHeroCopy
               isAuthenticated={isAuthenticated}

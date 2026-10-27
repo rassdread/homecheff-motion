@@ -10,6 +10,7 @@ import {
   STUDIO_HOME_CONTINUE_MAX,
   STUDIO_HOME_INTENTS,
 } from "@/lib/studio-slice1a-home";
+import { CANONICAL_HOMEPAGE_COMPONENT } from "@/lib/homepage-render-trace";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import { StudioAiHomeComposer } from "@/components/studio/studio-ai-home-composer";
 import { fetchStudioAccountJson } from "@/lib/studio-account-client";
@@ -155,6 +156,7 @@ export function StudioUnifiedHomePage() {
     <main
       className="min-h-[70vh] flex-1 overflow-x-hidden bg-gradient-to-b from-zinc-50 to-white pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))]"
       data-testid="studio-unified-home"
+      data-homepage-component={CANONICAL_HOMEPAGE_COMPONENT}
     >
       <div className="mx-auto w-full max-w-3xl px-4 pb-10 pt-3 sm:px-6 sm:pb-12 sm:pt-6">
         <header className="mb-3 flex items-start justify-between gap-3 sm:mb-4">

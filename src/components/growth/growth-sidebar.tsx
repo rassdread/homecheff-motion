@@ -5,6 +5,7 @@ import { useCallback, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { AssistantHistoryPanel } from "@/components/assistant/assistant-history-panel";
 import { AssistantChatPanel } from "@/components/assistant/assistant-chat-panel";
+import { StudioHomeContextPanel } from "@/components/studio/studio-home-context-panel";
 import { StudioFilmAssistantHost, useStudioFilmAssistantContext } from "@/components/studio/studio-film-assistant-host";
 import { AssistantRecommendationCards } from "@/components/assistant/assistant-recommendation-cards";
 import { StudioCopilotContextBar } from "@/components/assistant/studio-copilot-context-bar";
@@ -20,6 +21,8 @@ import {
   pickGrowthSidebarCtaBlock,
   resolveGrowthCtaRecommendation,
 } from "@/lib/growth-sidebar-cta";
+import { requestStudioHomeComposerPrompt } from "@/lib/studio-home-composer-context";
+import { isStudioCanonicalHomePath } from "@/lib/studio-primary-home";
 import type { AssistantRecommendation } from "@/types/assistant-recommendation";
 
 function GrowthSidebarSection({
@@ -60,6 +63,7 @@ export function GrowthSidebar({ variant = "sidebar", onClose }: Props) {
     useHomeCheffAssistant();
   const isSheet = variant === "sheet";
   const filmAssistant = useStudioFilmAssistantContext();
+  const canonicalHome = isStudioCanonicalHomePath(pathname) && !filmAssistant;
   const loginLink = loginHref(pathname);
 
   const forYou = useMemo(
@@ -104,13 +108,17 @@ export function GrowthSidebar({ variant = "sidebar", onClose }: Props) {
 
   const handleRecommendationSelect = useCallback(
     (recommendation: AssistantRecommendation) => {
+      if (canonicalHome) {
+        requestStudioHomeComposerPrompt(recommendation.promptMessage);
+        return;
+      }
       if (!isAuthenticated) {
         window.location.assign(loginLink);
         return;
       }
       startRecommendation(recommendation);
     },
-    [isAuthenticated, loginLink, startRecommendation]
+    [canonicalHome, isAuthenticated, loginLink, startRecommendation]
   );
 
   const handleCtaClick = useCallback(() => {
@@ -134,7 +142,7 @@ export function GrowthSidebar({ variant = "sidebar", onClose }: Props) {
       data-testid="growth-sidebar"
       aria-label={t("studioCopilot.title" as never)}
     >
-      {!isSheet ? (
+      {!isSheet && !canonicalHome ? (
         <>
           <StudioCopilotHeader
             placement={copilotLayout.placement}
@@ -144,17 +152,19 @@ export function GrowthSidebar({ variant = "sidebar", onClose }: Props) {
           />
           <StudioCopilotContextBar />
         </>
-      ) : (
+      ) : isSheet ? (
         <header className="shrink-0 border-b border-zinc-100 px-4 py-3">
           <h2 className="text-sm font-bold text-zinc-900">{t("studioCopilot.title" as never)}</h2>
         </header>
-      )}
+      ) : null}
 
       <div className={`flex min-h-0 flex-1 flex-col ${isSheet ? "overflow-y-auto" : ""}`}>
         {filmAssistant ? (
           <section className="flex min-h-0 flex-1 flex-col" data-testid="growth-sidebar-chat">
             <StudioFilmAssistantHost onCollapse={minimizeCopilot} />
           </section>
+        ) : canonicalHome ? (
+          <StudioHomeContextPanel />
         ) : (
           <section
             className={`flex min-h-0 flex-1 flex-col px-3 py-2 ${
@@ -171,7 +181,7 @@ export function GrowthSidebar({ variant = "sidebar", onClose }: Props) {
           </section>
         )}
 
-        {filmAssistant ? null : (
+        {filmAssistant || canonicalHome ? null : (
           <AssistantHistoryPanel
             collapsedDefault={copilotLayoutHydrated ? copilotLayout.collapsedRecent : true}
           />
@@ -247,6 +257,7 @@ export function GrowthSidebar({ variant = "sidebar", onClose }: Props) {
           </section>
         ) : null}
 
+        {canonicalHome ? null : (
         <section className="px-4 py-4" data-testid="growth-sidebar-cta">
           <div className="overflow-hidden rounded-2xl border border-[#0067B1]/20 bg-gradient-to-br from-[#006D52]/8 via-white to-[#0067B1]/10 p-4 shadow-sm">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-[#0067B1]">
@@ -275,6 +286,7 @@ export function GrowthSidebar({ variant = "sidebar", onClose }: Props) {
             </div>
           </div>
         </section>
+        )}
       </div>
     </aside>
   );
