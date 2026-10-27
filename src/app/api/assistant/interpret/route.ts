@@ -36,6 +36,17 @@ export async function POST(request: Request) {
   const locale = body.locale === "nl" ? "nl" : "en";
   const useLlm = isAssistantAiInterpretationEnabled() && hasAssistantInterpretationApiKey();
 
+  // Local classification does not call a provider and must not touch the wallet.
+  if (!useLlm) {
+    const interpretation = await resolveAssistantInterpretation({ message, locale, useLlm: false });
+    return NextResponse.json({
+      interpretation,
+      source: interpretation?.source ?? "none",
+      usedLlm: false,
+      fallbackAvailable: Boolean(interpretAssistantRequest(message, { locale })),
+    });
+  }
+
   return runBilledProviderRoute({
     user,
     actionType: "assistant_interpret",
