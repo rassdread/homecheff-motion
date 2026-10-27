@@ -352,7 +352,7 @@ function quotedReplacement(raw: string): string | null {
 function musicVolume(textValue: string): number | "ask" | null {
   const mentionsMusic = /(muziek|music|volume)/.test(textValue);
   if (!mentionsMusic) return null;
-  const percent = textValue.match(/(\d{1,3})\s*(?:%|procent|percent)/);
+  const percent = textValue.match(/(-?\d{1,3})\s*(?:%|procent|percent)/);
   const numbers = [...textValue.matchAll(/(\d{1,3})/g)];
   const raw = percent?.[1] ?? numbers.at(-1)?.[1];
   if (!raw) {

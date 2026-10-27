@@ -94,18 +94,43 @@ export function validateStudioReturnTo(raw: string | null | undefined): string {
     }
   }
 
-  if (pathname === "/studio/photo-video" && search.startsWith("?")) {
-    try {
-      const params = new URLSearchParams(search.slice(1));
-      if (params.get("resume") === "1") {
-        return "/studio/photo-video?resume=1";
-      }
-    } catch {
-      /* fall through */
-    }
-  }
+  const preserved = preservedHandoffSearch(pathname, search);
+  if (preserved) return `${pathname}?${preserved}`;
 
   return pathname;
+}
+
+const IDEA_HANDOFF_PATHS = new Set([
+  "/editor/start",
+  "/motion",
+  "/motion/start",
+  "/studio/experience",
+  "/studio/photo-video",
+  "/studio/assets/media/voices",
+  "/studio/assets/media/audio",
+  "/studio/characters/new",
+]);
+
+/** Keeps the creative idea across an SSO return. Other query keys stay stripped. */
+function preservedHandoffSearch(pathname: string, search: string): string {
+  if (!search.startsWith("?")) return "";
+  let params: URLSearchParams;
+  try {
+    params = new URLSearchParams(search.slice(1));
+  } catch {
+    return "";
+  }
+  const next = new URLSearchParams();
+  if (pathname === "/studio/photo-video" && params.get("resume") === "1") {
+    next.set("resume", "1");
+  }
+  if (IDEA_HANDOFF_PATHS.has(pathname)) {
+    const idea = params.get("idea")?.trim() ?? "";
+    if (idea && idea.length <= 500 && !/[\u0000-\u001f]/.test(idea)) {
+      next.set("idea", idea);
+    }
+  }
+  return next.toString();
 }
 
 /**

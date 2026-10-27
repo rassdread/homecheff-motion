@@ -81,6 +81,15 @@ describe("SP.2B returnTo", () => {
     );
     assert.equal(isPublicStudioSurface("/studio/from/homecheff/product/22222222-2222-4222-8222-222222222222"), false);
     assert.equal(validateStudioReturnTo("/editor"), "/editor");
+    assert.equal(
+      validateStudioReturnTo("/studio/assets/media/voices?idea=Maak%20een%20voice-over&token=secret"),
+      "/studio/assets/media/voices?idea=Maak+een+voice-over",
+    );
+    assert.equal(
+      validateStudioReturnTo("/studio/assets/media/audio?idea=Genereer%20achtergrondmuziek"),
+      "/studio/assets/media/audio?idea=Genereer+achtergrondmuziek",
+    );
+    assert.equal(validateStudioReturnTo("/studio/experience?title=Roti&idea=poster"), "/studio/experience?idea=poster");
     assert.equal(validateStudioReturnTo("https://evil.example/"), "/");
     assert.equal(validateStudioReturnTo("//evil"), "/");
   });

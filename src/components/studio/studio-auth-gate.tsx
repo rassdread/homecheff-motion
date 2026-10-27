@@ -21,14 +21,15 @@ type StudioAuthGateProps = {
 export function StudioAuthGate({ children }: StudioAuthGateProps) {
   const session = useAuthSession();
   const pathname = usePathname();
-  const silentHref = `/auth/sso/silent?returnTo=${encodeURIComponent(pathname || "/")}&mode=ecosystem`;
   const started = useRef(false);
 
   useEffect(() => {
     if (!session.resolved || session.user || started.current) return;
     started.current = true;
-    window.location.assign(silentHref);
-  }, [session.resolved, session.user, silentHref]);
+    const search = window.location.search || "";
+    const returnTo = `${pathname || "/"}${search}`;
+    window.location.assign(`/auth/sso/silent?returnTo=${encodeURIComponent(returnTo)}&mode=ecosystem`);
+  }, [session.resolved, session.user, pathname]);
 
   if (!session.resolved || !session.user) {
     return (

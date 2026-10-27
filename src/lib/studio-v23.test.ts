@@ -367,6 +367,13 @@ describe("V23 assistant language", () => {
     assert.equal(softer.kind, "clarify");
     if (softer.kind === "clarify") assert.equal(softer.messageKey, "studio.v23.assistant.askVolume");
 
+    const negative = proposeStudioV23Command({ ...base, text: "Zet het muziekvolume op -1%." });
+    assert.equal(negative.kind, "clarify");
+    if (negative.kind === "clarify") assert.equal(negative.messageKey, "studio.v23.assistant.askVolume");
+    const tooHigh = proposeStudioV23Command({ ...base, text: "Zet het muziekvolume op 101%." });
+    assert.equal(tooHigh.kind, "clarify");
+    if (tooHigh.kind === "clarify") assert.equal(tooHigh.messageKey, "studio.v23.assistant.askVolume");
+
     const video = proposeStudioV23Command({ ...base, text: "Maak een video van scène een." });
     assert.equal(video.kind, "action");
     if (video.kind === "action") {
@@ -485,5 +492,10 @@ describe("V23 preservation", () => {
     ]) {
       assert.equal(existsSync(route), true, route);
     }
+  });
+
+  it("keeps the development cache out of the production build directory", () => {
+    const config = readFileSync("next.config.ts", "utf8");
+    assert.match(config, /NODE_ENV === "development" \? "\.next-dev" : "\.next"/);
   });
 });
