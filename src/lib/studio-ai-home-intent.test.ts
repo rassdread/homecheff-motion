@@ -116,6 +116,24 @@ describe("Studio AI-first home — IntentPlan", () => {
 
     const vague = buildStudioAiHomeIntentPlan({ prompt: "Maak iets moois." });
     assert.equal(vague.missingQuestionKey, "studio.aiHome.missing.medium");
+    const vagueOverride = buildStudioAiHomeIntentPlan({
+      prompt: "Maak iets moois.",
+      interpretation: {
+        originalMessage: "Maak iets moois.",
+        understoodGoal: "Maak iets moois.",
+        detectedIntent: "video",
+        confidence: "medium",
+        targetModule: "studio",
+        likelyActionId: "create_video_production",
+        extractedEntities: {},
+        inferredSettings: {},
+        missingInputs: [],
+        followUpQuestions: [],
+        source: "rules",
+      },
+    });
+    assert.equal(vagueOverride.missingQuestionKey, "studio.aiHome.missing.medium");
+    assert.equal(vagueOverride.billingActionType, null);
     const advert = buildStudioAiHomeIntentPlan({ prompt: "Maak een reclame." });
     assert.equal(advert.missingQuestionKey, "studio.aiHome.missing.advertisement");
   });

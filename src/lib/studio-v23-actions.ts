@@ -237,7 +237,7 @@ export function proposeStudioV23Command(input: {
     );
   }
 
-  if (/(offerte video|video quote|quote video|bereid video voor|maak een video van deze sc[eè]ne|animeer deze sc[eè]ne|generate a scene video)/.test(textValue)) {
+  if (/(offerte video|video quote|quote video|bereid video voor|maak een video van (?:deze )?sc[eè]ne|animeer (?:deze )?sc[eè]ne|generate a scene video)/.test(textValue)) {
     if (!sceneId) return { kind: "clarify" };
     return action("QUOTE_SCENE_VIDEO", { projectId: input.projectId, sceneId }, "Prepare a video quote", false, true);
   }

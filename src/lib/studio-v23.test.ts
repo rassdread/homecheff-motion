@@ -367,7 +367,7 @@ describe("V23 assistant language", () => {
     assert.equal(softer.kind, "clarify");
     if (softer.kind === "clarify") assert.equal(softer.messageKey, "studio.v23.assistant.askVolume");
 
-    const video = proposeStudioV23Command({ ...base, text: "Maak een video van deze scène." });
+    const video = proposeStudioV23Command({ ...base, text: "Maak een video van scène een." });
     assert.equal(video.kind, "action");
     if (video.kind === "action") {
       assert.equal(video.request.action, "QUOTE_SCENE_VIDEO");

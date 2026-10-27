@@ -161,6 +161,7 @@ export function StudioCharacterNewGuidedWizard({ projectId, projectTitle, storyb
               {t("characterCluster.new.describeLabel" as never)}
               <textarea
                 id="character-new-idea"
+                data-testid="studio-v23-preserved-idea"
                 className="mt-1 min-h-[120px] w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm"
                 value={state.idea}
                 onChange={(e) => setState((prev) => ({ ...prev, idea: e.target.value }))}

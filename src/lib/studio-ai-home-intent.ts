@@ -609,7 +609,8 @@ export function buildStudioAiHomeIntentPlan(
   let free = heuristics.free;
 
   const interp = input.interpretation;
-  if (interp && interp.likelyActionId !== "unknown" && interp.confidence !== "low") {
+  const ambiguous = needsCreativeClarification(text, attachments);
+  if (!ambiguous && interp && interp.likelyActionId !== "unknown" && interp.confidence !== "low") {
     if (interp.likelyActionId === "create_motion_video") {
       pipeline = "motion";
       actionId = "create_motion_video";
