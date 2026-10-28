@@ -94,6 +94,10 @@ function deps(overrides: Partial<StudioV23Deps> = {}): StudioV23Deps & { calls: 
 describe("V23 creative intent", () => {
   it("classifies film, image, video, voice, character, and existing projects separately", () => {
     assert.equal(classifyStudioCreativeIntent("Maak een promotiefilm van 30 seconden."), "FILM");
+    assert.equal(
+      classifyStudioCreativeIntent("V27.2 Synthetic Film Certification. Create a 30-second promotional film with three scenes, one recurring character, voice-over, background music, a sound effect and an ending logo."),
+      "FILM",
+    );
     assert.equal(classifyStudioCreativeIntent("Maak een afbeelding voor mijn bedrijf."), "IMAGE");
     assert.equal(classifyStudioCreativeIntent("Verander alleen de achtergrond van deze productfoto"), "IMAGE_EDIT");
     assert.equal(classifyStudioCreativeIntent("Maak een video van deze foto."), "VIDEO");

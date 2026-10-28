@@ -78,8 +78,15 @@ test("dialogue migration is additive and the service does not charge or rewrite 
   const service = readFileSync(join(root, "src/server/studio/studio-film-preparation.ts"), "utf8");
   assert.match(service, /dialogueText\?: string \| null/);
   assert.doesNotMatch(service, /reserveStudioCredits|requireStudioCredits/);
-  assert.equal((service.match(/referenceImageUrl/g) ?? []).length, 1);
-  assert.match(service, /referenceImageUrl: true/);
+  const imageMentions = service.match(/referenceImageUrl/g) ?? [];
+  const allowedImageReads = service.match(/referenceImageUrl(?:: true| \?\? "")/g) ?? [];
+  assert.deepEqual(allowedImageReads, [
+    "referenceImageUrl: true",
+    "referenceImageUrl: true",
+    'referenceImageUrl ?? ""',
+  ]);
+  assert.equal(imageMentions.length, allowedImageReads.length);
+  assert.doesNotMatch(service, /studioCharacter\.(create|update|upsert)/);
   assert.doesNotMatch(service, /cmvcbmxdp00032jryohiw8a84|cmvdlq3wy0005k007dpq2mp8c/);
   const route = readFileSync(
     join(root, "src/app/api/studio/projects/[projectId]/scenes/[sceneId]/route.ts"),

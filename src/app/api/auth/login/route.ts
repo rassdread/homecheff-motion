@@ -4,6 +4,7 @@ import { callMarketplaceLegacyMigrate } from "@/lib/identity/legacy-migrate-clie
 import { homecheffIdentityOrigin } from "@/lib/identity/sso/exchange-client";
 import { prisma } from "@/lib/prisma";
 import { apiServiceUnavailable } from "@/server/api-error-response";
+import { isDisposableLocalBrowserRequest } from "@/server/auth/disposable-local-auth";
 import {
   canUsePreviewLocalPasswordLogin,
   decidePreviewLocalCredentials,
@@ -83,12 +84,68 @@ async function previewLocalPasswordLogin(request: Request): Promise<NextResponse
 }
 
 /**
+ * Password login for the named disposable local database.
+ * It never migrates the account and never clears the password hash.
+ */
+async function disposableLocalPasswordLogin(request: Request): Promise<NextResponse> {
+  let payload: LoginPayload;
+  try {
+    payload = (await request.json()) as LoginPayload;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
+  const email = payload.email?.trim().toLowerCase() ?? "";
+  const password = payload.password ?? "";
+  if (!email || !password) {
+    return NextResponse.json(
+      { error: "Invalid credentials.", code: "MISSING_CREDENTIALS" },
+      { status: 400 },
+    );
+  }
+  let user;
+  try {
+    user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true, passwordHash: true, isActive: true },
+    });
+  } catch (error) {
+    return apiServiceUnavailable("auth/login", error);
+  }
+  const decision = decidePreviewLocalCredentials({ email, password, user });
+  if (decision.kind === "invalid_credentials") {
+    return NextResponse.json(PREVIEW_LOCAL_INVALID_CREDENTIALS, { status: 401 });
+  }
+  if (decision.kind === "inactive") {
+    return NextResponse.json(
+      { error: "Account is disabled.", code: "USER_INACTIVE" },
+      { status: 403 },
+    );
+  }
+  if (decision.kind !== "session") {
+    return NextResponse.json(
+      { error: "Invalid credentials.", code: "MISSING_CREDENTIALS" },
+      { status: 400 },
+    );
+  }
+  try {
+    await createSession(decision.userId);
+  } catch (error) {
+    return apiServiceUnavailable("auth/login:createSession", error);
+  }
+  return NextResponse.json({ user: { id: decision.userId, email: decision.email } }, { status: 200 });
+}
+
+/**
  * Legacy Studio credential → canonical HomeCheff JIT migration when SSO is live.
  * Isolated Preview may use local password login only through the server gate above.
+ * Disposable local login is a separate explicit gate and does not run on Vercel.
  */
 export async function POST(request: Request) {
   if (canUsePreviewLocalPasswordLogin()) {
     return previewLocalPasswordLogin(request);
+  }
+  if (isDisposableLocalBrowserRequest(request)) {
+    return disposableLocalPasswordLogin(request);
   }
 
   let payload: LoginPayload;

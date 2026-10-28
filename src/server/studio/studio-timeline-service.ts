@@ -9,6 +9,7 @@ import type { Prisma } from "@prisma/client";
 import { getCreativeProjectForOwner } from "@/server/studio-library/creative-project-service";
 import { listUserAudioLibraryAssets } from "@/server/studio/studio-user-audio-library-blob";
 import { isOwnedProductionBlobUrl } from "@/lib/studio-film-media";
+import { certifiedLocalMediaId, ownedCertifiedLocalPath } from "@/lib/studio-local-media";
 import {
   applyClipPatch,
   audibleClip,
@@ -413,13 +414,13 @@ async function resolveSource(input: {
     return { durationMs: asset.durationSeconds > 0 ? Math.round(asset.durationSeconds * 1000) : 5000 };
   }
   if (sourceKind === "uploaded_video" && trackType === "VIDEO") {
-    if (!isOwnedProductionBlobUrl(ownerId, sourceId)) {
+    if (!ownedTimelineMediaUrl(ownerId, sourceId)) {
       return fail("source", "That video is not in your Studio storage.", 403);
     }
     return { durationMs: 6000 };
   }
   if (sourceKind === "uploaded_image" && trackType === "VIDEO") {
-    if (!isOwnedProductionBlobUrl(ownerId, sourceId)) {
+    if (!ownedTimelineMediaUrl(ownerId, sourceId)) {
       return fail("source", "That image is not in your Studio storage.", 403);
     }
     return { durationMs: 5000 };
@@ -540,13 +541,13 @@ async function present(
         const ownedAudio = clip.sourceKind === "user_audio" ? userAudioById.get(clip.sourceId) : null;
         const scene = storyboard?.scenes.find((item) => item.id === clip.sourceId);
         const playbackUrl =
-          (clip.sourceKind === "uploaded_video" && isOwnedProductionBlobUrl(ownerId, clip.sourceId) ? clip.sourceId : null) ||
+          ownedTimelineMediaUrl(ownerId, clip.sourceKind === "uploaded_video" ? clip.sourceId : "") ||
           ownedAudio?.audioUrl ||
           asset?.downloadUrl ||
           asset?.previewUrl ||
           null;
         const stillUrl =
-          (clip.sourceKind === "uploaded_image" && isOwnedProductionBlobUrl(ownerId, clip.sourceId) ? clip.sourceId : null) ||
+          ownedTimelineMediaUrl(ownerId, clip.sourceKind === "uploaded_image" ? clip.sourceId : "") ||
           scene?.selectedSceneImage?.imageUrl ||
           null;
         return {
@@ -575,4 +576,12 @@ async function present(
     })),
     subtitles,
   };
+}
+
+function ownedTimelineMediaUrl(ownerId: string, value: string): string | null {
+  if (!value) return null;
+  if (isOwnedProductionBlobUrl(ownerId, value)) return value;
+  if (!ownedCertifiedLocalPath(ownerId, value)) return null;
+  const id = certifiedLocalMediaId(value);
+  return id ? `/api/studio/local-media/${id}` : null;
 }

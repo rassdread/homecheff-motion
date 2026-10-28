@@ -1,0 +1,83 @@
+{
+  "userBProjectStatus": 200,
+  "userBProjectUrl": "http://127.0.0.1:3462/studio/projects/cmvrdlbwg0005dh92s468jz8g?section=scenes",
+  "userBSeesFilmTitle": false,
+  "userBProjectExcerpt": "HomeCheff Studio Studio Account More Ontdek HomeCheff· Studio NL EN Loading… HomeCheff Everybody Eats. Je HomeCheff-account wordt geopend… Why teams choose HomeCheff Studio over clip-only AI tools Plan full stories in storyboards, reuse characters across campaigns, add voice and ",
+  "userBApi": {
+    "image": 404,
+    "timeline": 404,
+    "characters": 404,
+    "render": 405,
+    "renderPost": 404
+  },
+  "zeroHomepage": false,
+  "zeroCreditsText": "",
+  "zeroConfirmVisible": true,
+  "zeroFilmStatus": 201,
+  "zeroFilmBodyKeys": [
+    "projectId",
+    "storyboardId",
+    "title",
+    "created"
+  ],
+  "zeroProject": "cmvrfbhze005cdh92nfgvtk44",
+  "zeroSceneStatus": 200,
+  "zeroSceneId": "cmvrfbi8z005gdh92nkk8316z",
+  "zeroDialogueStatus": 200,
+  "zeroQuoteStatus": 200,
+  "zeroQuote": {
+    "actionType": "voice_generation",
+    "requiredCredits": 15,
+    "allowed": false,
+    "reason": "free_account_provider_action",
+    "voiceProfile": "warm_narrator",
+    "provider": "elevenlabs"
+  },
+  "layout": {
+    "360": {
+      "scrollWidth": 360,
+      "clientWidth": 360,
+      "overflow": 0
+    },
+    "390": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "overflow": 0
+    },
+    "768": {
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "overflow": 0
+    },
+    "1024": {
+      "scrollWidth": 1024,
+      "clientWidth": 1024,
+      "overflow": 0
+    },
+    "1080": {
+      "scrollWidth": 1080,
+      "clientWidth": 1080,
+      "overflow": 0
+    },
+    "1280": {
+      "scrollWidth": 1280,
+      "clientWidth": 1280,
+      "overflow": 0
+    },
+    "1440": {
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "overflow": 0
+    },
+    "scenes390": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "overflow": 0
+    },
+    "home1440": {
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "overflow": 0
+    }
+  }
+}

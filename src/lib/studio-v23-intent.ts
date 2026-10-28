@@ -127,7 +127,8 @@ export function classifyStudioCreativeIntent(prompt: string): StudioCreativeInte
       "pas deze afbeelding",
       "edit this image",
     ]) &&
-    !has(text, ["video", "animatie", "animation", "reel"])
+    !has(text, ["video", "animatie", "animation", "reel"]) &&
+    !isExplicitFilmRequest(text)
   ) {
     return "IMAGE_EDIT";
   }

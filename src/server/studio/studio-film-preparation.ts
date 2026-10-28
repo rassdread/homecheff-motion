@@ -14,6 +14,7 @@ import {
 import { decideLink, decideStoryboardCreate, mergeSceneSubtitleLine } from "@/lib/studio-project-linking";
 import { parseSubtitleEntriesJson } from "@/lib/studio-subtitle-track";
 import { getCreativeProjectForOwner } from "@/server/studio-library/creative-project-service";
+import { upsertLibraryAsset } from "@/server/studio-library/library-asset-service";
 import { setPreferredStudioSceneImage } from "@/server/studio/studio-scene-image-service";
 import {
   createStudioScene,
@@ -373,6 +374,30 @@ export async function listOwnedFilmCharacters(ownerId: string, projectId: string
     take: 100,
     select: { id: true, name: true, referenceImageUrl: true },
   });
+}
+
+export async function attachOwnedCharacterToFilm(ownerId: string, projectId: string, characterId: string) {
+  const project = await prisma.studioCreativeProject.findFirst({
+    where: { id: projectId, ownerId },
+    select: { id: true },
+  });
+  if (!project) return fail("not_found", "Not found.", 404);
+  const character = await prisma.studioCharacter.findFirst({
+    where: { id: characterId, ownerId },
+    select: { id: true, name: true, referenceImageUrl: true },
+  });
+  if (!character) return fail("not_found", "Not found.", 404);
+  await upsertLibraryAsset({
+    ownerId,
+    projectId,
+    family: "character",
+    title: character.name,
+    previewUrl: character.referenceImageUrl ?? "",
+    sourceKind: "studio_character_link",
+    sourceId: `${projectId}:${character.id}`,
+    metadata: { characterId: character.id },
+  });
+  return { character };
 }
 
 export async function createFilmScene(

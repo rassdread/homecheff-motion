@@ -281,7 +281,7 @@ export function StudioProjectTimeline({
     }
     const videoTrack = timeline.tracks.find((track) => track.type === "VIDEO");
     if (!videoTrack) return;
-    await send({
+    const placed = await send({
       action: "add-clip",
       revision: timeline.revision,
       trackId: videoTrack.id,
@@ -290,6 +290,7 @@ export function StudioProjectTimeline({
       startMs: timeline.filmEndMs,
       durationMs: Math.round(duration * 1000),
     });
+    if (!placed) return;
     setUploadNote(t("studio.workspace.v16.videoAdded"));
   }
 
@@ -302,7 +303,7 @@ export function StudioProjectTimeline({
     if (!stored?.url || !timeline) return;
     const videoTrack = timeline.tracks.find((track) => track.type === "VIDEO");
     if (!videoTrack) return;
-    await send({
+    const placed = await send({
       action: "add-clip",
       revision: timeline.revision,
       trackId: videoTrack.id,
@@ -311,6 +312,7 @@ export function StudioProjectTimeline({
       startMs: timeline.filmEndMs,
       durationMs: 8000,
     });
+    if (!placed) return;
     setUploadNote(t("studio.workspace.v16.imageAdded"));
   }
 
@@ -320,7 +322,7 @@ export function StudioProjectTimeline({
     if (!stored?.libraryAssetId || !timeline) return;
     const track = timeline.tracks.find((item) => item.type === "DIALOGUE");
     if (!track) return;
-    await send({
+    const placed = await send({
       action: "add-clip",
       revision: timeline.revision,
       trackId: track.id,
@@ -329,6 +331,7 @@ export function StudioProjectTimeline({
       startMs: 500,
       durationMs: Math.max(1000, Math.round(duration * 1000)),
     });
+    if (!placed) return;
     setUploadNote(t("studio.workspace.v16.voiceAdded"));
   }
 
@@ -347,7 +350,7 @@ export function StudioProjectTimeline({
     }
     const track = timeline.tracks.find((item) => item.type === (kind === "music" ? "MUSIC" : "SFX"));
     if (!track) return;
-    await send({
+    const placed = await send({
       action: "add-clip",
       revision: timeline.revision,
       trackId: track.id,
@@ -356,6 +359,7 @@ export function StudioProjectTimeline({
       startMs: kind === "music" ? 2000 : timeline.filmEndMs / 2,
       durationMs: Math.max(1000, Math.round(duration * 1000)),
     });
+    if (!placed) return;
     setUploadNote(t("studio.workspace.v16.audioAdded"));
   }
 
@@ -695,7 +699,7 @@ export function StudioProjectTimeline({
             </div>
             {selected && !timeline.simpleMode ? (
               <ClipProperties
-                key={`${selected.clip.id}:${selected.clip.startMs}:${selected.clip.durationMs}:${selected.clip.inMs}:${selected.clip.volume}`}
+                key={selected.clip.id}
                 clip={selected.clip}
                 onSave={(patch) => rememberAndSend(selected.clip, patch)}
                 onMute={() => rememberAndSend(selected.clip, { muted: !selected.clip.muted })}
@@ -902,16 +906,19 @@ function readMediaDuration(file: File, kind: "video" | "audio"): Promise<number>
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file);
     const media = document.createElement(kind);
+    let settled = false;
+    let timer = 0;
+    const finish = (duration: number) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timer);
+      URL.revokeObjectURL(url);
+      resolve(Number.isFinite(duration) && duration > 0 ? duration : 0);
+    };
+    timer = window.setTimeout(() => finish(0), 4000);
     media.preload = "metadata";
-    media.onloadedmetadata = () => {
-      const duration = media.duration;
-      URL.revokeObjectURL(url);
-      resolve(Number.isFinite(duration) ? duration : 0);
-    };
-    media.onerror = () => {
-      URL.revokeObjectURL(url);
-      resolve(0);
-    };
+    media.onloadedmetadata = () => finish(media.duration);
+    media.onerror = () => finish(0);
     media.src = url;
   });
 }

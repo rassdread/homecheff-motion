@@ -1,0 +1,73 @@
+{
+  "forbiddenHosts": [],
+  "steps": {
+    "login": "http://127.0.0.1:3462/",
+    "homepage": true,
+    "intents": {
+      "Animeer deze foto": "http://127.0.0.1:3462/motion?idea=Animeer+deze+foto :: Get creative in HomeCheff Studio.",
+      "Maak een productfoto": "http://127.0.0.1:3462/editor/start?idea=Maak+een+productfoto :: Get creative in HomeCheff Studio.",
+      "Maak een reclamevideo": "http://127.0.0.1:3462/studio/quick-ad?idea=Maak+een+reclamevideo :: Get creative in HomeCheff Studio.",
+      "Maak een stem": "http://127.0.0.1:3462/studio/audio/create?idea=Maak+een+stem&mode=voice :: Get creative in HomeCheff Studio.",
+      "Maak achtergrondmuziek": "http://127.0.0.1:3462/studio/audio/create?idea=Maak+achtergrondmuziek&mode=music :: Get creative in HomeCheff Studio.",
+      "Maak een geluidseffect": "http://127.0.0.1:3462/studio/audio/create?idea=Maak+een+geluidseffect&mode=sfx :: Get creative in HomeCheff Studio.",
+      "Maak een video": "http://127.0.0.1:3462/studio/experience?idea=Maak+een+video :: Get creative in HomeCheff Studio."
+    },
+    "filmRoute": "http://127.0.0.1:3462/studio/projects/cmvrdlbwg0005dh92s468jz8g?section=overview&workflow=film :: Get creative in HomeCheff Studio.",
+    "projectId": "cmvrdlbwg0005dh92s468jz8g",
+    "projectUrl": "http://127.0.0.1:3462/studio/projects/cmvrdlbwg0005dh92s468jz8g?section=overview&workflow=film",
+    "scenesSaved": [
+      "Introduction",
+      "Main action",
+      "Closing logo and call to action"
+    ],
+    "characterAttached": true,
+    "scenesAfterRefresh": [
+      1,
+      1,
+      1
+    ],
+    "uploadStatus": 200,
+    "uploadBody": {
+      "workingImageUrl": "http://localhost:3462/api/studio/local-media/67a7d26e-ba69-4736-a6c5-66a17e2efbec",
+      "thumbnailUrl": "http://localhost:3462/api/studio/local-media/ad8944f6-9b39-465c-9fd4-00b2014009a0",
+      "workingStorageKey": "/api/studio/local-media/67a7d26e-ba69-4736-a6c5-66a17e2efbec",
+      "thumbnailStorageKey": "/api/studio/local-media/ad8944f6-9b39-465c-9fd4-00b2014009a0"
+    },
+    "ownerImageStatus": 200,
+    "ownerImageBytes": 1856,
+    "wizardHrefs": [
+      "http://127.0.0.1:3462/editor/start?idea=The+guide+prepares+the+product+and+shows+the+result.&returnTo=%2Fstudio%2Fprojects%2Fcmvrdlbwg0005dh92s468jz8g%3Fsection%3Dscenes%26scene%3Dcmvrdnblh000bdh92jjl4bhrb%26workflow%3Dfilm",
+      "http://127.0.0.1:3462/motion/start?idea=The+guide+prepares+the+product+and+shows+the+result.&returnTo=%2Fstudio%2Fprojects%2Fcmvrdlbwg0005dh92s468jz8g%3Fsection%3Dscenes%26scene%3Dcmvrdnblh000bdh92jjl4bhrb%26workflow%3Dfilm&photoIntent=photo_to_video",
+      "http://127.0.0.1:3462/studio/projects/cmvrdlbwg0005dh92s468jz8g?section=audio&workflow=film&scene=cmvrdnblh000bdh92jjl4bhrb",
+      "http://127.0.0.1:3462/studio?storyboardId=cmvrdlcet0007dh92f8qonc00&tool=voice&scene=cmvrdnblh000bdh92jjl4bhrb&idea=The+guide+prepares+the+product+and+shows+the+result.&returnTo=%2Fstudio%2Fprojects%2Fcmvrdlbwg0005dh92s468jz8g%3Fsection%3Dscenes%26scene%3Dcmvrdnblh000bdh92jjl4bhrb%26workflow%3Dfilm",
+      "http://127.0.0.1:3462/studio?storyboardId=cmvrdlcet0007dh92f8qonc00&tool=music&scene=cmvrdnblh000bdh92jjl4bhrb&idea=The+guide+prepares+the+product+and+shows+the+result.&returnTo=%2Fstudio%2Fprojects%2Fcmvrdlbwg0005dh92s468jz8g%3Fsection%3Dscenes%26scene%3Dcmvrdnblh000bdh92jjl4bhrb%26workflow%3Dfilm",
+      "http://127.0.0.1:3462/studio?storyboardId=cmvrdlcet0007dh92f8qonc00&tool=sound&scene=cmvrdnblh000bdh92jjl4bhrb&idea=The+guide+prepares+the+product+and+shows+the+result.&returnTo=%2Fstudio%2Fprojects%2Fcmvrdlbwg0005dh92s468jz8g%3Fsection%3Dscenes%26scene%3Dcmvrdnblh000bdh92jjl4bhrb%26workflow%3Dfilm",
+      "http://127.0.0.1:3462/studio/storyboards/cmvrdlcet0007dh92f8qonc00/production?returnTo=%2Fstudio%2Fprojects%2Fcmvrdlbwg0005dh92s468jz8g%3Fsection%3Dscenes%26scene%3Dcmvrdnblh000bdh92jjl4bhrb%26workflow%3Dfilm"
+    ],
+    "voiceUrl": "http://127.0.0.1:3462/studio/projects/cmvrdlbwg0005dh92s468jz8g?workflow=film",
+    "voiceText": "HomeCheff Studio Studio My projects Account More Ontdek HomeCheff· Studio NL EN 500 CREDITS Free Details V272-user-a USER ▼ HomeCheff Studio Dashboard My projects Media Characters Voices Exports Project V27 Film Make image Make video Add voice Open timeline Export Overview Scenes Characters Media Audio Timeline Export This project has no image to show yet. Active V27.2 Synthetic Film Certification. Create a 30-second promotional film with three scenes, one recurring character, voice-over, backgr",
+    "existingClips": {
+      "video": 0,
+      "dialogue": 0,
+      "music": 0,
+      "sfx": 0
+    },
+    "musicUpload": 200,
+    "sfxUpload": 200,
+    "timelineButtons": "0:00 / 1:18",
+    "timelineAfterReload": {
+      "start": "500",
+      "trim": "200",
+      "clock": "0:00 / 1:18"
+    },
+    "playback": {
+      "paused": false,
+      "readyState": 4,
+      "currentTime": 0.007318,
+      "duration": 8
+    },
+    "audioMarkers": "VIDEO:on:0|VIDEO:off:0|VIDEO:off:0|VIDEO:off:0|VIDEO:off:0|VIDEO:off:0|VIDEO:off:0|VIDEO:off:0|VIDEO:off:0|VIDEO:off:0|MUSIC:off:0|MUSIC:off:0|MUSIC:off:0|MUSIC:off:0|SFX:off:0",
+    "seekClock": "4000"
+  },
+  "fatal": "page.waitForEvent: Timeout 180000ms exceeded while waiting for event \"download\"\n=========================== logs ===========================\nwaiting for event \"download\"\n============================================================\n    at main (/Users/sergioarrias/HomeCheffProjects/homecheff-motion-unified/scripts/v272-browser-cert.ts:363:34)"
+}

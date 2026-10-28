@@ -288,7 +288,7 @@ function SceneForm({
         <ul className="mt-2 space-y-2">
           {(characters ?? scene.characters ?? []).map((character) => (
             <li key={character.id} className="flex items-center gap-2 text-sm">
-              {character.referenceImageUrl ? (
+              {character.referenceImageUrl?.trim() ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={character.referenceImageUrl} alt="" className="h-10 w-10 rounded-lg object-cover" />
               ) : null}

@@ -5,10 +5,13 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
 import {
   resolvePublicBlobUrlByPathname,
   uploadPublicBlob,
 } from "@/lib/vercel-blob-config";
+import { localMediaDir, safeLocalFileName, writeCertifiedLocalFile } from "@/lib/studio-local-media";
 import { findUserAudioLibraryAsset } from "@/lib/studio-user-audio-library-find";
 import type {
   UserAudioLibraryAsset,
@@ -25,9 +28,32 @@ function assetPathname(ownerId: string, assetId: string, extension: string): str
   return `studio/${ownerId}/audio-library/assets/${assetId}.${extension}`;
 }
 
+function localManifestPath(ownerId: string): string | null {
+  const dir = localMediaDir();
+  if (!dir) return null;
+  return path.join(dir, "audio-manifests", `${safeLocalFileName(ownerId)}.json`);
+}
+
 export async function readUserAudioLibraryManifest(
   ownerId: string
 ): Promise<UserAudioLibraryManifest> {
+  const localPath = localManifestPath(ownerId);
+  if (localPath) {
+    try {
+      const raw = JSON.parse(await readFile(localPath, "utf8")) as UserAudioLibraryManifest;
+      if (raw?.version === 1 && Array.isArray(raw.assets)) {
+        return {
+          version: 1,
+          ownerId,
+          updatedAt: raw.updatedAt ?? new Date().toISOString(),
+          assets: raw.assets.filter((asset) => asset && typeof asset.id === "string"),
+        };
+      }
+    } catch {
+      /* A missing local manifest is an empty library. */
+    }
+    return { version: 1, ownerId, updatedAt: new Date().toISOString(), assets: [] };
+  }
   const pathname = manifestPathname(ownerId);
   const url = await resolvePublicBlobUrlByPathname(pathname);
   if (!url) {
@@ -74,6 +100,12 @@ export async function readUserAudioLibraryManifest(
 }
 
 async function writeUserAudioLibraryManifest(manifest: UserAudioLibraryManifest): Promise<void> {
+  const localPath = localManifestPath(manifest.ownerId);
+  if (localPath) {
+    await mkdir(path.dirname(localPath), { recursive: true });
+    await writeFile(localPath, JSON.stringify({ ...manifest, updatedAt: new Date().toISOString() }));
+    return;
+  }
   const pathname = manifestPathname(manifest.ownerId);
   await uploadPublicBlob({
     pathname,
@@ -99,6 +131,32 @@ export async function uploadUserAudioLibraryAsset(params: {
   extension: string;
   durationSeconds: number;
 }): Promise<UserAudioLibraryAsset> {
+  if (localMediaDir()) {
+    const stored = await writeCertifiedLocalFile({
+      ownerId: params.ownerId,
+      body: params.audioBuffer,
+      mimeType: params.contentType,
+      fileName: `${params.name}.${params.extension}`,
+    });
+    if (!stored) throw new Error("Local audio store is not configured.");
+    const asset: UserAudioLibraryAsset = {
+      id: stored.record.id,
+      kind: params.kind,
+      name: params.name.trim().slice(0, 120) || "Audio",
+      category: params.category.trim().slice(0, 64) || "custom",
+      mood: params.mood.trim().slice(0, 64) || "neutral",
+      energy: params.energy,
+      audioUrl: stored.browserPath,
+      storageKey: stored.browserPath,
+      durationSeconds: params.durationSeconds,
+      createdAt: new Date().toISOString(),
+    };
+    const manifest = await readUserAudioLibraryManifest(params.ownerId);
+    manifest.assets.unshift(asset);
+    manifest.updatedAt = new Date().toISOString();
+    await writeUserAudioLibraryManifest(manifest);
+    return asset;
+  }
   const assetId = randomUUID();
   const pathname = assetPathname(params.ownerId, assetId, params.extension);
   const uploaded = await uploadPublicBlob({

@@ -3,7 +3,10 @@ import { put } from "@vercel/blob";
 import { randomUUID } from "node:crypto";
 import { requireActiveUser } from "@/server/auth/permissions";
 import { getBlobReadWriteToken } from "@/lib/vercel-blob-config";
+import { writeCertifiedLocalFile } from "@/lib/studio-local-media";
 import { buildPersistedAsset } from "@/lib/studio-orchestrator-asset-persist";
+import { disposableLocalDatabaseReason } from "@/server/auth/disposable-local-auth";
+import { upsertLibraryAsset } from "@/server/studio-library/library-asset-service";
 import type { HcPersistedProductionAssetKind } from "@/types/studio-video-production";
 
 const VALID_KINDS = new Set<HcPersistedProductionAssetKind>([
@@ -23,7 +26,8 @@ export async function POST(request: Request) {
   }
 
   const token = getBlobReadWriteToken();
-  if (!token) {
+  const localStore = !token && disposableLocalDatabaseReason() === null;
+  if (!token && !localStore) {
     return NextResponse.json({ error: "Storage not configured" }, { status: 503 });
   }
 
@@ -41,20 +45,57 @@ export async function POST(request: Request) {
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "bin";
   const path = `production/${user.id}/${randomUUID()}.${ext}`;
   const buffer = Buffer.from(await file.arrayBuffer());
-  const blob = await put(path, buffer, {
-    access: "public",
-    token,
-    contentType: file.type || undefined,
-  });
+  let url = "";
+  let storageKey = path;
+  if (localStore) {
+    const stored = await writeCertifiedLocalFile({
+      ownerId: user.id,
+      body: buffer,
+      mimeType: file.type || "application/octet-stream",
+      fileName: file.name,
+    });
+    if (!stored) {
+      return NextResponse.json({ error: "Storage not configured" }, { status: 503 });
+    }
+    url = stored.browserPath;
+    storageKey = stored.browserPath;
+  } else {
+    if (!token) {
+      return NextResponse.json({ error: "Storage not configured" }, { status: 503 });
+    }
+    const blob = await put(path, buffer, {
+      access: "public",
+      token,
+      contentType: file.type || undefined,
+    });
+    url = blob.url;
+    storageKey = path;
+  }
 
   const asset = buildPersistedAsset({
     kind,
-    url: blob.url,
-    storageKey: path,
+    url,
+    storageKey,
     fileName: file.name,
     mimeType: file.type,
     durationSeconds: kind === "music" ? undefined : undefined,
   });
 
-  return NextResponse.json({ ok: true, asset });
+  let libraryAssetId = "";
+  if (kind === "voice") {
+    const row = await upsertLibraryAsset({
+      ownerId: user.id,
+      family: "voice",
+      title: file.name || "Voice",
+      downloadUrl: url,
+      previewUrl: url,
+      storageKey,
+      mimeType: file.type || "audio/wav",
+      sourceKind: "uploaded_voice",
+      sourceId: storageKey,
+    });
+    libraryAssetId = row.id;
+  }
+
+  return NextResponse.json({ ok: true, asset, libraryAssetId });
 }

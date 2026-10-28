@@ -1,0 +1,86 @@
+{
+  "dialogueBefore": 0,
+  "voiceUpload": 200,
+  "arranged": [
+    {
+      "type": "VIDEO",
+      "clips": [
+        {
+          "startMs": 500,
+          "durationMs": 7500
+        },
+        {
+          "startMs": 8000,
+          "durationMs": 8000
+        },
+        {
+          "startMs": 16000,
+          "durationMs": 8000
+        },
+        {
+          "startMs": 24000,
+          "durationMs": 8000
+        }
+      ]
+    },
+    {
+      "type": "DIALOGUE",
+      "clips": [
+        {
+          "startMs": 500,
+          "durationMs": 3000
+        }
+      ]
+    },
+    {
+      "type": "NARRATION",
+      "clips": []
+    },
+    {
+      "type": "MUSIC",
+      "clips": [
+        {
+          "startMs": 2000,
+          "durationMs": 30000
+        }
+      ]
+    },
+    {
+      "type": "SFX",
+      "clips": [
+        {
+          "startMs": 8000,
+          "durationMs": 1000
+        }
+      ]
+    }
+  ],
+  "playback": {
+    "paused": false,
+    "readyState": 1,
+    "currentTime": 0,
+    "duration": 8
+  },
+  "exportStatus": 200,
+  "exportType": "video/mp4",
+  "downloadEvent": "V27.mp4",
+  "exportNote": "Clip saved",
+  "exportProbe": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "codec_type": "video"
+      },
+      {
+        "codec_name": "aac",
+        "codec_type": "audio"
+      }
+    ],
+    "format": {
+      "duration": "32.040000",
+      "size": "593238"
+    }
+  }
+}

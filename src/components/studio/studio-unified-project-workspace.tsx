@@ -113,9 +113,9 @@ export function StudioUnifiedProjectWorkspace({
     return () => publishStudioFilmAssistantContext(null);
   }, [section, selectedCharacter, selectedScene, t, workflow, workspace]);
   const previewImage =
-    selectedCharacter?.referenceImageUrl ||
-    workspace.scenes.find((scene) => scene.imageUrl)?.imageUrl ||
-    workspace.media[0]?.previewUrl ||
+    selectedCharacter?.referenceImageUrl?.trim() ||
+    workspace.scenes.find((scene) => scene.imageUrl?.trim())?.imageUrl ||
+    workspace.media.find((item) => item.previewUrl?.trim())?.previewUrl ||
     "";
   const previewVideo = workspace.exports.find((item) => item.status === "completed" && item.downloadUrl)?.downloadUrl ?? "";
   const primarySections = new Set(workflowPrimarySections(workflow));
@@ -295,6 +295,7 @@ export function StudioUnifiedProjectWorkspace({
                     workspace={workspace}
                     selectedId={selectedCharacter?.id ?? ""}
                     onSelect={chooseCharacter}
+                    onReload={onReload}
                     t={t}
                   />
                 ) : null}
@@ -406,7 +407,7 @@ function Overview({
         <ul className="grid gap-3 sm:grid-cols-3">
           {workspace.characters.map((character) => (
             <li key={character.id} className="rounded-xl border border-zinc-200 p-3">
-              {character.referenceImageUrl ? (
+              {character.referenceImageUrl?.trim() ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={character.referenceImageUrl} alt="" className="mb-2 h-24 w-full rounded-lg object-cover" />
               ) : null}
@@ -425,21 +426,76 @@ function Characters({
   workspace,
   selectedId,
   onSelect,
+  onReload,
   t,
 }: {
   workspace: ProjectWorkspaceView;
   selectedId: string;
   onSelect: (id: string) => void;
+  onReload?: () => void;
   t: Translate;
 }) {
   const [referenceId, setReferenceId] = useState("");
   const [referenceNote, setReferenceNote] = useState("");
+  const [available, setAvailable] = useState<Array<{ id: string; name: string }>>([]);
+  const [attachNote, setAttachNote] = useState("");
+  const linked = new Set(workspace.characters.map((character) => character.id));
+  async function browseCharacters() {
+    setAttachNote("");
+    const response = await fetch("/api/studio/characters", { credentials: "include" });
+    const body = (await response.json().catch(() => null)) as { characters?: Array<{ id: string; name: string }> } | null;
+    if (!response.ok || !body?.characters) {
+      setAttachNote(t("studio.v272.attachFailed"));
+      return;
+    }
+    setAvailable(body.characters.filter((character) => !linked.has(character.id)));
+  }
+  async function attachCharacter(characterId: string) {
+    setAttachNote("");
+    const response = await fetch(`/api/studio/projects/${workspace.project.id}/film-characters`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ characterId }),
+    });
+    if (!response.ok) {
+      setAttachNote(t("studio.v272.attachFailed"));
+      return;
+    }
+    setAvailable((current) => current.filter((character) => character.id !== characterId));
+    onReload?.();
+  }
+  const browser = (
+    <div className="space-y-2">
+      <button type="button" className="min-h-11 rounded-full border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-900" data-testid="studio-v272-browse-characters" onClick={() => void browseCharacters()}>
+        {t("studio.v272.browseCharacters")}
+      </button>
+      {available.length > 0 ? (
+        <ul className="space-y-2">
+          {available.map((character) => (
+            <li key={character.id}>
+              <button type="button" className="min-h-11 rounded-full bg-[#006D52] px-4 text-sm font-semibold text-white" data-testid={`studio-v272-attach-${character.id}`} onClick={() => void attachCharacter(character.id)}>
+                {t("studio.v272.attachCharacter")} {character.name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {attachNote ? <p className="text-sm text-red-700" role="alert">{attachNote}</p> : null}
+    </div>
+  );
   if (workspace.characters.length === 0) {
-    return <Empty text={t("studio.workspace.v12.charactersEmpty")} href="/studio/characters" action={t("studio.workspace.v12.openCharacters")} />;
+    return (
+      <div className="space-y-4">
+        <Empty text={t("studio.workspace.v12.charactersEmpty")} href="/studio/characters" action={t("studio.workspace.v12.openCharacters")} />
+        {browser}
+      </div>
+    );
   }
   const images = workspace.media.filter((item) => item.family === "image");
   return (
     <div className="space-y-4">
+    {browser}
     <ul className="grid gap-3 sm:grid-cols-2">
       {workspace.characters.map((character) => (
         <li key={character.id}>
@@ -449,7 +505,7 @@ function Characters({
             className={`flex w-full gap-3 rounded-xl border p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0067B1] ${selectedId === character.id ? "border-[#0067B1] ring-2 ring-[#0067B1]/30" : "border-zinc-200"}`}
             aria-pressed={selectedId === character.id}
           >
-            {character.referenceImageUrl ? (
+            {character.referenceImageUrl?.trim() ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={character.referenceImageUrl} alt="" className="h-16 w-16 rounded-lg object-cover" />
             ) : (
@@ -479,8 +535,12 @@ function Characters({
                 className={`min-h-11 rounded-xl border p-2 text-left text-xs ${referenceId === item.id ? "border-[#0067B1]" : "border-zinc-200"}`}
                 onClick={() => setReferenceId(item.id)}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={item.previewUrl} alt="" className="h-16 w-16 rounded-lg object-cover" />
+                {item.previewUrl?.trim() ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={item.previewUrl} alt="" className="h-16 w-16 rounded-lg object-cover" />
+                ) : (
+                  <span className="block h-16 w-16 rounded-lg bg-zinc-100" />
+                )}
                 <span className="mt-1 block max-w-16 truncate">{item.title}</span>
               </button>
             </li>
@@ -558,8 +618,12 @@ function Media({
         <ul className="grid gap-3 sm:grid-cols-2">
           {workspace.media.map((item) => (
             <li key={item.id} className="overflow-hidden rounded-xl border border-zinc-200">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={item.previewUrl} alt={item.title} className="h-40 w-full object-cover" />
+              {item.previewUrl?.trim() ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={item.previewUrl} alt={item.title} className="h-40 w-full object-cover" />
+              ) : (
+                <div className="h-40 w-full bg-zinc-100" />
+              )}
               <p className="px-3 py-2 text-sm font-semibold">{item.title}</p>
             </li>
           ))}

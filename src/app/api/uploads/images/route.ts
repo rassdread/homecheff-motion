@@ -1,4 +1,6 @@
 import { getBlobReadWriteToken } from "@/lib/vercel-blob-config";
+import { writeCertifiedLocalFile } from "@/lib/studio-local-media";
+import { disposableLocalDatabaseReason } from "@/server/auth/disposable-local-auth";
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import sharp from "sharp";
@@ -45,7 +47,8 @@ export async function POST(request: Request) {
       return user;
     }
 
-    if (!isBlobTokenConfigured()) {
+    const localStore = !isBlobTokenConfigured() && disposableLocalDatabaseReason() === null;
+    if (!isBlobTokenConfigured() && !localStore) {
       return uploadErrorResponse(
         requestId,
         "BLOB_UPLOAD_FAILED",
@@ -138,32 +141,66 @@ export async function POST(request: Request) {
 
     logInstantImages("blob-upload-start", requestId, { workingPath, thumbPath });
 
-    const blobToken = getBlobReadWriteToken()!;
-    const [workingBlob, thumbBlob] = await Promise.all([
-      put(workingPath, workingProcessed.buffer, {
-        access: "public",
-        contentType: "image/jpeg",
-        addRandomSuffix: false,
-        token: blobToken,
-      }),
-      put(thumbPath, thumbProcessed.buffer, {
-        access: "public",
-        contentType: "image/jpeg",
-        addRandomSuffix: false,
-        token: blobToken,
-      }),
-    ]);
+    let workingUrl = "";
+    let thumbUrl = "";
+    let workingStorageKey = workingPath;
+    let thumbnailStorageKey = thumbPath;
+    if (localStore) {
+      const meta = await sharp(workingProcessed.buffer).metadata();
+      const origin = new URL(request.url).origin;
+      const workingStored = await writeCertifiedLocalFile({
+        ownerId: user.id,
+        body: workingProcessed.buffer,
+        mimeType: "image/jpeg",
+        fileName: originalFileName,
+        width: meta.width ?? null,
+        height: meta.height ?? null,
+      });
+      const thumbStored = await writeCertifiedLocalFile({
+        ownerId: user.id,
+        body: thumbProcessed.buffer,
+        mimeType: "image/jpeg",
+        fileName: `thumb-${originalFileName}`,
+      });
+      if (!workingStored || !thumbStored) {
+        return uploadErrorResponse(requestId, "BLOB_UPLOAD_FAILED", 503, "Local media store is not configured.");
+      }
+      workingUrl = `${origin}${workingStored.browserPath}`;
+      thumbUrl = `${origin}${thumbStored.browserPath}`;
+      workingStorageKey = workingStored.browserPath;
+      thumbnailStorageKey = thumbStored.browserPath;
+    } else {
+      const blobToken = getBlobReadWriteToken()!;
+      const [workingBlob, thumbBlob] = await Promise.all([
+        put(workingPath, workingProcessed.buffer, {
+          access: "public",
+          contentType: "image/jpeg",
+          addRandomSuffix: false,
+          token: blobToken,
+        }),
+        put(thumbPath, thumbProcessed.buffer, {
+          access: "public",
+          contentType: "image/jpeg",
+          addRandomSuffix: false,
+          token: blobToken,
+        }),
+      ]);
+      workingUrl = workingBlob.url;
+      thumbUrl = thumbBlob.url;
+      workingStorageKey = workingBlob.pathname;
+      thumbnailStorageKey = thumbBlob.pathname;
+    }
 
     logInstantImages("blob-upload-complete", requestId, {
-      workingUrl: workingBlob.url,
-      thumbUrl: thumbBlob.url,
+      workingUrl,
+      thumbUrl,
     });
 
     const response: UploadImageResponse = {
-      workingImageUrl: workingBlob.url,
-      thumbnailUrl: thumbBlob.url,
-      workingStorageKey: workingBlob.pathname,
-      thumbnailStorageKey: thumbBlob.pathname,
+      workingImageUrl: workingUrl,
+      thumbnailUrl: thumbUrl,
+      workingStorageKey,
+      thumbnailStorageKey,
     };
 
     const allowedAssetTypes = new Set<UserLibraryUploadAssetType>([
@@ -188,9 +225,9 @@ export async function POST(request: Request) {
         assetType,
         mimeType: "image/jpeg",
         fileName: originalFileName,
-        storageKey: workingBlob.pathname,
-        publicUrl: workingBlob.url,
-        thumbnailUrl: thumbBlob.url,
+        storageKey: workingStorageKey,
+        publicUrl: workingUrl,
+        thumbnailUrl: thumbUrl,
         originContext,
       });
     } catch (registerError) {

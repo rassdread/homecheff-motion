@@ -67,8 +67,15 @@ test("Dutch subtitle lines stay attached to a scene and drop when cleared", () =
 test("film preparation does not reserve HC, call providers, or write character masters", () => {
   const source = readFileSync(join(root, "src/server/studio/studio-film-preparation.ts"), "utf8");
   assert.doesNotMatch(source, /reserveStudioCredits|authorizeStudioAction|requireStudioCredits|openai|elevenlabs|vidu/i);
-  assert.equal((source.match(/referenceImageUrl/g) ?? []).length, 1);
-  assert.match(source, /referenceImageUrl: true/);
+  const imageMentions = source.match(/referenceImageUrl/g) ?? [];
+  const allowedImageReads = source.match(/referenceImageUrl(?:: true| \?\? "")/g) ?? [];
+  assert.deepEqual(allowedImageReads, [
+    "referenceImageUrl: true",
+    "referenceImageUrl: true",
+    'referenceImageUrl ?? ""',
+  ]);
+  assert.equal(imageMentions.length, allowedImageReads.length);
+  assert.doesNotMatch(source, /studioCharacter\.(create|update|upsert)/);
   assert.doesNotMatch(source, /generatedPrompt/);
   assert.match(source, /storyboardId: null/);
   assert.match(source, /status: "draft"/);

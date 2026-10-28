@@ -7,7 +7,7 @@
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { localPathIfAllowed } from "@/lib/studio-local-media";
+import { localPathIfAllowed, certifiedLocalMediaId, readCertifiedLocalFile } from "@/lib/studio-local-media";
 import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
 import { getFilmTimeline } from "@/server/studio/studio-timeline-service";
@@ -126,10 +126,12 @@ export async function POST(request: Request, context: Ctx) {
           if (track.type === "VIDEO") return await fail("missing_media", 422);
           continue;
         }
-        if (!isFetchableBlob(remote) && !localPathIfAllowed(remote)) return await fail("unsupported_source", 422);
+        if (!isFetchableBlob(remote) && !localPathIfAllowed(remote) && !ownedCertifiedFile(user.id, remote)) {
+          return await fail("unsupported_source", 422);
+        }
         const local = path.join(workDir, `source-${fileIndex}`);
         fileIndex += 1;
-        const saved = await downloadBlob(remote, local);
+        const saved = await downloadBlob(remote, local, user.id);
         if (!saved.ok) return await fail("download", 502);
         if (track.type === "VIDEO") {
           visuals.push({
@@ -221,9 +223,9 @@ function isFetchableBlob(value: string): boolean {
   }
 }
 
-async function downloadBlob(url: string, dest: string): Promise<{ ok: true } | { ok: false; message: string }> {
+async function downloadBlob(url: string, dest: string, ownerId: string): Promise<{ ok: true } | { ok: false; message: string }> {
   await mkdir(path.dirname(dest), { recursive: true });
-  const local = localPathIfAllowed(url);
+  const local = localPathIfAllowed(url) || ownedCertifiedFile(ownerId, url);
   if (local) {
     await copyFile(local, dest);
     return { ok: true };
@@ -236,4 +238,12 @@ async function downloadBlob(url: string, dest: string): Promise<{ ok: true } | {
   }
   await writeFile(dest, bytes);
   return { ok: true };
+}
+
+function ownedCertifiedFile(ownerId: string, value: string): string | null {
+  const id = certifiedLocalMediaId(value);
+  if (!id) return null;
+  const found = readCertifiedLocalFile(id);
+  if (!found || found.record.ownerId !== ownerId) return null;
+  return found.absolutePath;
 }

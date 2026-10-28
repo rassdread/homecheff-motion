@@ -588,12 +588,16 @@ export function StudioAiHomeComposer() {
                         })
                       }
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={c.referenceImageUrl}
-                        alt=""
-                        className="h-8 w-8 rounded-full object-cover"
-                      />
+                      {c.referenceImageUrl?.trim() ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={c.referenceImageUrl}
+                          alt=""
+                          className="h-8 w-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <span className="h-8 w-8 rounded-full bg-zinc-200" />
+                      )}
                       {c.name}
                     </button>
                   </li>
@@ -772,12 +776,16 @@ export function StudioAiHomeComposer() {
                           : "border-zinc-200 bg-white text-zinc-800"
                       }`}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={c.referenceImageUrl}
-                        alt=""
-                        className="h-7 w-7 rounded-full object-cover"
-                      />
+                      {c.referenceImageUrl?.trim() ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={c.referenceImageUrl}
+                          alt=""
+                          className="h-7 w-7 rounded-full object-cover"
+                        />
+                      ) : (
+                        <span className="h-7 w-7 rounded-full bg-zinc-200" />
+                      )}
                       {c.name}
                     </button>
                   </li>

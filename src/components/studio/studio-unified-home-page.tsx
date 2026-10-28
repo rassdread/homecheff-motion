@@ -252,7 +252,7 @@ export function StudioUnifiedHomePage() {
                           data-testid="studio-v24-history-item"
                           className="flex min-h-[52px] items-center gap-3 px-4 py-3 hover:bg-zinc-50"
                         >
-                          {item.previewUrl ? (
+                          {item.previewUrl?.trim() ? (
                             <img src={item.previewUrl} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
                           ) : (
                             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-sm font-semibold text-zinc-700" data-testid="studio-v24-history-fallback">

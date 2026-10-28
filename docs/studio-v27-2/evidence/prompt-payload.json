@@ -1,0 +1,25 @@
+{
+  "paidProviderCalled": false,
+  "safetyLine": "TEXT SAFETY RULES:",
+  "legacyHasSafety": true,
+  "unifiedHasSafety": true,
+  "unifiedHasUserDirection": true,
+  "unifiedHasPreset": true,
+  "legacyLength": 2392,
+  "unifiedLength": 2532,
+  "viduPromptLength": 2143,
+  "viduHasAspectField": false,
+  "referenceOrder": [
+    "logo-1",
+    "v272-kitchen"
+  ],
+  "referenceUrls": [
+    "https://cdn.example/logo.png",
+    "http://127.0.0.1:3462/api/studio/local-media/67a7d26e-ba69-4736-a6c5-66a17e2efbec"
+  ],
+  "voiceModel": "eleven_multilingual_v2",
+  "voiceLanguage": "nl",
+  "musicLengthMs": 30000,
+  "musicInstrumental": true,
+  "sfxDuration": 1
+}
