@@ -87,7 +87,15 @@ export function validateStudioReturnTo(raw: string | null | undefined): string {
       const params = new URLSearchParams(search.slice(1));
       const storyboardId = params.get("storyboardId")?.trim();
       if (storyboardId && /^[a-zA-Z0-9_-]+$/.test(storyboardId)) {
-        return `/studio?storyboardId=${encodeURIComponent(storyboardId)}`;
+        const next = new URLSearchParams();
+        next.set("storyboardId", storyboardId);
+        const tool = params.get("tool")?.trim() ?? "";
+        if (tool === "voice" || tool === "music" || tool === "sound") next.set("tool", tool);
+        const scene = params.get("scene")?.trim() ?? "";
+        if (scene && /^[a-zA-Z0-9_-]+$/.test(scene)) next.set("scene", scene);
+        const idea = params.get("idea")?.trim() ?? "";
+        if (idea && idea.length <= 500 && !/[\u0000-\u001f]/.test(idea)) next.set("idea", idea);
+        return `/studio?${next.toString()}`;
       }
     } catch {
       /* fall through */
@@ -108,6 +116,7 @@ const IDEA_HANDOFF_PATHS = new Set([
   "/studio/photo-video",
   "/studio/assets/media/voices",
   "/studio/assets/media/audio",
+  "/studio/audio/create",
   "/studio/characters/new",
 ]);
 
@@ -129,6 +138,14 @@ function preservedHandoffSearch(pathname: string, search: string): string {
     if (idea && idea.length <= 500 && !/[\u0000-\u001f]/.test(idea)) {
       next.set("idea", idea);
     }
+  }
+  if (pathname === "/studio/audio/create") {
+    const mode = params.get("mode")?.trim() ?? "";
+    if (mode === "voice" || mode === "music" || mode === "sfx") next.set("mode", mode);
+    const storyboardId = params.get("storyboardId")?.trim() ?? "";
+    if (storyboardId && /^[a-zA-Z0-9_-]+$/.test(storyboardId)) next.set("storyboardId", storyboardId);
+    const scene = params.get("scene")?.trim() ?? "";
+    if (scene && /^[a-zA-Z0-9_-]+$/.test(scene)) next.set("scene", scene);
   }
   return next.toString();
 }

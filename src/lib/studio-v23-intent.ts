@@ -194,6 +194,11 @@ function withIdea(path: string, prompt: string): string {
   return `${path}?${params.toString()}`;
 }
 
+function audioCreateHref(prompt: string, mode: "voice" | "music" | "sfx"): string {
+  const href = withIdea("/studio/audio/create", prompt);
+  return href.includes("?") ? `${href}&mode=${mode}` : `${href}?mode=${mode}`;
+}
+
 /**
  * Opens an existing editor. Does not create a film project or start a provider.
  * Returns null for film and "open my project", which have their own handoff.
@@ -259,9 +264,12 @@ export function creativeIntentHandoffHref(
       }
       return withIdea("/motion", prompt);
     case "VOICE":
-      return withIdea("/studio/assets/media/voices", prompt);
+      return audioCreateHref(prompt, "voice");
     case "AUDIO":
-      return withIdea("/studio/assets/media/audio", prompt);
+      return audioCreateHref(
+        prompt,
+        has(text, ["geluidseffect", "sound effect", "sfx"]) ? "sfx" : "music",
+      );
     case "CHARACTER":
       return withIdea("/studio/characters/new", prompt);
     case "FILM":

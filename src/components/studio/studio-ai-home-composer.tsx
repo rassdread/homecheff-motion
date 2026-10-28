@@ -37,6 +37,7 @@ import {
   inspirationWizardHref,
   rememberStudioWorkflow,
 } from "@/lib/studio-v27-workflow-routes";
+import { persistStagedStudioImage } from "@/lib/studio-v27-staged-upload";
 import { fetchStudioCharacters } from "@/lib/studio-characters-client";
 import { fetchStudioProps } from "@/lib/studio-props-client";
 import { studioVisual } from "@/lib/studio-visual-tokens";
@@ -247,6 +248,7 @@ export function StudioAiHomeComposer() {
     const file = files[0];
     if (!file) return;
     const url = URL.createObjectURL(file);
+    void persistStagedStudioImage(file, { ownerId: auth.user?.id ?? null });
     upsertAttachment({
       kind: "media",
       id: `local-${file.name}-${file.size}`,

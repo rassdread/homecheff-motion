@@ -19,6 +19,9 @@ export type StudioV27WorkflowId =
   | "FILM_SCENE_IMAGE"
   | "FILM_SCENE_ANIMATION"
   | "FILM_SCENE_AUDIO"
+  | "FILM_SCENE_VOICE"
+  | "FILM_SCENE_MUSIC"
+  | "FILM_SCENE_SFX"
   | "FILM_STORYBOARD";
 
 export type StudioV27WizardTarget = {
@@ -179,6 +182,54 @@ export function inspirationWizardHref(
   }
 }
 
+function filmAudioLink(
+  input: {
+    projectId: string;
+    sceneId: string;
+    storyboardId?: string | null;
+    idea?: string | null;
+  },
+  workflowId: "FILM_SCENE_VOICE" | "FILM_SCENE_MUSIC" | "FILM_SCENE_SFX",
+  mode: "voice" | "music" | "sfx",
+  tool: "voice" | "music" | "sound",
+  promptBuilder: string,
+): StudioV27WizardTarget {
+  const returnTo =
+    safeStudioProjectReturnTo(
+      `/studio/projects/${input.projectId}?section=scenes&workflow=film&scene=${input.sceneId}`,
+    ) ?? undefined;
+  const idea = input.idea ?? "";
+  const storyboardId = input.storyboardId?.trim() ?? "";
+  if (storyboardId && /^[A-Za-z0-9_-]+$/.test(storyboardId)) {
+    return {
+      workflowId,
+      href: queryHref("/studio", {
+        storyboardId,
+        tool,
+        scene: input.sceneId,
+        idea,
+        returnTo,
+      }),
+      wizardPath: "/studio",
+      promptBuilder,
+      spendsCreditsOnOpen: false,
+    };
+  }
+  return {
+    workflowId,
+    href: queryHref("/studio/audio/create", {
+      mode,
+      idea,
+      scene: input.sceneId,
+      projectId: input.projectId,
+      returnTo,
+    }),
+    wizardPath: "/studio/audio/create",
+    promptBuilder,
+    spendsCreditsOnOpen: false,
+  };
+}
+
 export function filmSceneWizardLinks(input: {
   projectId: string;
   sceneId: string;
@@ -223,6 +274,9 @@ export function filmSceneWizardLinks(input: {
       promptBuilder: "existing film audio section; voice script stays dialogueText",
       spendsCreditsOnOpen: false,
     },
+    filmAudioLink(input, "FILM_SCENE_VOICE", "voice", "voice", "buildVoiceRequest + generateStoryboardVoice"),
+    filmAudioLink(input, "FILM_SCENE_MUSIC", "music", "music", "generateStudioMusicAsset / generateElevenLabsMusic"),
+    filmAudioLink(input, "FILM_SCENE_SFX", "sfx", "sound", "generateStudioSfxAsset / generateElevenLabsSfx"),
   ];
   const storyboardId = input.storyboardId?.trim();
   if (storyboardId && /^[A-Za-z0-9_-]+$/.test(storyboardId)) {

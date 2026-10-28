@@ -263,6 +263,9 @@ function SceneForm({
     FILM_SCENE_IMAGE: t("studio.v27.scene.openImage"),
     FILM_SCENE_ANIMATION: t("studio.v27.scene.openAnimation"),
     FILM_SCENE_AUDIO: t("studio.v27.scene.openAudio"),
+    FILM_SCENE_VOICE: t("studio.v27.scene.openVoice"),
+    FILM_SCENE_MUSIC: t("studio.v27.scene.openMusic"),
+    FILM_SCENE_SFX: t("studio.v27.scene.openSfx"),
     FILM_STORYBOARD: t("studio.v27.scene.openStoryboard"),
   };
   return (

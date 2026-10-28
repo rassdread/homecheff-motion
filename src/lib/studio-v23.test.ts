@@ -119,8 +119,8 @@ describe("V23 creative intent", () => {
       creativeIntentHandoffHref("ANIMATION", "Animeer deze foto.", { mediaUrl: "https://cdn.example/still.jpg" }) ?? "",
       /\/motion\/start\?/,
     );
-    assert.match(creativeIntentHandoffHref("VOICE", "Maak een voice-over voor mijn reclame.") ?? "", /\/studio\/assets\/media\/voices\?idea=/);
-    assert.match(creativeIntentHandoffHref("AUDIO", "Genereer achtergrondmuziek.") ?? "", /\/studio\/assets\/media\/audio\?idea=/);
+    assert.match(creativeIntentHandoffHref("VOICE", "Maak een voice-over voor mijn reclame.") ?? "", /\/studio\/audio\/create\?idea=.*mode=voice/);
+    assert.match(creativeIntentHandoffHref("AUDIO", "Genereer achtergrondmuziek.") ?? "", /\/studio\/audio\/create\?idea=.*mode=music/);
     assert.match(creativeIntentHandoffHref("CHARACTER", "Ontwerp een personage met donker krullend haar.") ?? "", /\/studio\/characters\/new\?idea=/);
     assert.equal(creativeIntentHandoffHref("FILM", "Maak een promotiefilm."), null);
   });

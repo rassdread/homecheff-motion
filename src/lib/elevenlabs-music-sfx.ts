@@ -49,11 +49,36 @@ function buildMockAudioBuffer(durationSeconds: number): Buffer {
   return buffer;
 }
 
+/** Request body sent to ElevenLabs music. User text stays in `prompt`. */
+export function elevenLabsMusicRequestBody(
+  input: ElevenLabsMusicGenerationInput
+): { prompt: string; music_length_ms: number; force_instrumental?: true } {
+  const duration = Math.min(60, Math.max(5, Math.round(input.durationSeconds)));
+  return {
+    prompt: input.prompt,
+    music_length_ms: duration * 1000,
+    ...(input.instrumental === false ? {} : { force_instrumental: true }),
+  };
+}
+
+/** Request body sent to ElevenLabs sound generation. User text stays in `text`. */
+export function elevenLabsSfxRequestBody(input: ElevenLabsSfxGenerationInput): {
+  text: string;
+  duration_seconds: number;
+} {
+  const duration = Math.min(22, Math.max(0.5, input.durationSeconds ?? 3));
+  return {
+    text: input.prompt,
+    duration_seconds: duration,
+  };
+}
+
 export async function generateElevenLabsMusic(
   input: ElevenLabsMusicGenerationInput
 ): Promise<ElevenLabsAudioGenerationResult> {
   const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
-  const duration = Math.min(60, Math.max(5, Math.round(input.durationSeconds)));
+  const requestBody = elevenLabsMusicRequestBody(input);
+  const duration = requestBody.music_length_ms / 1000;
   const providerAssetId = `music_${input.prompt.slice(0, 40)}_${duration}`;
 
   if (!apiKey) {
@@ -73,11 +98,7 @@ export async function generateElevenLabsMusic(
       "Content-Type": "application/json",
       Accept: "audio/mpeg",
     },
-    body: JSON.stringify({
-      prompt: input.prompt,
-      music_length_ms: duration * 1000,
-      ...(input.instrumental === false ? {} : { force_instrumental: true }),
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!res.ok) {
@@ -98,7 +119,8 @@ export async function generateElevenLabsSfx(
   input: ElevenLabsSfxGenerationInput
 ): Promise<ElevenLabsAudioGenerationResult> {
   const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
-  const duration = Math.min(22, Math.max(0.5, input.durationSeconds ?? 3));
+  const requestBody = elevenLabsSfxRequestBody(input);
+  const duration = requestBody.duration_seconds;
   const providerAssetId = `sfx_${input.prompt.slice(0, 40)}_${duration}`;
 
   if (!apiKey) {
@@ -118,10 +140,7 @@ export async function generateElevenLabsSfx(
       "Content-Type": "application/json",
       Accept: "audio/mpeg",
     },
-    body: JSON.stringify({
-      text: input.prompt,
-      duration_seconds: duration,
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!res.ok) {

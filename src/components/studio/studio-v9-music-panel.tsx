@@ -13,22 +13,24 @@ const MUSIC_GENRES = ["corporate", "cinematic", "pop", "ambient", "electronic"] 
 const MUSIC_MOODS = ["warm", "energetic", "calm", "cinematic", "uplifting"] as const;
 
 type Props = {
-  storyboardId: string;
+  storyboardId?: string;
   activeSceneId?: string;
   activeSceneIndex?: number;
   canModify: boolean;
+  initialPrompt?: string;
 };
 
 export function StudioV9MusicPanel({
-  storyboardId,
+  storyboardId = "",
   activeSceneId,
   activeSceneIndex,
   canModify,
+  initialPrompt = "",
 }: Props) {
   const t = useActiveTranslator();
   const { enqueueChange } = useStudioAudioChangePlan(storyboardId);
   const providerStatus = resolveClientStudioMusicProviderStatus();
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState(initialPrompt);
   const [genre, setGenre] = useState<(typeof MUSIC_GENRES)[number]>("cinematic");
   const [mood, setMood] = useState<(typeof MUSIC_MOODS)[number]>("warm");
   const [duration, setDuration] = useState(30);
@@ -79,6 +81,7 @@ export function StudioV9MusicPanel({
           const exists = current.some((a) => a.id === res.data.asset.id);
           return exists ? current : [res.data.asset, ...current];
         });
+        if (!storyboardId) return;
         enqueueChange({
           kind: "music",
           title,
@@ -105,7 +108,7 @@ export function StudioV9MusicPanel({
   };
 
   const handleSaveToLibrary = () => {
-    if (!libraryPreview) {
+    if (!libraryPreview || !storyboardId) {
       return;
     }
     enqueueChange({
@@ -147,6 +150,7 @@ export function StudioV9MusicPanel({
             onChange={(e) => setPrompt(e.target.value)}
             rows={2}
             className="mt-1 w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
+            data-testid="studio-v9-music-prompt"
           />
         </label>
         <label className="text-xs text-zinc-700">

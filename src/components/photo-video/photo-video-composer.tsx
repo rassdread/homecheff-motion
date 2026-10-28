@@ -20,6 +20,7 @@ import {
   type PhotoVideoContextAction,
 } from "@/lib/photo-video/context-actions";
 import { useAuthSession } from "@/hooks/use-auth-session";
+import { isAllowedStudioImageType, loadPersistedStudioImage } from "@/lib/studio-v27-staged-upload";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
 import {
   addPhotos,
@@ -588,6 +589,20 @@ export function PhotoVideoComposer({
     },
     [composition, t, draftContext, setError, setComposition, setSelectedOverlayId, setPlaying]
   );
+
+  const stagedHandoffStarted = useRef(false);
+  useEffect(() => {
+    if (!auth.resolved || stagedHandoffStarted.current) return;
+    stagedHandoffStarted.current = true;
+    if (composition.photos.length > 0) return;
+    void loadPersistedStudioImage(auth.user?.id ?? null).then((record) => {
+      if (!record || !isAllowedStudioImageType(record.type)) return;
+      const file = new File([Uint8Array.from(record.bytes)], record.name, { type: record.type });
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      void onFiles(transfer.files);
+    });
+  }, [auth.resolved, auth.user?.id, composition.photos.length, onFiles]);
 
   const persistDraft = useCallback(
     async (opts?: { saved?: boolean }) => {

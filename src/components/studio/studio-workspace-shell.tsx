@@ -32,6 +32,7 @@ import { useStudioAdvancedFeatures } from "@/lib/studio-advanced-features";
 import { rememberRecentStoryboardId } from "@/lib/studio-recent-storyboard";
 import { studioClassicEditorHref } from "@/lib/studio-workspace-href";
 import {
+  STUDIO_TOOL_IDS,
   studioToolToAssetTab,
   type StudioToolId,
 } from "@/lib/studio-tool-id";
@@ -192,7 +193,16 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
     const shouldRestorePlace = !placeRestoredRef.current;
     const savedPlace = shouldRestorePlace ? readStudioWorkspacePlace(storyboardId) : null;
     placeRestoredRef.current = true;
+    const requestedToolRaw = searchParams.get("tool");
+    const requestedTool =
+      requestedToolRaw && STUDIO_TOOL_IDS.includes(requestedToolRaw as StudioToolId)
+        ? (requestedToolRaw as StudioToolId)
+        : null;
+    const requestedScene = searchParams.get("scene")?.trim() ?? "";
     setActiveSceneId((prev) => {
+      if (requestedScene && sbRes.data.storyboard.scenes.some((s) => s.id === requestedScene)) {
+        return requestedScene;
+      }
       if (savedPlace?.sceneId && sbRes.data.storyboard.scenes.some((s) => s.id === savedPlace.sceneId)) {
         return savedPlace.sceneId;
       }
@@ -207,7 +217,10 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
     const readiness = resolveStudioProductionReadiness(sbRes.data.storyboard);
     const explicitStage = searchParams.get("stage");
     const continueFlag = searchParams.get("continueInStudio");
-    if (shouldRestorePlace && savedPlace?.tool && !explicitStage && !continueFlag) {
+    if (requestedTool) {
+      setActiveTool(requestedTool);
+      setActiveStage(stageForTool(requestedTool));
+    } else if (shouldRestorePlace && savedPlace?.tool && !explicitStage && !continueFlag) {
       setActiveTool(savedPlace.tool);
       setActiveStage(savedPlace.stage ?? stageForTool(savedPlace.tool));
     } else {

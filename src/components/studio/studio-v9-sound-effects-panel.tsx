@@ -26,23 +26,25 @@ export const STUDIO_V9_SFX_CATEGORIES = [
 type SfxCategory = (typeof STUDIO_V9_SFX_CATEGORIES)[number];
 
 type Props = {
-  storyboardId: string;
+  storyboardId?: string;
   activeSceneId?: string;
   activeSceneIndex?: number;
   canModify: boolean;
+  initialPrompt?: string;
 };
 
 export function StudioV9SoundEffectsPanel({
-  storyboardId,
+  storyboardId = "",
   activeSceneId,
   activeSceneIndex,
   canModify,
+  initialPrompt = "",
 }: Props) {
   const t = useActiveTranslator();
   const { enqueueChange } = useStudioAudioChangePlan(storyboardId);
   const providerStatus = resolveClientStudioSfxProviderStatus();
   const [category, setCategory] = useState<SfxCategory>("ambience");
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState(initialPrompt);
   const [library, setLibrary] = useState<UserAudioLibraryAsset[]>([]);
   const [previewUrl, setPreviewUrl] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -71,7 +73,7 @@ export function StudioV9SoundEffectsPanel({
   }, [library, category]);
 
   const handleGenerate = async () => {
-    if (!canModify || !activeSceneId) {
+    if (!canModify) {
       return;
     }
     setGenerating(true);
@@ -91,6 +93,7 @@ export function StudioV9SoundEffectsPanel({
           const exists = current.some((a) => a.id === res.data.asset.id);
           return exists ? current : [res.data.asset, ...current];
         });
+        if (!storyboardId || !activeSceneId) return;
         enqueueChange({
           kind: "sound_effect",
           title,
@@ -174,6 +177,7 @@ export function StudioV9SoundEffectsPanel({
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             className="mt-1 w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
+            data-testid="studio-v9-sfx-prompt"
           />
         </label>
       </div>
@@ -181,7 +185,7 @@ export function StudioV9SoundEffectsPanel({
       <div className="mt-3 flex flex-wrap gap-2">
         <button
           type="button"
-          disabled={!canModify || generating || !activeSceneId}
+          disabled={!canModify || generating}
           onClick={handleGenerate}
           className="rounded-lg bg-[#006D52] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
           data-testid="studio-v9-sfx-generate"

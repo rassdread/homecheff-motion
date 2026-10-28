@@ -90,11 +90,11 @@ describe("Studio AI-first home — IntentPlan", () => {
     const voice = buildStudioAiHomeIntentPlan({ prompt: "Maak een voice-over voor mijn reclame." });
     assert.equal(voice.recommendedPipeline, "voice_library");
     assert.equal(voice.free, true);
-    assert.match(voice.handoffHref, /\/studio\/assets\/media\/voices\?idea=/);
+    assert.match(voice.handoffHref, /\/studio\/audio\/create\?idea=.*mode=voice/);
 
     const audio = buildStudioAiHomeIntentPlan({ prompt: "Genereer achtergrondmuziek." });
     assert.equal(audio.recommendedPipeline, "audio_library");
-    assert.match(audio.handoffHref, /\/studio\/assets\/media\/audio\?idea=/);
+    assert.match(audio.handoffHref, /\/studio\/audio\/create\?idea=.*mode=music/);
     assert.doesNotMatch(audio.handoffHref, /\/editor\/start/);
 
     const character = buildStudioAiHomeIntentPlan({ prompt: "Ontwerp een personage met donker krullend haar." });
