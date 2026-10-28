@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
 import { billProviderAction } from "@/server/studio-account/bill-provider-action";
+import { isAuthorizedLocalMockSceneImageExecution } from "@/server/studio/authorized-local-mock-execution";
 import {
   generateStudioSceneImage,
   listStudioSceneImages,
@@ -102,9 +103,31 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
+  const authorizedLocalMock = isAuthorizedLocalMockSceneImageExecution({
+    env: process.env,
+    hostHeader: request.headers.get("host"),
+  });
+
   const run = await runSynchronousGenerationJob({
     job: created.job,
     executeBilled: async () => {
+      if (authorizedLocalMock) {
+        const result = await generateStudioSceneImage(storyboardId, sceneId, user);
+        if ("error" in result) {
+          return {
+            ok: false as const,
+            errorCode: "PROVIDER_REJECTED" as const,
+            safeMessage: result.error.message,
+          };
+        }
+        return {
+          ok: true as const,
+          result,
+          creditsCharged: 0,
+          outputAssetId: result.image.id,
+        };
+      }
+
       const billed = await billProviderAction({
         user,
         actionType: "scene_generation",

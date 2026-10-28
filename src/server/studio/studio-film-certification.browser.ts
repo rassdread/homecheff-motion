@@ -182,6 +182,13 @@ try {
   });
   assert.equal(scenes.length, 2);
 
+  const walletBefore = await prisma.studioWallet.findUniqueOrThrow({ where: { userId: user.id } });
+  const ledgerBefore = await prisma.studioLedgerEntry.count({ where: { userId: user.id } });
+  const reservedBefore = walletBefore.reservedBalance;
+  const capturedBefore = await prisma.studioLedgerEntry.count({
+    where: { userId: user.id, actionType: "usage_capture" },
+  });
+
   const generated = await page.evaluate(
     async ({ storyboardId, sceneId }) => {
       const response = await fetch(`/api/studio/storyboards/${storyboardId}/scenes/${sceneId}/images`, {
@@ -390,7 +397,39 @@ try {
   });
   assert.equal(projectsApi, 401);
   assert.deepEqual(forbiddenHosts, []);
+
+  const walletAfter = await prisma.studioWallet.findUniqueOrThrow({ where: { userId: user.id } });
+  const ledgerAfter = await prisma.studioLedgerEntry.count({ where: { userId: user.id } });
+  const capturedAfter = await prisma.studioLedgerEntry.count({
+    where: { userId: user.id, actionType: "usage_capture" },
+  });
+  const mockImages = await prisma.studioSceneImage.count({
+    where: {
+      provider: "mock",
+      status: "completed",
+      imageUrl: { startsWith: "file://" },
+      scene: { storyboardId: storyboard.storyboardId! },
+    },
+  });
+  const paidProviderCalls = await prisma.providerCostEvent.count({
+    where: { userId: user.id, provider: { not: "mock" } },
+  });
+  assert.ok(mockImages >= 2);
+  assert.equal(walletAfter.balance, walletBefore.balance);
+  assert.equal(walletAfter.reservedBalance, reservedBefore);
+  assert.equal(walletAfter.lifetimeSpent, walletBefore.lifetimeSpent);
+  assert.equal(capturedAfter, capturedBefore);
+  assert.equal(ledgerAfter, ledgerBefore);
+  assert.equal(paidProviderCalls, 0);
   console.log(`BROWSER_PROJECT_ID=${projectId}`);
+  console.log(`CERT_WALLET_BEFORE=${walletBefore.balance}`);
+  console.log(`CERT_WALLET_AFTER=${walletAfter.balance}`);
+  console.log(`CERT_WALLET_DELTA=${walletAfter.balance - walletBefore.balance}`);
+  console.log(`CERT_CREDIT_RESERVED=${walletAfter.reservedBalance}`);
+  console.log(`CERT_CREDIT_CAPTURED=${capturedAfter - capturedBefore}`);
+  console.log(`CERT_LEDGER_DELTA=${ledgerAfter - ledgerBefore}`);
+  console.log(`MOCK_IMAGES_GENERATED=${mockImages}`);
+  console.log(`PAID_PROVIDER_CALLS=${paidProviderCalls}`);
 } finally {
   await browser.close();
   await prisma.$disconnect();
