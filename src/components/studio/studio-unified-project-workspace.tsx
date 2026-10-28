@@ -128,7 +128,9 @@ export function StudioUnifiedProjectWorkspace({
 
   function writeSelection(patch: { section?: string | null; scene?: string | null; character?: string | null; workflow?: string | null }) {
     const next = workspaceSelectionSearch(window.location.search, patch);
-    window.history.replaceState(null, "", `${window.location.pathname}${next}`);
+    const nextUrl = `${window.location.pathname}${next}`;
+    if (`${window.location.pathname}${window.location.search}` === nextUrl) return;
+    window.history.replaceState(null, "", nextUrl);
   }
 
   function chooseSection(next: WorkspaceSection) {
@@ -855,7 +857,7 @@ function ClipList({ clips }: { clips: ProjectWorkspaceView["music"] }) {
       {clips.map((clip) => (
         <li key={clip.id}>
           <p className="text-sm font-semibold text-zinc-900">{clip.title}</p>
-          <audio controls preload="none" src={clip.audioUrl} className="mt-1 w-full" />
+          {clip.audioUrl?.trim() ? <audio controls preload="none" src={clip.audioUrl} className="mt-1 w-full" /> : null}
         </li>
       ))}
     </ul>

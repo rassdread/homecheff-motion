@@ -402,6 +402,7 @@ export function StudioAiHomeComposer() {
     }
     setBusy(true);
     setError(null);
+    let navigating = false;
     try {
       if (kind === "film") {
         const response = await fetch("/api/studio/films", {
@@ -421,7 +422,8 @@ export function StudioAiHomeComposer() {
         }
         storeStudioAiHomeIntentPlan(plan!);
         bindStudioAiHomeIntentProject(payload.projectId);
-        router.push(`/studio/projects/${payload.projectId}?section=overview&workflow=film`);
+        navigating = true;
+        window.location.assign(`/studio/projects/${payload.projectId}?section=overview&workflow=film`);
         return;
       }
       const response = await fetch("/api/studio/creative-projects?recent=1&limit=1", {
@@ -434,7 +436,7 @@ export function StudioAiHomeComposer() {
     } catch {
       setError(t("studio.aiHome.error.generic"));
     } finally {
-      setBusy(false);
+      if (!navigating) setBusy(false);
     }
   };
 

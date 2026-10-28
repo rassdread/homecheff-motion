@@ -13,6 +13,7 @@ import {
   filmSceneWizardLinks,
   inspirationWizardHref,
   mergePresetPromptWithUserIdea,
+  studioStoryboardOpenHref,
 } from "@/lib/studio-v27-workflow-routes";
 
 describe("V27 preset routes open existing wizards", () => {
@@ -73,6 +74,23 @@ describe("V27 preset routes open existing wizards", () => {
     assert.match(social.handoffHref, /\/animate\/instant/);
     assert.match(social.handoffHref, /experience=SOCIAL_REELS/);
     assert.match(social.handoffHref, /photoIntent=photo_to_video/);
+  });
+
+  it("keeps the voice tool when a storyboard link opens", () => {
+    const href = studioStoryboardOpenHref({
+      storyboardId: "board-9",
+      tool: "voice",
+      scene: "scene-2",
+      idea: "Keuken",
+      returnTo: "/studio/projects/film-1?section=scenes&workflow=film&scene=scene-2",
+      stage: "javascript:alert(1)",
+    });
+    assert.match(href ?? "", /\/studio\/open\/storyboard\/board-9\?/);
+    assert.match(href ?? "", /tool=voice/);
+    assert.match(href ?? "", /scene=scene-2/);
+    assert.match(href ?? "", /returnTo=/);
+    assert.doesNotMatch(href ?? "", /javascript/);
+    assert.equal(studioStoryboardOpenHref({ storyboardId: "../etc", tool: "voice" }), null);
   });
 
   it("opens film scene wizards with the scene return path and reference image", () => {

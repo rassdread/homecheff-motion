@@ -14,8 +14,11 @@ import {
 import { decideLink, decideStoryboardCreate, mergeSceneSubtitleLine } from "@/lib/studio-project-linking";
 import { parseSubtitleEntriesJson } from "@/lib/studio-subtitle-track";
 import { getCreativeProjectForOwner } from "@/server/studio-library/creative-project-service";
-import { upsertLibraryAsset } from "@/server/studio-library/library-asset-service";
+import { certifiedLocalBrowserPath, certifiedLocalMediaId, readCertifiedLocalFile } from "@/lib/studio-local-media";
+import { getLibraryAssetForOwner, upsertLibraryAsset } from "@/server/studio-library/library-asset-service";
+import { saveOwnedSceneStill } from "@/server/studio/studio-film-owned-still";
 import { setPreferredStudioSceneImage } from "@/server/studio/studio-scene-image-service";
+import { addTimelineClip, createFilmTimeline } from "@/server/studio/studio-timeline-service";
 import {
   createStudioScene,
   reorderStudioScenes,
@@ -398,6 +401,141 @@ export async function attachOwnedCharacterToFilm(ownerId: string, projectId: str
     metadata: { characterId: character.id },
   });
   return { character };
+}
+
+function ownedLocalMediaPath(ownerId: string, value: string): string | null {
+  const id = certifiedLocalMediaId(value);
+  if (!id) return null;
+  const found = readCertifiedLocalFile(id);
+  if (!found || found.record.ownerId !== ownerId) return null;
+  return certifiedLocalBrowserPath(id);
+}
+
+async function sceneStartMs(storyboardId: string, sceneId: string): Promise<number> {
+  const scenes = await prisma.studioScene.findMany({
+    where: { storyboardId },
+    orderBy: { order: "asc" },
+    select: { id: true, durationSeconds: true },
+  });
+  let start = 0;
+  for (const scene of scenes) {
+    if (scene.id === sceneId) return start;
+    start += Math.max(1, scene.durationSeconds) * 1000;
+  }
+  return 0;
+}
+
+async function placeOwnedStill(
+  ownerId: string,
+  projectId: string,
+  sceneId: string,
+  storyboardId: string,
+  imageUrl: string,
+  description: string,
+) {
+  const browserPath = ownedLocalMediaPath(ownerId, imageUrl);
+  if (!browserPath) return fail("not_found", "That image is not in your Studio storage.", 404);
+  const mediaId = certifiedLocalMediaId(browserPath) ?? "";
+  const image = await saveOwnedSceneStill({
+    sceneId,
+    imageUrl: browserPath,
+    storageKey: browserPath,
+    description,
+  });
+  await upsertLibraryAsset({
+    ownerId,
+    projectId,
+    family: "image",
+    title: "Synthetic scene still",
+    previewUrl: browserPath,
+    downloadUrl: browserPath,
+    storageKey: browserPath,
+    sourceKind: "studio_scene_still",
+    sourceId: `${projectId}:${sceneId}:${mediaId}`,
+    origin: "uploaded",
+    metadata: { sceneId, storyboardId, synthetic: true },
+  });
+  return { sceneId, imageId: image.id, attached: "scene" as const };
+}
+
+async function placeOwnedLibraryClip(
+  ownerId: string,
+  projectId: string,
+  sceneId: string,
+  storyboardId: string,
+  asset: { id: string; family: string },
+  sourceKind: "library_asset" | "user_audio",
+) {
+  const trackType =
+    asset.family === "voice"
+      ? "DIALOGUE"
+      : asset.family === "music"
+        ? "MUSIC"
+        : asset.family === "sfx"
+          ? "SFX"
+          : asset.family === "video"
+            ? "VIDEO"
+            : "";
+  if (!trackType) return fail("source", "That file cannot be placed on this film.", 400);
+  const ready = await createFilmTimeline(ownerId, projectId);
+  if ("error" in ready || !ready.timeline) return fail("not_found", "The timeline is not available.", 404);
+  const track = ready.timeline.tracks.find((item) => item.type === trackType);
+  if (!track) return fail("track_type", "That track is not on this film.", 400);
+  const placed = await addTimelineClip({
+    ownerId,
+    projectId,
+    revision: ready.timeline.revision,
+    trackId: track.id,
+    sourceKind,
+    sourceId: asset.id,
+    startMs: await sceneStartMs(storyboardId, sceneId),
+  });
+  if ("error" in placed) {
+    if (placed.error.code === "confirmation_required") {
+      return { sceneId, libraryAssetId: asset.id, attached: "timeline" as const, already: true };
+    }
+    return placed;
+  }
+  return { sceneId, libraryAssetId: asset.id, attached: "timeline" as const, already: false };
+}
+
+export async function attachOwnedMediaToFilmScene(
+  ownerId: string,
+  projectId: string,
+  sceneId: string,
+  input: { imageUrl?: string | null; libraryAssetId?: string | null; userAudioId?: string | null; audioKind?: string | null },
+) {
+  const linked = await linkedStoryboard(ownerId, projectId);
+  if ("error" in linked) return linked;
+  const scene = await prisma.studioScene.findFirst({
+    where: { id: sceneId, storyboardId: linked.storyboardId },
+    select: { id: true, description: true },
+  });
+  if (!scene) return fail("not_found", "Scene not found.", 404);
+  const libraryAssetId = input.libraryAssetId?.trim() ?? "";
+  if (libraryAssetId) {
+    const asset = await getLibraryAssetForOwner(libraryAssetId, ownerId);
+    if (!asset) return fail("not_found", "That file is not in your library.", 404);
+    if (asset.family === "image" || asset.family === "upload") {
+      const url = asset.previewUrl || asset.downloadUrl || asset.storageKey;
+      return placeOwnedStill(ownerId, projectId, scene.id, linked.storyboardId, url, scene.description);
+    }
+    return placeOwnedLibraryClip(ownerId, projectId, scene.id, linked.storyboardId, asset, "library_asset");
+  }
+  const userAudioId = input.userAudioId?.trim() ?? "";
+  if (userAudioId && (input.audioKind === "music" || input.audioKind === "sfx")) {
+    return placeOwnedLibraryClip(
+      ownerId,
+      projectId,
+      scene.id,
+      linked.storyboardId,
+      { id: userAudioId, family: input.audioKind },
+      "user_audio",
+    );
+  }
+  const imageUrl = input.imageUrl?.trim() ?? "";
+  if (imageUrl) return placeOwnedStill(ownerId, projectId, scene.id, linked.storyboardId, imageUrl, scene.description);
+  return fail("source", "Choose an image or a library file.", 400);
 }
 
 export async function createFilmScene(

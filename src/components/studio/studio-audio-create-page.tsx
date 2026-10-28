@@ -30,7 +30,9 @@ function StudioAudioCreateBody() {
   const idea = params.get("idea")?.trim() ?? "";
   const storyboardId = params.get("storyboardId")?.trim() ?? "";
   const sceneId = params.get("scene")?.trim() ?? "";
+  const projectId = params.get("projectId")?.trim() ?? "";
   const returnTo = safeStudioProjectReturnTo(params.get("returnTo"));
+  const [attachNote, setAttachNote] = useState("");
   const [script, setScript] = useState(idea);
   const [language, setLanguage] = useState("nl");
   const [profile, setProfile] = useState<(typeof STUDIO_VOICE_PROFILE_IDS)[number]>("warm_narrator");
@@ -137,7 +139,63 @@ function StudioAudioCreateBody() {
         >
           {t("studio.v27.audio.library")}
         </Link>
+        {projectId && sceneId && returnTo ? (
+          <label className="inline-flex min-h-11 cursor-pointer items-center rounded-full border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-900">
+            {t("studio.v273.testRecording")}
+            <input
+              type="file"
+              accept="audio/wav,audio/mpeg,audio/mp3,.wav,.mp3"
+              className="sr-only"
+              data-testid="studio-v273-audio-file"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (!file) return;
+                void (async () => {
+                  const form = new FormData();
+                  let libraryAssetId = "";
+                  let userAudioId = "";
+                  if (mode === "voice") {
+                    form.set("file", file);
+                    form.set("kind", "voice");
+                    form.set("projectId", projectId);
+                    const response = await fetch("/api/studio/orchestrator/upload-asset", { method: "POST", credentials: "include", body: form });
+                    const body = (await response.json().catch(() => null)) as { libraryAssetId?: string } | null;
+                    if (!response.ok || !body?.libraryAssetId) {
+                      setAttachNote(t("studio.v273.attachFailed"));
+                      return;
+                    }
+                    libraryAssetId = body.libraryAssetId;
+                  } else {
+                    form.set("audio", file);
+                    form.set("kind", mode === "sfx" ? "sfx" : "music");
+                    form.set("name", "Synthetic test recording");
+                    const response = await fetch("/api/studio/audio-library/upload", { method: "POST", credentials: "include", body: form });
+                    const body = (await response.json().catch(() => null)) as { asset?: { id?: string } } | null;
+                    if (!response.ok || !body?.asset?.id) {
+                      setAttachNote(t("studio.v273.attachFailed"));
+                      return;
+                    }
+                    userAudioId = body.asset.id;
+                  }
+                  const placed = await fetch(`/api/studio/projects/${projectId}/scenes/${sceneId}/attach-media`, {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(libraryAssetId ? { libraryAssetId } : { userAudioId, audioKind: mode === "sfx" ? "sfx" : "music" }),
+                  });
+                  if (!placed.ok) {
+                    setAttachNote(t("studio.v273.attachFailed"));
+                    return;
+                  }
+                  window.location.assign(returnTo);
+                })();
+              }}
+            />
+          </label>
+        ) : null}
       </div>
+      {attachNote ? <p className="mb-4 text-sm text-red-700" data-testid="studio-v273-audio-note">{attachNote}</p> : null}
 
       {mode === "voice" ? (
         <section className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4" data-testid="studio-v27-voice-form">

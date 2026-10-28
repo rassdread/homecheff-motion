@@ -208,12 +208,22 @@ export function StudioProjectTimeline({
       if (Math.abs(audio.currentTime - offset) > 0.35) audio.currentTime = Math.max(0, offset);
       void audio.play().catch(() => undefined);
     }
-    if (audioProbeRef.current) {
+      if (audioProbeRef.current) {
+      const activeAudio = audibleClips
+        .map((item) => ({ item, audio: audioMap.current.get(item.clip.id) }))
+        .find(({ item, audio }) => audio && playing && playhead >= item.clip.startMs && playhead < item.clip.startMs + item.clip.durationMs);
+      audioProbeRef.current.dataset.mixSrc = activeAudio?.audio?.currentSrc || activeAudio?.audio?.src || "";
+      audioProbeRef.current.dataset.mixMuted = activeAudio?.audio?.muted ? "1" : "0";
+      audioProbeRef.current.dataset.mixVolume = String(activeAudio?.audio?.volume ?? 0);
+      audioProbeRef.current.dataset.mixPaused = activeAudio?.audio?.paused === false ? "0" : "1";
+      audioProbeRef.current.dataset.mixTime = String(
+        activeAudio?.audio && Number.isFinite(activeAudio.audio.currentTime) ? Math.round(activeAudio.audio.currentTime * 1000) : -1,
+      );
       audioProbeRef.current.dataset.markers = audibleClips.map((item) => {
         const audio = audioMap.current.get(item.clip.id);
         const active = playing && playhead >= item.clip.startMs && playhead < item.clip.startMs + item.clip.durationMs;
         const position = audio && Number.isFinite(audio.currentTime) ? Math.round(audio.currentTime * 1000) : -1;
-        return `${item.track.type}:${active ? "on" : "off"}:${position}`;
+        return `${item.track.type}:${active ? "on" : "off"}:${position}:${audio?.muted ? "muted" : "open"}:${Math.round((audio?.volume ?? 0) * 100)}`;
       }).join("|");
     }
     const video = videoRef.current;

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useActiveTranslator } from "@/i18n/client";
@@ -22,7 +22,9 @@ type OpenedAsset = {
 export default function StudioOpenPage() {
   return (
     <StudioAuthGate>
-      <StudioOpenResolver />
+      <Suspense fallback={null}>
+        <StudioOpenResolver />
+      </Suspense>
     </StudioAuthGate>
   );
 }
@@ -31,6 +33,7 @@ function StudioOpenResolver() {
   const t = useActiveTranslator();
   const router = useRouter();
   const params = useParams<{ kind: string; id: string }>();
+  const search = useSearchParams();
   const auth = useAuthSession();
   const [asset, setAsset] = useState<OpenedAsset | null>(null);
   const [missing, setMissing] = useState(false);
@@ -51,6 +54,25 @@ function StudioOpenResolver() {
         return;
       }
       if (body.href) {
+        const tool = search.get("tool");
+        const projectId = body.href.match(/\/studio\/projects\/([A-Za-z0-9_-]+)/)?.[1] ?? "";
+        if ((tool === "voice" || tool === "music" || tool === "sound") && params.kind === "storyboard" && projectId) {
+          const mode = tool === "sound" ? "sfx" : tool;
+          const scene = search.get("scene") ?? "";
+          const next = new URLSearchParams();
+          next.set("mode", mode);
+          next.set("storyboardId", params.id);
+          next.set("projectId", projectId);
+          if (/^[A-Za-z0-9_-]{1,80}$/.test(scene)) next.set("scene", scene);
+          const idea = search.get("idea")?.trim().slice(0, 500) ?? "";
+          if (idea) next.set("idea", idea);
+          const returnTo =
+            search.get("returnTo") ||
+            `/studio/projects/${projectId}?section=scenes&workflow=film${scene ? `&scene=${scene}` : ""}`;
+          next.set("returnTo", returnTo);
+          router.replace(`/studio/audio/create?${next.toString()}`);
+          return;
+        }
         router.replace(body.href);
         return;
       }
@@ -61,7 +83,7 @@ function StudioOpenResolver() {
     return () => {
       cancelled = true;
     };
-  }, [auth.resolved, auth.user, params.id, params.kind, router]);
+  }, [auth.resolved, auth.user, params.id, params.kind, router, search]);
 
   if (missing) {
     return <p className="px-6 py-16 text-sm text-zinc-700">{t("studio.v24.missing")}</p>;

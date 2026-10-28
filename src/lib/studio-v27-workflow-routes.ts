@@ -16,6 +16,7 @@ export type StudioV27WorkflowId =
   | "CHARACTER_ANIMATION"
   | "STORYBOARD_CREATION"
   | "PRESENTATION"
+  | "FILM_SCENE_PHOTO_VIDEO"
   | "FILM_SCENE_IMAGE"
   | "FILM_SCENE_ANIMATION"
   | "FILM_SCENE_AUDIO"
@@ -182,6 +183,34 @@ export function inspirationWizardHref(
   }
 }
 
+const FILM_AUDIO_TOOLS = new Set(["voice", "music", "sound"]);
+
+/** Preserve the film tool and scene when `/studio` opens a storyboard. */
+export function studioStoryboardOpenHref(input: {
+  storyboardId: string;
+  stage?: string | null;
+  tool?: string | null;
+  scene?: string | null;
+  idea?: string | null;
+  returnTo?: string | null;
+}): string | null {
+  const id = input.storyboardId.trim();
+  if (!/^[A-Za-z0-9_-]+$/.test(id)) return null;
+  const params = new URLSearchParams();
+  const stage = input.stage?.trim() ?? "";
+  if (/^[A-Za-z0-9_-]{1,40}$/.test(stage)) params.set("stage", stage);
+  const tool = input.tool?.trim() ?? "";
+  if (FILM_AUDIO_TOOLS.has(tool)) params.set("tool", tool);
+  const scene = input.scene?.trim() ?? "";
+  if (/^[A-Za-z0-9_-]{1,80}$/.test(scene)) params.set("scene", scene);
+  const idea = input.idea?.trim().slice(0, 500) ?? "";
+  if (idea && !/[\u0000-\u001f]/.test(idea)) params.set("idea", idea);
+  const returnTo = safeStudioProjectReturnTo(input.returnTo);
+  if (returnTo) params.set("returnTo", returnTo);
+  const query = params.toString();
+  return `/studio/open/storyboard/${encodeURIComponent(id)}${query ? `?${query}` : ""}`;
+}
+
 function filmAudioLink(
   input: {
     projectId: string;
@@ -244,6 +273,20 @@ export function filmSceneWizardLinks(input: {
   const sourceImage = httpUrl(input.imageUrl);
   const idea = input.idea ?? "";
   const links: StudioV27WizardTarget[] = [
+    {
+      workflowId: "FILM_SCENE_PHOTO_VIDEO",
+      href: queryHref("/studio/photo-video", {
+        idea,
+        sourceImage,
+        returnTo,
+        projectId: input.projectId,
+        scene: input.sceneId,
+        storyboardId: input.storyboardId,
+      }),
+      wizardPath: "/studio/photo-video",
+      promptBuilder: "PhotoVideoComposer local encode; AI motion uses buildInstantVideoPrompt",
+      spendsCreditsOnOpen: false,
+    },
     {
       workflowId: "FILM_SCENE_IMAGE",
       href: queryHref("/editor/start", { idea, sourceImage, returnTo }),

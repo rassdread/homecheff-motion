@@ -21,6 +21,8 @@ import {
 } from "@/lib/photo-video/context-actions";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { isAllowedStudioImageType, loadPersistedStudioImage } from "@/lib/studio-v27-staged-upload";
+import { uploadRequirementReference } from "@/lib/studio-asset-requirement-upload";
+import { safeStudioProjectReturnTo } from "@/lib/studio-return-to";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
 import {
   addPhotos,
@@ -254,6 +256,11 @@ export function PhotoVideoComposer({
   const t = useActiveTranslator();
   const [locale] = useLocale();
   const searchParams = useSearchParams();
+  const filmProjectId = searchParams.get("projectId")?.trim() ?? "";
+  const filmSceneId = searchParams.get("scene")?.trim() ?? "";
+  const filmReturnTo = safeStudioProjectReturnTo(searchParams.get("returnTo"));
+  const [filmUploadUrl, setFilmUploadUrl] = useState("");
+  const [filmUploadNote, setFilmUploadNote] = useState("");
   const auth = useAuthSession();
   const fileInputId = useId();
   const videoInputId = useId();
@@ -478,6 +485,14 @@ export function PhotoVideoComposer({
           setError(t("px4a.error.limit"));
           break;
         }
+        if (filmProjectId && filmSceneId && filmReturnTo && !filmUploadUrl) {
+          const uploaded = await uploadRequirementReference(file, "prop");
+          if (!uploaded.ok || !uploaded.asset.url) setFilmUploadNote(uploaded.ok ? t("studio.v273.uploadFailed") : uploaded.error);
+          else {
+            setFilmUploadUrl(uploaded.asset.url);
+            setFilmUploadNote(t("studio.v273.uploadReady"));
+          }
+        }
         try {
           const preview = await previewFromFile(file);
           const photo = createLocalPhoto({
@@ -515,7 +530,7 @@ export function PhotoVideoComposer({
         }
       }
     },
-    [composition, t, draftContext, setError, setComposition, setSelectedOverlayId, setPlaying]
+    [composition, t, draftContext, setError, setComposition, setSelectedOverlayId, setPlaying, filmProjectId, filmSceneId, filmReturnTo, filmUploadUrl]
   );
 
   const onVideoFiles = useCallback(
@@ -1115,6 +1130,34 @@ export function PhotoVideoComposer({
             event.target.value = "";
           }}
         />
+        {filmReturnTo && filmProjectId && filmSceneId ? (
+          <div className="space-y-2" data-testid="studio-v273-film-upload">
+            <p className="text-sm text-zinc-800" data-testid="studio-v273-upload-status">{filmUploadNote}</p>
+            {filmUploadUrl ? <p className="break-all text-xs text-zinc-600" data-testid="studio-v273-upload-url">{filmUploadUrl}</p> : null}
+            <button
+              type="button"
+              className="inline-flex min-h-11 items-center rounded-full bg-[#006D52] px-4 text-sm font-semibold text-white disabled:opacity-40"
+              data-testid="studio-v273-use-on-scene"
+              disabled={!filmUploadUrl}
+              onClick={() => {
+                void fetch(`/api/studio/projects/${filmProjectId}/scenes/${filmSceneId}/attach-media`, {
+                  method: "POST",
+                  credentials: "include",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ imageUrl: filmUploadUrl }),
+                }).then(async (response) => {
+                  if (!response.ok) {
+                    setFilmUploadNote(t("studio.v273.attachFailed"));
+                    return;
+                  }
+                  window.location.assign(filmReturnTo);
+                });
+              }}
+            >
+              {t("studio.v273.useOnScene")}
+            </button>
+          </div>
+        ) : null}
         <input
           id={videoInputId}
           data-testid="px4a-video-input"

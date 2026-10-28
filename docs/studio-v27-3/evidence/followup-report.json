@@ -1,0 +1,359 @@
+{
+  "walletsBefore": "v272-user-a@studio.local.test|500|500|0\nv272-user-b@studio.local.test|100|100|0\nv272-user-c@studio.local.test|0|0|0",
+  "mixAtScene2": {
+    "markers": "VIDEO:on:0:open:100|VIDEO:off:0:open:100|VIDEO:off:0:open:100|VIDEO:off:0:open:100|DIALOGUE:off:0:open:100|DIALOGUE:on:0:open:100|MUSIC:on:0:open:35|MUSIC:on:0:open:100|SFX:on:0:open:100|SFX:off:0:open:100",
+    "mixMuted": "0",
+    "mixPaused": "0",
+    "mixTime": "0",
+    "mixSrc": "http://127.0.0.1:3462/api/studio/local-media/c0dc8432-9bb1-44d6-bddb-b28dd4baa418",
+    "clock": "0:07 / 0:32",
+    "clockMs": "6815"
+  },
+  "mixRms": {
+    "rms": 0.08829632067134378,
+    "seconds": 8,
+    "status": 200
+  },
+  "layout": {
+    "scenes-1440": {
+      "overflow": 0,
+      "loading": false,
+      "sample": "HomeCheff Studio Studio My projects Account More Ontdek HomeCheff· Studio NL EN 500 CREDITS Free Details V272-user-a USER ▼ HomeCheff Studio Dashboard My projects Media Characters Voices Exports Project V27 Film Make image Make video Add vo"
+    },
+    "scenes-1280": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "scenes-1080": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "scenes-1024": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "scenes-768": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "scenes-390": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "scenes-360": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "characters-1440": {
+      "overflow": 0,
+      "loading": false,
+      "sample": "HomeCheff Studio Studio My projects Account More Ontdek HomeCheff· Studio NL EN 500 CREDITS Free Details V272-user-a USER ▼ HomeCheff Studio Dashboard My projects Media Characters Voices Exports Project V27 Film Make image Make video Add vo"
+    },
+    "characters-1280": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "characters-1080": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "characters-1024": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "characters-768": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "characters-390": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "characters-360": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "media-1440": {
+      "overflow": 0,
+      "loading": false,
+      "sample": "HomeCheff Studio Studio My projects Account More Ontdek HomeCheff· Studio NL EN 500 CREDITS Free Details V272-user-a USER ▼ HomeCheff Studio Dashboard My projects Media Characters Voices Exports Project V27 Film Make image Make video Add vo"
+    },
+    "media-1280": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "media-1080": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "media-1024": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "media-768": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "media-390": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "media-360": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "wizard-1440": {
+      "overflow": 0,
+      "loading": false,
+      "sample": "HomeCheff Studio Studio My projects Account More Ontdek HomeCheff· Studio NL EN V272-user-a USER ▼ Back to the project The guide prepares the product FREE Make a free photo video Photos, text and your own music. No credits needed. Photos, t"
+    },
+    "wizard-1280": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "wizard-1080": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "wizard-1024": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "wizard-768": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "wizard-390": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "wizard-360": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "voice-1440": {
+      "overflow": 0,
+      "loading": false,
+      "sample": "HomeCheff Studio Studio My projects Account More Ontdek HomeCheff· Studio NL EN 500 CREDITS Free Details V272-user-a USER ▼ Back to the project Create a voice Generate uses the existing pipeline. The server waits for confirmation before it "
+    },
+    "voice-1280": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "voice-1080": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "voice-1024": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "voice-768": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "voice-390": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "voice-360": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "music-1440": {
+      "overflow": 0,
+      "loading": false,
+      "sample": "HomeCheff Studio Studio My projects Account More Ontdek HomeCheff· Studio NL EN 500 CREDITS Free Details V272-user-a USER ▼ Back to the project Create music Generate uses the existing pipeline. The server waits for confirmation before it sp"
+    },
+    "music-1280": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "music-1080": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "music-1024": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "music-768": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "music-390": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "music-360": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "sfx-1440": {
+      "overflow": 0,
+      "loading": false,
+      "sample": "HomeCheff Studio Studio My projects Account More Ontdek HomeCheff· Studio NL EN 500 CREDITS Free Details V272-user-a USER ▼ Back to the project Create a sound effect Generate uses the existing pipeline. The server waits for confirmation bef"
+    },
+    "sfx-1280": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "sfx-1080": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "sfx-1024": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "sfx-768": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "sfx-390": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "sfx-360": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "timeline-1440": {
+      "overflow": 0,
+      "loading": false,
+      "sample": "HomeCheff Studio Studio My projects Account More Ontdek HomeCheff· Studio NL EN 500 CREDITS Free Details V272-user-a USER ▼ HomeCheff Studio Dashboard My projects Media Characters Voices Exports Project V27 Film Make image Make video Add vo"
+    },
+    "timeline-1280": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "timeline-1080": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "timeline-1024": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "timeline-768": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "timeline-390": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "timeline-360": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "export-1440": {
+      "overflow": 0,
+      "loading": false,
+      "sample": "HomeCheff Studio Studio My projects Account More Ontdek HomeCheff· Studio NL EN 500 CREDITS Free Details V272-user-a USER ▼ HomeCheff Studio Dashboard My projects Media Characters Voices Exports Project V27 Film Make image Make video Add vo"
+    },
+    "export-1280": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "export-1080": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "export-1024": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "export-768": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "export-390": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    },
+    "export-360": {
+      "overflow": 0,
+      "loading": false,
+      "sample": ""
+    }
+  },
+  "history_image": {
+    "url": "http://127.0.0.1:3462/studio/projects/cmvs2l72h005ydh92rnju2zdu?workflow=image",
+    "loading": false,
+    "sample": "Ontdek HomeCheff· Studio NL EN V ☰ Menu Menu Project V273 historical image Assistant Image Open the existing editor Make image Make video Add voice Open timeline Export Overview Scenes Characters Media Audio Timeline Export This project has"
+  },
+  "history_animation": {
+    "url": "http://127.0.0.1:3462/studio/projects/cmvs2l8fr0060dh92lnzkf46i?workflow=video",
+    "loading": false,
+    "sample": "Ontdek HomeCheff· Studio NL EN V ☰ Menu Menu Project V273 historical animation Assistant Video Open the existing editor Make image Make video Add voice Open timeline Export Overview Scenes Characters Media Audio Timeline Export This project"
+  },
+  "historyFilm": {
+    "url": "http://127.0.0.1:3462/studio/projects/cmvrdlbwg0005dh92s468jz8g?section=scenes&workflow=film",
+    "loading": false,
+    "sample": "Ontdek HomeCheff· Studio NL EN ☰ Menu Loading… HomeCheff Everybody Eats. Je HomeCheff-account wordt geopend… Why teams choose HomeCheff Studio over clip-only AI tools Plan full stories in storyboards, reuse characters across campaigns, add "
+  },
+  "historyStoryboard": {
+    "url": "http://127.0.0.1:3462/studio/projects/cmvrdlbwg0005dh92s468jz8g?workflow=film",
+    "loading": false,
+    "sample": "Ontdek HomeCheff· Studio NL EN V ☰ Menu Menu Project V27 Assistant Film Make image Make video Add voice Open timeline Export Overview Scenes Characters Media Audio Timeline Export Active V27.2 Synthetic Film Certification. Create a 30-secon"
+  },
+  "zeroConfirmVisible": true,
+  "zeroSummary": "Get creative in HomeCheff Studio.",
+  "zeroUrl": "http://127.0.0.1:3462/studio",
+  "zeroCreated": false,
+  "walletsAfter": "v272-user-a@studio.local.test|500|500|0\nv272-user-b@studio.local.test|100|100|0\nv272-user-c@studio.local.test|0|0|0"
+}

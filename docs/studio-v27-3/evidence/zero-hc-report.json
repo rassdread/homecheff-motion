@@ -1,0 +1,10 @@
+{
+  "walletsBefore": "v272-user-a@studio.local.test|500|0\nv272-user-b@studio.local.test|100|0\nv272-user-c@studio.local.test|0|0",
+  "summary": "Get creative in HomeCheff Studio.",
+  "cost": "This creates a film project. Nothing is generated yet.",
+  "url": "http://127.0.0.1:3462/studio/projects/cmvs2nqpl0062dh92uzqi61xk?section=overview&workflow=film",
+  "created": true,
+  "projectId": "cmvs2nqpl0062dh92uzqi61xk",
+  "scenes": "",
+  "walletsAfter": "v272-user-a@studio.local.test|500|0\nv272-user-b@studio.local.test|100|0\nv272-user-c@studio.local.test|0|0"
+}

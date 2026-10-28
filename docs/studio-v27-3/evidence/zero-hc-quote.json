@@ -1,0 +1,15 @@
+{
+  "login": 200,
+  "quote": {
+    "status": 200,
+    "body": {
+      "actionType": "voice_generation",
+      "requiredCredits": 15,
+      "allowed": false,
+      "reason": "free_account_provider_action",
+      "voiceProfile": "warm_narrator",
+      "provider": "elevenlabs"
+    }
+  },
+  "started": false
+}

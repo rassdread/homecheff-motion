@@ -36,7 +36,9 @@ export function StudioProjectScenePanel({
 
   useEffect(() => {
     if (selectedId) onSceneChange?.(selectedId);
-  }, [onSceneChange, selectedId]);
+    // The parent builds a new callback on each render. Follow the scene id only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
   const [advanced, setAdvanced] = useState(false);
   const [characters, setCharacters] = useState<CharacterOption[] | null>(null);
 
@@ -203,6 +205,7 @@ export function StudioProjectScenePanel({
           storyboardId={workspace.project.storyboardId}
           onSave={(body) => patch(`/api/studio/projects/${projectId}/scenes/${scene.id}`, body)}
           onSelectImage={(imageId) => post(`/api/studio/projects/${projectId}/scenes/${scene.id}/select-image`, { imageId })}
+          onAttached={onReload}
         />
       ) : null}
       <AnimationPrep projectId={projectId} linked={workspace.project.animationLinked} animations={animations} busy={busy} onOpen={() => {
@@ -231,6 +234,7 @@ function SceneForm({
   storyboardId,
   onSave,
   onSelectImage,
+  onAttached,
 }: {
   projectId: string;
   scene: ProjectWorkspaceView["scenes"][number];
@@ -242,6 +246,7 @@ function SceneForm({
   storyboardId?: string | null;
   onSave: (body: Record<string, unknown>) => void;
   onSelectImage: (imageId: string) => void;
+  onAttached: () => void;
 }) {
   const t = useActiveTranslator();
   const [title, setTitle] = useState(scene.title);
@@ -251,6 +256,8 @@ function SceneForm({
   const [action, setAction] = useState(scene.action ?? "");
   const [emotion, setEmotion] = useState(scene.emotion ?? "");
   const [characterIds, setCharacterIds] = useState((scene.characters ?? []).map((item) => item.id));
+  const [library, setLibrary] = useState<Array<{ id: string; title: string; family: string }>>([]);
+  const [libraryNote, setLibraryNote] = useState("");
   const field = "mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-600";
   const wizardLinks = filmSceneWizardLinks({
     projectId,
@@ -260,6 +267,7 @@ function SceneForm({
     imageUrl: scene.imageUrl,
   });
   const wizardLabel: Record<string, string> = {
+    FILM_SCENE_PHOTO_VIDEO: t("studio.v27.scene.openPhotoVideo"),
     FILM_SCENE_IMAGE: t("studio.v27.scene.openImage"),
     FILM_SCENE_ANIMATION: t("studio.v27.scene.openAnimation"),
     FILM_SCENE_AUDIO: t("studio.v27.scene.openAudio"),
@@ -353,6 +361,53 @@ function SceneForm({
           ))}
         </ul>
       ) : <p className="text-sm text-zinc-600">{t("studio.workspace.v12.noSceneImage")}</p>}
+      <div className="space-y-2">
+        <button
+          type="button"
+          className="min-h-11 text-sm font-semibold text-[#0067B1]"
+          data-testid="studio-v273-browse-library"
+          onClick={() => {
+            void fetch(`/api/studio/library/assets?limit=40`, { credentials: "include" })
+              .then(async (response) => {
+                const body = (await response.json().catch(() => null)) as { assets?: Array<{ id: string; title: string; family: string }> } | null;
+                setLibrary(response.ok ? (body?.assets ?? []).filter((item) => ["image", "video", "voice", "music", "sfx"].includes(item.family)) : []);
+                if (!response.ok) setLibraryNote(t("studio.v273.attachFailed"));
+              })
+              .catch(() => setLibraryNote(t("studio.v273.attachFailed")));
+          }}
+        >
+          {t("studio.v273.browseLibrary")}
+        </button>
+        {libraryNote ? <p className="text-sm text-red-700">{libraryNote}</p> : null}
+        <ul className="space-y-1">
+          {library.map((item) => (
+            <li key={item.id}>
+              <button
+                type="button"
+                className="min-h-11 text-left text-sm font-semibold text-zinc-900"
+                data-testid={`studio-v273-attach-asset-${item.id}`}
+                onClick={() => {
+                  void fetch(`/api/studio/projects/${projectId}/scenes/${scene.id}/attach-media`, {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ libraryAssetId: item.id }),
+                  }).then(async (response) => {
+                    if (!response.ok) {
+                      setLibraryNote(t("studio.v273.attachFailed"));
+                      return;
+                    }
+                    setLibraryNote("");
+                    onAttached();
+                  });
+                }}
+              >
+                {item.title || item.family}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
       <div className="flex flex-wrap gap-2" data-testid="studio-v27-scene-wizards">
         {wizardLinks.map((link) => (
           <Link
