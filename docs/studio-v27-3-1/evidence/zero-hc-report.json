@@ -1,0 +1,6 @@
+{
+  "walletsBefore": "v272-user-a@studio.local.test|500|0\nv272-user-b@studio.local.test|100|0\nv272-user-c@studio.local.test|0|0\n",
+  "cost": "This creates a film project. Nothing is generated yet.",
+  "projectId": "cmvscxnvi000hdht73dxe9vn8",
+  "fatal": "locator.evaluate: Timeout 90000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: /Add scene|Scène toevoegen/ })\n"
+}

@@ -14,6 +14,7 @@ import {
   defaultTimelineTracks,
   existingSourceIds,
   filmEndMs,
+  shouldResyncMedia,
   futureTranslationPlan,
   msFromPixels,
   normalizeLanguageTag,
@@ -167,6 +168,20 @@ describe("multilingual subtitles", () => {
     assert.match(vtt, /00:00:01.000 --> 00:00:02.200/);
     assert.equal(cueAt(cues, 1100)?.text, "Hola");
     assert.equal(subtitleFilename("Made With Passion", "nl", "srt"), "made-with-passion.nl.srt");
+  });
+
+  it("seeks a stem once and lets the element finish that seek", () => {
+    const pending = {
+      currentTime: 0,
+      targetTime: 1.8,
+      seeking: true,
+      readyState: 1,
+      thresholdSeconds: 0.35,
+    };
+    assert.equal(shouldResyncMedia(pending), false);
+    assert.equal(shouldResyncMedia({ ...pending, seeking: false, readyState: 0 }), false);
+    assert.equal(shouldResyncMedia({ ...pending, seeking: false }), true);
+    assert.equal(shouldResyncMedia({ ...pending, seeking: false, currentTime: 1.7 }), false);
   });
 
   it("does not run paid translation", () => {

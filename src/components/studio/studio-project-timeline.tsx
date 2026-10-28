@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { duckedLinearGain, MUSIC_UNDER_VOICE_GAIN } from "@/lib/studio-audio-ducking";
 import { classifyFilmVideoFile, filmVideoDurationAllowed } from "@/lib/studio-film-media";
-import { advancePlayhead, clampPlayhead, COMMON_SUBTITLE_LANGUAGES, cueAt, msFromPixels, searchLanguages } from "@/lib/studio-timeline";
+import { advancePlayhead, clampPlayhead, COMMON_SUBTITLE_LANGUAGES, cueAt, msFromPixels, searchLanguages, shouldResyncMedia } from "@/lib/studio-timeline";
 import { clipDraftPatch, draftFromClip, type ClipDraft } from "@/lib/studio-timeline-clip-draft";
 
 type Cue = { id?: string; text: string; startMs: number; endMs: number; sceneId?: string };
@@ -205,8 +205,14 @@ export function StudioProjectTimeline({
         continue;
       }
       const offset = (playhead - item.clip.startMs + item.clip.inMs) / 1000;
-      if (Math.abs(audio.currentTime - offset) > 0.35) audio.currentTime = Math.max(0, offset);
-      void audio.play().catch(() => undefined);
+      if (shouldResyncMedia({
+        currentTime: audio.currentTime,
+        targetTime: offset,
+        seeking: audio.seeking,
+        readyState: audio.readyState,
+        thresholdSeconds: 0.35,
+      })) audio.currentTime = Math.max(0, offset);
+      if (audio.paused && !audio.seeking) void audio.play().catch(() => undefined);
     }
       if (audioProbeRef.current) {
       const activeAudio = audibleClips
@@ -223,15 +229,20 @@ export function StudioProjectTimeline({
         const audio = audioMap.current.get(item.clip.id);
         const active = playing && playhead >= item.clip.startMs && playhead < item.clip.startMs + item.clip.durationMs;
         const position = audio && Number.isFinite(audio.currentTime) ? Math.round(audio.currentTime * 1000) : -1;
-        return `${item.track.type}:${active ? "on" : "off"}:${position}:${audio?.muted ? "muted" : "open"}:${Math.round((audio?.volume ?? 0) * 100)}`;
+        return `${item.track.type}:${active ? "on" : "off"}:${position}:${audio?.muted ? "muted" : "open"}:${Math.round((audio?.volume ?? 0) * 100)}:${audio?.readyState ?? -1}:${audio?.seeking ? 1 : 0}:${audio?.paused === false ? 0 : 1}`;
       }).join("|");
     }
     const video = videoRef.current;
     if (!video) return;
     if (currentVideo?.playbackUrl) {
       const offset = Math.max(0, (playhead - currentVideo.startMs + currentVideo.inMs) / 1000);
-      const drift = Math.abs(video.currentTime - offset);
-      if (drift > 0.08 || (offset > 0.2 && video.currentTime < 0.05)) {
+      if (shouldResyncMedia({
+        currentTime: video.currentTime,
+        targetTime: offset,
+        seeking: video.seeking,
+        readyState: video.readyState,
+        thresholdSeconds: 0.08,
+      })) {
         try {
           video.currentTime = offset;
         } catch {
@@ -244,7 +255,7 @@ export function StudioProjectTimeline({
       video.pause();
       return;
     }
-    if (video.paused) void video.play().catch(() => undefined);
+    if (video.paused && !video.seeking) void video.play().catch(() => undefined);
   }, [playing, playhead, audibleClips, currentVideo]);
 
   async function send(payload: Record<string, unknown>) {

@@ -325,6 +325,19 @@ export function clampPlayhead(value: number, filmEnd: number): number {
   return Math.min(end, Math.max(0, value));
 }
 
+/** Seek once. A pending seek reports the old currentTime, so assigning again every frame cancels it. */
+export function shouldResyncMedia(input: {
+  currentTime: number;
+  targetTime: number;
+  seeking: boolean;
+  readyState: number;
+  thresholdSeconds: number;
+}): boolean {
+  if (input.seeking || input.readyState < 1) return false;
+  if (!Number.isFinite(input.currentTime) || !Number.isFinite(input.targetTime)) return false;
+  return Math.abs(input.currentTime - input.targetTime) > input.thresholdSeconds;
+}
+
 export function advancePlayhead(value: number, deltaMs: number, filmEnd: number): { next: number; ended: boolean } {
   const end = Math.max(filmEnd, 1000);
   const next = value + Math.max(0, deltaMs);

@@ -5,13 +5,13 @@
 
 import { readFile } from "node:fs/promises";
 import { NextResponse } from "next/server";
-import { localPathIfAllowed } from "@/lib/studio-local-media";
+import { localPathIfAllowed, PLAYBACK_MEDIA_CACHE, rangedMediaResponse } from "@/lib/studio-local-media";
 import { prisma } from "@/lib/prisma";
 import { requireActiveUser } from "@/server/auth/permissions";
 
 type Ctx = { params: Promise<{ projectId: string; assetId: string }> };
 
-export async function GET(_request: Request, context: Ctx) {
+export async function GET(request: Request, context: Ctx) {
   const user = await requireActiveUser();
   if (user instanceof NextResponse) return user;
   const { projectId, assetId } = await context.params;
@@ -27,11 +27,5 @@ export async function GET(_request: Request, context: Ctx) {
   if (!local) return NextResponse.json({ error: "Not found.", code: "not_found" }, { status: 404 });
   const bytes = await readFile(local);
   const type = asset.mimeType || (local.endsWith(".wav") ? "audio/wav" : "video/mp4");
-  return new NextResponse(new Uint8Array(bytes), {
-    headers: {
-      "Content-Type": type,
-      "Content-Length": String(bytes.length),
-      "Cache-Control": "no-store",
-    },
-  });
+  return rangedMediaResponse(bytes, request.headers.get("range"), type, PLAYBACK_MEDIA_CACHE);
 }

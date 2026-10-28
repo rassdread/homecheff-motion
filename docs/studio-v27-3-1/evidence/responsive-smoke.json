@@ -1,0 +1,90 @@
+{
+  "timeline": [
+    {
+      "width": 1440,
+      "overflow": 0,
+      "ready": true
+    },
+    {
+      "width": 768,
+      "overflow": 0,
+      "ready": true
+    },
+    {
+      "width": 390,
+      "overflow": 0,
+      "ready": true
+    },
+    {
+      "width": 360,
+      "overflow": 0,
+      "ready": true
+    }
+  ],
+  "library": [
+    {
+      "width": 1440,
+      "overflow": 0,
+      "ready": true
+    },
+    {
+      "width": 768,
+      "overflow": 0,
+      "ready": true
+    },
+    {
+      "width": 390,
+      "overflow": 0,
+      "ready": true
+    },
+    {
+      "width": 360,
+      "overflow": 0,
+      "ready": true
+    }
+  ],
+  "historical-image": [
+    {
+      "width": 1440,
+      "overflow": 0,
+      "ready": true
+    },
+    {
+      "width": 768,
+      "overflow": 0,
+      "ready": true
+    },
+    {
+      "width": 390,
+      "overflow": 0,
+      "ready": true
+    },
+    {
+      "width": 360,
+      "overflow": 0,
+      "ready": true
+    }
+  ],
+  "historical-animation": [
+    {
+      "width": 1440,
+      "overflow": 0,
+      "ready": true
+    },
+    {
+      "width": 768,
+      "overflow": 0,
+      "ready": true
+    },
+    {
+      "width": 390,
+      "overflow": 0,
+      "ready": true
+    },
+    {
+      "width": 360,
+      "overflow": 0,
+      "ready": true
+    }
+  ]
+}

@@ -133,3 +133,60 @@ export async function readCertifiedLocalBytes(id: string, ownerId: string): Prom
   const bytes = await readFile(found.absolutePath);
   return { record: found.record, bytes };
 }
+
+/**
+ * Chromium will not finish a media seek when the response is `no-store`:
+ * the element stays at HAVE_METADATA with seeking true and currentTime frozen.
+ * `private` still keeps the authenticated file out of shared caches.
+ */
+export const PLAYBACK_MEDIA_CACHE = "private";
+
+/**
+ * HTML media elements seek with a Range request. A 200 response to that
+ * request leaves the element seeking and currentTime stuck at 0.
+ */
+export function rangedMediaBody(bytes: Buffer, rangeHeader: string | null): {
+  status: 200 | 206 | 416;
+  body: Buffer;
+  contentRange: string | null;
+} {
+  const size = bytes.length;
+  const header = rangeHeader?.trim() ?? "";
+  if (!header) return { status: 200, body: bytes, contentRange: null };
+  const match = /^bytes=(\d*)-(\d*)$/i.exec(header);
+  if (!match || (match[1] === "" && match[2] === "")) {
+    return { status: 200, body: bytes, contentRange: null };
+  }
+  let start: number;
+  let end: number;
+  if (match[1] === "") {
+    const suffix = Number(match[2]);
+    start = Number.isFinite(suffix) && suffix > 0 ? Math.max(0, size - suffix) : size;
+    end = size - 1;
+  } else {
+    start = Number(match[1]);
+    end = match[2] === "" ? size - 1 : Number(match[2]);
+  }
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || start >= size || end < start) {
+    return { status: 416, body: Buffer.alloc(0), contentRange: `bytes */${size}` };
+  }
+  end = Math.min(end, size - 1);
+  return {
+    status: 206,
+    body: bytes.subarray(start, end + 1),
+    contentRange: `bytes ${start}-${end}/${size}`,
+  };
+}
+
+export function rangedMediaResponse(bytes: Buffer, rangeHeader: string | null, contentType: string, cacheControl: string): Response {
+  const ranged = rangedMediaBody(bytes, rangeHeader);
+  const headers = new Headers({
+    "Content-Type": contentType,
+    "Content-Length": String(ranged.body.length),
+    "Accept-Ranges": "bytes",
+    "Cache-Control": cacheControl,
+    "X-Content-Type-Options": "nosniff",
+  });
+  if (ranged.contentRange) headers.set("Content-Range", ranged.contentRange);
+  return new Response(new Uint8Array(ranged.body), { status: ranged.status, headers });
+}

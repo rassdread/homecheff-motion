@@ -1,0 +1,17 @@
+{
+  "projectId": "cmvscxnvi000hdht73dxe9vn8",
+  "sceneId": "cmvsd0ps4000ldht70d0g6rb2",
+  "filled": true,
+  "stored": "Welkom bij HomeCheff. Dit is een gratis project.",
+  "afterReload": "",
+  "quoteStatus": 200,
+  "quote": {
+    "actionType": "voice_generation",
+    "requiredCredits": 15,
+    "allowed": false,
+    "reason": "free_account_provider_action",
+    "voiceProfile": "warm_narrator",
+    "provider": "elevenlabs"
+  },
+  "wallet": "0|0"
+}

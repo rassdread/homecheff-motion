@@ -1,0 +1,785 @@
+{
+  "mechanism": "HTMLAudioElement",
+  "beforeScene2": {
+    "clockMs": 1600,
+    "clock": "0:02 / 0:32",
+    "markers": "VIDEO:on:1087:open:100:4:0:0|VIDEO:off:0:open:100:4:0:1|VIDEO:off:0:open:100:4:0:1|VIDEO:off:0:open:100:4:0:1|DIALOGUE:on:1057:open:100:4:0:0|DIALOGUE:off:0:open:100:4:0:1|MUSIC:off:0:open:35:4:0:1|MUSIC:off:0:open:100:4:0:1|SFX:off:0:open:100:4:0:1|SFX:off:0:open:100:4:0:1",
+    "mixPaused": "0",
+    "stems": [
+      {
+        "type": "VIDEO",
+        "on": true,
+        "positionMs": 1087,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": false
+      },
+      {
+        "type": "VIDEO",
+        "on": false,
+        "positionMs": 0,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "VIDEO",
+        "on": false,
+        "positionMs": 0,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "VIDEO",
+        "on": false,
+        "positionMs": 0,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "DIALOGUE",
+        "on": true,
+        "positionMs": 1057,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": false
+      },
+      {
+        "type": "DIALOGUE",
+        "on": false,
+        "positionMs": 0,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "MUSIC",
+        "on": false,
+        "positionMs": 0,
+        "gate": "open",
+        "volume": 35,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "MUSIC",
+        "on": false,
+        "positionMs": 0,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "SFX",
+        "on": false,
+        "positionMs": 0,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "SFX",
+        "on": false,
+        "positionMs": 0,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      }
+    ]
+  },
+  "duringScene2": {
+    "first": {
+      "clockMs": 5617,
+      "clock": "0:06 / 0:32",
+      "markers": "VIDEO:on:5095:open:100:4:0:0|VIDEO:off:0:open:100:4:0:1|VIDEO:off:0:open:100:4:0:1|VIDEO:off:0:open:100:4:0:1|DIALOGUE:off:2969:open:100:4:0:1|DIALOGUE:on:560:open:100:4:0:0|MUSIC:on:3544:open:35:4:0:0|MUSIC:on:560:open:100:4:0:0|SFX:on:537:open:100:4:0:0|SFX:off:0:open:100:4:0:1",
+      "mixPaused": "0",
+      "stems": [
+        {
+          "type": "VIDEO",
+          "on": true,
+          "positionMs": 5095,
+          "gate": "open",
+          "volume": 100,
+          "ready": 4,
+          "seeking": false,
+          "paused": false
+        },
+        {
+          "type": "VIDEO",
+          "on": false,
+          "positionMs": 0,
+          "gate": "open",
+          "volume": 100,
+          "ready": 4,
+          "seeking": false,
+          "paused": true
+        },
+        {
+          "type": "VIDEO",
+          "on": false,
+          "positionMs": 0,
+          "gate": "open",
+          "volume": 100,
+          "ready": 4,
+          "seeking": false,
+          "paused": true
+        },
+        {
+          "type": "VIDEO",
+          "on": false,
+          "positionMs": 0,
+          "gate": "open",
+          "volume": 100,
+          "ready": 4,
+          "seeking": false,
+          "paused": true
+        },
+        {
+          "type": "DIALOGUE",
+          "on": false,
+          "positionMs": 2969,
+          "gate": "open",
+          "volume": 100,
+          "ready": 4,
+          "seeking": false,
+          "paused": true
+        },
+        {
+          "type": "DIALOGUE",
+          "on": true,
+          "positionMs": 560,
+          "gate": "open",
+          "volume": 100,
+          "ready": 4,
+          "seeking": false,
+          "paused": false
+        },
+        {
+          "type": "MUSIC",
+          "on": true,
+          "positionMs": 3544,
+          "gate": "open",
+          "volume": 35,
+          "ready": 4,
+          "seeking": false,
+          "paused": false
+        },
+        {
+          "type": "MUSIC",
+          "on": true,
+          "positionMs": 560,
+          "gate": "open",
+          "volume": 100,
+          "ready": 4,
+          "seeking": false,
+          "paused": false
+        },
+        {
+          "type": "SFX",
+          "on": true,
+          "positionMs": 537,
+          "gate": "open",
+          "volume": 100,
+          "ready": 4,
+          "seeking": false,
+          "paused": false
+        },
+        {
+          "type": "SFX",
+          "on": false,
+          "positionMs": 0,
+          "gate": "open",
+          "volume": 100,
+          "ready": 4,
+          "seeking": false,
+          "paused": true
+        }
+      ]
+    },
+    "later": {
+      "clockMs": 6316,
+      "clock": "0:06 / 0:32",
+      "markers": "VIDEO:on:5790:open:100:4:0:0|VIDEO:off:0:open:100:4:0:1|VIDEO:off:0:open:100:4:0:1|VIDEO:off:0:open:100:4:0:1|DIALOGUE:off:2969:open:100:4:0:1|DIALOGUE:on:1255:open:100:4:0:0|MUSIC:on:4239:open:35:4:0:0|MUSIC:on:1255:open:100:4:0:0|SFX:on:1000:open:100:1:1:0|SFX:off:0:open:100:4:0:1",
+      "mixPaused": "0",
+      "stems": [
+        {
+          "type": "VIDEO",
+          "on": true,
+          "positionMs": 5790,
+          "gate": "open",
+          "volume": 100,
+          "ready": 4,
+          "seeking": false,
+          "paused": false
+        },
+        {
+          "type": "VIDEO",
+          "on": false,
+          "positionMs": 0,
+          "gate": "open",
+          "volume": 100,
+          "ready": 4,
+          "seeking": false,
+          "paused": true
+        },
+        {
+          "type": "VIDEO",
+          "on": false,
+          "positionMs": 0,
+          "gate": "open",
+          "volume": 100,
+          "ready": 4,
+          "seeking": false,
+          "paused": true
+        },
+        {
+          "type": "VIDEO",
+          "on": false,
+          "positionMs": 0,
+          "gate": "open",
+          "volume": 100,
+          "ready": 4,
+          "seeking": false,
+          "paused": true
+        },
+        {
+          "type": "DIALOGUE",
+          "on": false,
+          "positionMs": 2969,
+          "gate": "open",
+          "volume": 100,
+          "ready": 4,
+          "seeking": false,
+          "paused": true
+        },
+        {
+          "type": "DIALOGUE",
+          "on": true,
+          "positionMs": 1255,
+          "gate": "open",
+          "volume": 100,
+          "ready": 4,
+          "seeking": false,
+          "paused": false
+        },
+        {
+          "type": "MUSIC",
+          "on": true,
+          "positionMs": 4239,
+          "gate": "open",
+          "volume": 35,
+          "ready": 4,
+          "seeking": false,
+          "paused": false
+        },
+        {
+          "type": "MUSIC",
+          "on": true,
+          "positionMs": 1255,
+          "gate": "open",
+          "volume": 100,
+          "ready": 4,
+          "seeking": false,
+          "paused": false
+        },
+        {
+          "type": "SFX",
+          "on": true,
+          "positionMs": 1000,
+          "gate": "open",
+          "volume": 100,
+          "ready": 1,
+          "seeking": true,
+          "paused": false
+        },
+        {
+          "type": "SFX",
+          "on": false,
+          "positionMs": 0,
+          "gate": "open",
+          "volume": 100,
+          "ready": 4,
+          "seeking": false,
+          "paused": true
+        }
+      ]
+    }
+  },
+  "afterSfx": {
+    "clockMs": 8416,
+    "clock": "0:08 / 0:32",
+    "markers": "VIDEO:off:7538:open:100:4:0:1|VIDEO:on:293:open:100:4:0:0|VIDEO:off:0:open:100:4:0:1|VIDEO:off:0:open:100:4:0:1|DIALOGUE:off:2969:open:100:4:0:1|DIALOGUE:on:2000:open:100:1:1:1|MUSIC:on:6342:open:35:4:0:0|MUSIC:on:3000:open:100:1:1:1|SFX:off:1000:open:100:4:0:1|SFX:on:305:open:100:4:0:0",
+    "mixPaused": "0",
+    "stems": [
+      {
+        "type": "VIDEO",
+        "on": false,
+        "positionMs": 7538,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "VIDEO",
+        "on": true,
+        "positionMs": 293,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": false
+      },
+      {
+        "type": "VIDEO",
+        "on": false,
+        "positionMs": 0,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "VIDEO",
+        "on": false,
+        "positionMs": 0,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "DIALOGUE",
+        "on": false,
+        "positionMs": 2969,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "DIALOGUE",
+        "on": true,
+        "positionMs": 2000,
+        "gate": "open",
+        "volume": 100,
+        "ready": 1,
+        "seeking": true,
+        "paused": true
+      },
+      {
+        "type": "MUSIC",
+        "on": true,
+        "positionMs": 6342,
+        "gate": "open",
+        "volume": 35,
+        "ready": 4,
+        "seeking": false,
+        "paused": false
+      },
+      {
+        "type": "MUSIC",
+        "on": true,
+        "positionMs": 3000,
+        "gate": "open",
+        "volume": 100,
+        "ready": 1,
+        "seeking": true,
+        "paused": true
+      },
+      {
+        "type": "SFX",
+        "on": false,
+        "positionMs": 1000,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "SFX",
+        "on": true,
+        "positionMs": 305,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": false
+      }
+    ]
+  },
+  "pause": {
+    "first": {
+      "clockMs": 8416,
+      "clock": "0:08 / 0:32",
+      "markers": "VIDEO:off:7538:open:100:4:0:1|VIDEO:off:300:open:100:4:0:1|VIDEO:off:0:open:100:4:0:1|VIDEO:off:0:open:100:4:0:1|DIALOGUE:off:2969:open:100:4:0:1|DIALOGUE:off:2000:open:100:4:0:1|MUSIC:off:6349:open:35:4:0:1|MUSIC:off:3000:open:100:4:0:1|SFX:off:1000:open:100:4:0:1|SFX:off:311:open:100:4:0:1",
+      "mixPaused": "1"
+    },
+    "second": {
+      "clockMs": 8416,
+      "clock": "0:08 / 0:32",
+      "markers": "VIDEO:off:7538:open:100:4:0:1|VIDEO:off:300:open:100:4:0:1|VIDEO:off:0:open:100:4:0:1|VIDEO:off:0:open:100:4:0:1|DIALOGUE:off:2969:open:100:4:0:1|DIALOGUE:off:2000:open:100:4:0:1|MUSIC:off:6349:open:35:4:0:1|MUSIC:off:3000:open:100:4:0:1|SFX:off:1000:open:100:4:0:1|SFX:off:311:open:100:4:0:1",
+      "mixPaused": "1"
+    },
+    "clockHeld": true
+  },
+  "resume": {
+    "clockMs": 9216,
+    "clock": "0:09 / 0:32",
+    "markers": "VIDEO:off:7538:open:100:4:0:1|VIDEO:on:925:open:100:4:0:0|VIDEO:off:0:open:100:4:0:1|VIDEO:off:0:open:100:4:0:1|DIALOGUE:off:2969:open:100:4:0:1|DIALOGUE:on:2000:open:100:1:1:1|MUSIC:on:6974:open:35:4:0:0|MUSIC:on:3000:open:100:1:1:1|SFX:off:1000:open:100:4:0:1|SFX:off:731:open:100:4:0:1",
+    "mixPaused": "0",
+    "stems": [
+      {
+        "type": "VIDEO",
+        "on": false,
+        "positionMs": 7538,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "VIDEO",
+        "on": true,
+        "positionMs": 925,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": false
+      },
+      {
+        "type": "VIDEO",
+        "on": false,
+        "positionMs": 0,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "VIDEO",
+        "on": false,
+        "positionMs": 0,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "DIALOGUE",
+        "on": false,
+        "positionMs": 2969,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "DIALOGUE",
+        "on": true,
+        "positionMs": 2000,
+        "gate": "open",
+        "volume": 100,
+        "ready": 1,
+        "seeking": true,
+        "paused": true
+      },
+      {
+        "type": "MUSIC",
+        "on": true,
+        "positionMs": 6974,
+        "gate": "open",
+        "volume": 35,
+        "ready": 4,
+        "seeking": false,
+        "paused": false
+      },
+      {
+        "type": "MUSIC",
+        "on": true,
+        "positionMs": 3000,
+        "gate": "open",
+        "volume": 100,
+        "ready": 1,
+        "seeking": true,
+        "paused": true
+      },
+      {
+        "type": "SFX",
+        "on": false,
+        "positionMs": 1000,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "SFX",
+        "on": false,
+        "positionMs": 731,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      }
+    ],
+    "clockAdvanced": true
+  },
+  "seekBackward": {
+    "clockMs": 1816,
+    "clock": "0:02 / 0:32",
+    "markers": "VIDEO:on:1406:open:100:4:0:0|VIDEO:off:1020:open:100:4:0:1|VIDEO:off:0:open:100:4:0:1|VIDEO:off:0:open:100:4:0:1|DIALOGUE:on:1252:open:100:4:0:0|DIALOGUE:off:2000:open:100:4:0:1|MUSIC:off:7068:open:35:4:0:1|MUSIC:off:3000:open:100:4:0:1|SFX:off:1000:open:100:4:0:1|SFX:off:731:open:100:4:0:1",
+    "mixPaused": "0",
+    "stems": [
+      {
+        "type": "VIDEO",
+        "on": true,
+        "positionMs": 1406,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": false
+      },
+      {
+        "type": "VIDEO",
+        "on": false,
+        "positionMs": 1020,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "VIDEO",
+        "on": false,
+        "positionMs": 0,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "VIDEO",
+        "on": false,
+        "positionMs": 0,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "DIALOGUE",
+        "on": true,
+        "positionMs": 1252,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": false
+      },
+      {
+        "type": "DIALOGUE",
+        "on": false,
+        "positionMs": 2000,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "MUSIC",
+        "on": false,
+        "positionMs": 7068,
+        "gate": "open",
+        "volume": 35,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "MUSIC",
+        "on": false,
+        "positionMs": 3000,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "SFX",
+        "on": false,
+        "positionMs": 1000,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "SFX",
+        "on": false,
+        "positionMs": 731,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      }
+    ]
+  },
+  "seekForward": {
+    "clockMs": 7083,
+    "clock": "0:07 / 0:32",
+    "markers": "VIDEO:on:6628:open:100:4:0:0|VIDEO:off:1020:open:100:4:0:1|VIDEO:off:0:open:100:4:0:1|VIDEO:off:0:open:100:4:0:1|DIALOGUE:off:1289:open:100:4:0:1|DIALOGUE:on:0:open:100:1:1:0|MUSIC:on:5009:open:35:4:0:0|MUSIC:on:2009:open:100:4:0:0|SFX:on:1000:open:100:1:1:1|SFX:off:731:open:100:4:0:1",
+    "mixPaused": "0",
+    "stems": [
+      {
+        "type": "VIDEO",
+        "on": true,
+        "positionMs": 6628,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": false
+      },
+      {
+        "type": "VIDEO",
+        "on": false,
+        "positionMs": 1020,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "VIDEO",
+        "on": false,
+        "positionMs": 0,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "VIDEO",
+        "on": false,
+        "positionMs": 0,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "DIALOGUE",
+        "on": false,
+        "positionMs": 1289,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      },
+      {
+        "type": "DIALOGUE",
+        "on": true,
+        "positionMs": 0,
+        "gate": "open",
+        "volume": 100,
+        "ready": 1,
+        "seeking": true,
+        "paused": false
+      },
+      {
+        "type": "MUSIC",
+        "on": true,
+        "positionMs": 5009,
+        "gate": "open",
+        "volume": 35,
+        "ready": 4,
+        "seeking": false,
+        "paused": false
+      },
+      {
+        "type": "MUSIC",
+        "on": true,
+        "positionMs": 2009,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": false
+      },
+      {
+        "type": "SFX",
+        "on": true,
+        "positionMs": 1000,
+        "gate": "open",
+        "volume": 100,
+        "ready": 1,
+        "seeking": true,
+        "paused": true
+      },
+      {
+        "type": "SFX",
+        "on": false,
+        "positionMs": 731,
+        "gate": "open",
+        "volume": 100,
+        "ready": 4,
+        "seeking": false,
+        "paused": true
+      }
+    ]
+  },
+  "completion": {
+    "clockMs": 31816,
+    "clock": "0:32 / 0:32",
+    "markers": "VIDEO:off:6719:open:100:4:0:1|VIDEO:off:1020:open:100:4:0:1|VIDEO:off:0:open:100:4:0:1|VIDEO:on:7662:open:100:4:0:0|DIALOGUE:off:1289:open:100:4:0:1|DIALOGUE:off:2000:open:100:4:0:1|MUSIC:on:29743:open:100:4:0:0|MUSIC:off:2112:open:100:4:0:1|SFX:off:1000:open:100:4:0:1|SFX:off:731:open:100:4:0:1",
+    "mixPaused": "0"
+  },
+  "filmEndMs": 32000,
+  "overflow390": 0
+}

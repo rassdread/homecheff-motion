@@ -1,0 +1,36 @@
+{
+  "stillBefore": "cmvs2dumh005mdh92vwmc9q45",
+  "uploadStatus": 200,
+  "mediaUrl": "/api/studio/local-media/bd69cebc-1fc1-4784-ace9-c90fbda23d8f",
+  "registerStatus": 201,
+  "libraryAssetId": "cmvscmlyh0001dht7b64pqhgv",
+  "libraryOwner": "cmvrdb5a20000dhrzji8993h1|video|video/mp4",
+  "libraryButtonText": "V2731 distinct blue video",
+  "clipAfterAttach": "",
+  "stillAfterAttach": "cmvs2dumh005mdh92vwmc9q45",
+  "clipAfterRefresh": "cmvscmpws0003dht77kqmiv6e|5000|6000",
+  "selectedPreviousVideo": true,
+  "selectedDistinctVideo": true,
+  "videoClips": "500-7500:/api/studio/local-media/\n5000-6000:cmvscmlyh0001dht7b64pqhg\n8000-8000:/api/studio/local-media/\n16000-8000:/api/studio/local-media/\n24000-8000:/api/studio/local-media/",
+  "preview": {
+    "src": "http://127.0.0.1:3462/api/studio/local-media/c0dc8432-9bb1-44d6-bddb-b28dd4baa418",
+    "currentTimeMs": 5200,
+    "readyState": 1,
+    "paused": true
+  },
+  "exportNote": "no-download",
+  "exportError": [
+    "Export did not finish.",
+    ""
+  ],
+  "ownership": {
+    "mediaStatus": 404,
+    "attachToOwnerScene": 404,
+    "listedForUserB": false,
+    "ownFilmStatus": 201,
+    "ownProjectId": "cmvscq6zu0007dht75mwwil0t",
+    "ownSceneStatus": 200,
+    "ownAttachStatus": 404
+  },
+  "stillAfter": "cmvs2dumh005mdh92vwmc9q45"
+}

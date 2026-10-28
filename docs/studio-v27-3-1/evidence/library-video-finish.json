@@ -1,0 +1,19 @@
+{
+  "openedEarlierClip": true,
+  "durationBefore": "7500",
+  "durationDraft": "4500",
+  "earlierDuration": "4500",
+  "videoClips": "500-4500:/api/studio/local-media/c0dc\n5000-3000:cmvscmlyh0001dht7b64pqhgv\n8000-8000:/api/studio/local-media/33ed\n16000-8000:/api/studio/local-media/db4a\n24000-8000:/api/studio/local-media/55c9",
+  "preview": {
+    "src": "http://127.0.0.1:3462/api/studio/local-media/bd69cebc-1fc1-4784-ace9-c90fbda23d8f",
+    "currentTimeMs": 2124,
+    "readyState": 4,
+    "paused": false
+  },
+  "previewIsDistinct": true,
+  "exportStatus": 200,
+  "export": {
+    "suggested": "V27.mp4",
+    "bytes": 618886
+  }
+}
