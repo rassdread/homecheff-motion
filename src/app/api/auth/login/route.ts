@@ -5,6 +5,7 @@ import { homecheffIdentityOrigin } from "@/lib/identity/sso/exchange-client";
 import { prisma } from "@/lib/prisma";
 import { apiServiceUnavailable } from "@/server/api-error-response";
 import { isDisposableLocalBrowserRequest } from "@/server/auth/disposable-local-auth";
+import { isFilmCertLocalBrowserRequest } from "@/server/auth/film-cert-local-auth";
 import {
   canUsePreviewLocalPasswordLogin,
   decidePreviewLocalCredentials,
@@ -144,7 +145,7 @@ export async function POST(request: Request) {
   if (canUsePreviewLocalPasswordLogin()) {
     return previewLocalPasswordLogin(request);
   }
-  if (isDisposableLocalBrowserRequest(request)) {
+  if (isDisposableLocalBrowserRequest(request) || isFilmCertLocalBrowserRequest(request)) {
     return disposableLocalPasswordLogin(request);
   }
 

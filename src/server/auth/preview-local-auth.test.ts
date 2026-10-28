@@ -310,6 +310,7 @@ describe("auth route wiring", () => {
     assert.doesNotMatch(previewFn, /callMarketplaceLegacyMigrate|passwordHash:\s*null/);
 
     assert.ok(logout.indexOf("await clearSession()") < logout.indexOf("studioLogoutResponse("));
+    assert.match(logout, /HOMECHEFF_IDENTITY_ORIGIN\?\.trim\(\)[\s\S]*homecheffIdentityOrigin\(\)/);
     assert.match(logout, /resolveStudioLogoutScope/);
 
     assert.match(shell, /canUsePreviewLocalPasswordLogin\(\)/);

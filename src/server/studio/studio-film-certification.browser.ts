@@ -87,6 +87,11 @@ page.on("request", (request) => {
 
 try {
   await page.goto(`${base}/login`, { waitUntil: "domcontentloaded" });
+  await page.locator('input[name="password"]').waitFor();
+  await page.waitForFunction(() => {
+    const form = document.querySelector('input[name="password"]')?.closest("form");
+    return Boolean(form && Object.getOwnPropertyNames(form).some((key) => key.startsWith("__reactFiber")));
+  });
   await page.locator('input[name="email"]').fill(email);
   await page.locator('input[name="password"]').fill(password);
   await page.locator('form button[type="submit"]').click();
@@ -96,6 +101,10 @@ try {
   await page.goto(`${base}/projects`, { waitUntil: "domcontentloaded" });
   const title = page.locator('input[name="filmTitle"]').filter({ visible: true }).first();
   await title.waitFor();
+  await page.waitForFunction(() => {
+    const input = [...document.querySelectorAll('input[name="filmTitle"]')].find((item) => item.getClientRects().length > 0);
+    return Boolean(input && Object.getOwnPropertyNames(input).some((key) => key.startsWith("__reactFiber")));
+  });
   await title.fill("Browser certification film");
   const createFilm = page.getByRole("button", { name: /Nieuwe film|New film/ }).filter({ visible: true }).first();
   await createFilm.waitFor({ state: "visible" });
@@ -143,6 +152,7 @@ try {
   });
   await page.reload({ waitUntil: "domcontentloaded" });
 
+  await page.getByRole("button", { name: /1\. Nieuwe scène|1\. New scene/ }).click();
   await page.getByRole("checkbox", { name: "Character A" }).check();
   await page.getByRole("button", { name: /Scène opslaan|Save scene/ }).click();
   await page.getByRole("button", { name: /2\. Nieuwe scène|2\. New scene/ }).click();

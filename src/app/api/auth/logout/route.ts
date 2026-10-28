@@ -26,13 +26,17 @@ export async function POST(req: Request) {
     return apiServiceUnavailable("auth/logout", error);
   }
 
+  const identityOrigin =
+    scope === "ecosystem" && process.env.HOMECHEFF_IDENTITY_ORIGIN?.trim()
+      ? homecheffIdentityOrigin()
+      : null;
   const res = NextResponse.json(
-    scope === "studio_only"
-      ? studioLogoutResponse("studio_only", "")
-      : studioLogoutResponse("ecosystem", homecheffIdentityOrigin()),
+    identityOrigin
+      ? studioLogoutResponse("ecosystem", identityOrigin)
+      : studioLogoutResponse("studio_only", ""),
   );
   applySkipSilentSsoCookie(res);
-  if (scope === "ecosystem") {
+  if (identityOrigin) {
     console.info(
       JSON.stringify({
         event: "ecosystem_logout",
