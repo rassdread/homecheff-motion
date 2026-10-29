@@ -37,5 +37,11 @@ export function safeTimelineExportFailure(code: string): { code: string; message
   if (code === "cancelled") {
     return { code: "cancelled", message: "Export was cancelled." };
   }
+  if (code === "film_export_worker_required") {
+    return {
+      code,
+      message: "Film export runs on the video worker. This function does not encode video.",
+    };
+  }
   return { code: code || "export_failed", message: "Export did not finish." };
 }

@@ -20,10 +20,14 @@ import {
   startTimelineExportJob,
 } from "@/server/studio/studio-timeline-export-job";
 import { safeTimelineExportFailure } from "@/lib/studio-timeline-export-status";
+import { resolveFilmExportRuntime } from "@/server/studio/film-export-runtime";
 import type { TimelineAudioInput, TimelineVisualInput } from "@/lib/studio-timeline-render-plan";
 import type { TimelineCue } from "@/lib/studio-timeline";
 
 const PROTECTED_FILM_IDS = new Set(["cmvcbmxdp00032jryohiw8a84"]);
+
+/** Matches the existing long video routes. The platform default is shorter than one FFmpeg segment. */
+export const maxDuration = 300;
 
 type Ctx = { params: Promise<{ projectId: string }> };
 
@@ -104,6 +108,10 @@ export async function POST(request: Request, context: Ctx) {
     }
     return NextResponse.json({ error: safe.message, code: safe.code, jobId }, { status: httpStatus });
   };
+
+  if (resolveFilmExportRuntime() === "external_worker") {
+    return await fail("film_export_worker_required", 503);
+  }
 
   const width = body?.width === 1280 && body?.height === 720 ? 1280 : 720;
   const height = width === 1280 ? 720 : 1280;
