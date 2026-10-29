@@ -141,17 +141,26 @@ test("film timeline job runs on the local video worker", { timeout: 120_000 }, a
   const worker = await startWorker(url, mediaDir);
   try {
     const first = await postJob(job.id);
-    assert.equal(first.ok, true, JSON.stringify(first));
-    assert.ok(first.libraryAssetId);
-    assert.ok(first.downloadUrl?.startsWith("file:"));
-    const info = await probe(ffprobe, fileURLToPath(first.downloadUrl!));
+    assert.equal(first.statusCode, 202, JSON.stringify(first));
+    assert.ok(first.ms < 5_000, `accept took ${first.ms}ms`);
+    const stored = await waitForTerminal(
+      () => prisma.studioGenerationJob.findUniqueOrThrow({ where: { id: job.id } }),
+      ["succeeded", "failed"],
+    );
+    assert.equal(stored.status, "succeeded");
+    assert.ok(stored.outputAssetId);
+    const asset = await prisma.studioLibraryAsset.findFirstOrThrow({
+      where: { id: stored.outputAssetId!, ownerId: owner.id },
+    });
+    assert.ok(asset.downloadUrl.startsWith("file:"));
+    const info = await probe(ffprobe, fileURLToPath(asset.downloadUrl));
     assert.equal(info.video, "h264");
     assert.equal(info.audio, "aac");
     assert.equal(info.width, 720);
     assert.equal(info.height, 1280);
     const second = await postJob(job.id);
-    assert.equal(second.ok, true);
-    assert.equal(second.libraryAssetId, first.libraryAssetId);
+    assert.equal(second.statusCode, 200);
+    assert.equal(second.libraryAssetId, stored.outputAssetId);
     const assets = await prisma.studioLibraryAsset.count({
       where: { ownerId: owner.id, sourceKind: "timeline_export" },
     });
@@ -159,9 +168,9 @@ test("film timeline job runs on the local video worker", { timeout: 120_000 }, a
     const wallet = await prisma.studioWallet.findUniqueOrThrow({ where: { userId: owner.id } });
     assert.equal(wallet.balance, 500);
     assert.equal(wallet.lifetimeSpent, 0);
-    const stored = await prisma.studioGenerationJob.findUniqueOrThrow({ where: { id: job.id } });
-    assert.equal(stored.creditsCharged, 0);
-    assert.equal(stored.status, "succeeded");
+    const finished = await prisma.studioGenerationJob.findUniqueOrThrow({ where: { id: job.id } });
+    assert.equal(finished.creditsCharged, 0);
+    assert.equal(finished.status, "succeeded");
 
     const emptyFilm = await createOwnedFilmProject({
       ownerId: owner.id,
@@ -187,8 +196,11 @@ test("film timeline job runs on the local video worker", { timeout: 120_000 }, a
       height: 1280,
     });
     const failed = await postJob(emptyJob.id);
-    assert.equal(failed.ok, false);
-    const emptyRow = await prisma.studioGenerationJob.findUniqueOrThrow({ where: { id: emptyJob.id } });
+    assert.equal(failed.statusCode, 202);
+    const emptyRow = await waitForTerminal(
+      () => prisma.studioGenerationJob.findUniqueOrThrow({ where: { id: emptyJob.id } }),
+      ["failed", "succeeded"],
+    );
     assert.equal(emptyRow.status, "failed");
     const walletAfter = await prisma.studioWallet.findUniqueOrThrow({ where: { userId: owner.id } });
     assert.equal(walletAfter.balance, 500);
@@ -217,12 +229,24 @@ async function probe(ffprobe: string, file: string) {
 }
 
 async function postJob(jobId: string) {
+  const started = Date.now();
   const response = await fetch(`http://127.0.0.1:8091/jobs/film-timeline/${jobId}/render`, {
     method: "POST",
     headers: { Authorization: `Bearer ${SECRET}`, "Content-Type": "application/json" },
     body: "{}",
   });
-  return (await response.json()) as { ok?: boolean; libraryAssetId?: string; downloadUrl?: string; code?: string };
+  const body = (await response.json()) as { ok?: boolean; libraryAssetId?: string; downloadUrl?: string; code?: string; status?: string };
+  return { ...body, statusCode: response.status, ms: Date.now() - started };
+}
+
+async function waitForTerminal<T extends { status: string }>(read: () => Promise<T>, terminal: string[]) {
+  const deadline = Date.now() + 90_000;
+  while (Date.now() < deadline) {
+    const row = await read();
+    if (terminal.includes(row.status)) return row;
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
+  throw new Error("Job did not finish.");
 }
 
 async function startWorker(databaseUrl: string, mediaDir: string): Promise<ChildProcess> {

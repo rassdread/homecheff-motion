@@ -10,7 +10,14 @@ import {
   runInstantPremiumWorkerRetryOverlay,
 } from "../src/server/instant-premium/worker-job";
 import { runLanguageExportWorkerRender } from "../src/server/instant-premium/language-export-worker-job";
-import { runFilmTimelineWorkerRender } from "../src/server/studio/film-timeline-worker-job";
+import {
+  acceptFilmTimelineJob,
+  failOpenFilmExport,
+  FILM_EXPORT_CONCURRENCY,
+  findNextDurableFilmExport,
+  runFilmTimelineWorkerRender,
+  type FilmAccept,
+} from "../src/server/studio/film-timeline-worker-job";
 import { installWorkerFfmpegPaths } from "../src/worker/video-tools/resolve-worker-ffmpeg";
 import {
   callbackFromResult,
@@ -42,6 +49,96 @@ const RUNNING = new Set<string>();
 const LANGUAGE_EXPORT_RUNNING = new Set<string>();
 const FILM_EXPORT_RUNNING = new Set<string>();
 let marketplaceVideoActive = 0;
+let filmDrainTimer: ReturnType<typeof setTimeout> | null = null;
+let filmDrainTries = 0;
+
+function otherStudioRenderBusy(): boolean {
+  return marketplaceJobAdmission({
+    studioActive: RUNNING.size + LANGUAGE_EXPORT_RUNNING.size,
+    marketplaceActive: marketplaceVideoActive,
+  }) === "busy";
+}
+
+function scheduleFilmDrain(): void {
+  if (filmDrainTimer || filmDrainTries >= 30) return;
+  filmDrainTries += 1;
+  filmDrainTimer = setTimeout(() => {
+    filmDrainTimer = null;
+    void pumpFilmQueue();
+  }, 2000);
+}
+
+async function pumpFilmQueue(): Promise<void> {
+  if (FILM_EXPORT_RUNNING.size >= FILM_EXPORT_CONCURRENCY || otherStudioRenderBusy()) {
+    scheduleFilmDrain();
+    return;
+  }
+  const next = await findNextDurableFilmExport([...FILM_EXPORT_RUNNING]);
+  if (!next) return;
+  const decision = await claimAndStartFilmExport(next);
+  if (decision.kind === "queued") scheduleFilmDrain();
+}
+
+function finishFilmInBackground(jobId: string): void {
+  void runFilmTimelineWorkerRender(jobId)
+    .catch(() => failOpenFilmExport(jobId))
+    .finally(() => {
+      FILM_EXPORT_RUNNING.delete(jobId);
+      filmDrainTries = 0;
+      void pumpFilmQueue().catch(() => scheduleFilmDrain());
+    });
+}
+
+async function claimAndStartFilmExport(jobId: string): Promise<FilmAccept | { kind: "running" }> {
+  if (FILM_EXPORT_RUNNING.has(jobId)) return { kind: "running" };
+  if (FILM_EXPORT_RUNNING.size >= FILM_EXPORT_CONCURRENCY || otherStudioRenderBusy()) return { kind: "queued" };
+  FILM_EXPORT_RUNNING.add(jobId);
+  try {
+    await installWorkerFfmpegPaths();
+    const decision = await acceptFilmTimelineJob(jobId);
+    if (decision.kind !== "start") {
+      FILM_EXPORT_RUNNING.delete(jobId);
+      return decision;
+    }
+    finishFilmInBackground(jobId);
+    return { kind: "start" };
+  } catch (error) {
+    FILM_EXPORT_RUNNING.delete(jobId);
+    console.error("[video-worker]", {
+      phase: "film_export_accept_failed",
+      jobId,
+      error: error instanceof Error ? error.name : "error",
+    });
+    throw error;
+  }
+}
+
+function writeFilmDecision(res: express.Response, jobId: string, decision: FilmAccept | { kind: "running" }): void {
+  if (decision.kind === "start" || decision.kind === "running") {
+    res.status(202).json({ ok: true, jobId, status: "processing" });
+    return;
+  }
+  if (decision.kind === "queued") {
+    res.status(202).json({ ok: true, jobId, status: "queued" });
+    return;
+  }
+  if (decision.kind === "succeeded") {
+    res.status(200).json({
+      ok: true,
+      jobId,
+      status: "succeeded",
+      libraryAssetId: decision.libraryAssetId,
+      downloadUrl: decision.downloadUrl,
+    });
+    return;
+  }
+  res.status(decision.httpStatus).json({
+    ok: false,
+    jobId,
+    status: decision.code === "cancelled" ? "cancelled" : "failed",
+    code: decision.code,
+  });
+}
 
 function requireWorkerAuth(
   req: express.Request,
@@ -254,30 +351,14 @@ app.post("/jobs/film-timeline/:jobId/render", requireWorkerAuth, async (req, res
     res.status(400).json({ ok: false, jobId, status: "failed", code: "not_found" });
     return;
   }
-  if (FILM_EXPORT_RUNNING.has(jobId)) {
-    res.status(200).json({ ok: true, jobId, status: "running" });
-    return;
-  }
-  if (marketplaceJobAdmission({ studioActive: RUNNING.size + LANGUAGE_EXPORT_RUNNING.size + FILM_EXPORT_RUNNING.size, marketplaceActive: marketplaceVideoActive }) === "busy") {
-    res.status(429).json({ ok: false, jobId, status: "failed", code: "busy" });
-    return;
-  }
-  FILM_EXPORT_RUNNING.add(jobId);
   try {
-    await installWorkerFfmpegPaths();
-    const result = await runFilmTimelineWorkerRender(jobId);
-    const status = result.ok ? 200 : result.code === "cancelled" ? 409 : result.code === "not_found" ? 404 : 422;
-    res.status(status).json(result);
-  } catch (error) {
-    res.status(500).json({
-      ok: false,
-      jobId,
-      status: "failed",
-      code: "export_failed",
-      message: error instanceof Error ? error.message : "Film export failed.",
-    });
-  } finally {
-    FILM_EXPORT_RUNNING.delete(jobId);
+    const decision = await claimAndStartFilmExport(jobId);
+    writeFilmDecision(res, jobId, decision);
+    if (decision.kind === "queued") scheduleFilmDrain();
+  } catch {
+    if (!res.headersSent) {
+      res.status(500).json({ ok: false, jobId, status: "failed", code: "export_failed" });
+    }
   }
 });
 
@@ -339,4 +420,5 @@ app.post("/jobs/marketplace-video/:jobId/process", requireWorkerAuth, (req, res)
 
 app.listen(port, "0.0.0.0", () => {
   console.info("[video-worker]", { phase: "listening", port });
+  void pumpFilmQueue().catch(() => scheduleFilmDrain());
 });

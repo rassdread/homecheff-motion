@@ -202,22 +202,30 @@ export type FilmTimelineWorkerResponse = {
   downloadUrl?: string;
 };
 
-/** Film timeline render on the existing video worker. Same auth as the other jobs. */
-export async function requestWorkerFilmTimelineRender(jobId: string): Promise<FilmTimelineWorkerResponse> {
+/** Film timeline accept on the existing video worker. The render continues after this returns. */
+export const FILM_WORKER_ACCEPT_TIMEOUT_MS = 15_000;
+
+export async function acceptWorkerFilmTimelineRender(
+  jobId: string,
+  timeoutMs = FILM_WORKER_ACCEPT_TIMEOUT_MS,
+): Promise<FilmTimelineWorkerResponse> {
   const res = await fetch(
     `${workerBaseUrl()}/jobs/film-timeline/${encodeURIComponent(jobId)}/render`,
     {
       method: "POST",
       headers: workerHeaders(),
       body: JSON.stringify({}),
-      signal: AbortSignal.timeout(180_000),
+      signal: AbortSignal.timeout(timeoutMs),
     },
   );
   const body = (await res.json().catch(() => ({}))) as FilmTimelineWorkerResponse & { error?: string };
-  if (!res.ok && res.status !== 422 && res.status !== 409) {
-    throw new Error(body.error ?? `Worker request failed (${res.status})`);
+  if (res.status === 202 || res.status === 200) return body;
+  if (res.status === 429) return { ok: true, jobId, status: "queued" };
+  if (res.status === 404) {
+    return { ok: false, jobId, status: "failed", code: body.code || "worker_route_unavailable" };
   }
-  return body;
+  if (res.status === 422 || res.status === 409) return body;
+  throw new Error(body.code || "worker_unavailable");
 }
 
 export async function requestWorkerLanguageExportRender(

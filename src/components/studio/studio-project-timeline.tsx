@@ -76,8 +76,11 @@ export function StudioProjectTimeline({
   const [undoPatch, setUndoPatch] = useState<{ clipId: string; patch: Record<string, unknown>; revision: number } | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportNote, setExportNote] = useState("");
+  const [exportStage, setExportStage] = useState("preparing");
+  const [readyJobId, setReadyJobId] = useState("");
   const exportAbort = useRef<AbortController | null>(null);
   const [exportJobId, setExportJobId] = useState("");
+  const resumeKey = useRef("");
   const [uploadNote, setUploadNote] = useState("");
   const playRef = useRef<number | null>(null);
   const playheadRef = useRef(0);
@@ -404,10 +407,102 @@ export function StudioProjectTimeline({
     };
   }
 
+  function stageNote(stage: string): string {
+    if (stage === "rendering_scenes") return t("studio.workspace.v278.exportRendering");
+    if (stage === "processing_audio") return t("studio.workspace.v278.exportAudio");
+    if (stage === "finalizing") return t("studio.workspace.v278.exportFinalizing");
+    if (stage === "saving") return t("studio.workspace.v278.exportSaving");
+    if (stage === "completed") return t("studio.workspace.v16.exportSaved");
+    if (stage === "cancelled") return t("studio.workspace.v16.exportCancelled");
+    if (stage === "failed") return t("studio.workspace.v16.exportFailed");
+    return t("studio.workspace.v278.exportPreparing");
+  }
+
+  async function downloadExport(jobId: string) {
+    const response = await fetch(`/api/studio/projects/${projectId}/timeline/render?jobId=${encodeURIComponent(jobId)}&download=1`);
+    if (!response.ok) {
+      setError(t("studio.workspace.v16.exportFailed"));
+      return;
+    }
+    const blob = await response.blob();
+    if (blob.size < 32 || blob.type.includes("json")) {
+      setError(t("studio.workspace.v16.exportFailed"));
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${timeline?.title || "film"}.mp4`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    setReadyJobId(jobId);
+    setExportNote(t("studio.workspace.v16.exportSaved"));
+    setExportStage("completed");
+  }
+
+  async function watchExport(jobId: string, autoDownload: boolean) {
+    const controller = new AbortController();
+    exportAbort.current = controller;
+    const deadline = Date.now() + 20 * 60 * 1000;
+    while (!controller.signal.aborted && Date.now() < deadline) {
+      let body: { status?: string; stage?: string; code?: string } | null = null;
+      try {
+        const response = await fetch(`/api/studio/projects/${projectId}/timeline/render?jobId=${encodeURIComponent(jobId)}`, {
+          signal: controller.signal,
+        });
+        body = (await response.json().catch(() => null)) as { status?: string; stage?: string; code?: string } | null;
+        if (!response.ok || !body?.status) {
+          setError(t("studio.workspace.v16.exportFailed"));
+          setExportNote("");
+          break;
+        }
+      } catch {
+        if (controller.signal.aborted) break;
+        setError(t("studio.workspace.v16.exportFailed"));
+        setExportNote("");
+        break;
+      }
+      const stage = body.stage || "preparing";
+      setExportStage(stage);
+      setExportNote(stageNote(stage));
+      if (body.status === "succeeded") {
+        setReadyJobId(jobId);
+        setExportNote(t("studio.workspace.v16.exportSaved"));
+        setExportStage("completed");
+        if (autoDownload) await downloadExport(jobId);
+        break;
+      }
+      if (body.status === "cancelled" || body.code === "cancelled") {
+        setExportNote(t("studio.workspace.v16.exportCancelled"));
+        setError("");
+        setExportJobId("");
+        break;
+      }
+      if (body.status === "failed") {
+        setError(t("studio.workspace.v16.exportFailed"));
+        setExportNote("");
+        setExportJobId("");
+        break;
+      }
+      await new Promise<void>((resolve) => {
+        const timer = window.setTimeout(resolve, 1500);
+        controller.signal.addEventListener("abort", () => {
+          window.clearTimeout(timer);
+          resolve();
+        }, { once: true });
+      });
+    }
+    setExporting(false);
+  }
+
   async function exportFilm() {
     if (!timeline) return;
     setExporting(true);
-    setExportNote(t("studio.workspace.v16.exporting"));
+    setReadyJobId("");
+    setExportStage("preparing");
+    setExportNote(t("studio.workspace.v278.exportPreparing"));
     setError("");
     const started = await fetch(`/api/studio/projects/${projectId}/timeline/render`, {
       method: "POST",
@@ -447,44 +542,79 @@ export function StudioProjectTimeline({
       setExporting(false);
       return;
     }
-    if (!response.ok) {
-      const body = (await response.json().catch(() => null)) as { code?: string } | null;
-      if (body?.code === "cancelled") {
-        setExportNote(t("studio.workspace.v16.exportCancelled"));
-        setError("");
-      } else {
+    const contentType = response.headers.get("content-type") ?? "";
+    if (response.ok && contentType.includes("video")) {
+      const libraryHeader = response.headers.get("X-Studio-Library-Asset") ?? "";
+      const blob = await response.blob();
+      if (blob.size < 32) {
         setError(t("studio.workspace.v16.exportFailed"));
         setExportNote("");
+        setExportJobId("");
+        setExporting(false);
+        return;
       }
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `${timeline.title || "film"}.mp4`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      setExportNote(
+        libraryHeader && libraryHeader !== "unavailable"
+          ? t("studio.workspace.v16.exportSaved")
+          : t("studio.workspace.v16.exportFileOnly"),
+      );
+      setExportStage("completed");
       setExportJobId("");
       setExporting(false);
       return;
     }
-    const libraryHeader = response.headers.get("X-Studio-Library-Asset") ?? "";
-    const blob = await response.blob();
-    if (blob.size < 32 || blob.type.includes("json")) {
+    const body = (await response.json().catch(() => null)) as { code?: string; status?: string; jobId?: string } | null;
+    if (response.status === 202 || body?.status === "queued" || body?.status === "processing" || body?.status === "succeeded") {
+      await watchExport(body?.jobId || startedBody.jobId, true);
+      return;
+    }
+    if (body?.code === "cancelled") {
+      setExportNote(t("studio.workspace.v16.exportCancelled"));
+      setError("");
+    } else {
       setError(t("studio.workspace.v16.exportFailed"));
       setExportNote("");
-      setExportJobId("");
-      setExporting(false);
-      return;
     }
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${timeline.title || "film"}.mp4`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    setExportNote(
-      libraryHeader && libraryHeader !== "unavailable"
-        ? t("studio.workspace.v16.exportSaved")
-        : t("studio.workspace.v16.exportFileOnly"),
-    );
     setExportJobId("");
-      setExporting(false);
+    setExporting(false);
   }
+
+  useEffect(() => {
+    const timelineId = timeline?.id ?? "";
+    if (!timelineId || resumeKey.current === timelineId) return;
+    resumeKey.current = timelineId;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        const response = await fetch(`/api/studio/projects/${projectId}/timeline/render`);
+        const body = (await response.json().catch(() => null)) as { jobId?: string; status?: string; stage?: string } | null;
+        if (!body?.jobId) return;
+        if (body.status === "succeeded") {
+          setReadyJobId(body.jobId);
+          setExportStage("completed");
+          setExportNote(t("studio.workspace.v278.exportReady"));
+          return;
+        }
+        if (body.status === "queued" || body.status === "processing") {
+          setExporting(true);
+          setExportJobId(body.jobId);
+          setExportStage(body.stage || "preparing");
+          setExportNote(stageNote(body.stage || "preparing"));
+          await watchExport(body.jobId, false);
+        }
+      })();
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // Resume once per timeline. The watcher closes over the current project.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, timeline?.id]);
 
   async function cancelExport() {
     const jobId = exportJobId;
@@ -520,7 +650,7 @@ export function StudioProjectTimeline({
         ) : null}
       </div>
       {error ? <p className="text-sm text-red-700" role="alert">{error}</p> : null}
-      {exportNote ? <p className="text-sm text-slate-800" role="status">{exportNote}</p> : null}
+      {exportNote ? <p className="text-sm text-slate-800" role="status" data-testid="film-export-status" data-stage={exportStage}>{exportNote}</p> : null}
       {!timeline ? null : (
         <>
           <div className="sticky top-[var(--studio-header-height)] z-10 flex flex-wrap gap-2 border-b border-zinc-200 bg-white/95 py-2">
@@ -538,6 +668,11 @@ export function StudioProjectTimeline({
             {exporting && exportJobId ? (
               <button type="button" data-testid="film-export-cancel" data-job-id={exportJobId} className="min-h-11 rounded-full border border-red-300 bg-white px-4 text-sm font-semibold text-red-700" aria-label={t("studio.workspace.v16.exportCancel")} onClick={() => void cancelExport()}>
                 {t("studio.workspace.v16.exportCancel")}
+              </button>
+            ) : null}
+            {readyJobId && !exporting ? (
+              <button type="button" data-testid="film-export-download" data-job-id={readyJobId} className="min-h-11 rounded-full border border-[#006D52] bg-white px-4 text-sm font-semibold text-[#006D52]" onClick={() => void downloadExport(readyJobId)}>
+                {t("studio.workspace.v278.exportReady")}
               </button>
             ) : null}
             <details className="relative">

@@ -31,6 +31,7 @@ export async function startTimelineExportJob(input: {
       executionMode: "sync",
       providerAdapter: "ffmpeg",
       idempotencyKey: `timeline-export:${input.projectId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
+      maxAttempts: 2,
       creditCost: 0,
       creditsReserved: 0,
       creditsCharged: 0,
@@ -52,7 +53,18 @@ export async function readTimelineExportJob(jobId: string, ownerId: string): Pro
 export async function readTimelineExportJobById(jobId: string) {
   return prisma.studioGenerationJob.findFirst({
     where: { id: jobId, capability: TIMELINE_EXPORT_CAPABILITY },
-    select: { id: true, ownerId: true, status: true, metadataJson: true, creditCost: true, creditsCharged: true },
+    select: {
+      id: true,
+      ownerId: true,
+      status: true,
+      metadataJson: true,
+      creditCost: true,
+      creditsCharged: true,
+      errorCode: true,
+      attempt: true,
+      maxAttempts: true,
+      outputAssetId: true,
+    },
   });
 }
 
@@ -66,10 +78,19 @@ export async function rememberTimelineExportRequest(input: {
   height: number;
 }) {
   await prisma.studioGenerationJob.updateMany({
-    where: { id: input.jobId, ownerId: input.ownerId, capability: TIMELINE_EXPORT_CAPABILITY },
+    where: {
+      id: input.jobId,
+      ownerId: input.ownerId,
+      capability: TIMELINE_EXPORT_CAPABILITY,
+      status: { in: ["pending", "queued", "processing"] },
+    },
     data: {
+      status: "queued",
       executionMode: "worker",
+      maxAttempts: 2,
       metadataJson: {
+        async: true,
+        stage: "preparing",
         projectId: input.projectId,
         revision: input.revision,
         burnLanguage: input.burnLanguage,
@@ -80,16 +101,75 @@ export async function rememberTimelineExportRequest(input: {
   });
 }
 
+const EXPORT_STAGES = new Set(["preparing", "rendering_scenes", "processing_audio", "finalizing", "saving"]);
+
+export async function recordTimelineExportStage(jobId: string, ownerId: string, stage: string) {
+  if (!EXPORT_STAGES.has(stage)) return;
+  const job = await prisma.studioGenerationJob.findFirst({
+    where: { id: jobId, ownerId, capability: TIMELINE_EXPORT_CAPABILITY, status: "processing" },
+    select: { metadataJson: true },
+  });
+  if (!job || !job.metadataJson || typeof job.metadataJson !== "object" || Array.isArray(job.metadataJson)) return;
+  await prisma.studioGenerationJob.updateMany({
+    where: { id: jobId, ownerId, capability: TIMELINE_EXPORT_CAPABILITY, status: "processing" },
+    data: { metadataJson: { ...(job.metadataJson as Record<string, unknown>), stage } },
+  });
+}
+
+export async function readTimelineExportView(jobId: string, ownerId: string) {
+  return prisma.studioGenerationJob.findFirst({
+    where: { id: jobId, ownerId, capability: TIMELINE_EXPORT_CAPABILITY },
+    select: {
+      id: true,
+      status: true,
+      metadataJson: true,
+      errorCode: true,
+      outputAssetId: true,
+      updatedAt: true,
+      creditCost: true,
+      creditsCharged: true,
+    },
+  });
+}
+
+export async function readLatestTimelineExportForProject(ownerId: string, projectId: string) {
+  return prisma.studioGenerationJob.findFirst({
+    where: {
+      ownerId,
+      capability: TIMELINE_EXPORT_CAPABILITY,
+      metadataJson: { path: ["projectId"], equals: projectId },
+    },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      status: true,
+      metadataJson: true,
+      errorCode: true,
+      outputAssetId: true,
+      updatedAt: true,
+      creditCost: true,
+      creditsCharged: true,
+    },
+  });
+}
+
 export async function finishTimelineExportJob(input: {
   jobId: string;
   ownerId: string;
   outcome: "succeeded" | "failed" | "cancelled";
   errorCode?: string;
+  outputAssetId?: string;
 }) {
   const now = new Date();
   const data =
     input.outcome === "succeeded"
-      ? { status: "succeeded", completedAt: now, errorCode: "", errorMessageSafe: "" }
+      ? {
+          status: "succeeded",
+          completedAt: now,
+          errorCode: "",
+          errorMessageSafe: "",
+          ...(input.outputAssetId ? { outputAssetId: input.outputAssetId } : {}),
+        }
       : input.outcome === "cancelled"
         ? { status: "cancelled", cancelledAt: now, errorCode: "cancelled", errorMessageSafe: "Export was cancelled." }
         : {

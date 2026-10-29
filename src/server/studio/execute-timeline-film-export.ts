@@ -11,7 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { getFilmTimeline } from "@/server/studio/studio-timeline-service";
 import { renderTimelineFilm } from "@/server/studio/studio-timeline-render";
 import { publishLibraryVideo } from "@/server/studio/publish-library-video";
-import { finishTimelineExportJob, readTimelineExportJob } from "@/server/studio/studio-timeline-export-job";
+import { finishTimelineExportJob, readTimelineExportJob, recordTimelineExportStage } from "@/server/studio/studio-timeline-export-job";
 import type { TimelineAudioInput, TimelineVisualInput } from "@/lib/studio-timeline-render-plan";
 import type { TimelineCue } from "@/lib/studio-timeline";
 
@@ -63,7 +63,10 @@ export async function executeOwnedFilmExport(input: {
     ? (loaded.timeline.subtitles.find((track) => track.language === burnLanguage)?.cues ?? [])
     : [];
   const workDir = await mkdtemp(path.join(os.tmpdir(), "studio-film-"));
+  const stage = (name: "preparing" | "rendering_scenes" | "processing_audio" | "finalizing" | "saving") =>
+    recordTimelineExportStage(input.jobId, input.ownerId, name).catch(() => undefined);
   try {
+    await stage("preparing");
     const visuals: TimelineVisualInput[] = [];
     const audio: TimelineAudioInput[] = [];
     let fileIndex = 0;
@@ -124,6 +127,7 @@ export async function executeOwnedFilmExport(input: {
       cues,
       burnSubtitles: cues.length > 0,
       signal: input.signal,
+      onStage: stage,
     });
     if (!rendered.ok) {
       const code = rendered.code === "cancelled" ? "cancelled" : rendered.code;
@@ -135,6 +139,7 @@ export async function executeOwnedFilmExport(input: {
       return { ok: false, code: "cancelled", httpStatus: 409 };
     }
     const bytes = await readFile(outputPath);
+    await stage("saving");
     let libraryAssetId = "";
     let downloadUrl = "";
     try {
@@ -158,7 +163,16 @@ export async function executeOwnedFilmExport(input: {
       libraryAssetId = "";
       downloadUrl = "";
     }
-    await finishTimelineExportJob({ jobId: input.jobId, ownerId: input.ownerId, outcome: "succeeded" });
+    if (!libraryAssetId || !downloadUrl) {
+      await failJob(input.jobId, input.ownerId, "storage");
+      return { ok: false, code: "storage", httpStatus: 502 };
+    }
+    await finishTimelineExportJob({
+      jobId: input.jobId,
+      ownerId: input.ownerId,
+      outcome: "succeeded",
+      outputAssetId: libraryAssetId,
+    });
     return { ok: true, bytes, libraryAssetId, downloadUrl, durationMs: rendered.durationMs };
   } catch {
     const code = input.signal?.aborted ? "cancelled" : "export_failed";
@@ -167,6 +181,16 @@ export async function executeOwnedFilmExport(input: {
   } finally {
     await rm(workDir, { recursive: true, force: true });
   }
+}
+
+export async function readOwnedTimelineDownload(ownerId: string, libraryAssetId: string): Promise<Buffer | null> {
+  if (!libraryAssetId) return null;
+  const asset = await prisma.studioLibraryAsset.findFirst({
+    where: { id: libraryAssetId, ownerId, sourceKind: "timeline_export", deletedAt: null },
+    select: { id: true, downloadUrl: true },
+  });
+  if (!asset?.downloadUrl) return null;
+  return readAuthorizedExportBytes({ ownerId, libraryAssetId: asset.id, downloadUrl: asset.downloadUrl });
 }
 
 export async function readAuthorizedExportBytes(input: {

@@ -29,6 +29,7 @@ export type TimelineFilmRenderInput = {
   cues: TimelineCue[];
   burnSubtitles: boolean;
   signal?: AbortSignal;
+  onStage?: (stage: "rendering_scenes" | "processing_audio" | "finalizing") => void | Promise<void>;
 };
 
 export type TimelineFilmRenderResult =
@@ -56,6 +57,7 @@ export async function renderTimelineFilm(input: TimelineFilmRenderInput): Promis
     return { ok: false, code: "cancelled", message: "Export was cancelled." };
   }
   await mkdir(input.workDir, { recursive: true });
+  await input.onStage?.("rendering_scenes");
   const ffmpeg = await resolveFfmpegForTextOverlay();
   const segmentPaths: string[] = [];
   for (let index = 0; index < visuals.pieces.length; index += 1) {
@@ -93,6 +95,7 @@ export async function renderTimelineFilm(input: TimelineFilmRenderInput): Promis
 
   let withAudio = picturePath;
   if (mix.plan.mixReady) {
+    await input.onStage?.("processing_audio");
     const discretePaths: string[] = [];
     for (let index = 0; index < mix.discreteTrim.length; index += 1) {
       const cue = mix.discreteTrim[index]!;
@@ -123,6 +126,7 @@ export async function renderTimelineFilm(input: TimelineFilmRenderInput): Promis
     if (!muxed.ok) return { ok: false, code: "mux", message: muxed.message };
   }
 
+  await input.onStage?.("finalizing");
   if (input.burnSubtitles && input.cues.length > 0) {
     const burned = path.join(input.workDir, "burned.mp4");
     try {

@@ -35,8 +35,10 @@ describe("film export runtime", () => {
     );
     assert.match(route, /export const maxDuration = 300/);
     assert.match(route, /resolveFilmExportRuntime\(\) === "external_worker"/);
-    assert.match(route, /requestWorkerFilmTimelineRender/);
+    assert.match(route, /acceptWorkerFilmTimelineRender/);
+    assert.match(route, /status: 202/);
     assert.doesNotMatch(route, /billProviderAction|requireStudioCredits/);
+    assert.doesNotMatch(route, /timeout\(180_000\)/);
     const workerCheck = route.indexOf('if (resolveFilmExportRuntime() === "external_worker")');
     const encode = route.indexOf("const rendered = await executeOwnedFilmExport");
     assert.ok(workerCheck > 0 && encode > workerCheck);

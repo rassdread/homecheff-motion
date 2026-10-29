@@ -489,6 +489,19 @@ async function present(
       })
     : [];
   const assetById = new Map(assets.map((asset) => [asset.id, asset]));
+  const sceneImageIds = timeline.tracks.flatMap((track) =>
+    track.clips.filter((clip) => clip.sourceKind === "scene_image").map((clip) => clip.sourceId),
+  );
+  const sceneImages = sceneImageIds.length
+    ? await prisma.studioSceneImage.findMany({
+        where: {
+          id: { in: sceneImageIds },
+          scene: { storyboard: { ownerId, id: project.storyboardId ?? "" } },
+        },
+        select: { id: true, imageUrl: true },
+      })
+    : [];
+  const sceneImageById = new Map(sceneImages.map((image) => [image.id, image.imageUrl]));
   const narrationAudio = storyboard?.voices.find((voice) => voice.status === "completed" && voice.audioUrl)?.audioUrl ?? null;
   const videoClips = timeline.tracks.filter((track) => track.type === "VIDEO").flatMap((track) => track.clips);
   const subtitles = timeline.tracks
@@ -546,8 +559,10 @@ async function present(
           asset?.downloadUrl ||
           asset?.previewUrl ||
           null;
+        const sceneImageUrl = clip.sourceKind === "scene_image" ? sceneImageById.get(clip.sourceId) ?? null : null;
         const stillUrl =
           ownedTimelineMediaUrl(ownerId, clip.sourceKind === "uploaded_image" ? clip.sourceId : "") ||
+          sceneImageUrl ||
           scene?.selectedSceneImage?.imageUrl ||
           null;
         return {
