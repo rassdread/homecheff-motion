@@ -1,3 +1,5 @@
+import { realpathSync } from "node:fs";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import express from "express";
 import {
   checkVideoFfmpegCapability,
@@ -31,19 +33,6 @@ import {
   parseMarketplaceJobRequest,
 } from "../src/server/marketplace-video/marketplace-video-job";
 
-logBlobConfigStatus("instant-premium-video-worker");
-
-void import("../src/server/animation-export/local-vision/vision-setup-validation").then(
-  ({ logVisionSetupWarningsOnce }) => logVisionSetupWarningsOnce()
-);
-
-void installWorkerFfmpegPaths().catch((error) => {
-  console.error("[video-worker]", {
-    phase: "ffmpeg_install_failed",
-    error: error instanceof Error ? error.message : String(error),
-  });
-});
-
 const port = Number.parseInt(String(process.env.PORT || "8090"), 10) || 8090;
 const RUNNING = new Set<string>();
 const LANGUAGE_EXPORT_RUNNING = new Set<string>();
@@ -59,21 +48,33 @@ function otherStudioRenderBusy(): boolean {
   }) === "busy";
 }
 
-function scheduleFilmDrain(): void {
+export function handleFilmQueueRetryRejection(queue: Promise<void>, schedule: () => void): void {
+  void queue.catch((error: unknown) => {
+    console.error("[video-worker]", {
+      phase: "film_queue_retry_failed",
+      error: error instanceof Error ? error.name : "error",
+    });
+    schedule();
+  });
+}
+
+export function scheduleFilmDrain(): void {
   if (filmDrainTimer || filmDrainTries >= 30) return;
   filmDrainTries += 1;
   filmDrainTimer = setTimeout(() => {
     filmDrainTimer = null;
-    void pumpFilmQueue();
+    handleFilmQueueRetryRejection(pumpFilmQueue(), scheduleFilmDrain);
   }, 2000);
 }
 
-async function pumpFilmQueue(): Promise<void> {
+export async function pumpFilmQueue(
+  findNext: (busyIds: string[]) => Promise<string | null> = findNextDurableFilmExport,
+): Promise<void> {
   if (FILM_EXPORT_RUNNING.size >= FILM_EXPORT_CONCURRENCY || otherStudioRenderBusy()) {
     scheduleFilmDrain();
     return;
   }
-  const next = await findNextDurableFilmExport([...FILM_EXPORT_RUNNING]);
+  const next = await findNext([...FILM_EXPORT_RUNNING]);
   if (!next) return;
   const decision = await claimAndStartFilmExport(next);
   if (decision.kind === "queued") scheduleFilmDrain();
@@ -418,7 +419,34 @@ app.post("/jobs/marketplace-video/:jobId/process", requireWorkerAuth, (req, res)
     });
 });
 
-app.listen(port, "0.0.0.0", () => {
-  console.info("[video-worker]", { phase: "listening", port });
-  void pumpFilmQueue().catch(() => scheduleFilmDrain());
-});
+function isWorkerProcessEntry(): boolean {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  try {
+    const entryUrl = pathToFileURL(realpathSync(entry)).href;
+    const moduleUrl = pathToFileURL(realpathSync(fileURLToPath(import.meta.url))).href;
+    return entryUrl === moduleUrl;
+  } catch {
+    return false;
+  }
+}
+
+if (isWorkerProcessEntry()) {
+  logBlobConfigStatus("instant-premium-video-worker");
+
+  void import("../src/server/animation-export/local-vision/vision-setup-validation").then(
+    ({ logVisionSetupWarningsOnce }) => logVisionSetupWarningsOnce()
+  );
+
+  void installWorkerFfmpegPaths().catch((error) => {
+    console.error("[video-worker]", {
+      phase: "ffmpeg_install_failed",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
+
+  app.listen(port, "0.0.0.0", () => {
+    console.info("[video-worker]", { phase: "listening", port });
+    void pumpFilmQueue().catch(() => scheduleFilmDrain());
+  });
+}
