@@ -193,6 +193,33 @@ export async function requestWorkerVisionDetect(input: {
   return body;
 }
 
+export type FilmTimelineWorkerResponse = {
+  ok: boolean;
+  jobId: string;
+  status: string;
+  code?: string;
+  libraryAssetId?: string;
+  downloadUrl?: string;
+};
+
+/** Film timeline render on the existing video worker. Same auth as the other jobs. */
+export async function requestWorkerFilmTimelineRender(jobId: string): Promise<FilmTimelineWorkerResponse> {
+  const res = await fetch(
+    `${workerBaseUrl()}/jobs/film-timeline/${encodeURIComponent(jobId)}/render`,
+    {
+      method: "POST",
+      headers: workerHeaders(),
+      body: JSON.stringify({}),
+      signal: AbortSignal.timeout(180_000),
+    },
+  );
+  const body = (await res.json().catch(() => ({}))) as FilmTimelineWorkerResponse & { error?: string };
+  if (!res.ok && res.status !== 422 && res.status !== 409) {
+    throw new Error(body.error ?? `Worker request failed (${res.status})`);
+  }
+  return body;
+}
+
 export async function requestWorkerLanguageExportRender(
   exportId: string
 ): Promise<LanguageExportWorkerJobResponse> {

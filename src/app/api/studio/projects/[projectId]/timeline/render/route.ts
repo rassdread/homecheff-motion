@@ -1,30 +1,25 @@
 /**
  * Owner-scoped timeline export.
- * Downloads only media URLs already attached to this film by the timeline service,
- * then calls the existing FFmpeg adapter. No wallet and no provider.
+ * Local mode calls the shared FFmpeg adapter directly.
+ * Worker mode sends the existing generation job to the video worker.
+ * No wallet and no provider.
  */
 
-import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
-import { localPathIfAllowed, certifiedLocalMediaId, readCertifiedLocalFile } from "@/lib/studio-local-media";
 import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
 import { getFilmTimeline } from "@/server/studio/studio-timeline-service";
-import { renderTimelineFilm } from "@/server/studio/studio-timeline-render";
-import { publishLibraryVideo } from "@/server/studio/publish-library-video";
 import {
   cancelTimelineExportJob,
   finishTimelineExportJob,
   readTimelineExportJob,
+  rememberTimelineExportRequest,
   startTimelineExportJob,
 } from "@/server/studio/studio-timeline-export-job";
 import { safeTimelineExportFailure } from "@/lib/studio-timeline-export-status";
 import { resolveFilmExportRuntime } from "@/server/studio/film-export-runtime";
-import type { TimelineAudioInput, TimelineVisualInput } from "@/lib/studio-timeline-render-plan";
-import type { TimelineCue } from "@/lib/studio-timeline";
-
-const PROTECTED_FILM_IDS = new Set(["cmvcbmxdp00032jryohiw8a84"]);
+import { executeOwnedFilmExport, PROTECTED_FILM_IDS, readAuthorizedExportBytes } from "@/server/studio/execute-timeline-film-export";
+import { isVideoWorkerConfigured } from "@/lib/video-render-mode";
+import { requestWorkerFilmTimelineRender } from "@/lib/video-worker-client";
 
 /** Matches the existing long video routes. The platform default is shorter than one FFmpeg segment. */
 export const maxDuration = 300;
@@ -108,150 +103,69 @@ export async function POST(request: Request, context: Ctx) {
     }
     return NextResponse.json({ error: safe.message, code: safe.code, jobId }, { status: httpStatus });
   };
-
-  if (resolveFilmExportRuntime() === "external_worker") {
-    return await fail("film_export_worker_required", 503);
-  }
+  if (!jobId) return await fail("source", 400);
 
   const width = body?.width === 1280 && body?.height === 720 ? 1280 : 720;
   const height = width === 1280 ? 720 : 1280;
   const burnLanguage = typeof body?.burnLanguage === "string" ? body.burnLanguage : loaded.timeline.previewLanguage;
-  const cues: TimelineCue[] = burnLanguage
-    ? (loaded.timeline.subtitles.find((track) => track.language === burnLanguage)?.cues ?? [])
-    : [];
 
-  const workDir = await mkdtemp(path.join(os.tmpdir(), "studio-film-"));
-  try {
-    const visuals: TimelineVisualInput[] = [];
-    const audio: TimelineAudioInput[] = [];
-    let fileIndex = 0;
-    for (const track of loaded.timeline.tracks) {
-      for (const clip of track.clips) {
-        if (request.signal.aborted) return await fail("cancelled", 409);
-        if (track.type === "SUBTITLE") continue;
-        const remote = clip.playbackUrl || (track.type === "VIDEO" ? clip.stillUrl : null);
-        if (!remote) {
-          if (track.type === "VIDEO") return await fail("missing_media", 422);
-          continue;
-        }
-        if (!isFetchableBlob(remote) && !localPathIfAllowed(remote) && !ownedCertifiedFile(user.id, remote)) {
-          return await fail("unsupported_source", 422);
-        }
-        const local = path.join(workDir, `source-${fileIndex}`);
-        fileIndex += 1;
-        const saved = await downloadBlob(remote, local, user.id);
-        if (!saved.ok) return await fail("download", 502);
-        if (track.type === "VIDEO") {
-          visuals.push({
-            path: local,
-            kind: clip.playbackUrl ? "video" : "still",
-            startMs: clip.startMs,
-            durationMs: clip.durationMs,
-            inMs: clip.inMs,
-          });
-        } else if (clip.audible && (track.type === "DIALOGUE" || track.type === "NARRATION" || track.type === "MUSIC" || track.type === "SFX")) {
-          audio.push({
-            track: track.type,
-            path: local,
-            startMs: clip.startMs,
-            durationMs: clip.durationMs,
-            inMs: clip.inMs,
-            volume: Math.round((clip.volume / 100) * (track.volume / 100) * 100),
-          });
-        }
-      }
-    }
-    const outputPath = path.join(workDir, "film.mp4");
-    const rendered = await renderTimelineFilm({
-      workDir: path.join(workDir, "render"),
-      outputPath,
+  if (resolveFilmExportRuntime() === "external_worker") {
+    if (!isVideoWorkerConfigured()) return await fail("film_export_worker_required", 503);
+    await rememberTimelineExportRequest({
+      jobId,
+      ownerId: user.id,
+      projectId,
+      revision: loaded.timeline.revision,
+      burnLanguage,
       width,
       height,
-      visuals,
-      audio,
-      cues,
-      burnSubtitles: cues.length > 0,
-      signal: request.signal,
     });
-    if (!rendered.ok) {
-      return await fail(rendered.code, rendered.code === "cancelled" ? 409 : 422);
-    }
-    if (request.signal.aborted) return await fail("cancelled", 409);
-    const current = jobId ? await readTimelineExportJob(jobId, user.id) : null;
-    if (current && (current.status === "cancelled" || current.status === "cancel_requested")) {
-      return NextResponse.json({ error: "Export was cancelled.", code: "cancelled", jobId }, { status: 409 });
-    }
-    const bytes = await readFile(outputPath);
-    let libraryAsset = "";
+    let worker: Awaited<ReturnType<typeof requestWorkerFilmTimelineRender>>;
     try {
-      const stored = await publishLibraryVideo({
-        ownerId: user.id,
-        sourceKind: "timeline_export",
-        sourceId: `${projectId}:${loaded.timeline.revision}:${burnLanguage || "none"}`,
-        title: loaded.timeline.title || "Film",
-        description: "Timeline export. The original clips were not replaced.",
-        bytes,
-        projectId,
-        durationSeconds: rendered.durationMs / 1000,
-        width,
-        height,
-        language: burnLanguage,
-        metadata: { revision: loaded.timeline.revision, burnLanguage: burnLanguage || null },
-      });
-      libraryAsset = stored.assetId;
+      worker = await requestWorkerFilmTimelineRender(jobId);
     } catch {
-      libraryAsset = "";
+      return await fail("export_failed", 502);
     }
-    if (jobId) {
-      await finishTimelineExportJob({ jobId, ownerId: user.id, outcome: "succeeded" });
+    if (!worker.ok || !worker.libraryAssetId || !worker.downloadUrl) {
+      return NextResponse.json(
+        { error: safeTimelineExportFailure(worker.code || "export_failed").message, code: worker.code || "export_failed", jobId },
+        { status: worker.code === "cancelled" ? 409 : 422 },
+      );
     }
-    return new NextResponse(new Uint8Array(bytes), {
-      headers: {
-        "Content-Type": "video/mp4",
-        "Content-Disposition": 'attachment; filename="film.mp4"',
-        "Cache-Control": "no-store",
-        "X-Studio-Library-Asset": libraryAsset || "unavailable",
-        "X-Studio-Export-Job": jobId,
-      },
+    const bytes = await readAuthorizedExportBytes({
+      ownerId: user.id,
+      libraryAssetId: worker.libraryAssetId,
+      downloadUrl: worker.downloadUrl,
     });
-  } catch {
-    return await fail(request.signal.aborted ? "cancelled" : "export_failed", request.signal.aborted ? 409 : 500);
-  } finally {
-    await rm(workDir, { recursive: true, force: true });
+    if (!bytes) return await fail("download", 502);
+    return mp4(bytes, worker.libraryAssetId, jobId);
   }
+
+  const rendered = await executeOwnedFilmExport({
+    ownerId: user.id,
+    projectId,
+    jobId,
+    revision: typeof body?.revision === "number" ? body.revision : loaded.timeline.revision,
+    burnLanguage,
+    width,
+    height,
+    signal: request.signal,
+  });
+  if (!rendered.ok) {
+    const safe = safeTimelineExportFailure(rendered.code);
+    return NextResponse.json({ error: safe.message, code: safe.code, jobId }, { status: rendered.httpStatus });
+  }
+  return mp4(rendered.bytes, rendered.libraryAssetId, jobId);
 }
 
-function isFetchableBlob(value: string): boolean {
-  try {
-    const url = new URL(value);
-    const host = url.hostname.toLowerCase();
-    return url.protocol === "https:" && (host === "blob.vercel-storage.com" || host.endsWith(".blob.vercel-storage.com"));
-  } catch {
-    return false;
-  }
-}
-
-async function downloadBlob(url: string, dest: string, ownerId: string): Promise<{ ok: true } | { ok: false; message: string }> {
-  await mkdir(path.dirname(dest), { recursive: true });
-  const local = localPathIfAllowed(url) || ownedCertifiedFile(ownerId, url);
-  if (local) {
-    await copyFile(local, dest);
-    return { ok: true };
-  }
-  const response = await fetch(url);
-  if (!response.ok) return { ok: false, message: "Studio storage did not return the file." };
-  const bytes = Buffer.from(await response.arrayBuffer());
-  if (bytes.length === 0 || bytes.length > 80 * 1024 * 1024) {
-    return { ok: false, message: "The file is empty or larger than the export limit." };
-  }
-  await writeFile(dest, bytes);
-  return { ok: true };
-}
-
-function ownedCertifiedFile(ownerId: string, value: string): string | null {
-  const id = certifiedLocalMediaId(value);
-  if (!id) return null;
-  const found = readCertifiedLocalFile(id);
-  if (!found || found.record.ownerId !== ownerId) return null;
-  return found.absolutePath;
+function mp4(bytes: Buffer, libraryAsset: string, jobId: string) {
+  return new NextResponse(new Uint8Array(bytes), {
+    headers: {
+      "Content-Type": "video/mp4",
+      "Content-Disposition": 'attachment; filename="film.mp4"',
+      "Cache-Control": "no-store",
+      "X-Studio-Library-Asset": libraryAsset || "unavailable",
+      "X-Studio-Export-Job": jobId,
+    },
+  });
 }

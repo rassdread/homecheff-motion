@@ -49,6 +49,37 @@ export async function readTimelineExportJob(jobId: string, ownerId: string): Pro
   });
 }
 
+export async function readTimelineExportJobById(jobId: string) {
+  return prisma.studioGenerationJob.findFirst({
+    where: { id: jobId, capability: TIMELINE_EXPORT_CAPABILITY },
+    select: { id: true, ownerId: true, status: true, metadataJson: true, creditCost: true, creditsCharged: true },
+  });
+}
+
+export async function rememberTimelineExportRequest(input: {
+  jobId: string;
+  ownerId: string;
+  projectId: string;
+  revision: number;
+  burnLanguage: string;
+  width: number;
+  height: number;
+}) {
+  await prisma.studioGenerationJob.updateMany({
+    where: { id: input.jobId, ownerId: input.ownerId, capability: TIMELINE_EXPORT_CAPABILITY },
+    data: {
+      executionMode: "worker",
+      metadataJson: {
+        projectId: input.projectId,
+        revision: input.revision,
+        burnLanguage: input.burnLanguage,
+        width: input.width,
+        height: input.height,
+      },
+    },
+  });
+}
+
 export async function finishTimelineExportJob(input: {
   jobId: string;
   ownerId: string;

@@ -10,6 +10,7 @@ import {
   runInstantPremiumWorkerRetryOverlay,
 } from "../src/server/instant-premium/worker-job";
 import { runLanguageExportWorkerRender } from "../src/server/instant-premium/language-export-worker-job";
+import { runFilmTimelineWorkerRender } from "../src/server/studio/film-timeline-worker-job";
 import { installWorkerFfmpegPaths } from "../src/worker/video-tools/resolve-worker-ffmpeg";
 import {
   callbackFromResult,
@@ -39,6 +40,7 @@ void installWorkerFfmpegPaths().catch((error) => {
 const port = Number.parseInt(String(process.env.PORT || "8090"), 10) || 8090;
 const RUNNING = new Set<string>();
 const LANGUAGE_EXPORT_RUNNING = new Set<string>();
+const FILM_EXPORT_RUNNING = new Set<string>();
 let marketplaceVideoActive = 0;
 
 function requireWorkerAuth(
@@ -245,6 +247,39 @@ app.post(
     }
   }
 );
+
+app.post("/jobs/film-timeline/:jobId/render", requireWorkerAuth, async (req, res) => {
+  const jobId = String(req.params.jobId ?? "").trim();
+  if (!jobId) {
+    res.status(400).json({ ok: false, jobId, status: "failed", code: "not_found" });
+    return;
+  }
+  if (FILM_EXPORT_RUNNING.has(jobId)) {
+    res.status(200).json({ ok: true, jobId, status: "running" });
+    return;
+  }
+  if (marketplaceJobAdmission({ studioActive: RUNNING.size + LANGUAGE_EXPORT_RUNNING.size + FILM_EXPORT_RUNNING.size, marketplaceActive: marketplaceVideoActive }) === "busy") {
+    res.status(429).json({ ok: false, jobId, status: "failed", code: "busy" });
+    return;
+  }
+  FILM_EXPORT_RUNNING.add(jobId);
+  try {
+    await installWorkerFfmpegPaths();
+    const result = await runFilmTimelineWorkerRender(jobId);
+    const status = result.ok ? 200 : result.code === "cancelled" ? 409 : result.code === "not_found" ? 404 : 422;
+    res.status(status).json(result);
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      jobId,
+      status: "failed",
+      code: "export_failed",
+      message: error instanceof Error ? error.message : "Film export failed.",
+    });
+  } finally {
+    FILM_EXPORT_RUNNING.delete(jobId);
+  }
+});
 
 app.post("/jobs/marketplace-video/:jobId/process", requireWorkerAuth, (req, res) => {
   const jobId = String(req.params.jobId ?? "").trim();

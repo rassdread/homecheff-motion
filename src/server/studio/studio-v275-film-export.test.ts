@@ -12,23 +12,19 @@ import { renderTimelineFilm } from "@/server/studio/studio-timeline-render";
 const execFileAsync = promisify(execFile);
 
 describe("film export runtime", () => {
-  it("keeps local certification on direct FFmpeg and sends Vercel worker mode off the function", () => {
+  it("keeps local certification on direct FFmpeg and sends worker mode to the existing worker", () => {
     assert.equal(resolveFilmExportRuntime({} as NodeJS.ProcessEnv), "local_ffmpeg");
     assert.equal(
-      resolveFilmExportRuntime({ VIDEO_RENDER_MODE: "worker" } as NodeJS.ProcessEnv),
+      resolveFilmExportRuntime({ VERCEL: "1" } as NodeJS.ProcessEnv),
       "local_ffmpeg",
+    );
+    assert.equal(
+      resolveFilmExportRuntime({ VIDEO_RENDER_MODE: "worker" } as NodeJS.ProcessEnv),
+      "external_worker",
     );
     assert.equal(
       resolveFilmExportRuntime({ VERCEL: "1", VIDEO_RENDER_MODE: "local" } as NodeJS.ProcessEnv),
       "local_ffmpeg",
-    );
-    assert.equal(
-      resolveFilmExportRuntime({ VERCEL: "1", VIDEO_RENDER_MODE: "worker" } as NodeJS.ProcessEnv),
-      "external_worker",
-    );
-    assert.equal(
-      resolveFilmExportRuntime({ VERCEL_ENV: "production", VIDEO_RENDER_MODE: "worker" } as NodeJS.ProcessEnv),
-      "external_worker",
     );
   });
 
@@ -39,10 +35,11 @@ describe("film export runtime", () => {
     );
     assert.match(route, /export const maxDuration = 300/);
     assert.match(route, /resolveFilmExportRuntime\(\) === "external_worker"/);
+    assert.match(route, /requestWorkerFilmTimelineRender/);
     assert.doesNotMatch(route, /billProviderAction|requireStudioCredits/);
-    const workerCheck = route.indexOf('resolveFilmExportRuntime() === "external_worker"');
-    const tempDir = route.indexOf("mkdtemp(");
-    assert.ok(workerCheck > 0 && tempDir > workerCheck);
+    const workerCheck = route.indexOf('if (resolveFilmExportRuntime() === "external_worker")');
+    const encode = route.indexOf("const rendered = await executeOwnedFilmExport");
+    assert.ok(workerCheck > 0 && encode > workerCheck);
   });
 });
 
