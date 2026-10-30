@@ -80,19 +80,7 @@ export class OpenAiSceneImageProvider implements SceneImageProvider {
     }
 
     if (shouldUseReferenceEdit(input)) {
-      try {
-        return await this.generateFromReferenceEdit(input, apiKey, size);
-      } catch (error) {
-        console.warn(
-          "[OpenAiSceneImageProvider] Reference edit failed — falling back to text-to-image.",
-          { sceneId: input.sceneId, message: error instanceof Error ? error.message : "unknown" }
-        );
-        const fallback = await this.generateFromPrompt(input, apiKey, size);
-        return {
-          ...fallback,
-          identityPreservation: "text_fallback",
-        };
-      }
+      return this.generateFromReferenceEdit(input, apiKey, size);
     }
 
     return this.generateFromPrompt(input, apiKey, size);
@@ -195,8 +183,7 @@ export class OpenAiSceneImageProvider implements SceneImageProvider {
     const refs = (input.referenceImages ?? []).filter((ref) => ref.url.trim());
     const primary = refs[0];
     if (!primary) {
-      const fallback = await this.generateFromPrompt(input, apiKey, size);
-      return { ...fallback, identityPreservation: "text_fallback" };
+      throw new Error("Reference image is required for character-consistent scene generation.");
     }
     const source = await fetchSourceImageBuffer(primary.url.trim());
     const additionalImages: OpenAiImageEditReferenceImage[] = [];
@@ -228,6 +215,7 @@ export class OpenAiSceneImageProvider implements SceneImageProvider {
         imageContentType: source.contentType,
         additionalImages,
         inputFidelity: "high",
+        quality: "medium",
         n: 1,
       },
       logContext: {

@@ -182,6 +182,8 @@ export type OpenAiImageEditParams = {
   maskBuffer?: Buffer;
   maskFilename?: string;
   inputFidelity?: "high" | "low";
+  /** Sent only for GPT Image models. Scene reference edits pin this to medium. */
+  quality?: "low" | "medium" | "high" | "xhigh" | "max" | "auto";
   n?: number;
 };
 
@@ -195,6 +197,9 @@ export function buildOpenAiImageEditFormData(params: OpenAiImageEditParams): For
   form.append("prompt", params.prompt.slice(0, 32000));
   form.append("size", params.size);
   form.append("n", String(params.n ?? 1));
+  if (params.quality && params.model.trim().toLowerCase().startsWith("gpt-image")) {
+    form.append("quality", params.quality);
+  }
 
   const supportsMulti = openAiImageEditSupportsMultiReference(params.model);
   const hasAdditional = supportsMulti && Boolean(params.additionalImages?.length);

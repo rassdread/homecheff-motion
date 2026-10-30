@@ -124,6 +124,26 @@ describe("openai-image-generation", () => {
     assert.equal(form.getAll("image[]").length, 2);
   });
 
+  it("pins gpt-image-2.5-sunburst edits to medium quality and omits input_fidelity", () => {
+    const prompt = "Baker working at the bench in a realistic bakery. MUST_PRESERVE identity.";
+    const form = buildOpenAiImageEditFormData({
+      model: "gpt-image-2.5-sunburst",
+      prompt,
+      size: "1024x1024",
+      imageBuffer: Buffer.from("baker-reference"),
+      imageFilename: "baker.png",
+      imageContentType: "image/png",
+      inputFidelity: "high",
+      quality: "medium",
+    });
+    assert.equal(form.get("model"), "gpt-image-2.5-sunburst");
+    assert.equal(form.get("quality"), "medium");
+    assert.equal(form.get("prompt"), prompt);
+    assert.equal(form.getAll("image").length, 1);
+    assert.equal(form.get("input_fidelity"), null);
+    assert.equal(openAiImageEditSupportsInputFidelity("gpt-image-2.5-sunburst"), false);
+  });
+
   it("keeps single-image edits on the `image` field", () => {
     const form = buildOpenAiImageEditFormData({
       model: "gpt-image-1",

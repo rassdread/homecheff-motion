@@ -220,9 +220,10 @@ describe("Character consistency harden", () => {
     assert.equal(characterReferenceExactness("low"), "SHOULD_MATCH");
   });
 
-  it("records identityPreservation on OpenAI provider fallback path", () => {
+  it("keeps character reference edits on the image-edit path", () => {
     const src = readFileSync("src/server/scene-image-providers/openai-provider.ts", "utf8");
-    assert.match(src, /identityPreservation: "text_fallback"/);
     assert.match(src, /identityPreservation: "reference_edit"/);
+    assert.match(src, /quality: "medium"/);
+    assert.doesNotMatch(src, /identityPreservation: "text_fallback"/);
   });
 });

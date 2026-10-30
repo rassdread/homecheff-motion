@@ -94,6 +94,60 @@ describe("OpenAiSceneImageProvider", () => {
     assert.equal(calls.some((call) => call.url.includes("/v1/images/generations")), false);
   });
 
+  it("sends sunburst medium-quality reference edits and does not fall back to text generation", async () => {
+    process.env.STUDIO_SCENE_IMAGE_MODEL = "gpt-image-2.5-sunburst";
+    process.env.STUDIO_SCENE_IMAGE_REFERENCE_EDIT = "true";
+    const prompt = "Baker working at the bench. MUST_PRESERVE Baker.";
+
+    const editForms: FormData[] = [];
+    const urls: string[] = [];
+    globalThis.fetch = mock.fn(async (url, init) => {
+      const href = String(url);
+      urls.push(href);
+      if (href.includes("cdn.example")) {
+        return new Response(Buffer.from("baker-reference"), {
+          status: 200,
+          headers: { "Content-Type": "image/png" },
+        });
+      }
+      if (init?.body instanceof FormData) {
+        editForms.push(init.body);
+      }
+      return new Response(
+        JSON.stringify({ error: { message: "edit rejected" } }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }) as typeof fetch;
+
+    const provider = new OpenAiSceneImageProvider();
+    await assert.rejects(
+      () =>
+        provider.generate({
+          prompt,
+          sceneId: "scene-baker",
+          imageRecordId: "img-baker",
+          ownerId: "user-1",
+          referenceImages: [
+            {
+              url: "https://cdn.example/baker.png",
+              entityId: "baker",
+              role: "primary",
+              exactness: "MUST_PRESERVE",
+            },
+          ],
+        }),
+      /edit rejected/
+    );
+
+    assert.equal(editForms.length, 1);
+    assert.equal(editForms[0].get("model"), "gpt-image-2.5-sunburst");
+    assert.equal(editForms[0].get("quality"), "medium");
+    assert.equal(editForms[0].get("prompt"), prompt);
+    assert.equal(editForms[0].get("input_fidelity"), null);
+    assert.ok(editForms[0].get("image"));
+    assert.equal(urls.some((url) => url.includes("/v1/images/generations")), false);
+  });
+
   it("fetchOpenAiImageGenerations hard-strips response_format for gpt-image models", async () => {
     let requestBody: Record<string, unknown> | null = null;
     globalThis.fetch = mock.fn(async (_url, init) => {
