@@ -4,8 +4,9 @@ import {
   getVoiceProfilePreset,
   normalizeStudioNarrationMode,
 } from "@/lib/studio-voice-profiles";
-import { buildSubtitleEntriesFromVoiceSegments } from "@/lib/studio-subtitle-track";
+import { buildSubtitleEntriesFromVoiceSegments, parseSubtitleEntriesJson } from "@/lib/studio-subtitle-track";
 import { buildTimedSegmentsFromSpeakerLines } from "@/lib/build-speaker-voice-segments";
+import { canReplaceSubtitleTrack, spokenNarrationSubtitle } from "@/lib/studio-narration-playback";
 import {
   buildCharacterVoiceAssignments,
   buildMultiCharacterNarrationScript,
@@ -13,7 +14,6 @@ import {
   resolveSpeakerSegmentsWithCharacters,
   scriptUsesSpeakerTags,
 } from "@/lib/studio-character-voice";
-import { buildTimedVoiceSegments } from "@/lib/studio-voice-timing-execution";
 import { concatVoiceSegmentBuffers } from "@/server/studio/studio-voice-audio-merge";
 import {
   isStudioVoiceExecutionLanguage,
@@ -28,6 +28,32 @@ import { meterElevenLabsTts } from "@/server/provider-cost/studio-cost-metering"
 
 function serviceError(code: string, message: string, httpStatus: number): ServiceError {
   return { code, message, httpStatus };
+}
+
+async function saveSpokenSubtitle(params: {
+  storyboardId: string;
+  language: string;
+  entries: Array<{ start: number; end: number; text: string }>;
+}): Promise<string> {
+  const existing = await prisma.studioStoryboardSubtitleTrack.findUnique({
+    where: { storyboardId_language: { storyboardId: params.storyboardId, language: params.language } },
+    select: { id: true, entriesJson: true },
+  });
+  const existingTexts = existing ? parseSubtitleEntriesJson(existing.entriesJson).map((entry) => entry.text) : [];
+  if (!canReplaceSubtitleTrack(existingTexts, params.entries.map((entry) => entry.text))) {
+    return existing?.id ?? "";
+  }
+  const saved = await prisma.studioStoryboardSubtitleTrack.upsert({
+    where: { storyboardId_language: { storyboardId: params.storyboardId, language: params.language } },
+    create: {
+      storyboardId: params.storyboardId,
+      language: params.language,
+      status: "draft",
+      entriesJson: params.entries,
+    },
+    update: { status: "draft", entriesJson: params.entries },
+  });
+  return saved.id;
 }
 
 export type GenerateStoryboardVoiceResult = {
@@ -142,14 +168,6 @@ export async function generateStoryboardVoice(params: {
       language,
     });
 
-    const segments = buildTimedVoiceSegments({
-      storyboard: sb,
-      script: report.script,
-      profile: preset,
-      actualDurationSeconds: synthesis.durationSeconds,
-    });
-    const subtitleEntries = buildSubtitleEntriesFromVoiceSegments(segments);
-
     const contentType =
       synthesis.provider === "mock" ? "audio/wav" : "audio/mpeg";
     const uploaded = await uploadStoryboardVoiceAudio({
@@ -177,20 +195,10 @@ export async function generateStoryboardVoice(params: {
       },
     });
 
-    const subtitle = await prisma.studioStoryboardSubtitleTrack.upsert({
-      where: {
-        storyboardId_language: { storyboardId: sb.id, language },
-      },
-      create: {
-        storyboardId: sb.id,
-        language,
-        status: "ready",
-        entriesJson: subtitleEntries,
-      },
-      update: {
-        status: "ready",
-        entriesJson: subtitleEntries,
-      },
+    const subtitleTrackId = await saveSpokenSubtitle({
+      storyboardId: sb.id,
+      language,
+      entries: spokenNarrationSubtitle(report.script.fullNarration, synthesis.durationSeconds),
     });
 
     return {
@@ -200,7 +208,7 @@ export async function generateStoryboardVoice(params: {
         audioUrl: updatedVoice.audioUrl,
         durationSeconds: updatedVoice.durationSeconds,
         provider: updatedVoice.provider,
-        subtitleTrackId: subtitle.id,
+        subtitleTrackId,
       },
     };
   } catch (err) {
@@ -317,15 +325,10 @@ async function generateMultiCharacterStoryboardVoice(params: {
       },
     });
 
-    const subtitle = await prisma.studioStoryboardSubtitleTrack.upsert({
-      where: { storyboardId_language: { storyboardId: sb.id, language } },
-      create: {
-        storyboardId: sb.id,
-        language,
-        status: "ready",
-        entriesJson: subtitleEntries,
-      },
-      update: { status: "ready", entriesJson: subtitleEntries },
+    const subtitleTrackId = await saveSpokenSubtitle({
+      storyboardId: sb.id,
+      language,
+      entries: subtitleEntries,
     });
 
     return {
@@ -335,7 +338,7 @@ async function generateMultiCharacterStoryboardVoice(params: {
         audioUrl: updatedVoice.audioUrl,
         durationSeconds: updatedVoice.durationSeconds,
         provider: updatedVoice.provider,
-        subtitleTrackId: subtitle.id,
+        subtitleTrackId,
       },
     };
   } catch (err) {

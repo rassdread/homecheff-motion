@@ -9,6 +9,8 @@ import type { Prisma } from "@prisma/client";
 import { getCreativeProjectForOwner } from "@/server/studio-library/creative-project-service";
 import { listUserAudioLibraryAssets } from "@/server/studio/studio-user-audio-library-blob";
 import { isOwnedProductionBlobUrl } from "@/lib/studio-film-media";
+import { narrationClipCarriesProjectAudio, ownedNarrationAudioUrl, ownedVoiceStorageKey } from "@/lib/studio-narration-playback";
+import { resolvePublicBlobUrlByPathname } from "@/lib/vercel-blob-config";
 import { certifiedLocalMediaId, ownedCertifiedLocalPath } from "@/lib/studio-local-media";
 import {
   applyClipPatch,
@@ -457,7 +459,8 @@ async function present(
         select: {
           id: true,
           voiceNarrationScript: true,
-          voices: { select: { language: true, audioUrl: true, status: true } },
+          voiceLanguage: true,
+          voices: { select: { language: true, audioUrl: true, status: true, storageKey: true } },
           subtitleTracks: { select: { language: true, status: true, entriesJson: true } },
           scenes: {
             orderBy: { order: "asc" },
@@ -502,7 +505,7 @@ async function present(
       })
     : [];
   const sceneImageById = new Map(sceneImages.map((image) => [image.id, image.imageUrl]));
-  const narrationAudio = storyboard?.voices.find((voice) => voice.status === "completed" && voice.audioUrl)?.audioUrl ?? null;
+  const narrationAudio = await resolveFilmNarrationUrl(ownerId, storyboard);
   const videoClips = timeline.tracks.filter((track) => track.type === "VIDEO").flatMap((track) => track.clips);
   const subtitles = timeline.tracks
     .filter((track) => track.type === "SUBTITLE")
@@ -553,7 +556,16 @@ async function present(
         const asset = clip.sourceKind === "library_asset" ? assetById.get(clip.sourceId) : null;
         const ownedAudio = clip.sourceKind === "user_audio" ? userAudioById.get(clip.sourceId) : null;
         const scene = storyboard?.scenes.find((item) => item.id === clip.sourceId);
+        const projectNarration = narrationClipCarriesProjectAudio({
+          trackType: track.type,
+          sourceKind: clip.sourceKind,
+          sourceId: clip.sourceId,
+          storyboardId: project.storyboardId,
+        })
+          ? narrationAudio
+          : null;
         const playbackUrl =
+          projectNarration ||
           ownedTimelineMediaUrl(ownerId, clip.sourceKind === "uploaded_video" ? clip.sourceId : "") ||
           ownedAudio?.audioUrl ||
           asset?.downloadUrl ||
@@ -591,6 +603,36 @@ async function present(
     })),
     subtitles,
   };
+}
+
+async function resolveFilmNarrationUrl(
+  ownerId: string,
+  storyboard: {
+    id: string;
+    voiceLanguage: string;
+    voices: Array<{ language: string; audioUrl: string; status: string; storageKey: string }>;
+  } | null,
+): Promise<string | null> {
+  if (!storyboard) return null;
+  const language = storyboard.voiceLanguage.trim().toLowerCase().slice(0, 2);
+  const voice = storyboard.voices.find((item) => item.status === "completed" && item.language === language)
+    ?? storyboard.voices.find((item) => item.status === "completed");
+  if (!voice || !ownedVoiceStorageKey(ownerId, storyboard.id, voice.storageKey)) return null;
+  const fresh = await resolvePublicBlobUrlByPathname(voice.storageKey);
+  const refreshed = fresh
+    ? ownedNarrationAudioUrl({
+        ownerId,
+        storyboardId: storyboard.id,
+        storageKey: voice.storageKey,
+        audioUrl: fresh,
+      })
+    : null;
+  return refreshed || ownedNarrationAudioUrl({
+    ownerId,
+    storyboardId: storyboard.id,
+    storageKey: voice.storageKey,
+    audioUrl: voice.audioUrl,
+  });
 }
 
 function ownedTimelineMediaUrl(ownerId: string, value: string): string | null {

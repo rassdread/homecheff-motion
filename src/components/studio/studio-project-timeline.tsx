@@ -160,7 +160,12 @@ export function StudioProjectTimeline({
         audio.preload = "auto";
         map.set(item.clip.id, audio);
       }
-      if (item.clip.playbackUrl && audio.src !== item.clip.playbackUrl) audio.src = item.clip.playbackUrl;
+      if (item.clip.playbackUrl && audio.src !== item.clip.playbackUrl) {
+        audio.onerror = () => {
+          if (item.track.type === "NARRATION") setError(t("studio.workspace.v15.mediaFailed"));
+        };
+        audio.src = item.clip.playbackUrl;
+      }
     }
     for (const [id, audio] of map) {
       if (!ids.has(id)) {
@@ -168,7 +173,7 @@ export function StudioProjectTimeline({
         map.delete(id);
       }
     }
-  }, [audibleClips]);
+  }, [audibleClips, t]);
 
   useEffect(() => {
     const map = audioMap.current;
