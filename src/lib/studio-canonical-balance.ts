@@ -57,9 +57,22 @@ export function resolveCanonicalSpendableBalance(
   }
 
   if (central?.identityResolved && central.walletResolved) {
+    const availableRaw = Number(central.availableHc ?? 0);
+    const reservedRaw = Number(central.reservedHc ?? 0);
+    if (!Number.isFinite(availableRaw) || availableRaw < 0 || !Number.isFinite(reservedRaw) || reservedRaw < 0) {
+      return {
+        spendable: null,
+        reserved: 0,
+        unit: "HC",
+        source: "unavailable",
+        legacyStudioAvailable,
+        identityResolved: true,
+        walletResolved: false,
+      };
+    }
     return {
-      spendable: Math.max(0, Math.floor(Number(central.availableHc ?? 0))),
-      reserved: Math.max(0, Math.floor(Number(central.reservedHc ?? 0))),
+      spendable: Math.max(0, Math.floor(availableRaw)),
+      reserved: Math.max(0, Math.floor(reservedRaw)),
       unit: "HC",
       source: "central_hc",
       legacyStudioAvailable,
@@ -102,5 +115,7 @@ export function canonicalAmountForLowBalanceWarning(
   balance: CanonicalSpendableBalance
 ): number | null {
   if (balance.source === "unavailable") return null;
+  if (balance.spendable == null) return null;
+  if (!Number.isFinite(balance.spendable) || balance.spendable < 0) return null;
   return balance.spendable;
 }

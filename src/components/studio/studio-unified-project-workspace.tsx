@@ -26,6 +26,13 @@ import {
   type StudioWorkflow,
 } from "@/lib/studio-v23-intent";
 import { planStudioWorkspaceLayout, type StudioWorkspaceLayoutPlan } from "@/lib/studio-workspace-posture";
+import {
+  buildFilmWorkspaceReadiness,
+  formatFilmDurationMs,
+  normalizeFilmAspectRatio,
+  readFilmAssistantCollapsedPreference,
+  writeFilmAssistantCollapsedPreference,
+} from "@/lib/studio-film-workspace-shell";
 
 const NAV = [
   { id: "dashboard", href: "/studio", section: null },
@@ -70,7 +77,8 @@ export function StudioUnifiedProjectWorkspace({
   );
   const [navOpen, setNavOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
-  const [assistantCollapsed, setAssistantCollapsed] = useState(false);
+  // Compact/mobile default: collapsed. Stored "0" means the user expanded it.
+  const [assistantCollapsed, setAssistantCollapsed] = useState(true);
   const [posture, setPosture] = useState<StudioWorkspaceLayoutPlan | null>(null);
   const [mediaProjectId, setMediaProjectId] = useState(workspace.mediaProjectIds[0] ?? "");
   const [selectedCharacterId, setSelectedCharacterId] = useState(
@@ -86,6 +94,24 @@ export function StudioUnifiedProjectWorkspace({
     window.addEventListener("resize", apply);
     return () => window.removeEventListener("resize", apply);
   }, []);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      const preferred = readFilmAssistantCollapsedPreference(
+        window.sessionStorage,
+        planStudioWorkspaceLayout(window.innerWidth, window.innerHeight).posture,
+      );
+      setAssistantCollapsed(preferred);
+    });
+  }, []);
+
+  function toggleAssistantCollapsed() {
+    setAssistantCollapsed((value) => {
+      const next = !value;
+      writeFilmAssistantCollapsedPreference(window.sessionStorage, next);
+      return next;
+    });
+  }
 
   const selectedCharacter = workspace.characters.find((item) => item.id === selectedCharacterId) ?? workspace.characters[0] ?? null;
   const selectedScene = workspace.scenes.find((scene) => scene.id === selectedSceneId) ?? workspace.scenes[0] ?? null;
@@ -118,8 +144,16 @@ export function StudioUnifiedProjectWorkspace({
     workspace.media.find((item) => item.previewUrl?.trim())?.previewUrl ||
     "";
   const previewVideo = workspace.exports.find((item) => item.status === "completed" && item.downloadUrl)?.downloadUrl ?? "";
+  const filmDurationLabel = formatFilmDurationMs(workspace.film.durationMs);
+  const filmAspectRatio = normalizeFilmAspectRatio(workspace.film.aspectRatio);
+  const showLargePreview = section === "export" && Boolean(previewVideo);
+  const showCompactHero = section === "overview" && Boolean(previewImage);
   const primarySections = new Set(workflowPrimarySections(workflow));
   const legacyHref = workflowLegacyHref(workflow, workspace.project.id);
+  const hcLabel =
+    workspace.hcAvailable == null
+      ? t("studio.workspace.v12.hcUnavailable")
+      : `${workspace.hcAvailable.toLocaleString(locale)} HC`;
 
   const link = useMemo(() => {
     const map = new Map(workspace.links.map((item) => [item.id, item.href]));
@@ -182,30 +216,79 @@ export function StudioUnifiedProjectWorkspace({
     >
       <aside className={`${posture && !posture.showInlineLeftRail ? "hidden" : "hidden min-[1024px]:block"} border-r border-white/10 bg-[#041428]`}>{sidebar}</aside>
       <div className="min-w-0">
-        <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-white/10 bg-[#041428]/95 px-4 py-3 text-white backdrop-blur">
-          <div className="flex min-w-0 items-center gap-2">
-            <button
-              type="button"
-              className="inline-flex h-11 min-w-11 items-center justify-center rounded-full border border-white/20 lg:hidden"
-              aria-expanded={navOpen}
-              aria-controls="workspace-nav"
-              onClick={() => setNavOpen((open) => !open)}
-            >
-              {t("studio.workspace.v12.menu")}
-            </button>
-            <div className="min-w-0">
-              <p className="text-xs text-white/70">{t("studio.workspace.v12.projectEyebrow")}</p>
-              <h1 className="truncate text-lg font-bold tracking-tight" data-testid="studio-v24-project" data-project-id={workspace.project.id} data-workflow={workflow} data-scene-id={selectedScene?.id ?? ""}>{workspace.project.title}</h1>
+        <header
+          className="sticky top-0 z-20 border-b border-white/10 bg-[#041428]/95 px-4 py-3 text-white backdrop-blur"
+          data-testid="studio-v2753-film-header"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <button
+                type="button"
+                className="inline-flex h-11 min-w-11 items-center justify-center rounded-full border border-white/20 lg:hidden"
+                aria-expanded={navOpen}
+                aria-controls="workspace-nav"
+                onClick={() => setNavOpen((open) => !open)}
+              >
+                {t("studio.workspace.v12.menu")}
+              </button>
+              <div className="min-w-0">
+                <p className="text-xs text-white/70">{t("studio.workspace.v12.projectEyebrow")}</p>
+                <h1
+                  className="truncate text-lg font-bold tracking-tight"
+                  data-testid="studio-v24-project"
+                  data-project-id={workspace.project.id}
+                  data-workflow={workflow}
+                  data-scene-id={selectedScene?.id ?? ""}
+                >
+                  {workspace.project.title}
+                </h1>
+                <p
+                  className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/70"
+                  data-testid="studio-v2753-film-meta"
+                >
+                  <span data-testid="studio-v2753-film-duration">
+                    {filmDurationLabel
+                      ? t("studio.workspace.v12.filmDuration", { duration: filmDurationLabel })
+                      : workspace.film.timelineAvailable
+                        ? t("studio.workspace.v12.filmDurationLoading")
+                        : t("studio.workspace.v12.filmDurationUnavailable")}
+                  </span>
+                  {filmAspectRatio ? (
+                    <span data-testid="studio-v2753-film-aspect">{filmAspectRatio}</span>
+                  ) : null}
+                  <span data-testid="studio-v2753-film-hc" data-hc-source={workspace.hcSource}>
+                    {hcLabel}
+                  </span>
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="inline-flex min-h-11 items-center rounded-full border border-white/20 px-3 text-sm font-semibold"
+                data-testid="studio-v2753-preview"
+                onClick={() => chooseSection("timeline")}
+              >
+                {t("studio.workspace.v12.previewAction")}
+              </button>
+              <button
+                type="button"
+                className="inline-flex min-h-11 items-center rounded-full bg-[#0067B1] px-3 text-sm font-semibold text-white"
+                data-testid="studio-v2753-export"
+                onClick={() => chooseSection("export")}
+              >
+                {t("studio.workspace.v12.exportAction")}
+              </button>
+              <button
+                type="button"
+                className="inline-flex h-11 items-center rounded-full border border-white/20 px-3 text-sm font-semibold lg:hidden"
+                aria-expanded={contextOpen}
+                onClick={() => (globalAssistant ? globalAssistant.setOpen(true) : setContextOpen(true))}
+              >
+                {t("studio.v23.assistant.title")}
+              </button>
             </div>
           </div>
-          <button
-            type="button"
-            className="inline-flex h-11 items-center rounded-full border border-white/20 px-3 text-sm font-semibold lg:hidden"
-            aria-expanded={contextOpen}
-            onClick={() => (globalAssistant ? globalAssistant.setOpen(true) : setContextOpen(true))}
-          >
-            {t("studio.v23.assistant.title")}
-          </button>
         </header>
         {navOpen ? (
           <div id="workspace-nav" className="border-b border-white/10 bg-[#041428] lg:hidden">
@@ -262,18 +345,22 @@ export function StudioUnifiedProjectWorkspace({
             </div>
 
             <section className={`${studioVisual.cardLight} overflow-hidden p-0`}>
-              <div className="bg-[#041428]">
-                {section === "export" && previewVideo ? (
+              {showLargePreview ? (
+                <div className="bg-[#041428]">
                   <video controls playsInline src={previewVideo} className="max-h-[520px] w-full bg-black" />
-                ) : previewImage ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={previewImage} alt="" className="max-h-[520px] w-full object-contain" />
-                ) : (
-                  <div className="flex min-h-56 items-center justify-center px-6 text-center text-sm text-white/80">
-                    {t("studio.workspace.v12.previewEmpty")}
-                  </div>
-                )}
-              </div>
+                </div>
+              ) : null}
+              {showCompactHero ? (
+                <div className="flex items-center gap-3 border-b border-zinc-200 bg-zinc-50 px-4 py-3" data-testid="studio-v2753-compact-hero">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={previewImage}
+                    alt=""
+                    className="h-20 w-20 shrink-0 rounded-lg object-cover"
+                  />
+                  <p className="text-sm text-zinc-600">{t("studio.workspace.v12.compactHeroHint")}</p>
+                </div>
+              ) : null}
               <div className="p-5 sm:p-6">
                 {section === "overview" ? <Overview workspace={workspace} locale={locale} t={t} /> : null}
                 {section === "scenes" ? (
@@ -330,7 +417,7 @@ export function StudioUnifiedProjectWorkspace({
             workflow={workflow}
             embedAssistant={!globalAssistant}
             assistantCollapsed={assistantCollapsed}
-            onToggleAssistant={() => setAssistantCollapsed((value) => !value)}
+            onToggleAssistant={toggleAssistantCollapsed}
             link={link}
             open={contextOpen}
             onClose={() => setContextOpen(false)}
@@ -381,11 +468,12 @@ function Overview({
   locale: string;
   t: Translate;
 }) {
+  const readiness = buildFilmWorkspaceReadiness(workspace);
   const counts = [
     ["characters", workspace.characters.length],
-    ["scenes", workspace.scenes.length],
-    ["images", workspace.media.filter((item) => item.family === "image").length],
-    ["videos", workspace.media.filter((item) => item.family === "video").length + workspace.exports.filter((item) => item.downloadUrl).length],
+    ["scenes", readiness.scenes],
+    ["images", readiness.libraryImages],
+    ["videos", readiness.libraryVideos],
     ["audio", workspace.music.length + workspace.soundEffects.length + workspace.voiceover.length],
   ] as const;
   return (
@@ -397,6 +485,40 @@ function Overview({
           {t("studio.workspace.v12.updated", { when: formatWhen(workspace.project.updatedAt, locale) })}
         </p>
       </div>
+      <ul
+        className="grid grid-cols-2 gap-2 sm:grid-cols-3"
+        data-testid="studio-v2753-readiness"
+        aria-label={t("studio.workspace.v12.readinessLabel")}
+      >
+        <li className="rounded-xl border border-zinc-200 px-3 py-2">
+          <p className="text-lg font-bold text-zinc-900">{readiness.scenes}</p>
+          <p className="text-xs font-medium text-zinc-600">{t("studio.workspace.v12.readiness.scenes")}</p>
+        </li>
+        <li className="rounded-xl border border-zinc-200 px-3 py-2">
+          <p className="text-lg font-bold text-zinc-900">{readiness.scenesWithStill}</p>
+          <p className="text-xs font-medium text-zinc-600">{t("studio.workspace.v12.readiness.stills")}</p>
+        </li>
+        <li className="rounded-xl border border-zinc-200 px-3 py-2">
+          <p className="text-lg font-bold text-zinc-900">{readiness.libraryVideos}</p>
+          <p className="text-xs font-medium text-zinc-600">{t("studio.workspace.v12.readiness.libraryVideos")}</p>
+        </li>
+        <li className="rounded-xl border border-zinc-200 px-3 py-2">
+          <p className="text-lg font-bold text-zinc-900">
+            {readiness.narrationAvailable
+              ? t("studio.workspace.v12.readiness.yes")
+              : t("studio.workspace.v12.readiness.no")}
+          </p>
+          <p className="text-xs font-medium text-zinc-600">{t("studio.workspace.v12.readiness.narration")}</p>
+        </li>
+        <li className="rounded-xl border border-zinc-200 px-3 py-2">
+          <p className="text-lg font-bold text-zinc-900">
+            {readiness.timelineAvailable
+              ? t("studio.workspace.v12.readiness.yes")
+              : t("studio.workspace.v12.readiness.no")}
+          </p>
+          <p className="text-xs font-medium text-zinc-600">{t("studio.workspace.v12.readiness.timeline")}</p>
+        </li>
+      </ul>
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {counts.map(([key, count]) => (
           <li key={key} className="rounded-xl border border-zinc-200 px-3 py-3">
@@ -411,7 +533,7 @@ function Overview({
             <li key={character.id} className="rounded-xl border border-zinc-200 p-3">
               {character.referenceImageUrl?.trim() ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={character.referenceImageUrl} alt="" className="mb-2 h-24 w-full rounded-lg object-cover" />
+                <img src={character.referenceImageUrl} alt="" className="mb-2 h-16 w-16 rounded-lg object-cover" />
               ) : null}
               <p className="text-sm font-semibold text-zinc-900">{character.name}</p>
               <p className="text-xs text-zinc-600">{character.voiceAssigned ? t("studio.workspace.v12.voiceAssigned") : t("studio.workspace.v12.voiceMissing")}</p>
@@ -758,9 +880,13 @@ function Context({
       <section>
         <h2 className="text-sm font-bold text-zinc-900">{t("studio.workspace.v12.hcTitle")}</h2>
         {workspace.hcAvailable == null ? (
-          <p className="mt-1 text-sm text-zinc-600">{t("studio.workspace.v12.hcUnavailable")}</p>
+          <p className="mt-1 text-sm text-zinc-600" data-testid="studio-v2753-context-hc" data-hc-source={workspace.hcSource}>
+            {t("studio.workspace.v12.hcUnavailable")}
+          </p>
         ) : (
-          <p className="mt-1 text-2xl font-bold text-zinc-900">{workspace.hcAvailable} HC</p>
+          <p className="mt-1 text-2xl font-bold text-zinc-900" data-testid="studio-v2753-context-hc" data-hc-source={workspace.hcSource}>
+            {workspace.hcAvailable} HC
+          </p>
         )}
         <p className="mt-2 text-xs leading-5 text-zinc-600">{t("studio.workspace.v12.hcQuoteLater")}</p>
         <TextLink href={link("credits")}>{t("studio.workspace.v12.openCredits")}</TextLink>

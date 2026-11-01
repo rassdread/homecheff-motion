@@ -96,3 +96,24 @@ export async function loadStudioAccountSummary(
   const centralHc = await loadCentralHcSummaryForStudioUser(userId);
   return withCanonicalBalance({ account, wallet, recentLedger: [], centralHc });
 }
+
+/**
+ * Read-only canonical spendable for workspace surfaces.
+ * Does not ensure/create account or wallet rows.
+ */
+export async function loadCanonicalSpendableForStudioUser(userId: string) {
+  const [wallet, centralHc] = await Promise.all([
+    prisma.studioWallet.findUnique({
+      where: { userId },
+      select: { balance: true, reservedBalance: true },
+    }),
+    loadCentralHcSummaryForStudioUser(userId),
+  ]);
+  return resolveCanonicalFromOverview({
+    wallet: {
+      availableBalance: wallet ? Math.max(0, wallet.balance - wallet.reservedBalance) : 0,
+      reservedBalance: wallet?.reservedBalance ?? 0,
+    },
+    centralHc,
+  });
+}

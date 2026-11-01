@@ -5,12 +5,14 @@
 
 import { prisma } from "@/lib/prisma";
 import { characterIdsFromLibraryAssets } from "@/lib/studio-film-characters";
+import { filmEndMs } from "@/lib/studio-timeline";
 import { parseSubtitleEntriesJson } from "@/lib/studio-subtitle-track";
 import {
   assembleProjectWorkspace,
   type ProjectWorkspaceView,
 } from "@/lib/studio-project-workspace";
 import { studioClassicEditorHref, studioWorkspaceHref } from "@/lib/studio-workspace-href";
+import { loadCanonicalSpendableForStudioUser } from "@/server/studio-account/studio-account-service";
 import { getCreativeProjectForOwner } from "@/server/studio-library/creative-project-service";
 import { getOwnerAudioLibrary } from "@/server/studio/studio-user-audio-library-service";
 
@@ -21,7 +23,7 @@ export async function loadStudioProjectWorkspace(
   const project = await getCreativeProjectForOwner(projectId, ownerId);
   if (!project) return null;
 
-  const [assets, wallet] = await Promise.all([
+  const [assets, canonicalBalance, timelineMeta] = await Promise.all([
     prisma.studioLibraryAsset.findMany({
       where: { projectId: project.id, ownerId, status: { not: "deleted" } },
       orderBy: { title: "asc" },
@@ -35,11 +37,21 @@ export async function loadStudioProjectWorkspace(
         downloadUrl: true,
         sourceKind: true,
         metadataJson: true,
+        aspectRatio: true,
       },
     }),
-    prisma.studioWallet.findUnique({
-      where: { userId: ownerId },
-      select: { balance: true, reservedBalance: true },
+    loadCanonicalSpendableForStudioUser(ownerId),
+    prisma.studioTimeline.findUnique({
+      where: { projectId: project.id },
+      select: {
+        id: true,
+        tracks: {
+          where: { type: "VIDEO" },
+          select: {
+            clips: { select: { startMs: true, durationMs: true } },
+          },
+        },
+      },
     }),
   ]);
 
@@ -267,6 +279,17 @@ export async function loadStudioProjectWorkspace(
     links,
     mediaProjectIds,
     audioLibraryAvailable,
-    hcAvailable: wallet ? Math.max(0, wallet.balance - wallet.reservedBalance) : null,
+    hcAvailable: canonicalBalance.spendable,
+    hcSource: canonicalBalance.source,
+    film: {
+      timelineAvailable: Boolean(timelineMeta),
+      durationMs: timelineMeta
+        ? filmEndMs(timelineMeta.tracks.flatMap((track) => track.clips))
+        : null,
+      aspectRatio:
+        assets.find((asset) => asset.family === "video" && asset.aspectRatio.trim())?.aspectRatio.trim() ||
+        assets.find((asset) => asset.aspectRatio.trim())?.aspectRatio.trim() ||
+        null,
+    },
   });
 }

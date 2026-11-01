@@ -74,6 +74,15 @@ export type WorkspaceLink = {
   href: string;
 };
 
+export type WorkspaceFilmMeta = {
+  /** True when an owned StudioTimeline row exists for this project. */
+  timelineAvailable: boolean;
+  /** Authoritative film end from VIDEO track clips; null when unknown. */
+  durationMs: number | null;
+  /** Aspect ratio from project media when present; null when unknown. */
+  aspectRatio: string | null;
+};
+
 export type ProjectWorkspaceView = {
   project: {
     id: string;
@@ -102,11 +111,17 @@ export type ProjectWorkspaceView = {
   links: WorkspaceLink[];
   mediaProjectIds: string[];
   audioLibraryAvailable: boolean;
+  /** Canonical authorized spendable HC/credits; null when unavailable. */
   hcAvailable: number | null;
+  /** Balance source label for UI consistency checks. */
+  hcSource: "central_hc" | "legacy_studio_wallet" | "unavailable";
+  /** Compact film shell metadata — not a second timeline payload. */
+  film: WorkspaceFilmMeta;
   director: {
     mode: "planning";
     executable: false;
   };
+  /** Full timeline remains loaded by StudioProjectTimeline; keep null here. */
   timeline: null;
 };
 
@@ -139,6 +154,8 @@ export type AssembleWorkspaceInput = {
   mediaProjectIds: string[];
   audioLibraryAvailable: boolean;
   hcAvailable: number | null;
+  hcSource?: ProjectWorkspaceView["hcSource"];
+  film?: WorkspaceFilmMeta;
 };
 
 const COMPLETED_MEDIA = new Set(["image", "video"]);
@@ -221,6 +238,12 @@ export function assembleProjectWorkspace(input: AssembleWorkspaceInput): Project
     mediaProjectIds: input.mediaProjectIds,
     audioLibraryAvailable: input.audioLibraryAvailable,
     hcAvailable: input.hcAvailable,
+    hcSource: input.hcSource ?? (input.hcAvailable == null ? "unavailable" : "legacy_studio_wallet"),
+    film: input.film ?? {
+      timelineAvailable: false,
+      durationMs: null,
+      aspectRatio: null,
+    },
     director: { mode: "planning", executable: false },
     timeline: null,
   };

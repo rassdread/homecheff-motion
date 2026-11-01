@@ -19,9 +19,10 @@ export function LowCreditBanner() {
   const wallet = useStudioWalletSummary(Boolean(session.user));
   const [dismissed, setDismissed] = useState(true);
 
-  const spendable = wallet.resolved
-    ? canonicalAmountForLowBalanceWarning(wallet.canonical)
-    : null;
+  const spendable =
+    wallet.resolved && !wallet.loading
+      ? canonicalAmountForLowBalanceWarning(wallet.canonical)
+      : null;
   const tier = spendable != null ? resolveLowCreditTier(spendable) : null;
   const isHc = wallet.canonicalUnit === "HC";
 

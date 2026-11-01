@@ -92,13 +92,16 @@ export function useStudioWalletSummary(enabled = true): StudioWalletSummary {
         centralHc: overview.centralHc ?? null,
       });
     }
-    return resolveCanonicalFromOverview({
-      wallet: {
-        availableBalance: 0,
-        reservedBalance: 0,
-      },
-      centralHc: null,
-    });
+    // Loading / failed fetch must never invent a spendable zero.
+    return {
+      spendable: null,
+      reserved: 0,
+      unit: "HC",
+      source: "unavailable",
+      legacyStudioAvailable: 0,
+      identityResolved: false,
+      walletResolved: false,
+    };
   }, [overview]);
 
   return {
