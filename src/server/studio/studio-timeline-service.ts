@@ -10,6 +10,7 @@ import { getCreativeProjectForOwner } from "@/server/studio-library/creative-pro
 import { listUserAudioLibraryAssets } from "@/server/studio/studio-user-audio-library-blob";
 import { isOwnedProductionBlobUrl } from "@/lib/studio-film-media";
 import { narrationClipCarriesProjectAudio, ownedNarrationAudioUrl, ownedVoiceStorageKey } from "@/lib/studio-narration-playback";
+import { filmClipMediaKind, filmClipVisualState, ownedSceneStillUrl } from "@/lib/studio-timeline-scene-media";
 import { resolvePublicBlobUrlByPathname } from "@/lib/vercel-blob-config";
 import { certifiedLocalMediaId, ownedCertifiedLocalPath } from "@/lib/studio-local-media";
 import {
@@ -472,6 +473,11 @@ async function present(
               durationSeconds: true,
               characters: { select: { characterId: true } },
               selectedSceneImage: { select: { imageUrl: true } },
+              sceneImages: {
+                where: { status: "completed" },
+                orderBy: { createdAt: "desc" },
+                select: { imageUrl: true },
+              },
             },
           },
         },
@@ -540,7 +546,10 @@ async function present(
       order: scene.order,
       title: scene.title,
       durationMs: scene.durationSeconds * 1000,
-      imageUrl: scene.selectedSceneImage?.imageUrl || null,
+      imageUrl: ownedSceneStillUrl({
+        selectedImageUrl: scene.selectedSceneImage?.imageUrl,
+        completedImageUrls: scene.sceneImages.map((image) => image.imageUrl),
+      }),
       dialogue: presentDialogue({ text: scene.dialogueText, audioUrl: null }),
       characterCount: scene.characters.length,
     })),
@@ -572,11 +581,22 @@ async function present(
           asset?.previewUrl ||
           null;
         const sceneImageUrl = clip.sourceKind === "scene_image" ? sceneImageById.get(clip.sourceId) ?? null : null;
+        const sceneStillUrl = scene
+          ? ownedSceneStillUrl({
+              selectedImageUrl: scene.selectedSceneImage?.imageUrl,
+              completedImageUrls: scene.sceneImages.map((image) => image.imageUrl),
+            })
+          : null;
         const stillUrl =
           ownedTimelineMediaUrl(ownerId, clip.sourceKind === "uploaded_image" ? clip.sourceId : "") ||
           sceneImageUrl ||
-          scene?.selectedSceneImage?.imageUrl ||
+          sceneStillUrl ||
           null;
+        const visualState = filmClipVisualState({
+          playbackUrl,
+          stillUrl,
+          sourceKind: clip.sourceKind,
+        });
         return {
           id: clip.id,
           startMs: clip.startMs,
@@ -590,7 +610,8 @@ async function present(
           muted: clip.muted,
           playbackUrl,
           stillUrl,
-          mediaKind: stillUrl && !playbackUrl ? "still" : playbackUrl ? "media" : "reference",
+          mediaKind: filmClipMediaKind(visualState),
+          visualState,
           audible: audibleClip({
             muted: clip.muted,
             trackMuted: track.muted,

@@ -15276,6 +15276,8 @@ export const en: LocaleSchema = {
   "studio.workspace.v15.duplicateConfirm": "This item is already on the track. Add it again?",
   "studio.workspace.v15.duration": "Duration",
   "studio.workspace.v15.emptyPreview": "Nothing to preview yet.",
+  "studio.workspace.v15.mediaMissing": "Media missing",
+  "studio.workspace.v15.sceneAwaitingVideo": "No video generated yet",
   "studio.workspace.v15.exportSrt": "Download SRT",
   "studio.workspace.v15.exportVtt": "Download VTT",
   "studio.workspace.v15.intro": "Arrange the scenes, dialogue, and music for this film.",

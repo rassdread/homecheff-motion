@@ -22,6 +22,7 @@ type Clip = {
   playbackUrl: string | null;
   stillUrl: string | null;
   mediaKind: string;
+  visualState?: "playable_video" | "playable_image" | "scene_awaiting_video" | "missing_media";
   audible: boolean;
 };
 type Track = { id: string; type: string; sortOrder: number; muted: boolean; volume: number; language: string; clips: Clip[] };
@@ -706,9 +707,20 @@ export function StudioProjectTimeline({
               <video ref={videoRef} data-testid="film-timeline-video" src={currentVideo.playbackUrl} className="mx-auto max-h-[50vh] w-auto max-w-full bg-black object-contain" muted playsInline onError={() => setError(t("studio.workspace.v15.mediaFailed"))} />
             ) : currentVideo?.stillUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={currentVideo.stillUrl} alt="" className="max-h-80 w-full object-contain" />
+              <img data-testid="film-timeline-still" src={currentVideo.stillUrl} alt="" className="max-h-80 w-full object-contain" />
             ) : (
-              <div className="flex min-h-40 items-center justify-center text-sm text-white/70">{t("studio.workspace.v15.emptyPreview")}</div>
+              <div
+                data-testid="film-timeline-empty-preview"
+                data-visual-state={currentVideo?.visualState
+                  || (currentVideo?.sourceKind === "scene" ? "scene_awaiting_video" : currentVideo ? "missing_media" : "empty")}
+                className="flex min-h-40 items-center justify-center px-4 text-center text-sm text-white/70"
+              >
+                {currentVideo?.sourceKind === "scene" || currentVideo?.visualState === "scene_awaiting_video"
+                  ? t("studio.workspace.v15.sceneAwaitingVideo")
+                  : currentVideo
+                    ? t("studio.workspace.v15.mediaMissing")
+                    : t("studio.workspace.v15.emptyPreview")}
+              </div>
             )}
             {visibleCue ? (
               <p data-testid="film-timeline-cue" className="pointer-events-none absolute inset-x-4 bottom-4 mx-auto max-w-xl rounded bg-black/75 px-3 py-2 text-center text-sm leading-5 text-white">

@@ -15293,6 +15293,8 @@ export const nl = {
   "studio.workspace.v15.duplicateConfirm": "Dit item staat al op het spoor. Nog een keer toevoegen?",
   "studio.workspace.v15.duration": "Duur",
   "studio.workspace.v15.emptyPreview": "Nog niets om te bekijken.",
+  "studio.workspace.v15.mediaMissing": "Media ontbreekt",
+  "studio.workspace.v15.sceneAwaitingVideo": "Nog geen video gegenereerd",
   "studio.workspace.v15.exportSrt": "SRT downloaden",
   "studio.workspace.v15.exportVtt": "VTT downloaden",
   "studio.workspace.v15.intro": "Zet de scènes, dialoog en muziek van deze film op volgorde.",
