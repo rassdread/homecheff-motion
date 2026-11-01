@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import { resolveLowCreditTier } from "@/lib/billing-conversion-utils";
 import {
+  buildFilmHeaderMetaChips,
   buildFilmWorkspaceReadiness,
   defaultFilmAssistantCollapsed,
   formatFilmDurationMs,
@@ -54,6 +57,78 @@ describe("studio-film-workspace-shell", () => {
     assert.equal(normalizeFilmAspectRatio("16:9"), "16:9");
     assert.equal(normalizeFilmAspectRatio("  "), null);
     assert.equal(normalizeFilmAspectRatio(undefined), null);
+  });
+
+  it("film header meta omits asset-derived aspect ratio and keeps title companions", () => {
+    const chips = buildFilmHeaderMetaChips({
+      durationLabel: "Duration 0:10",
+      durationFallback: "Duration unavailable",
+      hcLabel: "9,625 HC",
+    });
+    assert.deepEqual(
+      chips.map((chip) => chip.id),
+      ["duration", "hc"],
+    );
+    assert.equal(chips.some((chip) => chip.id === "duration"), true);
+    assert.equal(chips.some((chip) => chip.id === "hc"), true);
+    assert.equal(
+      chips.some((chip) => String(chip.id).includes("aspect") || chip.testId.includes("aspect")),
+      false,
+    );
+    assert.equal(chips.every((chip) => chip.value.trim().length > 0), true);
+  });
+
+  it("workspace header markup no longer renders film-aspect test id", () => {
+    const workspace = readFileSync(
+      join(process.cwd(), "src/components/studio/studio-unified-project-workspace.tsx"),
+      "utf8",
+    );
+    const shell = readFileSync(join(process.cwd(), "src/lib/studio-film-workspace-shell.ts"), "utf8");
+    assert.equal(workspace.includes("studio-v2753-film-aspect"), false);
+    assert.equal(workspace.includes("normalizeFilmAspectRatio"), false);
+    assert.equal(workspace.includes("filmAspectRatio"), false);
+    assert.match(workspace, /buildFilmHeaderMetaChips/);
+    assert.match(workspace, /studio-v2753-preview/);
+    assert.match(workspace, /studio-v2753-export/);
+    assert.match(workspace, /studio-v2753-compact-hero/);
+    assert.match(workspace, /publishStudioFilmAssistantContext/);
+    assert.match(workspace, /writeFilmAssistantCollapsedPreference/);
+    assert.match(shell, /studio-v2753-film-duration/);
+    assert.match(shell, /studio-v2753-film-hc/);
+    assert.equal(shell.includes("studio-v2753-film-aspect"), false);
+  });
+
+  it("workspace DTO still accepts film.aspectRatio without requiring header use", () => {
+    const view = assembleProjectWorkspace({
+      project: {
+        id: "p1",
+        title: "Spot",
+        description: "",
+        status: "active",
+        createdAt: "2026-10-19T00:00:00.000Z",
+        updatedAt: "2026-10-19T00:00:00.000Z",
+        storyboardLinked: true,
+        animationLinked: false,
+      },
+      characters: [],
+      assets: [],
+      scenes: [],
+      music: [],
+      soundEffects: [],
+      voiceover: [],
+      exports: [],
+      jobs: [],
+      links: [],
+      mediaProjectIds: [],
+      audioLibraryAvailable: true,
+      hcAvailable: 40,
+      hcSource: "legacy_studio_wallet",
+      film: { timelineAvailable: true, durationMs: 10_000, aspectRatio: "16:9" },
+    });
+    assert.equal(view.film.aspectRatio, "16:9");
+    assert.equal(view.film.durationMs, 10_000);
+    assert.equal(view.project.title, "Spot");
+    assert.equal(view.hcAvailable, 40);
   });
 
   it("defaults AI collapsed on compact layouts and preserves stored preference", () => {

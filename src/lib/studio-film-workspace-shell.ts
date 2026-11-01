@@ -35,6 +35,36 @@ export function normalizeFilmAspectRatio(value: string | null | undefined): stri
   return trimmed;
 }
 
+/**
+ * Compact film header meta chips.
+ * Asset-derived aspect ratio is intentionally omitted — it is not the
+ * film composition / export aspect ratio (V27.54 / V27.55).
+ */
+export type FilmHeaderMetaChip = {
+  id: "duration" | "hc";
+  testId: "studio-v2753-film-duration" | "studio-v2753-film-hc";
+  value: string;
+};
+
+export function buildFilmHeaderMetaChips(input: {
+  durationLabel: string | null;
+  durationFallback: string;
+  hcLabel: string;
+}): FilmHeaderMetaChip[] {
+  return [
+    {
+      id: "duration",
+      testId: "studio-v2753-film-duration",
+      value: input.durationLabel ?? input.durationFallback,
+    },
+    {
+      id: "hc",
+      testId: "studio-v2753-film-hc",
+      value: input.hcLabel,
+    },
+  ];
+}
+
 /** Default collapse when the user has not stored a preference. */
 export function defaultFilmAssistantCollapsed(posture: StudioWorkspacePosture | null | undefined): boolean {
   return posture !== "full";

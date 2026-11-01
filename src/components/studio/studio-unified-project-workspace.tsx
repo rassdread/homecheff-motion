@@ -27,9 +27,9 @@ import {
 } from "@/lib/studio-v23-intent";
 import { planStudioWorkspaceLayout, type StudioWorkspaceLayoutPlan } from "@/lib/studio-workspace-posture";
 import {
+  buildFilmHeaderMetaChips,
   buildFilmWorkspaceReadiness,
   formatFilmDurationMs,
-  normalizeFilmAspectRatio,
   readFilmAssistantCollapsedPreference,
   writeFilmAssistantCollapsedPreference,
 } from "@/lib/studio-film-workspace-shell";
@@ -145,7 +145,6 @@ export function StudioUnifiedProjectWorkspace({
     "";
   const previewVideo = workspace.exports.find((item) => item.status === "completed" && item.downloadUrl)?.downloadUrl ?? "";
   const filmDurationLabel = formatFilmDurationMs(workspace.film.durationMs);
-  const filmAspectRatio = normalizeFilmAspectRatio(workspace.film.aspectRatio);
   const showLargePreview = section === "export" && Boolean(previewVideo);
   const showCompactHero = section === "overview" && Boolean(previewImage);
   const primarySections = new Set(workflowPrimarySections(workflow));
@@ -154,6 +153,16 @@ export function StudioUnifiedProjectWorkspace({
     workspace.hcAvailable == null
       ? t("studio.workspace.v12.hcUnavailable")
       : `${workspace.hcAvailable.toLocaleString(locale)} HC`;
+  const durationFallback = workspace.film.timelineAvailable
+    ? t("studio.workspace.v12.filmDurationLoading")
+    : t("studio.workspace.v12.filmDurationUnavailable");
+  const filmHeaderMeta = buildFilmHeaderMetaChips({
+    durationLabel: filmDurationLabel
+      ? t("studio.workspace.v12.filmDuration", { duration: filmDurationLabel })
+      : null,
+    durationFallback,
+    hcLabel,
+  });
 
   const link = useMemo(() => {
     const map = new Map(workspace.links.map((item) => [item.id, item.href]));
@@ -246,19 +255,15 @@ export function StudioUnifiedProjectWorkspace({
                   className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/70"
                   data-testid="studio-v2753-film-meta"
                 >
-                  <span data-testid="studio-v2753-film-duration">
-                    {filmDurationLabel
-                      ? t("studio.workspace.v12.filmDuration", { duration: filmDurationLabel })
-                      : workspace.film.timelineAvailable
-                        ? t("studio.workspace.v12.filmDurationLoading")
-                        : t("studio.workspace.v12.filmDurationUnavailable")}
-                  </span>
-                  {filmAspectRatio ? (
-                    <span data-testid="studio-v2753-film-aspect">{filmAspectRatio}</span>
-                  ) : null}
-                  <span data-testid="studio-v2753-film-hc" data-hc-source={workspace.hcSource}>
-                    {hcLabel}
-                  </span>
+                  {filmHeaderMeta.map((chip) => (
+                    <span
+                      key={chip.id}
+                      data-testid={chip.testId}
+                      {...(chip.id === "hc" ? { "data-hc-source": workspace.hcSource } : {})}
+                    >
+                      {chip.value}
+                    </span>
+                  ))}
                 </p>
               </div>
             </div>
